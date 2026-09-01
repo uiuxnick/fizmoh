@@ -29,12 +29,6 @@ jobs:
             echo "FLUTTER_DIR=flutter_chat" >> $GITHUB_ENV
           fi
 
-      - name: Set up Java / Dependencies
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
@@ -53,7 +47,16 @@ jobs:
 
       - name: Build Windows Release Binary
         working-directory: ${{ env.FLUTTER_DIR }}
-        run: flutter build windows --release
+        run: flutter build windows --release --verbose
+
+      - name: Prepare Output Binaries
+        shell: pwsh
+        working-directory: ${{ env.FLUTTER_DIR }}
+        run: |
+          if (Test-Path "build\windows\x64\runner\Release\flutter_chat.exe") {
+            Copy-Item "build\windows\x64\runner\Release\flutter_chat.exe" -Destination "build\windows\x64\runner\Release\Fizmoh.exe" -Force
+          }
+          New-Item -ItemType Directory -Force -Path "build\windows\installer"
 
       - name: Compile Inno Setup Installer (Fizmoh-Setup.exe)
         working-directory: ${{ env.FLUTTER_DIR }}
