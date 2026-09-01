@@ -20,13 +20,19 @@ jobs:
       - name: Install Inno Setup Compiler
         run: choco install innosetup -y --no-progress
 
+      - name: Install NuGet C++ Packages (WebView2 & WIL)
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Web.WebView2 -Version 1.0.2792.45 -OutputDirectory windows_cpp/packages
+          nuget install Microsoft.Windows.ImplementationLibrary -Version 1.0.240803.1 -OutputDirectory windows_cpp/packages
+
       - name: Configure CMake (MSVC x64)
         run: |
           cmake -B windows_cpp/build -S windows_cpp -A x64
 
       - name: Build Native C++ Release Binary
         run: |
-          cmake --build windows_cpp/build --config Release --verbose
+          cmake --build windows_cpp/build --config Release
 
       - name: Compile Inno Setup Installer (Fizmoh-Setup.exe)
         run: |
