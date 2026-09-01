@@ -1,9 +1,9 @@
 ; Inno Setup script for Fizmoh Native C++ Windows Desktop Application
-; Generates standalone Fizmoh-Setup.exe installer (~3 MB)
+; Generates standalone signed Fizmoh-Setup.exe installer
 
 #define MyAppName "Fizmoh"
-#define MyAppVersion "1.1.0"
-#define MyAppPublisher "Fizmoh Cloud Platform"
+#define MyAppVersion "1.1.1"
+#define MyAppPublisher "Fizmoh Cloud Platform LLC"
 #define MyAppURL "https://app.fizmoh.cloud"
 #define MyAppExeName "Fizmoh.exe"
 
@@ -29,6 +29,12 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
+
+; Security & Authenticode Metadata
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=Fizmoh WhatsApp Cloud API & CRM Setup Installer
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

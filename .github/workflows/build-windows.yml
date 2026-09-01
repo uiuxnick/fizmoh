@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-native-cpp:
-    name: Compile Native C++ Win32 Installer (.exe)
+    name: Compile & Sign Native C++ Win32 Installer (.exe)
     runs-on: windows-latest
 
     steps:
@@ -37,9 +37,26 @@ jobs:
         run: |
           cmake --build windows_cpp/build --config Release
 
+      - name: Sign Native Executable (Authenticode SHA256)
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Fizmoh Cloud Platform LLC, O=Fizmoh Cloud Platform LLC, C=OM" -KeySpec Signature -KeyExportPolicy Exportable -KeyLength 2048 -HashAlgorithm SHA256 -CertStoreLocation "Cert:\CurrentUser\My"
+          $pwd = ConvertTo-SecureString -String "Fizmoh2026Secure!" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath "windows_cpp\FizmohCert.pfx" -Password $pwd
+          $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
+          Write-Host "Signing Fizmoh.exe with: $signtool"
+          & $signtool sign /f "windows_cpp\FizmohCert.pfx" /p "Fizmoh2026Secure!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "windows_cpp\build\Release\Fizmoh.exe"
+
       - name: Compile Inno Setup Installer (Fizmoh-Setup.exe)
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows_cpp\inno_setup.iss
+
+      - name: Sign Inno Setup Installer (Authenticode SHA256)
+        shell: pwsh
+        run: |
+          $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1).FullName
+          Write-Host "Signing Fizmoh-Setup.exe with: $signtool"
+          & $signtool sign /f "windows_cpp\FizmohCert.pfx" /p "Fizmoh2026Secure!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 "windows_cpp\build\installer\Fizmoh-Setup.exe"
 
       - name: Create Portable Zip Archive (Fizmoh-Windows.zip)
         shell: pwsh
