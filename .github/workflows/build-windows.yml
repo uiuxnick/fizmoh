@@ -39,9 +39,26 @@ jobs:
           flutter pub get
 
       - name: Build Flutter Windows Release Binary
+        id: build-step
+        shell: pwsh
         working-directory: ./flutter_chat
         run: |
-          flutter build windows --release --verbose
+          $process = Start-Process -FilePath "flutter" -ArgumentList "build", "windows", "--release", "--verbose" -NoNewWindow -PassThru -RedirectStandardOutput "build_log.txt" -RedirectStandardError "build_err.txt" -Wait
+          Get-Content "build_log.txt" -Tail 200
+          Get-Content "build_err.txt" -Tail 200
+          if ($process.ExitCode -ne 0) {
+            Write-Error "Flutter build failed with exit code $($process.ExitCode)"
+            exit $process.ExitCode
+          }
+
+      - name: Upload Build Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flutter-Windows-Build-Logs
+          path: |
+            flutter_chat/build_log.txt
+            flutter_chat/build_err.txt
 
       - name: Sign Flutter Executable (Authenticode SHA256)
         shell: pwsh
