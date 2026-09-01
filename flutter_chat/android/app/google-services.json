@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "825873549214",
+    "project_id": "fizmoh-1f55d",
+    "storage_bucket": "fizmoh-1f55d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:825873549214:android:9595f8d3bf48b2f7ecf88f",
+        "android_client_info": {
+          "package_name": "app.fizmoh.inbox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZASSQ4c3ND4iM1DrClhTyRoKjxcxTAzE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

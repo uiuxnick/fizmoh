@@ -1,0 +1,75 @@
+name: flutter_chat
+description: FizMoh — realtime WhatsApp inbox for web, mobile and desktop.
+publish_to: 'none'
+version: 1.1.0+9
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Deliberately few. Every package here is one more thing that can break a
+  # release, and a chat client needs less than it looks like it does.
+  http: ^1.2.0
+  # Used directly to set a multipart part's content type.
+  http_parser: ^4.0.2
+  provider: ^6.1.2
+  shared_preferences: ^2.2.2
+  intl: ^0.19.0
+  file_picker: ^8.1.2
+  image_picker: ^1.1.2
+  geolocator: ^13.0.1
+  record: 6.1.1
+  path_provider: ^2.1.4
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  url_launcher: ^6.3.0
+  audioplayers: ^6.0.0
+
+  # Media that has already been downloaded is not downloaded again. Payment
+  # receipts are the reason: an agent scrolling the approvals list refetched
+  # every screenshot on every scroll and on every launch.
+  cached_network_image: ^3.4.1
+
+  # The build number as the store sees it, so the app can be told it is too old
+  # to talk to the server. Read from the bundle rather than from a build flag,
+  # because a flag is something a release can forget to pass.
+  package_info_plus: ^8.0.2
+
+  # Crashes from real installs. Without this a TestFlight crash is silent — the
+  # only way one was ever found was by reproducing it by hand.
+  sentry_flutter: ^8.9.0
+
+  # Sign in with Google and with Apple. Both hand back an identity token that
+  # the server verifies against the provider's published keys.
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.3
+
+  # The audio leg of a WhatsApp call. The device is the WebRTC endpoint —
+  # there is no media server in the middle.
+  flutter_webrtc: ^0.12.5
+
+  # Web-only APIs — EventSource and Notification — reached through
+  # dart:js_interop. dart:html is gone in this Flutter version.
+  web: ^1.1.0
+
+dev_dependencies:
+  # A real SQLite engine on the desktop, so the cache and the outbox can be
+  # tested for what they are actually for: surviving a process that dies.
+  sqflite_common_ffi: ^2.3.3
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo.png
+    - assets/logo-light.png
+    - assets/mark.png
+    - assets/mascot.png
+    - assets/icon.png
