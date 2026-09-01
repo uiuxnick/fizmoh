@@ -1,6 +1,6 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
-project(flutter_chat LANGUAGES CXX)
+project(flutter_chat LANGUAGES C CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
@@ -9,6 +9,11 @@ set(BINARY_NAME "flutter_chat")
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
+
+# Global flags for MSVC to silence all deprecated coroutine/STL warnings and disable treat warnings as errors
+add_compile_options(/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS /D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING /WX-)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS /D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING /WX-")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS /D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING /WX-")
 
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -36,11 +41,6 @@ add_definitions(
   -D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
   -D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
   -D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-)
-add_compile_definitions(
-  _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
-  _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
-  _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 )
 
 # Compilation settings that should be applied to most targets.

@@ -32,6 +32,13 @@ jobs:
       - name: Install Inno Setup Compiler
         run: choco install innosetup -y --no-progress
 
+      - name: Set Global MSVC Deprecation Suppression
+        shell: pwsh
+        run: |
+          [System.Environment]::SetEnvironmentVariable('_CL_', '/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS /D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING', [System.EnvironmentVariableTarget]::Machine)
+          [System.Environment]::SetEnvironmentVariable('CL', '/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS /D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING', [System.EnvironmentVariableTarget]::Machine)
+          Write-Host "Set global MSVC flags successfully."
+
       - name: Clean & Install Flutter Dependencies
         working-directory: ./flutter_chat
         run: |
