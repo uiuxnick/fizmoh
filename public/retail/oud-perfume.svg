@@ -1,0 +1,49 @@
+<svg width="600" height="400" viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="400" rx="16" fill="#111827"/>
+  <defs>
+    <radialGradient id="oudGlow" cx="0.5" cy="0.4" r="0.5">
+      <stop offset="0%" stop-color="#D97706" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldCap" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="50%" stop-color="#FEF08A"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="glassBottle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#78350F" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#451A03" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#oudGlow)"/>
+  
+  <!-- Outer Box Shadow & Border -->
+  <rect x="20" y="20" width="560" height="360" rx="12" stroke="#374151" stroke-width="1.5" stroke-dasharray="4 4"/>
+  
+  <!-- Perfume Bottle Graphic -->
+  <g transform="translate(240, 70)">
+    <!-- Cap -->
+    <rect x="35" y="10" width="50" height="45" rx="6" fill="url(#goldCap)"/>
+    <rect x="42" y="55" width="36" height="12" rx="3" fill="#D97706"/>
+    
+    <!-- Bottle Body -->
+    <path d="M 20 67 L 100 67 L 115 110 L 115 220 C 115 230 105 240 95 240 L 25 240 C 15 240 5 230 5 220 L 5 110 Z" fill="url(#glassBottle)" stroke="#F59E0B" stroke-width="2"/>
+    
+    <!-- Label -->
+    <rect x="25" y="115" width="70" height="85" rx="6" fill="#18181B" stroke="#F59E0B" stroke-width="1.5"/>
+    <text x="60" y="145" fill="#FDE68A" font-family="system-ui, sans-serif" font-size="10" font-weight="bold" text-anchor="middle" letter-spacing="2">ROYAL</text>
+    <text x="60" y="165" fill="#F59E0B" font-family="system-ui, sans-serif" font-size="14" font-weight="900" text-anchor="middle">OUD</text>
+    <text x="60" y="185" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="8" text-anchor="middle">100ml · Extrait</text>
+  </g>
+
+  <!-- Typography & Pricing Badge -->
+  <rect x="40" y="45" width="130" height="32" rx="16" fill="#00E785" fill-opacity="0.15" stroke="#00E785" stroke-width="1.5"/>
+  <text x="105" y="66" fill="#00E785" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">In Stock (3 units)</text>
+
+  <rect x="430" y="45" width="130" height="32" rx="16" fill="#1F2937" stroke="#374151" stroke-width="1.5"/>
+  <text x="495" y="66" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="13" font-weight="900" text-anchor="middle">45.000 OMR</text>
+
+  <!-- Product Details Banner -->
+  <rect x="50" y="320" width="500" height="42" rx="8" fill="#1F2937" stroke="#374151"/>
+  <text x="300" y="346" fill="#E5E7EB" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">Royal Arabic Oud Gift Set · Free Express Delivery in Muscat 🚚</text>
+</svg>

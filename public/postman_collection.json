@@ -1,0 +1,292 @@
+{
+	"info": {
+		"_postman_id": "fizmoh-platform-api-v1",
+		"name": "Fizmoh Platform REST API Collection",
+		"description": "Complete professional API documentation and request collection for Fizmoh multi-tenant platform. Connect external systems, mobile apps, WhatsApp messaging, CRM, Appointments with Google Meet, and Restaurant POS.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{API_KEY}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "https://app.fizmoh.cloud",
+			"type": "string"
+		},
+		{
+			"key": "API_KEY",
+			"value": "fz_live_your_api_key_here",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Tours & Packages",
+			"item": [
+				{
+					"name": "Get All Tours & Packages",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/external/v1/tours",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "external", "v1", "tours"]
+						},
+						"description": "Retrieve all published tour packages, prices, availability, and descriptions for the active workspace."
+					}
+				}
+			]
+		},
+		{
+			"name": "2. CRM & Customers",
+			"item": [
+				{
+					"name": "List Customers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/external/v1/customers",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "external", "v1", "customers"]
+						},
+						"description": "List all contacts and customers saved in your CRM."
+					}
+				},
+				{
+					"name": "Create / Upsert Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Sultan Al-Omani\",\n  \"phone\": \"+96891234567\",\n  \"email\": \"sultan@example.com\",\n  \"notes\": \"VIP client interested in desert safari and luxury packages\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/external/v1/customers",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "external", "v1", "customers"]
+						},
+						"description": "Add a new customer or update an existing contact by phone number."
+					}
+				}
+			]
+		},
+		{
+			"name": "3. WhatsApp Messaging & Meta Catalog",
+			"item": [
+				{
+					"name": "Send WhatsApp Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to\": \"+96891234567\",\n  \"type\": \"text\",\n  \"text\": \"Hello! Thank you for booking with us. Your reservation has been confirmed.\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/external/v1/whatsapp/send",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "external", "v1", "whatsapp", "send"]
+						},
+						"description": "Send a direct WhatsApp message to any customer via your connected Meta WhatsApp account."
+					}
+				},
+				{
+					"name": "Sync Local Items to Meta Catalog",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"catalogId\": \"1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/whatsapp/catalog/sync",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "whatsapp", "catalog", "sync"]
+						},
+						"description": "Sync local menu dishes and tour packages directly into your Meta Commerce Catalog."
+					}
+				},
+				{
+					"name": "Send Interactive WhatsApp Catalog Showcase",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to\": \"+96891234567\",\n  \"catalogId\": \"1234567890\",\n  \"type\": \"multi\",\n  \"headerText\": \"🍕 Gourmet Menu & Tours\",\n  \"bodyText\": \"Browse our live items and order directly inside WhatsApp!\",\n  \"sections\": [\n    {\n      \"title\": \"Popular Dishes\",\n      \"productItems\": [\n        { \"productRetailerId\": \"dish_clxyz01\" },\n        { \"productRetailerId\": \"dish_clxyz02\" }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/whatsapp/catalog/send",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "whatsapp", "catalog", "send"]
+						},
+						"description": "Send interactive Multi-Product Catalog showcase cards to a customer's WhatsApp chat."
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Bookings & Orders",
+			"item": [
+				{
+					"name": "List Bookings / Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/orders",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "orders"]
+						},
+						"description": "Fetch all booking orders, payment statuses, and customer details."
+					}
+				},
+				{
+					"name": "Create Tour Booking",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tourId\": \"cm...\",\n  \"customerName\": \"Mohammed Al-Harthy\",\n  \"customerPhone\": \"+96898765432\",\n  \"customerEmail\": \"mohammed@example.com\",\n  \"guests\": 2,\n  \"bookingDate\": \"2026-09-01\",\n  \"totalAmount\": 120.000\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/orders",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "orders"]
+						},
+						"description": "Create a new tour booking."
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Appointments & Google Meet",
+			"item": [
+				{
+					"name": "List Appointments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/appointments",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "appointments"]
+						},
+						"description": "Get all scheduled consultations and their auto-generated Google Meet URLs."
+					}
+				},
+				{
+					"name": "Book Appointment with Google Meet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Sarah Jenkins\",\n  \"email\": \"sarah@example.com\",\n  \"phone\": \"+96891112223\",\n  \"service\": \"Strategy Consultation\",\n  \"scheduledAt\": \"2026-08-20T10:00:00+04:00\",\n  \"durationMins\": 45\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/appointments",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "appointments"]
+						},
+						"description": "Schedule an appointment. If Google account is connected, automatically creates a Google Calendar event and Google Meet video room."
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Restaurant & POS",
+			"item": [
+				{
+					"name": "Get Menu & Addons",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/restaurant/menu",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "restaurant", "menu"]
+						},
+						"description": "Fetch all restaurant menu categories, dishes, photos, prices, and available addons."
+					}
+				},
+				{
+					"name": "Create POS Kitchen Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tableNumber\": \"T-02\",\n  \"orderType\": \"DINE_IN\",\n  \"customerName\": \"Ali Al-Raisi\",\n  \"items\": [\n    {\n      \"name\": \"Truffle Mushroom & Mozzarella Pizza\",\n      \"price\": 6.500,\n      \"qty\": 1,\n      \"addons\": [{ \"name\": \"Extra Buffalo Mozzarella\", \"price\": 0.800 }]\n    }\n  ],\n  \"totalAmount\": 7.300,\n  \"specialNotes\": \"No onions please\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/restaurant/orders",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "restaurant", "orders"]
+						},
+						"description": "Place a POS order directly into the Kitchen Display System (KDS)."
+					}
+				},
+				{
+					"name": "Get Dining Tables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{API_KEY}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/restaurant/tables",
+							"host": ["{{BASE_URL}}"],
+							"path": ["api", "restaurant", "tables"]
+						},
+						"description": "Fetch all dining floor tables and their real-time statuses (AVAILABLE, OCCUPIED, RESERVED, DIRTY)."
+					}
+				}
+			]
+		}
+	]
+}

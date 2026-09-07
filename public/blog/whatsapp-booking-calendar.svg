@@ -1,0 +1,63 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" rx="24" fill="#0B0F17"/>
+  <defs>
+    <pattern id="gridBk" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="1" stroke-opacity="0.6"/>
+    </pattern>
+    <linearGradient id="cardBgBk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#gridBk)" opacity="0.8"/>
+  <circle cx="250" cy="180" r="180" fill="#00E785" fill-opacity="0.1" filter="blur(80px)"/>
+  <circle cx="950" cy="450" r="180" fill="#00E785" fill-opacity="0.12" filter="blur(90px)"/>
+
+  <!-- Brand Badges -->
+  <rect x="60" y="50" width="180" height="42" rx="21" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <circle cx="82" cy="71" r="10" fill="#00E785"/>
+  <text x="102" y="77" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" letter-spacing="1">FIZMOH CLOUD</text>
+
+  <rect x="255" y="50" width="240" height="42" rx="21" fill="#00E785" fill-opacity="0.15" stroke="#00E785" stroke-width="1.5"/>
+  <text x="275" y="76" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700">80% Less No-Shows</text>
+
+  <!-- Title -->
+  <text x="60" y="145" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" letter-spacing="-0.5">WhatsApp Booking &amp; Scheduling Engine</text>
+  <text x="60" y="185" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Live Slot Calendar · Upfront Deposit Checkout · Automated 24h &amp; 2h Reminders</text>
+
+  <!-- Step 1: Live Slots -->
+  <rect x="60" y="240" width="330" height="320" rx="16" fill="url(#cardBgBk)" stroke="#334155" stroke-width="2"/>
+  <text x="84" y="280" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">1. Instant Slot Booking</text>
+  <rect x="84" y="305" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="333" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">📅 Live Google Calendar Sync</text>
+  <rect x="84" y="360" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="388" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">👨‍⚕️ Doctor / Specialist Picker</text>
+  <rect x="84" y="415" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="443" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🔒 Slot Lock During Checkout</text>
+  <rect x="84" y="470" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="498" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">✓ Under 60-Second Completion</text>
+
+  <!-- Step 2: Payment Deposit -->
+  <rect x="435" y="220" width="330" height="350" rx="18" fill="#0F172A" stroke="#00E785" stroke-width="2.5"/>
+  <text x="459" y="265" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900">2. Deposit &amp; Voucher</text>
+  <rect x="459" y="295" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="325" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">💳 Card Deposit in OMR (AmwalPay)</text>
+  <rect x="459" y="355" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="385" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🎫 Digital QR Booking Voucher</text>
+  <rect x="459" y="415" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="445" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">📲 1-Tap Apple / Google Calendar</text>
+  <rect x="459" y="475" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="505" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">✓ Guaranteed Slot Commitment</text>
+
+  <!-- Step 3: Automated Reminders -->
+  <rect x="810" y="240" width="330" height="320" rx="16" fill="url(#cardBgBk)" stroke="#334155" stroke-width="2"/>
+  <text x="834" y="280" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">3. Reminder Flow</text>
+  <rect x="834" y="305" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="333" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🔔 24-Hour WhatsApp Reminder</text>
+  <rect x="834" y="360" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="388" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🗺️ 2-Hour Clinic / Tour GPS Pin</text>
+  <rect x="834" y="415" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="443" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🔄 1-Tap In-Chat Reschedule</text>
+  <rect x="834" y="470" width="282" height="44" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="498" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">✓ 80% Reduction in Missed Slots</text>
+</svg>

@@ -1,0 +1,4 @@
+Nunito (Regular, Bold) — SIL Open Font License 1.1
+https://openfontlicense.org
+Font family by Vernon Adams, Cyreal, Jacques Le Bailly. Google Fonts.
+Bundled for use inside generated PDFs (invoices).

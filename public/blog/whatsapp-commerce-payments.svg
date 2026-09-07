@@ -1,0 +1,75 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" rx="24" fill="#0B0F17"/>
+  <defs>
+    <pattern id="gridComm" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="1" stroke-opacity="0.6"/>
+    </pattern>
+    <linearGradient id="cardBgComm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#gridComm)" opacity="0.8"/>
+  <circle cx="200" cy="200" r="180" fill="#00E785" fill-opacity="0.1" filter="blur(80px)"/>
+  <circle cx="1000" cy="400" r="180" fill="#00E785" fill-opacity="0.1" filter="blur(90px)"/>
+
+  <!-- Brand Badges -->
+  <rect x="60" y="50" width="180" height="42" rx="21" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <circle cx="82" cy="71" r="10" fill="#00E785"/>
+  <text x="102" y="77" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" letter-spacing="1">FIZMOH CLOUD</text>
+
+  <rect x="255" y="50" width="220" height="42" rx="21" fill="#00E785" fill-opacity="0.15" stroke="#00E785" stroke-width="1.5"/>
+  <text x="275" y="76" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700">Native AmwalPay (OMR)</text>
+
+  <!-- Main Title -->
+  <text x="60" y="145" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" letter-spacing="-0.5">WhatsApp Commerce &amp; Payment Gateway</text>
+  <text x="60" y="185" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">WooCommerce Sync · In-Chat Cart · AmwalPay Card Settlement · PDF Invoices</text>
+
+  <!-- Step 1: Catalog & In-Chat Cart -->
+  <rect x="60" y="240" width="330" height="320" rx="16" fill="url(#cardBgComm)" stroke="#334155" stroke-width="2"/>
+  <rect x="84" y="264" width="48" height="48" rx="12" fill="#00E785" fill-opacity="0.2"/>
+  <text x="96" y="296" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900">🛒</text>
+  <text x="144" y="294" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">Catalog &amp; Cart</text>
+  
+  <rect x="84" y="325" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="355" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">📦 Meta Product Collections</text>
+  
+  <rect x="84" y="385" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="415" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🔄 WooCommerce Live Stock</text>
+  
+  <rect x="84" y="445" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="100" y="475" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🛍️ 1-Tap In-Chat Order Submission</text>
+
+  <!-- Step 2: AmwalPay Gateway Engine -->
+  <rect x="435" y="220" width="330" height="350" rx="18" fill="#0F172A" stroke="#00E785" stroke-width="2.5"/>
+  <rect x="459" y="244" width="48" height="48" rx="12" fill="#00E785"/>
+  <text x="473" y="278" fill="#000000" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900">💳</text>
+  <text x="519" y="274" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900">AmwalPay Engine</text>
+  
+  <rect x="459" y="315" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="345" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">🔒 Encrypted OMR Checkout Link</text>
+  
+  <rect x="459" y="375" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="405" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">💳 Debit / Visa / Mastercard</text>
+  
+  <rect x="459" y="435" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="465" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">⚡ Signed SHA-256 Webhook</text>
+
+  <rect x="459" y="495" width="282" height="48" rx="8" fill="#1E293B" stroke="#334155"/>
+  <text x="475" y="525" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700">✓ Instant PAID State Mutation</text>
+
+  <!-- Step 3: Fulfillment & Invoicing -->
+  <rect x="810" y="240" width="330" height="320" rx="16" fill="url(#cardBgComm)" stroke="#334155" stroke-width="2"/>
+  <rect x="834" y="264" width="48" height="48" rx="12" fill="#00E785" fill-opacity="0.2"/>
+  <text x="847" y="296" fill="#00E785" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900">📄</text>
+  <text x="894" y="294" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">Fulfillment &amp; Post</text>
+  
+  <rect x="834" y="325" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="355" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">📑 Branded PDF Tax Invoices</text>
+  
+  <rect x="834" y="385" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="415" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">🚚 Dispatch &amp; Live Map Link</text>
+  
+  <rect x="834" y="445" width="282" height="48" rx="8" fill="#0F172A" stroke="#334155"/>
+  <text x="850" y="475" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">⭐ 5-Star Feedback Review Flow</text>
+</svg>
