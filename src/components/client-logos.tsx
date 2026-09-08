@@ -67,6 +67,8 @@ function LogoTile({ client }: { client: { file: string; name: string } }) {
         src={`/clients/${client.file}`}
         alt={client.name}
         loading="lazy"
+        width={136}
+        height={60}
         className="max-h-full max-w-full object-contain"
       />
     </div>

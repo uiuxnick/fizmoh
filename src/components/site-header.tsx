@@ -719,7 +719,7 @@ export function SiteHeader() {
           <Link href="/signup">
             <Button
               size="sm"
-              className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[12.5px] font-bold px-4 transition shadow-xs flex items-center gap-1.5"
+              className="h-9 rounded-lg bg-[#047857] hover:bg-[#065f46] text-white text-[12.5px] font-bold px-4 transition shadow-xs flex items-center gap-1.5"
             >
               <span>{isAr ? "ابدأ مجاناً" : "Sign Up Free"}</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -881,9 +881,9 @@ export function SiteFooter() {
 
           {/* Navigation Links */}
           <div className="md:col-span-2 space-y-3">
-            <h4 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
+            <h3 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
               {isAr ? "المنصة" : "Platform"}
-            </h4>
+            </h3>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/features" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "المميزات" : "Features"}</Link></li>
               <li><Link href="/product/smart-menu-ordering" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "المنيو الذكي والطلبات" : "Smart Menu & Ordering"}</Link></li>
@@ -897,9 +897,9 @@ export function SiteFooter() {
           </div>
 
           <div className="md:col-span-3 space-y-3">
-            <h4 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
+            <h3 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
               {isAr ? "القطاعات" : "Industries"}
-            </h4>
+            </h3>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/solutions/restaurants-dining" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "المطاعم والمقاهي" : "Restaurants & Cafes"}</Link></li>
               <li><Link href="/solutions/ecommerce-online-stores" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "المتاجر والتجزئة" : "Ecommerce & Retail"}</Link></li>
@@ -910,9 +910,9 @@ export function SiteFooter() {
           </div>
 
           <div className="md:col-span-2 space-y-3">
-            <h4 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
+            <h3 className="text-[12.5px] font-extrabold uppercase tracking-wider text-[#000000]">
               {isAr ? "الشركة" : "Company"}
-            </h4>
+            </h3>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/contact" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "اتصل بنا" : "Contact Desk"}</Link></li>
               <li><a href="/downloads/" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "تحميل التطبيقات" : "Download Apps"}</a></li>

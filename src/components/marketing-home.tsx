@@ -384,7 +384,7 @@ export default function MarketingHome() {
                       <item.icon className="h-5 w-5" />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-[16px] font-bold text-[var(--mk-ink)]">{isAr ? item.titleAr : item.titleEn}</h4>
+                      <h3 className="text-[16px] font-bold text-[var(--mk-ink)]">{isAr ? item.titleAr : item.titleEn}</h3>
                       <p className="text-[14px] leading-relaxed text-[var(--mk-muted)]">{isAr ? item.descAr : item.descEn}</p>
                     </div>
                   </div>
@@ -1217,6 +1217,9 @@ export default function MarketingHome() {
             src="/invoice/footer.png"
             alt=""
             aria-hidden="true"
+            width={300}
+            height={293}
+            loading="lazy"
             className="pointer-events-none absolute -bottom-10 right-[6%] z-0 hidden w-[220px] opacity-95 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] lg:block"
           />
           <Reveal className="relative z-10 mx-auto max-w-4xl space-y-7 text-center">

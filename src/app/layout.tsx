@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import Script from "next/script"
-import { DM_Sans } from "next/font/google"
+import { DM_Sans, Plus_Jakarta_Sans, Instrument_Serif, Cairo } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
@@ -16,6 +16,28 @@ const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
+  display: "swap",
+})
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+})
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  display: "swap",
+})
+
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
 })
 
@@ -93,7 +115,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} font-[family-name:var(--font-dm-sans)] antialiased bg-white text-[#1D1D1D]`}>
+      <body className={`${dmSans.variable} ${plusJakartaSans.variable} ${instrumentSerif.variable} ${cairo.variable} font-[family-name:var(--font-dm-sans)] antialiased bg-white text-[#1D1D1D]`}>
         <AnalyticsScripts />
         <SeoStructuredData />
         <LanguageProvider>

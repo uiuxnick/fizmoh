@@ -32,11 +32,6 @@ export function AnalyticsScripts() {
 
   return (
     <>
-      {/* Google Search Console verification meta tag */}
-      {googleSiteVerification && (
-        <meta name="google-site-verification" content={googleSiteVerification} />
-      )}
-
       {/* Google Tag Manager (GTM) */}
       {gtmId && (
         <>

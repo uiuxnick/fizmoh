@@ -524,10 +524,12 @@ export function WhatsAppDemo({
               value={interactiveInput}
               onChange={(e) => setInteractiveInput(e.target.value)}
               placeholder={isAr ? "اكتب رسالة للتجربة..." : "Type test message (e.g. SEO, Book)..."}
+              aria-label={isAr ? "اكتب رسالة للتجربة" : "Type a test message"}
               className="flex-1 bg-[#2a3942] text-white placeholder:text-[#8696a0] rounded-full px-3 py-1.5 text-[11px] border-0 focus:outline-none"
             />
             <button
               type="submit"
+              aria-label={isAr ? "إرسال الرسالة" : "Send message"}
               className="h-7 w-7 rounded-full bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] flex items-center justify-center cursor-pointer font-bold shrink-0"
             >
               <Send className="h-3 w-3" />

@@ -27,13 +27,25 @@ export function Brand({
     xl: "h-20 sm:h-24",
   }
 
+  const dims = {
+    sm: { width: 92, height: 36 },
+    md: { width: 113, height: 44 },
+    lg: { width: 144, height: 56 },
+    xl: { width: 205, height: 80 },
+  }
+
   const inner = (
     <span className="inline-flex items-center">
-      <img
-        src="/brand/fizmoh-mascot-logo.png"
-        alt="Fizmoh — Automate, Connect, Grow"
-        className={`${heights[size]} w-auto max-h-full object-contain shrink-0 ${className}`}
-      />
+      <picture>
+        <source srcSet="/brand/fizmoh-mascot-logo.webp" type="image/webp" />
+        <img
+          src="/brand/fizmoh-mascot-logo.png"
+          alt="Fizmoh — Automate, Connect, Grow"
+          width={dims[size].width}
+          height={dims[size].height}
+          className={`${heights[size]} w-auto max-h-full object-contain shrink-0 ${className}`}
+        />
+      </picture>
     </span>
   )
 

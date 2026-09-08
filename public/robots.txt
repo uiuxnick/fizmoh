@@ -1,0 +1,83 @@
+User-Agent: *
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: Applebot-Extended
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: Bingbot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+User-Agent: facebookexternalhit
+Allow: /
+Allow: /api/media/
+Disallow: /api/
+Disallow: /platform
+Disallow: /join/
+Disallow: /preview/
+Disallow: /booking/
+
+Host: app.fizmoh.cloud
+Sitemap: https://app.fizmoh.cloud/sitemap.xml
