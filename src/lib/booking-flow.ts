@@ -128,10 +128,16 @@ export function isFlowTrigger(text: string): boolean {
 
 export function isFlowReply(id?: string | null): boolean {
   if (!id) return false
-  return id.startsWith(PREFIX) || id.startsWith("tour_") || id.startsWith("slot_")
+  return (
+    id.startsWith(PREFIX) ||
+    id.startsWith("tour_") ||
+    id.startsWith("slot_") ||
+    id.startsWith("train_") ||
+    id.includes("train_")
+  )
 }
 
-async function setState(conversationId: string, state: BookingState | null) {
+export async function setState(conversationId: string, state: BookingState | null) {
   await db.conversation.update({
     where: { id: conversationId },
     // Prisma treats `undefined` as "leave unchanged" — clearing a Json column
@@ -1069,9 +1075,25 @@ export async function handleBookingReply(
     await showTours(ctx)
     return true
   }
+  if (id.startsWith("train_")) {
+    const { handleTrainingReply } = await import("@/lib/training-flow")
+    return handleTrainingReply(ctx, id)
+  }
   if (id.startsWith("cat_")) {
     const shortcuts = await menuShortcuts()
-    await showTours(ctx, shortcuts[Number(id.slice(4))])
+    const shortcut = shortcuts[Number(id.slice(4))]
+    if (
+      shortcut &&
+      (shortcut.category?.toLowerCase() === "education" ||
+        shortcut.title?.toLowerCase().includes("train") ||
+        shortcut.category?.toLowerCase().includes("train") ||
+        shortcut.title?.includes("تدريب"))
+    ) {
+      const { startTrainingFlow } = await import("@/lib/training-flow")
+      await startTrainingFlow(ctx)
+      return true
+    }
+    await showTours(ctx, shortcut)
     return true
   }
   if (id === "search") {
@@ -1279,6 +1301,10 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
   const ctx = await withLang(rawCtx, text)
   const ttxt = L(ctx)
   const state = await getState(ctx.conversationId)
+  if ((state as any)?.flowType === "TRAINING") {
+    const { handleTrainingText } = await import("@/lib/training-flow")
+    return handleTrainingText(ctx, text)
+  }
   if (!state) return false
 
   if (state.step === "AWAITING_CUSTOM_DATE") {

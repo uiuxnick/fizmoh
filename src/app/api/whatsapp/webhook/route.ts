@@ -862,6 +862,11 @@ async function processMessage(msg: any, contact: any) {
         if (await handleVisaReply(flowCtx, replyId!)) return
       }
 
+      const { isTrainingReply, handleTrainingReply } = await import("@/lib/training-flow")
+      if (isTrainingReply(replyId)) {
+        if (await handleTrainingReply(flowCtx, replyId!)) return
+      }
+
       if (isFlowReply(replyId)) {
         if (await handleBookingReply(flowCtx, replyId!)) return
       }
@@ -982,6 +987,11 @@ async function processMessage(msg: any, contact: any) {
         if (await handleAppointmentText(flowCtx, content)) return
         if (await handleVisaText(flowCtx, content)) return
         if (await handleBookingText(flowCtx, content)) return
+
+        const { isTrainingTrigger, startTrainingFlow } = await import("@/lib/training-flow")
+        if (isTrainingTrigger(content)) {
+          if (await startTrainingFlow(flowCtx)) return
+        }
 
         if (isMarketingTrigger(content)) {
           if (await startMarketingFlow(flowCtx)) return
