@@ -1060,6 +1060,21 @@ async function createOrder(ctx: FlowContext, method: "BANK_TRANSFER" | "AMWALPAY
   // booking still holds a seat and a guide still needs to know about it.
   void syncOrderToCalendar(order.id)
 
+  // Dispatch WhatsApp alert to configured admin numbers
+  import("@/lib/admin-booking-notifications").then(({ notifyAdminWhatsAppBooking }) => {
+    void notifyAdminWhatsAppBooking({
+      tenantId: ctx.tenantId,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      customerPhone: ctx.phone,
+      serviceName: `🎫 Tour: ${tour.name}`,
+      dateTime: `${slot.date ? new Date(slot.date).toLocaleDateString() : ""} ${slot.startTime || ""}`.trim(),
+      totalAmount: total,
+      bookingType: "tour",
+      specialDetails: `Seats: ${seats} (${state.pax} adults${children ? `, ${children} children` : ""})`,
+    }).catch((err) => console.error("Admin tour alert dispatch error:", err))
+  }).catch(() => null)
+
   return { order, tour, slot, total }
 }
 

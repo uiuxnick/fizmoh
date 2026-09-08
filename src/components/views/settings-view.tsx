@@ -21,7 +21,7 @@ import {
   Shield, Building2, Clock, Percent, Phone, Languages,
   CheckCircle2, AlertTriangle, Lock, Copy, RefreshCw, ExternalLink,
   Sparkles, Zap, XCircle, KeyRound, Loader2, Plus, Trash2,
-  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook,
+  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
@@ -1285,6 +1285,7 @@ export default function SettingsView() {
 
         {/* Notifications */}
         <TabsContent value="notifications" className="mt-4 space-y-4">
+          <BookingAlertNumbersSection />
           <NotificationPrefs />
         </TabsContent>
 
@@ -1561,6 +1562,279 @@ function NotificationPrefs() {
             <Switch checked={type.enabled} onCheckedChange={v => toggle(type.key, v)} />
           </div>
         ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface BookingRecipient {
+  id: string
+  name: string
+  phone: string
+  bookingType: "all" | "tour" | "training"
+  active: boolean
+}
+
+function BookingAlertNumbersSection() {
+  const [recipients, setRecipients] = useState<BookingRecipient[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [testingId, setTestingId] = useState<string | null>(null)
+  const [newName, setNewName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [newType, setNewType] = useState<"all" | "tour" | "training">("all")
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        const raw = d.settings?.booking_notification_recipients
+        if (Array.isArray(raw) && raw.length > 0) {
+          setRecipients(raw)
+        } else if (d.settings?.booking_admin_phones) {
+          const phones = typeof d.settings.booking_admin_phones === "string"
+            ? d.settings.booking_admin_phones.split(/[\n,;]+/).map((s: string) => s.trim()).filter(Boolean)
+            : Array.isArray(d.settings.booking_admin_phones)
+            ? d.settings.booking_admin_phones
+            : []
+          setRecipients(
+            phones.map((p: string, i: number) => ({
+              id: `phone-${i}`,
+              name: `Admin ${i + 1}`,
+              phone: p,
+              bookingType: "all",
+              active: true,
+            }))
+          )
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const saveRecipients = async (updated: BookingRecipient[]) => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_notification_recipients: updated,
+          booking_admin_phones: updated.map((r) => r.phone),
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to save settings")
+      setRecipients(updated)
+      toast.success("Booking notification numbers updated")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAdd = () => {
+    if (!newPhone.trim()) {
+      toast.error("Please enter a phone number")
+      return
+    }
+    let cleaned = newPhone.replace(/[^\d+]/g, "").trim()
+    if (!cleaned.startsWith("+")) {
+      if (cleaned.startsWith("968") && cleaned.length >= 11) cleaned = `+${cleaned}`
+      else if (cleaned.length === 8 && /^[79]/.test(cleaned)) cleaned = `+968${cleaned}`
+      else cleaned = `+${cleaned}`
+    }
+
+    const newItem: BookingRecipient = {
+      id: `rec_${Date.now()}`,
+      name: newName.trim() || `Admin ${recipients.length + 1}`,
+      phone: cleaned,
+      bookingType: newType,
+      active: true,
+    }
+
+    const updated = [...recipients, newItem]
+    saveRecipients(updated)
+    setNewName("")
+    setNewPhone("")
+    setNewType("all")
+  }
+
+  const handleDelete = (id: string) => {
+    const updated = recipients.filter((r) => r.id !== id)
+    saveRecipients(updated)
+  }
+
+  const handleToggle = (id: string, active: boolean) => {
+    const updated = recipients.map((r) => (r.id === id ? { ...r, active } : r))
+    saveRecipients(updated)
+  }
+
+  const handleTestAlert = async (r: BookingRecipient) => {
+    setTestingId(r.id)
+    try {
+      const res = await fetch("/api/settings/test-booking-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: r.phone, bookingType: r.bookingType }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to send test alert")
+      toast.success(`Test WhatsApp alert sent to ${r.phone}!`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Test alert failed")
+    } finally {
+      setTestingId(null)
+    }
+  }
+
+  const TYPE_BADGES = {
+    all: { label: "All Bookings (Tours & Training)", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    tour: { label: "Tours Only", color: "bg-sky-50 text-sky-700 border-sky-200" },
+    training: { label: "Training Only", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-base flex items-center gap-2">
+              <WhatsAppIcon className="h-4.5 w-4.5" />
+              WhatsApp Booking Notification Numbers
+            </CardTitle>
+            <p className="text-xs text-stone-500">
+              Configure multiple admin and staff mobile numbers to receive instant WhatsApp alerts when customers book tours or training sessions.
+            </p>
+          </div>
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+            {recipients.filter((r) => r.active).length} Active Alerts
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* New Recipient Form */}
+        <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 space-y-3">
+          <div className="font-semibold text-xs text-stone-800 uppercase tracking-wider">
+            Add New Notification Number
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            <div className="sm:col-span-4 space-y-1">
+              <Label className="text-xs text-stone-600">Contact / Role Name</Label>
+              <Input
+                placeholder="e.g. Main Admin, Coach Nouf, Desk"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="bg-white text-xs h-9"
+              />
+            </div>
+            <div className="sm:col-span-4 space-y-1">
+              <Label className="text-xs text-stone-600">WhatsApp Mobile Number</Label>
+              <Input
+                placeholder="+968 9200 9161"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                className="bg-white text-xs h-9 font-mono"
+              />
+            </div>
+            <div className="sm:col-span-3 space-y-1">
+              <Label className="text-xs text-stone-600">Booking Types</Label>
+              <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
+                <SelectTrigger className="bg-white text-xs h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Bookings</SelectItem>
+                  <SelectItem value="tour">Tours Only</SelectItem>
+                  <SelectItem value="training">Training Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-1">
+              <Button
+                type="button"
+                onClick={handleAdd}
+                disabled={saving || !newPhone.trim()}
+                className="w-full h-9 bg-[#00E785] hover:bg-[#00B96A] text-stone-900 font-semibold px-0 text-xs shadow-none border border-emerald-600/20"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : <Plus className="h-4 w-4 mx-auto" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recipients List */}
+        <div className="space-y-2">
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-lg" />
+              ))}
+            </div>
+          ) : recipients.length === 0 ? (
+            <div className="text-center py-6 border border-dashed rounded-lg bg-stone-50/50">
+              <Phone className="h-6 w-6 text-stone-400 mx-auto mb-1.5 opacity-60" />
+              <p className="text-xs text-stone-600 font-medium">No notification numbers configured yet.</p>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                Add an admin or coach mobile number above to begin receiving booking alerts on WhatsApp.
+              </p>
+            </div>
+          ) : (
+            recipients.map((r) => {
+              const badge = TYPE_BADGES[r.bookingType] || TYPE_BADGES.all
+              const isTesting = testingId === r.id
+              return (
+                <div
+                  key={r.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-stone-200 bg-white hover:border-stone-300 transition gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                      <Phone className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-stone-900 truncate">{r.name}</span>
+                        <Badge variant="outline" className={`text-[10px] py-0 ${badge.color}`}>
+                          {badge.label}
+                        </Badge>
+                      </div>
+                      <div className="text-xs font-mono text-stone-500">{r.phone}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTestAlert(r)}
+                      disabled={isTesting}
+                      className="h-7 text-[11px] px-2.5 text-stone-700 border-stone-200 hover:bg-stone-50"
+                    >
+                      {isTesting ? (
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Send className="h-3 w-3 mr-1 text-emerald-600" />
+                      )}
+                      Test Alert
+                    </Button>
+                    <div className="flex items-center gap-1.5 pl-2 border-l border-stone-200">
+                      <Switch checked={r.active} onCheckedChange={(v) => handleToggle(r.id, v)} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(r.id)}
+                        className="h-7 w-7 text-stone-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </CardContent>
     </Card>
   )

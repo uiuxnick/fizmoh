@@ -5,6 +5,7 @@ import { sendMediaMessage, sendInteractiveMessage } from "@/lib/whatsapp"
 import { generateOrderNumber } from "@/lib/helpers"
 import { notifyStaff } from "@/lib/realtime"
 import { syncOrderToCalendar } from "@/lib/google-calendar"
+import { notifyAdminWhatsAppBooking } from "@/lib/admin-booking-notifications"
 import { sendPostBookingChatChoice, type FlowContext, type Lang } from "@/lib/booking-flow"
 
 const PREFIX = "bk_"
@@ -487,6 +488,19 @@ async function saveTrainingBooking(
     message: `${riderName} booked ${coach.titleEn}. Order #${order.orderNumber}.`,
     data: { orderId: order.id },
   }).catch(() => null)
+
+  // 5b. Dispatch WhatsApp alert to configured admin numbers
+  void notifyAdminWhatsAppBooking({
+    tenantId: ctx.tenantId,
+    orderNumber: order.orderNumber,
+    customerName: riderName,
+    customerPhone: ctx.phone,
+    serviceName: `🎓 Training: ${coach.titleEn}`,
+    dateTime: new Date().toLocaleString("en-GB", { timeZone: "Asia/Muscat" }),
+    totalAmount: 70,
+    bookingType: "training",
+    specialDetails: `Rider: ${riderName}, Age: ${riderAge}, Coach: ${coach.coachEn} (${coach.contact})`,
+  }).catch((err) => console.error("Admin training alert dispatch error:", err))
 
   // 6. Sync to Google Calendar
   void syncOrderToCalendar(order.id)

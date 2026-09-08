@@ -36,6 +36,10 @@ import {
   RefreshCw,
   QrCode,
   Tag,
+  Users,
+  Phone,
+  Smartphone,
+  UserCheck,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { Button } from "@/components/ui/button"
@@ -463,6 +467,13 @@ interface PublicPlan {
   priceMonthly: number
   priceYearly: number
   modules: string[]
+  limits?: {
+    messagesPerMonth?: number
+    numbers?: number
+    staff?: number
+    contacts?: number
+    [key: string]: any
+  } | null
 }
 
 export function MarketingPage({ kind }: { kind: PageKind }) {
@@ -1411,6 +1422,75 @@ function Pricing({
                       </p>
                     )
                   })()}
+                  {/* Plan Quotas & Assigned Limits */}
+                  <div className="mt-5 pt-4 border-t border-[var(--mk-line)] space-y-2">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#717680]">
+                      {isAr ? "الحدود والحصص المخصصة" : "Included Quotas & Usage"}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                      {/* WhatsApp Messages */}
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                        <div className="flex items-center gap-1.5 text-[#00B96A] font-bold">
+                          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {plan.limits?.messagesPerMonth
+                              ? `${plan.limits.messagesPerMonth.toLocaleString()}`
+                              : isAr ? "غير محدود" : "Unlimited"}
+                          </span>
+                        </div>
+                        <div className="text-[10.5px] text-[#717680] mt-0.5">
+                          {isAr ? "رسائل واتساب / شهر" : "WhatsApp msgs / mo"}
+                        </div>
+                      </div>
+
+                      {/* WhatsApp Numbers */}
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                        <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
+                          <Smartphone className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
+                          <span className="truncate">
+                            {plan.limits?.numbers
+                              ? `${plan.limits.numbers} ${isAr ? "أرقام" : plan.limits.numbers === 1 ? "Number" : "Numbers"}`
+                              : isAr ? "أرقام متعددة" : "Multi-Number"}
+                          </span>
+                        </div>
+                        <div className="text-[10.5px] text-[#717680] mt-0.5">
+                          {isAr ? "أرقام واتساب" : "WhatsApp numbers"}
+                        </div>
+                      </div>
+
+                      {/* Staff Seats */}
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                        <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
+                          <Users className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
+                          <span className="truncate">
+                            {plan.limits?.staff
+                              ? `${plan.limits.staff} ${isAr ? "مقاعد" : "Seats"}`
+                              : isAr ? "غير محدود" : "Unlimited"}
+                          </span>
+                        </div>
+                        <div className="text-[10.5px] text-[#717680] mt-0.5">
+                          {isAr ? "مقاعد الفريق" : "Team inbox seats"}
+                        </div>
+                      </div>
+
+                      {/* Contacts Storage */}
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                        <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
+                          <UserCheck className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
+                          <span className="truncate">
+                            {plan.limits?.contacts
+                              ? `${plan.limits.contacts >= 1000 ? `${(plan.limits.contacts / 1000).toFixed(0)}k` : plan.limits.contacts}`
+                              : isAr ? "غير محدود" : "Unlimited"}
+                          </span>
+                        </div>
+                        <div className="text-[10.5px] text-[#717680] mt-0.5">
+                          {isAr ? "جهات الاتصال" : "CRM contacts"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <ul className="mt-5 space-y-2.5 border-t border-[var(--mk-line)] pt-5">
                     {plan.modules.map((module) => (
                       <li key={module} className="flex items-center gap-2 text-[13px] text-[var(--mk-ink)]">

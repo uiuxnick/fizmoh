@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
+import { currentTenant } from "@/lib/tenant"
+import { ensureDefaultOrderTemplates } from "@/lib/default-templates"
 
 export const GET = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  if (tenant?.tenantId) {
+    await ensureDefaultOrderTemplates(tenant.tenantId)
+  }
+
   const { searchParams } = new URL(request.url)
   const channel = searchParams.get("channel")
 

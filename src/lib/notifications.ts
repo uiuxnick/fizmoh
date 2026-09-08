@@ -315,6 +315,21 @@ Show this message at check-in. Have a great trip! 🐪`
     forRole: "OPS_ADMIN",
   })
 
+  // ─── 3b. ADMIN WHATSAPP NOTIFICATION ───
+  import("@/lib/admin-booking-notifications").then(({ notifyAdminWhatsAppBooking }) => {
+    void notifyAdminWhatsAppBooking({
+      tenantId: order.tenantId || "",
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      serviceName: order.tour?.name || "Tour",
+      dateTime: `${dateStr} ${order.slot?.startTime || ""}`.trim(),
+      totalAmount: order.totalAmount,
+      bookingType: order.tour?.name?.toLowerCase().includes("training") ? "training" : "tour",
+      specialDetails: `Status: CONFIRMED | Adults: ${order.paxAdult}, Children: ${order.paxChild || 0}`,
+    }).catch((err) => console.error("Admin order confirmation alert error:", err))
+  }).catch(() => null)
+
   return { email: emailSent, whatsapp: whatsappSent, staff: true }
 }
 

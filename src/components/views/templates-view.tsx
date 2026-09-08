@@ -83,6 +83,30 @@ export default function TemplatesView() {
     }
   }
 
+  const [submittingMetaId, setSubmittingMetaId] = useState<string | null>(null)
+
+  const handleSubmitToMeta = async (templateId: string) => {
+    setSubmittingMetaId(templateId)
+    try {
+      const res = await fetch(`/api/templates/${templateId}/submit-to-meta`, { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Submission failed")
+      toast.success(
+        data.simulation
+          ? "Saved and marked pending (WhatsApp simulation mode)"
+          : "Submitted to Meta — approval usually takes a few hours"
+      )
+      load()
+      if (preview && preview.id === templateId) {
+        setPreview({ ...preview, status: data.template?.status || "PENDING" })
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to submit to Meta")
+    } finally {
+      setSubmittingMetaId(null)
+    }
+  }
+
   const editTemplate = (t: Template) => {
     const parseJson = (v: unknown) => {
       if (Array.isArray(v)) return v
@@ -309,6 +333,21 @@ export default function TemplatesView() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                {preview.channel === "WHATSAPP" && (preview.status === "DRAFT" || preview.status === "REJECTED") && (
+                  <Button
+                    size="sm"
+                    className="bg-[#00E785] hover:bg-[#00B96A] text-stone-900 font-semibold shadow-none border border-emerald-600/20"
+                    disabled={submittingMetaId === preview.id}
+                    onClick={() => handleSubmitToMeta(preview.id)}
+                  >
+                    {submittingMetaId === preview.id ? (
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Submit to Meta
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => { editTemplate(preview); setPreview(null) }}>
                   <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
                 </Button>
