@@ -15,14 +15,14 @@ import { AnalyticsScripts } from "@/components/analytics-scripts"
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "700"],
   display: "swap",
 })
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["500", "700"],
   display: "swap",
 })
 
@@ -30,15 +30,16 @@ const instrumentSerif = Instrument_Serif({
   variable: "--font-instrument-serif",
   subsets: ["latin"],
   weight: ["400"],
-  style: ["normal", "italic"],
+  style: ["normal"],
   display: "swap",
 })
 
 const cairo = Cairo({
   variable: "--font-cairo",
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  subsets: ["arabic"],
+  weight: ["500", "700"],
   display: "swap",
+  preload: false,
 })
 
 /**
