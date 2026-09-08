@@ -53,8 +53,10 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
 
     return (
       <script
+        id="ldjson-organization"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": rootGraph }) }}
+        suppressHydrationWarning
       />
     )
   }
@@ -214,8 +216,10 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
 
   return (
     <script
+      id="ldjson-homepage"
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": homeGraph }) }}
+      suppressHydrationWarning
     />
   )
 }

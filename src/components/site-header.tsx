@@ -420,9 +420,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-18 sm:h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" ref={dropdownRef}>
         {/* 1. Left: Brand Logo */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center gap-2.5 transition-transform hover:scale-[1.02]">
-            <Brand size="md" className="text-[#1D1D1D]" />
-          </Link>
+          <Brand size="md" className="text-[#1D1D1D] transition-transform hover:scale-[1.02]" />
         </div>
 
         {/* 2. Center: BotSailor-Style Harmonious Nav Bar */}
