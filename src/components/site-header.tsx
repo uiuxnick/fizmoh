@@ -927,9 +927,9 @@ export function SiteFooter() {
         {/* SEO Cross-Links Section */}
         <div className="mt-10 pt-6 border-t border-[#E5E7EB] grid grid-cols-2 sm:grid-cols-4 gap-6 text-[12px] text-[#4B5563]">
           <div>
-            <h5 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
+            <h4 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
               {isAr ? "حلول عمان" : "WhatsApp Oman"}
-            </h5>
+            </h4>
             <ul className="space-y-1.5">
               <li><Link href="/whatsapp-business-api-oman" className="hover:text-emerald-700">{isAr ? "واتساب بزنس API عمان" : "WhatsApp Business API Oman"}</Link></li>
               <li><Link href="/whatsapp-automation-oman" className="hover:text-emerald-700">{isAr ? "أتمتة واتساب عمان" : "WhatsApp Automation Oman"}</Link></li>
@@ -939,9 +939,9 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h5 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
+            <h4 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
               {isAr ? "المقارنات" : "Comparisons"}
-            </h5>
+            </h4>
             <ul className="space-y-1.5">
               <li><Link href="/compare/fizmoh-vs-wati" className="hover:text-emerald-700">Fizmoh vs WATI</Link></li>
               <li><Link href="/compare/fizmoh-vs-interakt" className="hover:text-emerald-700">Fizmoh vs Interakt</Link></li>
@@ -951,9 +951,9 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h5 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
+            <h4 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
               {isAr ? "المدن والخليج" : "GCC Locations"}
-            </h5>
+            </h4>
             <ul className="space-y-1.5">
               <li><Link href="/locations/muscat" className="hover:text-emerald-700">{isAr ? "مسقط، سلطنة عمان" : "Muscat, Oman"}</Link></li>
               <li><Link href="/locations/dubai" className="hover:text-emerald-700">{isAr ? "دبي، الإمارات" : "Dubai, UAE"}</Link></li>
@@ -963,9 +963,9 @@ export function SiteFooter() {
             </ul>
           </div>
           <div>
-            <h5 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
+            <h4 className="font-bold text-[#111827] mb-2 uppercase text-[11px] tracking-wider">
               {isAr ? "المقالات والأدلة" : "Popular Guides"}
-            </h5>
+            </h4>
             <ul className="space-y-1.5">
               <li><Link href="/blog/whatsapp-business-api-oman-guide" className="hover:text-emerald-700">{isAr ? "دليل واتساب API عمان 2026" : "WhatsApp API Oman Guide"}</Link></li>
               <li><Link href="/blog/accept-online-payments-whatsapp-oman-amwalpay" className="hover:text-emerald-700">{isAr ? "دفع أموال باي واتساب" : "AmwalPay WhatsApp Payments"}</Link></li>

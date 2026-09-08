@@ -45,8 +45,21 @@
   // Create host element and attach Shadow DOM
   const host = document.createElement("div");
   host.id = "fizmoh-chat-widget-root";
-  document.body.appendChild(host);
   const shadow = host.attachShadow({ mode: "open" });
+
+  // Mount to body safely after React finishes initial hydration
+  function mountHost() {
+    if (!document.getElementById("fizmoh-chat-widget-root") && document.body) {
+      document.body.appendChild(host);
+    }
+  }
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => setTimeout(mountHost, 200));
+    } else {
+      setTimeout(mountHost, 200);
+    }
+  }
 
   let config = {
     id: widgetId || "default",

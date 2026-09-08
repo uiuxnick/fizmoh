@@ -114,8 +114,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${plusJakartaSans.variable} ${instrumentSerif.variable} ${cairo.variable} font-[family-name:var(--font-dm-sans)] antialiased bg-white text-[#1D1D1D]`}>
+    <html lang="en" dir="ltr" className="ltr" suppressHydrationWarning>
+      <body suppressHydrationWarning className={`${dmSans.variable} ${plusJakartaSans.variable} ${instrumentSerif.variable} ${cairo.variable} font-[family-name:var(--font-dm-sans)] antialiased bg-white text-[#1D1D1D]`}>
         <AnalyticsScripts />
         <SeoStructuredData />
         <LanguageProvider>

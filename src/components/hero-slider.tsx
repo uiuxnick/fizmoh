@@ -79,7 +79,7 @@ const SLIDES: Slide[] = [
   },
 ]
 
-const ROTATE_MS = 7000
+const ROTATE_MS = 14000
 
 export function HeroSlider({ isAr }: { isAr: boolean }) {
   const [index, setIndex] = useState(0)
