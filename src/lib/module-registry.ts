@@ -12,7 +12,7 @@ export const MODULE_REGISTRY = [
   { key: "SETTINGS", label: "Workspace Settings", description: "Business profile, integrations and preferences", group: "Core", alwaysIncluded: true },
   { key: "STAFF", label: "Staff & Roles", description: "Team members and workspace permissions", group: "Core", alwaysIncluded: true },
   { key: "TOURS", label: "Tours & Bookings", description: "Tours, availability, slots and vouchers", group: "Commerce", alwaysIncluded: false },
-  { key: "RESTAURANT", label: "Smart Menu & Table Ordering", description: "Multi-branch digital menus, QR ordering, KDS, and waiter calls", group: "Commerce", alwaysIncluded: true },
+  { key: "RESTAURANT", label: "Smart Menu & Table Ordering", description: "Multi-branch digital menus, QR ordering, KDS, and waiter calls", group: "Commerce", alwaysIncluded: false },
   { key: "CATALOG", label: "Catalog & Products", description: "WhatsApp products and collections", group: "Commerce", alwaysIncluded: false },
   { key: "WOOCOMMERCE", label: "WooCommerce", description: "Sync products and orders from WooCommerce", group: "Commerce", alwaysIncluded: false },
   { key: "VISA", label: "Visa Assistance", description: "Visa enquiries and document workflows", group: "Operations", alwaysIncluded: false },

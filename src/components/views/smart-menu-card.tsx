@@ -7,11 +7,19 @@ import { Utensils, ChefHat, ExternalLink, ArrowRight, Sparkles, QrCode } from "l
 import { useApp } from "@/lib/store"
 
 export function SmartMenuCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null)
   const [slug, setSlug] = useState<string | null>(null)
   const [stats, setStats] = useState<{ activeOrders: number; tablesCount: number } | null>(null)
   const { setView } = useApp()
 
   useEffect(() => {
+    fetch("/api/features")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setEnabled(Boolean(d.restaurant))
+      })
+      .catch(() => setEnabled(false))
+
     fetch("/api/workspaces", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -31,6 +39,8 @@ export function SmartMenuCard() {
       })
       .catch(() => {})
   }, [])
+
+  if (!enabled) return null
 
   const origin = typeof window === "undefined" ? "" : window.location.origin
   const menuUrl = slug ? `${origin}/menu/${slug}` : ""

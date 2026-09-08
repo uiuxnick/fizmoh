@@ -87,7 +87,8 @@ const NAV_ITEMS: NavItem[] = [
     icon: Utensils,
     group: "Operations",
     accent: "text-amber-500",
-    badge: "New",
+    badge: "Addon",
+    feature: "restaurant",
     submenu: [
       { key: "rest-overview", label: "Overview", tab: "overview", emoji: "📊", icon: LayoutDashboard, accent: "text-emerald-400" },
       { key: "rest-kds", label: "Live Kitchen (KDS)", tab: "kitchen", path: "/dashboard/addons/smart-menu-ordering/kitchen", emoji: "👨‍🍳", icon: ChefHat, accent: "text-rose-400", badge: "LIVE" },
