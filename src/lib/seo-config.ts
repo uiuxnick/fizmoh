@@ -97,6 +97,11 @@ async function pageOverride(path: string): Promise<PageOverride | null> {
   }
 }
 
+export type PageSeoOptions = {
+  canonical?: string
+  languages?: Record<string, string>
+}
+
 /**
  * Metadata for one page: the owner's override if there is one, otherwise the
  * title and description the page itself supplies.
@@ -106,6 +111,7 @@ export async function pageSeo(
   fallbackTitle: string,
   fallbackDescription: string,
   image?: string,
+  options?: PageSeoOptions,
 ): Promise<Metadata> {
   const [site, override] = await Promise.all([siteSeo(), pageOverride(path)])
 
@@ -142,6 +148,13 @@ export async function pageSeo(
   const alreadyBranded = title.toLowerCase().includes(brand)
   const fullTitle = alreadyBranded ? title : `${title} | ${site.siteName}`
 
+  const canonicalUrl = options?.canonical || url
+  const languageAlternates = options?.languages || {
+    en: url,
+    ar: `${url}${url.includes("?") ? "&" : "?"}lang=ar`,
+    "x-default": url,
+  }
+
   return {
     // `absolute` stops the root layout's "%s | Fizmoh" template being applied
     // on top of a title that already carries the site name — otherwise every
@@ -150,16 +163,12 @@ export async function pageSeo(
     description,
     keywords,
     alternates: {
-      canonical: url,
-      languages: {
-        en: url,
-        ar: url,
-        "x-default": url,
-      },
+      canonical: canonicalUrl,
+      languages: languageAlternates,
     },
     openGraph: {
       type: "website",
-      url,
+      url: canonicalUrl,
       siteName: site.siteName,
       title: fullTitle,
       description,

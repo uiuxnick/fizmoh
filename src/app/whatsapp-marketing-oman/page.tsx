@@ -3,7 +3,9 @@ import { absoluteUrl } from "@/lib/seo"
 import { OmanMoneyLanding } from "@/components/marketing/oman-money-landing"
 
 export const metadata: Metadata = {
-  title: "WhatsApp Marketing Software Oman — Promotional Broadcasts & Ads | Fizmoh",
+  title: {
+    absolute: "WhatsApp Marketing Software Oman — Promotional Broadcasts & Ads | Fizmoh",
+  },
   description:
     "Grow your revenue in Oman with high-converting WhatsApp marketing campaigns. 98% open rates, Click-to-WhatsApp ad tracking, audience segmentation, and rich media carousels.",
   keywords: [
@@ -17,6 +19,11 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: absoluteUrl("/whatsapp-marketing-oman"),
+    languages: {
+      en: absoluteUrl("/whatsapp-marketing-oman"),
+      ar: `${absoluteUrl("/whatsapp-marketing-oman")}?lang=ar`,
+      "x-default": absoluteUrl("/whatsapp-marketing-oman"),
+    },
   },
   openGraph: {
     title: "WhatsApp Marketing Software Oman — Promotional Broadcasts & Ads | Fizmoh",

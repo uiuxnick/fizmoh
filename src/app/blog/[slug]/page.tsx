@@ -25,7 +25,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const keywords = (isAr ? post.keywordsAr : post.keywords) || []
 
   const { pageSeo } = await import("@/lib/seo-config")
-  const base = await pageSeo(`/blog/${decoded}`, title, description, post.image)
+  const { absoluteUrl } = await import("@/lib/seo")
+
+  const enUrl = absoluteUrl(`/blog/${encodeURIComponent(post.slug)}`)
+  const arUrl = post.slugAr ? absoluteUrl(`/blog/${encodeURIComponent(post.slugAr)}`) : `${enUrl}?lang=ar`
+  const canonical = isAr && post.slugAr ? arUrl : enUrl
+
+  const base = await pageSeo(`/blog/${decoded}`, title, description, post.image, {
+    canonical,
+    languages: {
+      en: enUrl,
+      ar: arUrl,
+      "x-default": enUrl,
+    },
+  })
 
   return {
     ...base,

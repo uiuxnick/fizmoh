@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import MarketingHome from "@/components/marketing-home"
 import AppShell from "@/components/app-shell"
 import { CUSTOMER_COOKIE, STAFF_COOKIE } from "@/lib/auth"
+import { SeoStructuredData } from "@/components/seo-structured-data"
 
 export async function generateMetadata() {
   const { pageSeo } = await import("@/lib/seo-config")
@@ -36,7 +37,15 @@ export default async function Page() {
   const jar = await cookies()
   const signedIn = jar.has(STAFF_COOKIE) || jar.has(CUSTOMER_COOKIE)
 
-  if (!signedIn) return <MarketingHome />
+  if (!signedIn) {
+    return (
+      <>
+        <SeoStructuredData isHomepage={true} />
+        <MarketingHome />
+      </>
+    )
+  }
 
   return <AppShell />
 }
+

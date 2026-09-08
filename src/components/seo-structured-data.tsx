@@ -1,6 +1,64 @@
 import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 
-export async function SeoStructuredData() {
+export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: boolean } = {}) {
+  if (!isHomepage) {
+    const rootGraph = [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        alternateName: "منصة فيزموه لواتساب بزنس",
+        url: SITE_URL,
+        logo: {
+          "@type": "ImageObject",
+          url: absoluteUrl("/fizmoh-logo.png"),
+          width: 512,
+          height: 512,
+        },
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: "Muscat",
+          addressCountry: "OM",
+        },
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            telephone: "+968-78836104",
+            contactType: "customer service",
+            areaServed: ["OM", "AE", "SA", "QA", "KW", "BH"],
+            availableLanguage: ["English", "Arabic"],
+          },
+        ],
+        sameAs: [
+          "https://app.fizmoh.com",
+          "https://app.fizmoh.cloud",
+          "https://twitter.com/fizmohcloud",
+          "https://www.linkedin.com/company/fizmoh",
+        ],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: SITE_NAME,
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/blog?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+        inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
+      },
+    ]
+
+    return (
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": rootGraph }) }}
+      />
+    )
+  }
+
   /*
    * Prices come from the plans table, not from a literal.
    *
@@ -36,53 +94,7 @@ export async function SeoStructuredData() {
     offers = null
   }
 
-  const graph = [
-    {
-      "@type": "Organization",
-      "@id": `${SITE_URL}/#organization`,
-      name: SITE_NAME,
-      alternateName: "منصة فيزموه لواتساب بزنس",
-      url: SITE_URL,
-      logo: {
-        "@type": "ImageObject",
-        url: absoluteUrl("/fizmoh-logo.png"),
-        width: 512,
-        height: 512,
-      },
-      address: {
-        "@type": "PostalAddress",
-        addressLocality: "Muscat",
-        addressCountry: "OM",
-      },
-      contactPoint: [
-        {
-          "@type": "ContactPoint",
-          telephone: "+968-78836104",
-          contactType: "customer service",
-          areaServed: ["OM", "AE", "SA", "QA", "KW", "BH"],
-          availableLanguage: ["English", "Arabic"],
-        },
-      ],
-      sameAs: [
-        "https://app.fizmoh.com",
-        "https://app.fizmoh.cloud",
-        "https://twitter.com/fizmohcloud",
-        "https://www.linkedin.com/company/fizmoh",
-      ],
-    },
-    {
-      "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
-      url: SITE_URL,
-      name: SITE_NAME,
-      publisher: { "@id": `${SITE_URL}/#organization` },
-      potentialAction: {
-        "@type": "SearchAction",
-        target: `${SITE_URL}/blog?q={search_term_string}`,
-        "query-input": "required name=search_term_string",
-      },
-      inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
-    },
+  const homeGraph = [
     {
       "@type": "SoftwareApplication",
       name: "Fizmoh WhatsApp Business Platform",
@@ -91,20 +103,9 @@ export async function SeoStructuredData() {
       applicationSubCategory: "WhatsApp Commerce, Marketing & AI Automation Platform",
       operatingSystem: "Cloud, Web, iOS, Android",
       url: SITE_URL,
+      publisher: { "@id": `${SITE_URL}/#organization` },
       description:
         "Official WhatsApp Business Cloud API platform with multi-agent team inbox, visual AI bot builder, website live chat widget, Instagram and Facebook automation, appointment bookings, AmwalPay online payments, and CRM across Oman and the GCC.",
-      /*
-       * No aggregateRating.
-       *
-       * This declared 4.9 from 186 ratings. There are zero Review rows in the
-       * database and no reviews shown anywhere on the site, so the figure was
-       * invented. Review markup that does not correspond to real, visible
-       * reviews breaches Google's structured data policy and is a common cause
-       * of manual actions — the rich-result stars are not worth the risk, and
-       * the claim was not true.
-       *
-       * Restore this only from real, on-page review data.
-       */
       ...(offers ? { offers } : {}),
       featureList: [
         "Official Meta WhatsApp Cloud API Provider",
@@ -214,7 +215,8 @@ export async function SeoStructuredData() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": graph }) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": homeGraph }) }}
     />
   )
 }
+

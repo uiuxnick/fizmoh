@@ -3,7 +3,9 @@ import { absoluteUrl } from "@/lib/seo"
 import { OmanMoneyLanding } from "@/components/marketing/oman-money-landing"
 
 export const metadata: Metadata = {
-  title: "WhatsApp CRM Software Oman — Multi-Agent Shared Team Inbox | Fizmoh",
+  title: {
+    absolute: "WhatsApp CRM Software Oman — Multi-Agent Shared Team Inbox | Fizmoh",
+  },
   description:
     "The complete WhatsApp CRM for businesses in Oman. Manage customer conversations, assign leads, track response times, and protect client data with one unified +968 number.",
   keywords: [
@@ -17,6 +19,11 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: absoluteUrl("/whatsapp-crm-oman"),
+    languages: {
+      en: absoluteUrl("/whatsapp-crm-oman"),
+      ar: `${absoluteUrl("/whatsapp-crm-oman")}?lang=ar`,
+      "x-default": absoluteUrl("/whatsapp-crm-oman"),
+    },
   },
   openGraph: {
     title: "WhatsApp CRM Software Oman — Multi-Agent Shared Team Inbox | Fizmoh",

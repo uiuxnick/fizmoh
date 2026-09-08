@@ -3,7 +3,9 @@ import { absoluteUrl } from "@/lib/seo"
 import { OmanMoneyLanding } from "@/components/marketing/oman-money-landing"
 
 export const metadata: Metadata = {
-  title: "WhatsApp Business API Oman — Official Meta Cloud API Provider | Fizmoh",
+  title: {
+    absolute: "WhatsApp Business API Oman — Official Meta Cloud API Provider | Fizmoh",
+  },
   description:
     "Connect your Oman business to official WhatsApp Business API. Verified Meta Green Tick, AmwalPay payments in OMR, multi-agent shared inbox, and 0% markup.",
   keywords: [
@@ -20,6 +22,11 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: absoluteUrl("/whatsapp-business-api-oman"),
+    languages: {
+      en: absoluteUrl("/whatsapp-business-api-oman"),
+      ar: `${absoluteUrl("/whatsapp-business-api-oman")}?lang=ar`,
+      "x-default": absoluteUrl("/whatsapp-business-api-oman"),
+    },
   },
   openGraph: {
     title: "WhatsApp Business API Oman — Official Meta Cloud API Provider | Fizmoh",
