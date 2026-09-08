@@ -498,14 +498,14 @@ export function SiteHeader() {
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>{isAr ? "ما الجديد في التحديث v6.1" : "Explore What's New in v6.1"}</span>
                     </Link>
-                    <Link
+                    <a
                       href="/downloads/"
                       onClick={() => setActiveDropdown(null)}
                       className="inline-flex items-center gap-1 font-bold text-stone-700 hover:text-stone-900 hover:underline"
                     >
                       <Download className="h-3.5 w-3.5" />
                       <span>{isAr ? "تحميل التطبيقات المرافقة" : "Download Companion Apps"}</span>
-                    </Link>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -915,7 +915,7 @@ export function SiteFooter() {
             </h4>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/contact" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "اتصل بنا" : "Contact Desk"}</Link></li>
-              <li><Link href="/downloads/" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "تحميل التطبيقات" : "Download Apps"}</Link></li>
+              <li><a href="/downloads/" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "تحميل التطبيقات" : "Download Apps"}</a></li>
               <li><Link href="/whats-new" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "التحديثات" : "Changelog"}</Link></li>
               <li><Link href="/docs" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "المطورين" : "REST API"}</Link></li>
               <li><Link href="/privacy" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "الخصوصية" : "Privacy"}</Link></li>
