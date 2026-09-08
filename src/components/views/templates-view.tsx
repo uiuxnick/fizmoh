@@ -250,14 +250,22 @@ export default function TemplatesView() {
                         {t._count?.campaigns ? <Badge variant="outline" className="bg-purple-50 text-purple-700">{t._count.campaigns} campaigns</Badge> : null}
                       </div>
                       <p className="text-xs text-stone-600 line-clamp-3 whitespace-pre-wrap">{t.bodyContent}</p>
-                      {t.variables && (
-                        <div className="flex flex-wrap gap-1">
-                          {JSON.parse(t.variables).slice(0, 4).map((v: string, i: number) => (
-                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 font-mono">{`{{${v}}}`}</span>
-                          ))}
-                          {JSON.parse(t.variables).length > 4 && <span className="text-[10px] text-stone-400">+{JSON.parse(t.variables).length - 4}</span>}
-                        </div>
-                      )}
+                      {(() => {
+                        let vars: string[] = []
+                        if (Array.isArray(t.variables)) vars = t.variables
+                        else if (typeof t.variables === "string") {
+                          try { vars = JSON.parse(t.variables) } catch {}
+                        }
+                        if (!Array.isArray(vars) || vars.length === 0) return null
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {vars.slice(0, 4).map((v: string, i: number) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 font-mono">{`{{${v}}}`}</span>
+                            ))}
+                            {vars.length > 4 && <span className="text-[10px] text-stone-400">+{vars.length - 4}</span>}
+                          </div>
+                        )
+                      })()}
                     </CardContent>
                   </Card>
                 )
@@ -420,8 +428,11 @@ export default function TemplatesView() {
 
                 {(() => {
                   let variables: string[] = []
-                  try { variables = preview.variables ? JSON.parse(preview.variables) : [] } catch { variables = [] }
-                  if (variables.length === 0) return null
+                  if (Array.isArray(preview.variables)) variables = preview.variables
+                  else if (typeof preview.variables === "string") {
+                    try { variables = JSON.parse(preview.variables) } catch {}
+                  }
+                  if (!Array.isArray(variables) || variables.length === 0) return null
                   return (
                     <Detail label={`Variables (${variables.length})`}>
                       <div className="space-y-1.5">
@@ -443,7 +454,10 @@ export default function TemplatesView() {
 
                 {(() => {
                   let buttons: { type?: string; text?: string; url?: string }[] = []
-                  try { buttons = preview.buttons ? JSON.parse(preview.buttons) : [] } catch { buttons = [] }
+                  if (Array.isArray(preview.buttons)) buttons = preview.buttons
+                  else if (typeof preview.buttons === "string") {
+                    try { buttons = JSON.parse(preview.buttons) } catch {}
+                  }
                   if (!Array.isArray(buttons) || buttons.length === 0) return null
                   return (
                     <Detail label={`Buttons (${buttons.length})`}>

@@ -262,3 +262,74 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   })
   return NextResponse.json({ order: updated })
 })
+
+export const DELETE = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params
+  const { searchParams } = new URL(request.url)
+  const staffId = searchParams.get("staffId") || undefined
+  const reason = searchParams.get("reason") || "Deleted by staff"
+
+  const order = await db.order.findUnique({
+    where: { id },
+    include: { slot: true },
+  })
+  if (!order) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+  }
+
+  const pax = (order.paxAdult || 1) + (order.paxChild || 0)
+
+  // 1. Release slot seats if held or booked
+  if (order.slot) {
+    if (order.orderStatus === "CONFIRMED" || order.orderStatus === "COMPLETED") {
+      await db.slot.update({
+        where: { id: order.slotId },
+        data: {
+          seatsBooked: { decrement: Math.min(order.slot.seatsBooked, pax) },
+          status: "OPEN",
+        },
+      }).catch(() => null)
+    } else {
+      await db.slot.update({
+        where: { id: order.slotId },
+        data: {
+          seatsHeld: { decrement: Math.min(order.slot.seatsHeld, pax) },
+          status: "OPEN",
+        },
+      }).catch(() => null)
+    }
+  }
+
+  // 2. Clean up foreign key relations
+  await db.auditLog.deleteMany({ where: { orderId: id } }).catch(() => null)
+  await db.review.deleteMany({ where: { orderId: id } }).catch(() => null)
+  await db.voucher.deleteMany({ where: { orderId: id } }).catch(() => null)
+  await db.payment.deleteMany({ where: { orderId: id } }).catch(() => null)
+
+  // 3. Delete the order
+  await db.order.delete({
+    where: { id },
+  })
+
+  // 4. Update customer stats
+  await refreshCustomerTotals(order.customerId).catch(() => null)
+
+  // 5. Create audit log for the deletion
+  if (staffId) {
+    await createAuditLog({
+      staffId,
+      action: "DELETE_ORDER",
+      entity: "ORDER",
+      entityId: id,
+      reason,
+      details: JSON.stringify({
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        totalAmount: order.totalAmount,
+      }),
+    }).catch(() => null)
+  }
+
+  return NextResponse.json({ success: true, message: `Booking ${order.orderNumber} deleted successfully` })
+})
+

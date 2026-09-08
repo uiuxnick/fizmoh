@@ -11,8 +11,16 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
   ShoppingBag, Search, Plus, Eye, Ban, CheckCircle, Phone, Mail, Pencil,
-  ExternalLink, FileText, CalendarClock, ImageOff, X, Loader2, History,
+  ExternalLink, FileText, CalendarClock, ImageOff, X, Loader2, History, Trash2, AlertTriangle,
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { formatCurrency, formatDate, formatDateTime, timeAgo, prettifyStatus } from "@/lib/helpers"
 import { PaymentProof } from "@/components/payment-proof"
 import { useApp } from "@/lib/store"
@@ -80,11 +88,37 @@ export default function BookingsView() {
   const [pageSize, setPageSize] = useState(10)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [deletingOrder, setDeletingOrder] = useState<Order | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const load = () => {
     fetch(`/api/orders?limit=500`).then(r => r.json()).then(d => { setOrders(d.orders || []); setLoading(false) }).catch(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
+
+  const handleDeleteOrder = async () => {
+    if (!deletingOrder) return
+    setDeletingBusy(true)
+    try {
+      const res = await fetch(`/api/orders/${deletingOrder.id}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete order")
+      }
+      toast.success(data.message || `Booking ${deletingOrder.orderNumber} deleted successfully`)
+      setDeletingOrder(null)
+      if (selectedId === deletingOrder.id) {
+        setSelectedId(null)
+      }
+      load()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete booking")
+    } finally {
+      setDeletingBusy(false)
+    }
+  }
 
   // Arriving from a notification opens the order it referred to, rather than
   // leaving the operator to find it in a list of two hundred.
@@ -182,7 +216,20 @@ export default function BookingsView() {
                     <div className="font-bold text-sm text-stone-900">{formatCurrency(o.totalAmount)}</div>
                     <div className="text-[10px] text-stone-400">{timeAgo(o.createdAt)}</div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><Eye className="h-4 w-4" /></Button>
+                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-stone-500 hover:text-stone-900" title="View details" onClick={() => setSelectedId(o.id)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-stone-400 hover:text-rose-600 hover:bg-rose-50"
+                      title="Delete booking"
+                      onClick={() => setDeletingOrder(o)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -233,6 +280,42 @@ export default function BookingsView() {
 
       {selectedId && <OrderDetail orderId={selectedId} onClose={() => setSelectedId(null)} onUpdate={load} />}
       {creating && <NewBookingDialog onClose={() => setCreating(false)} onCreated={load} />}
+
+      <Dialog open={!!deletingOrder} onOpenChange={open => !open && !deletingBusy && setDeletingOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-rose-600" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-stone-900">Delete Booking</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2 text-stone-600 text-sm">
+              Are you sure you want to permanently delete booking <strong className="text-stone-900">{deletingOrder?.orderNumber}</strong> for <strong className="text-stone-900">{deletingOrder?.customerName}</strong>?
+              <br /><br />
+              This will release any held or booked slots, remove associated vouchers and payment records, and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setDeletingOrder(null)}
+              disabled={deletingBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+              onClick={handleDeleteOrder}
+              disabled={deletingBusy}
+            >
+              {deletingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -256,6 +339,8 @@ export function OrderDetail({ orderId, onClose, onUpdate }: { orderId: string; o
   const [reason, setReason] = useState("")
   const [zoom, setZoom] = useState<string | null>(null)
   const [rescheduling, setRescheduling] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const reload = async () => {
     const res = await fetch(`/api/orders/${orderId}`)
@@ -266,6 +351,27 @@ export function OrderDetail({ orderId, onClose, onUpdate }: { orderId: string; o
     }
   }
   useEffect(() => { reload() }, [orderId])
+
+  const handleDeleteCurrentOrder = async () => {
+    setDeleteBusy(true)
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete order")
+      }
+      toast.success(data.message || `Booking ${order?.orderNumber} deleted successfully`)
+      setConfirmDelete(false)
+      onClose()
+      onUpdate()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete booking")
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   // Seed the edit form from the order only when entering edit mode, so a
   // background reload never overwrites what the user is typing.
@@ -353,8 +459,17 @@ export function OrderDetail({ orderId, onClose, onUpdate }: { orderId: string; o
                   <span className="text-xs text-stone-400">Created {formatDateTime(order.createdAt)}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {!editing && <Button variant="outline" size="sm" onClick={startEditing}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</Button>}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={busy || deleteBusy}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />Delete
+                </Button>
                 <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -661,6 +776,42 @@ export function OrderDetail({ orderId, onClose, onUpdate }: { orderId: string; o
           onDone={async () => { setRescheduling(false); await reload(); onUpdate() }}
         />
       )}
+
+      <Dialog open={confirmDelete} onOpenChange={open => !open && !deleteBusy && setConfirmDelete(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-rose-600" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-stone-900">Delete Booking</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2 text-stone-600 text-sm">
+              Are you sure you want to permanently delete booking <strong className="text-stone-900">{order.orderNumber}</strong> for <strong className="text-stone-900">{order.customerName}</strong>?
+              <br /><br />
+              This will release any held or booked slots, remove associated vouchers and payment records, and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleteBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+              onClick={handleDeleteCurrentOrder}
+              disabled={deleteBusy}
+            >
+              {deleteBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
