@@ -133,7 +133,9 @@ export function isFlowReply(id?: string | null): boolean {
     id.startsWith("tour_") ||
     id.startsWith("slot_") ||
     id.startsWith("train_") ||
-    id.includes("train_")
+    id.includes("train_") ||
+    id.startsWith("chat_") ||
+    id.includes("chat_")
   )
 }
 
@@ -1071,6 +1073,39 @@ export async function handleBookingReply(
   const tpay = L(ctx)
   const id = replyId.startsWith(PREFIX) ? replyId.slice(PREFIX.length) : replyId
 
+  if (id === "chat_ai") {
+    await db.conversation.update({
+      where: { id: ctx.conversationId },
+      data: { botActive: true, automationPaused: false, bookingState: Prisma.DbNull },
+    })
+    const isAr = ctx.lang === "ar"
+    const aiIntro = isAr
+      ? "🤖 مرحباً بك! أنا المساعد الذكي لإسطبلات البحر. يسعدني الإجابة عن أي استفسار حول رحلاتنا، التدريب، الموقع أو المواعيد. تفضل بسؤالك! 🐎"
+      : "🤖 Hello! I'm your AI Assistant. Feel free to ask any question about our rides, training, location, timings, or anything else. How can I help you? 🐎"
+    await sendWhatsApp({ to: ctx.phone, body: aiIntro, allowOutsideSession: true })
+    return true
+  }
+  if (id === "chat_human") {
+    await db.conversation.update({
+      where: { id: ctx.conversationId },
+      data: { botActive: false, automationPaused: true, status: "PENDING", bookingState: Prisma.DbNull },
+    })
+    const isAr = ctx.lang === "ar"
+    const humanNotice = isAr
+      ? "👤 تم تحويل محادثتك إلى فريقنا مباشرة. سيقوم أحد موظفينا بالرد عليك هنا في أقرب وقت ممكن. شكراً لتواصلك معنا! 🐎"
+      : "👤 You've been connected directly to our team! A staff member will reply to you here shortly. Thank you for reaching out! 🐎"
+    await sendWhatsApp({ to: ctx.phone, body: humanNotice, allowOutsideSession: true })
+    const { notifyStaff } = await import("@/lib/realtime")
+    await notifyStaff({
+      tenantId: ctx.tenantId,
+      type: "CHAT_HANDOFF",
+      title: "Customer requested human agent",
+      message: `${ctx.phone} selected 'Chat with Human'`,
+      forRole: "CHAT_AGENT",
+      data: { conversationId: ctx.conversationId, customerPhone: ctx.phone },
+    })
+    return true
+  }
   if (id === "browse" || id === "avail" || id === "tour_catalog" || id === "tour_browse") {
     await showTours(ctx)
     return true
@@ -1243,6 +1278,7 @@ export async function handleBookingReply(
       })
       await logBot(ctx, `Bank transfer instructions sent for ${order.orderNumber}`)
       await save(ctx, { step: "AWAITING_SCREENSHOT", orderId: order.id })
+      await sendPostBookingChatChoice(ctx)
       return true
     }
 
@@ -1290,6 +1326,7 @@ export async function handleBookingReply(
     }
     await logBot(ctx, `${applePay ? "Apple Pay" : "Card"} link sent for ${order.orderNumber}`)
     await save(ctx, { step: "DONE", orderId: order.id })
+    await sendPostBookingChatChoice(ctx)
     return true
   }
 
@@ -1300,6 +1337,15 @@ export async function handleBookingReply(
 export async function handleBookingText(rawCtx: FlowContext, text: string): Promise<boolean> {
   const ctx = await withLang(rawCtx, text)
   const ttxt = L(ctx)
+
+  const lower = text.trim().toLowerCase()
+  if (lower === "chat with ai" || lower === "ai" || lower === "ذكاء اصطناعي" || lower === "المساعد الذكي") {
+    return handleBookingReply(rawCtx, `${PREFIX}chat_ai`)
+  }
+  if (lower === "chat with human" || lower === "human" || lower === "موظف" || lower === "التحدث مع موظف" || lower === "خدمة العملاء") {
+    return handleBookingReply(rawCtx, `${PREFIX}chat_human`)
+  }
+
   const state = await getState(ctx.conversationId)
   if ((state as any)?.flowType === "TRAINING") {
     const { handleTrainingText } = await import("@/lib/training-flow")
@@ -1407,4 +1453,31 @@ export async function completeBooking(ctx: FlowContext) {
   // Clear rather than park at DONE: the booking is finished, so the next
   // message should be treated as a fresh conversation, not a continuation.
   await setState(ctx.conversationId, null)
+}
+
+/**
+ * Sends interactive buttons allowing the customer to choose between chatting
+ * with the smart AI assistant or speaking directly with a human team member.
+ */
+export async function sendPostBookingChatChoice(ctx: FlowContext) {
+  const isAr = ctx.lang === "ar"
+  const body = isAr
+    ? "هل ترغب في متابعة المحادثة مع المساعد الذكي أو التحدث مع أحد موظفينا؟ 💬"
+    : "How would you like to continue? You can chat with our AI Assistant for instant answers, or speak directly with our team. 💬"
+
+  const buttons = isAr
+    ? [
+        { id: `${PREFIX}chat_ai`, title: "🤖 المساعد الذكي" },
+        { id: `${PREFIX}chat_human`, title: "👤 التحدث مع موظف" },
+      ]
+    : [
+        { id: `${PREFIX}chat_ai`, title: "🤖 Chat with AI" },
+        { id: `${PREFIX}chat_human`, title: "👤 Chat with Human" },
+      ]
+
+  await sendInteractiveMessage({
+    to: ctx.phone,
+    body,
+    buttons,
+  })
 }

@@ -5,16 +5,15 @@ import { sendMediaMessage, sendInteractiveMessage } from "@/lib/whatsapp"
 import { generateOrderNumber } from "@/lib/helpers"
 import { notifyStaff } from "@/lib/realtime"
 import { syncOrderToCalendar } from "@/lib/google-calendar"
-import type { FlowContext, Lang } from "@/lib/booking-flow"
+import { sendPostBookingChatChoice, type FlowContext, type Lang } from "@/lib/booking-flow"
 
 const PREFIX = "bk_"
 
 export type TrainingStep =
   | "TRAINING_PROGRAM"
-  | "TRAINING_TERMS"
+  | "TRAINING_DETAILS"
   | "TRAINING_NAME"
   | "TRAINING_AGE"
-  | "TRAINING_TIME"
   | "TRAINING_DONE"
 
 export type TrainingProgram = "WOMEN" | "MEN_KIDS"
@@ -25,7 +24,6 @@ export type TrainingState = {
   program?: TrainingProgram
   riderName?: string
   riderAge?: string
-  preferredTime?: string
   orderId?: string
   updatedAt: string
 }
@@ -44,8 +42,8 @@ const COACH_DETAILS = {
     contact: "+968 71717580",
   },
   MEN_KIDS: {
-    titleEn: "Men & Kids Training",
-    titleAr: "تدريب الرجال والأطفال",
+    titleEn: "Men’s Training",
+    titleAr: "تدريب الرجال",
     coachEn: "Yahya",
     coachAr: "يحيى",
     daysEn: "Sunday & Tuesday",
@@ -62,8 +60,11 @@ export function isTrainingTrigger(text: string): boolean {
     "course",
     "courses",
     "riding training",
+    "arabic flow training",
+    "english flow training",
     "تدريب",
     "تدريب الخيل",
+    "تدريب ركوب الخيل",
     "كورس",
     "كورسات",
     "تعليم الخيل",
@@ -109,26 +110,29 @@ export async function setTrainingState(conversationId: string, state: TrainingSt
 
 /**
  * Step 1: Start Training Flow
- * Displays Course Overview card + Options: Women's Training vs Men & Kids Training
+ * Displays Course Overview card + Options: Women's Training vs Men's Training
  */
 export async function startTrainingFlow(ctx: FlowContext): Promise<boolean> {
   const isAr = ctx.lang === "ar"
 
-  // 1. Send overview media image
+  // 1. Send overview media image banner
   await sendMediaMessage({
     to: ctx.phone,
     type: "image",
     mediaUrl: TRAINING_BANNER_IMG,
-    caption: isAr ? "🎓 دورة تدريب ركوب الخيل" : "🎓 Horse Riding Training Course",
+    caption: isAr ? "🎓 تدريب ركوب الخيل" : "🎓 Horse Riding Training",
   }).catch(() => null)
 
   const bodyText = isAr
     ? `🎓 *تدريب ركوب الخيل*
 
-📚 *عدد الحصص:* 8 حصص
-📅 *الحصص أسبوعياً:* حصتان في الأسبوع
-⏱ *المدة:* ساعة واحدة لكل حصة
-💰 *رسوم الدورة:* *70 ر.ع*
+📚 *إجمالي عدد الحصص:* 8 حصص
+
+📅 *عدد الحصص أسبوعياً:* حصتان
+
+⏱ *مدة الحصة:* ساعة واحدة
+
+💰 *رسوم الدورة:* *70 ريال عماني*
 
 👩 *تدريب النساء*
 • الاثنين والأربعاء
@@ -142,12 +146,15 @@ export async function startTrainingFlow(ctx: FlowContext): Promise<boolean> {
 • الأحد والثلاثاء
 • 7:15 مساءً أو 8:15 مساءً
 
-هل ترغب في التسجيل بالدورة التدريبية؟ 🐎`
+هل ترغب في حجز دورة تدريبية؟ 🐎`
     : `🎓 *Horse Riding Training*
 
 📚 *Total Classes:* 8 Classes
+
 📅 *Classes Per Week:* 2 Classes
+
 ⏱ *Duration:* 1 Hour per Class
+
 💰 *Course Fee:* *70 OMR*
 
 👩 *Women’s Training*
@@ -200,121 +207,72 @@ export async function handleTrainingReply(
   const id = rawReplyId.startsWith(PREFIX) ? rawReplyId.slice(PREFIX.length) : rawReplyId
   const state = await getTrainingState(ctx.conversationId)
 
-  // 1. Program selected (Women or Men & Kids)
+  // 1. Program selected (Women or Men/Kids) -> Show Course Details with Book Now / Contact Us
   if (id === "train_prog_women" || id === "train_prog_men") {
     const program: TrainingProgram = id === "train_prog_women" ? "WOMEN" : "MEN_KIDS"
 
-    const termsText = isAr
-      ? `📌 *شروط وأحكام ركوب الخيل* 🏇🌊
+    const detailsText = isAr
+      ? `🎓 *تدريب ركوب الخيل*
 
-يرجى قراءة الشروط التالية قبل الحجز:
+📚 *إجمالي عدد الحصص:* 8 حصص
+📅 *عدد الحصص أسبوعياً:* حصتان
+⏱ *مدة الحصة:* ساعة واحدة
+💰 *رسوم الدورة:* *70 ريال عماني*`
+      : `🎓 *Horse Riding Training*
 
-1️⃣ *الحجز والإلغاء*
-• يلزم الحجز المسبق والدفع الكامل مقدماً.
-• الإلغاء قبل *10 ساعات* على الأقل من الموعد لاسترداد المبلغ.
-• التأخر لأكثر من *15 دقيقة* يؤدي للإلغاء بدون استرداد.
-
-2️⃣ *العمر والوزن*
-• الحد الأدنى للعمر: *8 سنوات*
-• الحد الأقصى للوزن: *95 كجم*
-
-3️⃣ *السلامة والأمان*
-• ارتداء خوذة الأمان إلزامي.
-• اتباع تعليمات المدرب في جميع الأوقات.
-• يمنع الركض السريع والمناورات الخطرة.
-• الخبب / الجري فقط بموافقة المدرب (بحد أقصى 20% من وقت الجولة).
-• لا يسمح بالجري أثناء الجولات الليلية.
-• مخالفة تعليمات السلامة قد تؤدي لإنهاء الجولة بدون استرداد.
-
-4️⃣ *الأحوال الجوية*
-في حال سوء الأحوال الجوية يتم إعادة الجدولة أو استرداد المبلغ.
-
-5️⃣ *المسؤولية*
-ركوب الخيل على مسؤولية الفارس الشخصية.
-
-6️⃣ *الملابس*
-ارتداء قميص وبنطال طويل وحذاء مغلق (يفضل حذاء مسطح).
-
-هل توافق على هذه الشروط والأحكام؟`
-      : `📌 *Beach Horse Riding Tour Terms & Conditions* 🏇🌊
-
-Please read the following before booking:
-
-1️⃣ *Booking & Cancellation*
-• Advance booking & full prepayment required.
-• Cancel at least *10 hours before* the ride for a refund.
-• Arriving over *15 minutes late* will result in cancellation without refund.
-
-2️⃣ *Age & Weight*
-• Minimum age: *8 years*
-• Maximum weight: *95 kg*
-
-3️⃣ *Safety*
-• Safety helmet is mandatory.
-• Follow the instructor’s directions at all times.
-• Galloping, free riding & dangerous maneuvers are prohibited.
-• Trotting/cantering only with instructor approval.
-• Cantering: maximum *20% of ride time*.
-• No trotting/cantering during night rides.
-• Safety violations may end the ride without refund.
-
-4️⃣ *Weather*
-Bad weather: reschedule or refund as agreed.
-
-5️⃣ *Liability*
-Horse riding is at the rider’s own risk.
-
-6️⃣ *Dress Code*
-Wear a shirt, long pants & closed-toe shoes. Flat shoes recommended.
-
-Do you accept these Terms & Conditions?`
+📚 *Total Classes:* 8 Classes
+📅 *Classes Per Week:* 2 Classes
+⏱ *Duration:* 1 Hour per Class
+💰 *Course Fee:* *70 OMR*`
 
     const buttons = isAr
       ? [
-          { id: `${PREFIX}train_accept`, title: "✅ أوافق" },
-          { id: `${PREFIX}train_decline`, title: "❌ لا أوافق" },
+          { id: `${PREFIX}train_accept`, title: "✅ احجز الآن" },
+          { id: `${PREFIX}train_contact`, title: "📞 تواصل معنا" },
         ]
       : [
-          { id: `${PREFIX}train_accept`, title: "✅ I Accept" },
-          { id: `${PREFIX}train_decline`, title: "❌ I Don't Accept" },
+          { id: `${PREFIX}train_accept`, title: "✅ Book Now" },
+          { id: `${PREFIX}train_contact`, title: "📞 Contact Us" },
         ]
 
     await sendInteractiveMessage({
       to: ctx.phone,
-      headerText: isAr ? "شروط وأحكام التدريب" : "Terms & Conditions",
-      body: termsText,
+      headerText: isAr ? "تدريب ركوب الخيل" : "Beach Horse Riding Training",
+      body: detailsText,
       buttons,
     })
 
     await setTrainingState(ctx.conversationId, {
       flowType: "TRAINING",
-      step: "TRAINING_TERMS",
+      step: "TRAINING_DETAILS",
       program,
       updatedAt: new Date().toISOString(),
     })
     return true
   }
 
-  // 2. Terms Declined
-  if (id === "train_decline") {
-    const declineMsg = isAr
-      ? `لا توجد مشكلة. للمتابعة دون الموافقة على الشروط والأحكام، يرجى التواصل مع *فريق الدعم* للمساعدة.\n\n📞 *الدعم:* ${SUPPORT_PHONE}\n\nسيسعد فريقنا بمساعدتك. 🐎`
-      : `No problem. To continue without accepting the Terms & Conditions, please chat with our *Support Executive* for assistance.\n\n📞 *Support:* ${SUPPORT_PHONE}\n\nOur team will assist you further. 🐎`
+  // 2. Contact Us selected
+  if (id === "train_contact" || id === "train_decline") {
+    const contactMsg = isAr
+      ? `📞 *تواصل معنا*\n\nإذا كنت بحاجة إلى أي مساعدة أو لديك استفسار، يرجى التواصل مع فريقنا وسنسعد بخدمتك.\n\n📞 *رقم التواصل:* ${SUPPORT_PHONE}\n\nفريقنا جاهز لمساعدتك. 🐎`
+      : `📞 *Contact Us*\n\nIf you need any assistance or have any questions, please reach out to our team:\n\n📞 *Support:* ${SUPPORT_PHONE}\n\nOur team is ready to assist you. 🐎`
 
     await sendWhatsApp({
       to: ctx.phone,
-      body: declineMsg,
+      body: contactMsg,
       allowOutsideSession: true,
     })
 
+    // Offer follow-up AI or Human choice
+    await sendPostBookingChatChoice(ctx)
     await setTrainingState(ctx.conversationId, null)
     return true
   }
 
-  // 3. Terms Accepted -> Ask Rider's Name
+  // 3. Book Now / Accept selected -> Ask Participant Name (Node 20 / 49)
   if (id === "train_accept") {
     const askNameMsg = isAr
-      ? "👤 ما هو اسم الفارس؟"
+      ? "👤 ما هو اسم المشارك؟"
       : "👤 What is the rider`s name?"
 
     await sendWhatsApp({
@@ -332,27 +290,12 @@ Do you accept these Terms & Conditions?`
     return true
   }
 
-  // 4. Preferred Time Selected -> Evening 7:15 PM or Evening 8:15 PM
-  if (id === "train_time_715" || id === "train_time_815") {
-    const preferredTime = id === "train_time_715" ? "Evening 7:15 PM" : "Evening 8:15 PM"
-    const currentState = state || {
-      flowType: "TRAINING" as const,
-      step: "TRAINING_TIME" as const,
-      program: "WOMEN" as TrainingProgram,
-      riderName: "Valued Rider",
-      riderAge: "Adult",
-      updatedAt: new Date().toISOString(),
-    }
-
-    await saveTrainingBooking(ctx, currentState, preferredTime)
-    return true
-  }
-
   return false
 }
 
 /**
- * Handles free-text messages when collecting Rider Name and Rider Age.
+ * Handles free-text messages when collecting Participant Name and Age.
+ * Note: Timing has been removed as requested; entering Age immediately completes the booking.
  */
 export async function handleTrainingText(
   ctx: FlowContext,
@@ -362,14 +305,14 @@ export async function handleTrainingText(
   const state = await getTrainingState(ctx.conversationId)
   if (!state) return false
 
-  // A. Awaiting Rider Name
+  // A. Awaiting Participant Name (Node 20 / 49)
   if (state.step === "TRAINING_NAME") {
     const riderName = text.trim().slice(0, 80)
     if (!riderName) return true
 
     const askAgeMsg = isAr
-      ? `🎂 كم عمر الفارس يا *${riderName}*؟`
-      : `🎂 What is the rider\`s *age*?`
+      ? "🎂 كم عمر المشارك؟"
+      : "🎂 What is the rider`s **age**?"
 
     await sendWhatsApp({
       to: ctx.phone,
@@ -386,48 +329,18 @@ export async function handleTrainingText(
     return true
   }
 
-  // B. Awaiting Rider Age
+  // B. Awaiting Participant Age (Node 21 / 50) -> Complete booking directly (no timing question)
   if (state.step === "TRAINING_AGE") {
     const riderAge = text.trim().slice(0, 20)
     if (!riderAge) return true
 
-    const askTimeMsg = isAr
-      ? "🕐 يرجى اختيار موعد التدريب المفضل لديك:"
-      : "🕐 Please select your preferred training time:"
-
-    const buttons = isAr
-      ? [
-          { id: `${PREFIX}train_time_715`, title: "مساءً 7:15" },
-          { id: `${PREFIX}train_time_815`, title: "مساءً 8:15" },
-        ]
-      : [
-          { id: `${PREFIX}train_time_715`, title: "Evening 7:15 PM" },
-          { id: `${PREFIX}train_time_815`, title: "Evening 8:15 PM" },
-        ]
-
-    await sendInteractiveMessage({
-      to: ctx.phone,
-      body: askTimeMsg,
-      buttons,
-    })
-
-    await setTrainingState(ctx.conversationId, {
+    const currentState = {
       ...state,
-      step: "TRAINING_TIME",
       riderAge,
       updatedAt: new Date().toISOString(),
-    })
-    return true
-  }
-
-  // C. In case user typed time instead of clicking the buttons
-  if (state.step === "TRAINING_TIME") {
-    const t = text.toLowerCase()
-    let preferredTime = "Evening 7:15 PM"
-    if (t.includes("8") || t.includes("8:15")) {
-      preferredTime = "Evening 8:15 PM"
     }
-    await saveTrainingBooking(ctx, state, preferredTime)
+
+    await saveTrainingBooking(ctx, currentState)
     return true
   }
 
@@ -437,8 +350,7 @@ export async function handleTrainingText(
 /**
  * Ensures a Training Tour & Slot exist for this tenant so the Order relation is valid.
  */
-async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string) {
-  // 1. Find or create the Training Tour
+async function ensureTrainingTourAndSlot(tenantId: string) {
   let tour = await db.tour.findFirst({
     where: {
       tenantId,
@@ -455,7 +367,7 @@ async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string
         tenantId,
         slug: "horse-riding-training",
         name: "🎓 Horse Riding Training",
-        nameAr: "🎓 دورة تدريب ركوب الخيل",
+        nameAr: "🎓 تدريب ركوب الخيل",
         description: "8 Classes, 2 Classes per week, 1 Hour per Class. 70 OMR.",
         descriptionAr: "٨ حصص، حصتان أسبوعياً، ساعة واحدة لكل حصة. ٧٠ ر.ع.",
         category: "education",
@@ -469,8 +381,6 @@ async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string
     })
   }
 
-  // 2. Find or create a Slot for today/tomorrow at the chosen hour
-  const timeStr = preferredTime.includes("8:15") ? "20:15" : "19:15"
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -479,8 +389,8 @@ async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string
       tenantId,
       tourId: tour.id,
       date: { gte: today },
-      startTime: timeStr,
     },
+    orderBy: { date: "asc" },
   })
 
   if (!slot) {
@@ -489,8 +399,8 @@ async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string
         tenantId,
         tourId: tour.id,
         date: today,
-        startTime: timeStr,
-        endTime: preferredTime.includes("8:15") ? "21:15" : "20:15",
+        startTime: "19:15",
+        endTime: "20:15",
         capacity: 10,
         seatsBooked: 1,
         status: "OPEN",
@@ -508,11 +418,11 @@ async function ensureTrainingTourAndSlot(tenantId: string, preferredTime: string
 
 /**
  * Saves customer details in booking (Order + Payment) and shows training booked.
+ * Followed immediately by AI vs Human chat mode choice.
  */
 async function saveTrainingBooking(
   ctx: FlowContext,
   state: TrainingState,
-  preferredTime: string,
 ) {
   const isAr = ctx.lang === "ar"
   const programKey = state.program === "MEN_KIDS" ? "MEN_KIDS" : "WOMEN"
@@ -521,7 +431,7 @@ async function saveTrainingBooking(
   const riderAge = state.riderAge || "Not specified"
 
   // 1. Ensure Tour and Slot exist
-  const { tour, slot } = await ensureTrainingTourAndSlot(ctx.tenantId, preferredTime)
+  const { tour, slot } = await ensureTrainingTourAndSlot(ctx.tenantId)
 
   // 2. Customer record update
   if (state.riderName) {
@@ -553,7 +463,7 @@ async function saveTrainingBooking(
       orderStatus: "CONFIRMED",
       confirmedAt: new Date(),
       channel: "WHATSAPP",
-      specialRequests: `Training: ${coach.titleEn} | Rider Name: ${riderName} | Age: ${riderAge} | Preferred Time: ${preferredTime} | Assigned Coach: ${coach.coachEn} (${coach.contact})`,
+      specialRequests: `Training: ${coach.titleEn} | Rider Name: ${riderName} | Age: ${riderAge} | Assigned Coach: ${coach.coachEn} (${coach.contact})`,
     },
   })
 
@@ -574,7 +484,7 @@ async function saveTrainingBooking(
     tenantId: ctx.tenantId,
     type: "NEW_BOOKING",
     title: `🎓 New Training Booking: ${riderName}`,
-    message: `${riderName} booked ${coach.titleEn} (${preferredTime}). Order #${order.orderNumber}.`,
+    message: `${riderName} booked ${coach.titleEn}. Order #${order.orderNumber}.`,
     data: { orderId: order.id },
   }).catch(() => null)
 
@@ -583,21 +493,25 @@ async function saveTrainingBooking(
 
   // 7. Send Final Confirmation Message (matching Node 26 / 55)
   const confirmationMsg = isAr
-    ? `✅ *شكراً لك ${riderName}! تم استلام طلب التدريب بنجاح.*
+    ? `✅ *شكراً لك ${riderName}! تم استلام طلب التدريب.*
 
 🎓 *${coach.titleAr}*
-${programKey === "WOMEN" ? "👩" : "👨"} المدرب: *${coach.coachAr}*
-📅 الأيام: *${coach.daysAr}*
-🕐 الوقت: *${preferredTime}*
-📞 للتواصل: *${coach.contact}*
 
-سيتواصل معك المدرب لمساعدتك في المواعيد والخطوات القادمة. 🐎`
-    : `✅ *Thank you! ${riderName}, your training request has been received.*
+${programKey === "WOMEN" ? "👩 المدربة:" : "👨 المدرب:"} *${coach.coachAr}*
+
+📅 الأيام: *${coach.daysAr}*
+
+📞 رقم التواصل: *${coach.contact}*
+
+${programKey === "WOMEN" ? "ستقوم المدربة" : "سيقوم المدرب"} بمساعدتك في تأكيد التوفر والخطوات التالية. 🐎`
+    : `✅ *Thank you ${riderName}! Your training request has been received.*
 
 🎓 *${coach.titleEn}*
-${programKey === "WOMEN" ? "👩" : "👨"} Coach: *${coach.coachEn}*
+
+${programKey === "WOMEN" ? "👩 Coach:" : "👨 Coach:"} *${coach.coachEn}*
+
 📅 Days: *${coach.daysEn}*
-🕐 Time: *${preferredTime}*
+
 📞 Contact: *${coach.contact}*
 
 The coach will assist you with availability and the next steps. 🐎`
@@ -610,4 +524,7 @@ The coach will assist you with availability and the next steps. 🐎`
 
   // 8. Clear state
   await setTrainingState(ctx.conversationId, null)
+
+  // 9. Send AI vs Human Chat choice in the last message
+  await sendPostBookingChatChoice(ctx)
 }

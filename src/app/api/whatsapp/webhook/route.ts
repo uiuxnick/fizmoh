@@ -1265,6 +1265,15 @@ async function handlePaymentScreenshot(params: {
         `\n${confirmed ? "Your booking is confirmed ✅ — our team is checking the transfer." : "Our team is verifying the transfer and will confirm your booking."} 🙏`,
   })
 
+  const { sendPostBookingChatChoice } = await import("@/lib/booking-flow")
+  await sendPostBookingChatChoice({
+    tenantId: currentTenant()?.tenantId || "",
+    conversationId,
+    customerId,
+    phone: from,
+    lang: ar ? "ar" : "en",
+  }).catch(() => null)
+
   await notifyStaff({
     type: "PAYMENT_SUBMITTED",
     title: "Payment screenshot from WhatsApp",
