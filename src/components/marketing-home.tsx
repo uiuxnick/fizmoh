@@ -1159,7 +1159,7 @@ export default function MarketingHome() {
 
             <div className="text-center pt-2">
               <Link
-                href="/downloads"
+                href="/downloads/"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] bg-white border-2 border-[var(--mk-line)] hover:border-[#000000] text-[var(--mk-ink)] text-[13.5px] font-extrabold transition shadow-xs"
               >
                 <span>{isAr ? "استعراض مركز التنزيل الكامل والمواصفات" : "Open Full Download Center & Release Hashes"}</span>

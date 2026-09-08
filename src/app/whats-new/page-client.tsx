@@ -286,7 +286,7 @@ export default function WhatsNewPage() {
             </p>
 
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/downloads">
+              <Link href="/downloads/">
                 <Button className="h-10 px-5 rounded-[10px] bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] text-[13px] font-bold shadow-sm">
                   <Download className="h-4 w-4 mr-2" />
                   {isAr ? "تنزيل التطبيقات (Android, Mac, Win)" : "Download Apps (Android, Mac, Win)"}
@@ -361,7 +361,7 @@ export default function WhatsNewPage() {
                   </div>
 
                   <Link
-                    href="/downloads"
+                    href="/downloads/"
                     className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#00B96A] hover:underline"
                   >
                     <span>{isAr ? "استعراض مركز التنزيل الكامل ←" : "Open Full Download Center →"}</span>
