@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { getAIConfig, isAIConfigured } from "@/lib/ai-provider"
-import { normalizeFlowGraph } from "@/lib/flow-normalizer"
+import { sanitizeAIFlowGraph } from "@/lib/flow-normalizer"
 
 /**
  * Drafts a WhatsApp template or a bot flow from a plain-language brief or diagram image.
@@ -345,9 +345,9 @@ export const POST = withErrors(withModule("AI", async (request: NextRequest) => 
       }
     }
 
-    const normalized = normalizeFlowGraph(rawNodes, rawEdges)
-    const finalNodes = normalized.nodes
-    const finalEdges = normalized.edges
+    const sanitized = sanitizeAIFlowGraph(rawNodes, rawEdges)
+    const finalNodes = sanitized.nodes
+    const finalEdges = sanitized.edges
 
     const selectedChannels = Array.isArray(body?.channels) && body.channels.length
       ? body.channels

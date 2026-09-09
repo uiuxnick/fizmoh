@@ -173,11 +173,11 @@ export function normalizeFlowNodes(value: unknown): NormalizedFlowNode[] {
         : Array.isArray(data.choices) ? data.choices
         : Array.isArray(data.items) ? data.items : []
 
-      if (rawBtns.length === 0) {
+      if (rawBtns.length === 0 && !hasData) {
         rawBtns = [{ id: "b1", title: "Option 1" }, { id: "b2", title: "Option 2" }]
       }
 
-      data.buttons = rawBtns.slice(0, 3).map((button: any, buttonIndex: number) => {
+      data.buttons = rawBtns.map((button: any, buttonIndex: number) => {
         if (typeof button === "string") {
           return { id: `btn_${buttonIndex + 1}`, title: button.trim().slice(0, 20) || `Option ${buttonIndex + 1}` }
         }
@@ -187,7 +187,7 @@ export function normalizeFlowNodes(value: unknown): NormalizedFlowNode[] {
         }
       })
       if (!data.text || !String(data.text).trim()) {
-        data.text = String(data.message || data.prompt || data.title || "Please choose an option:")
+        data.text = String(data.message || data.prompt || data.title || "")
       }
     }
 
@@ -199,14 +199,14 @@ export function normalizeFlowNodes(value: unknown): NormalizedFlowNode[] {
         : Array.isArray(data.choices) ? data.choices
         : Array.isArray(data.sections) ? data.sections.flatMap((s: any) => s.rows || s.items || []) : []
 
-      if (rawRows.length === 0) {
+      if (rawRows.length === 0 && !hasData) {
         rawRows = [
           { id: "r1", title: "Option 1", description: "Details" },
           { id: "r2", title: "Option 2", description: "Details" },
         ]
       }
 
-      data.rows = rawRows.slice(0, 10).map((row: any, i: number) => {
+      data.rows = rawRows.map((row: any, i: number) => {
         if (typeof row === "string") {
           return { id: `row_${i + 1}`, title: row.trim().slice(0, 24) || `Option ${i + 1}`, description: "" }
         }
@@ -220,7 +220,7 @@ export function normalizeFlowNodes(value: unknown): NormalizedFlowNode[] {
         data.listButton = String(data.buttonText || data.button || "View Menu").slice(0, 20)
       }
       if (!data.text || !String(data.text).trim()) {
-        data.text = String(data.message || data.intro || data.title || "Select an option from our menu:")
+        data.text = String(data.message || data.intro || data.title || "")
       }
     }
 
@@ -331,54 +331,65 @@ export function normalizeFlowGraph(nodes: unknown, edges: unknown) {
     normalizedEdges = [{ id: `${triggerId}_edge`, source: triggerId, target: first.id }, ...normalizedEdges]
   }
 
-  // Label branch connections for condition nodes (yes/no)
-  for (const node of normalizedNodes) {
-    if (node.type === "CONDITION") {
-      const out = normalizedEdges.filter(e => e.source === node.id)
-      if (out.length >= 2 && out.every(e => !e.label)) {
-        out[0].label = "yes"
-        out[1].label = "no"
-      }
-    } else if (node.type === "HOURS") {
-      const out = normalizedEdges.filter(e => e.source === node.id)
-      if (out.length >= 2 && out.every(e => !e.label)) {
-        out[0].label = "open"
-        out[1].label = "closed"
-      }
-    } else if (node.type === "SPLIT") {
-      const out = normalizedEdges.filter(e => e.source === node.id)
-      if (out.length >= 2 && out.every(e => !e.label)) {
-        out[0].label = "a"
-        out[1].label = "b"
-      }
-    } else if (node.type === "BUTTONS" && Array.isArray(node.data?.buttons)) {
-      const out = normalizedEdges.filter(e => e.source === node.id)
+  return { nodes: normalizedNodes, edges: normalizedEdges }
+}
+
+/**
+ * Specifically cleans, auto-labels, and terminates AI-generated draft graphs
+ * so drafts created by AI models are immediately ready and valid.
+ */
+export function sanitizeAIFlowGraph(rawNodes: unknown, rawEdges: unknown) {
+  const { nodes, edges } = normalizeFlowGraph(rawNodes, rawEdges)
+
+  for (const node of nodes) {
+    if (node.type === "BUTTONS" && Array.isArray(node.data?.buttons)) {
+      node.data.buttons = node.data.buttons.slice(0, 3)
+      const out = edges.filter(e => e.source === node.id)
       if (out.length > 0 && out.every(e => !e.label)) {
         out.forEach((edge, i) => {
           if (node.data.buttons[i]?.title) edge.label = node.data.buttons[i].title
         })
       }
+    } else if (node.type === "LIST" && Array.isArray(node.data?.rows)) {
+      node.data.rows = node.data.rows.slice(0, 10)
+    } else if (node.type === "CONDITION") {
+      const out = edges.filter(e => e.source === node.id)
+      if (out.length >= 2 && out.every(e => !e.label)) {
+        out[0].label = "yes"
+        out[1].label = "no"
+      }
+    } else if (node.type === "HOURS") {
+      const out = edges.filter(e => e.source === node.id)
+      if (out.length >= 2 && out.every(e => !e.label)) {
+        out[0].label = "open"
+        out[1].label = "closed"
+      }
+    } else if (node.type === "SPLIT") {
+      const out = edges.filter(e => e.source === node.id)
+      if (out.length >= 2 && out.every(e => !e.label)) {
+        out[0].label = "a"
+        out[1].label = "b"
+      }
     }
   }
 
-  // Auto-terminate dangling leaf steps so flows are immediately valid and don't strand users
   const TERMINAL_TYPES = new Set(["END", "HANDOFF"])
-  const nonTerminalLeaves = normalizedNodes.filter(n => n.type !== "TRIGGER" && !TERMINAL_TYPES.has(n.type) && !normalizedEdges.some(e => e.source === n.id))
+  const nonTerminalLeaves = nodes.filter(n => n.type !== "TRIGGER" && !TERMINAL_TYPES.has(n.type) && !edges.some(e => e.source === n.id))
 
   if (nonTerminalLeaves.length > 0) {
-    let endNode = normalizedNodes.find(n => n.type === "END")
+    let endNode = nodes.find(n => n.type === "END")
     if (!endNode) {
-      const maxY = Math.max(...normalizedNodes.map(n => n.y ?? 0), 200)
+      const maxY = Math.max(...nodes.map(n => n.y ?? 0), 200)
       endNode = { id: "end_flow", type: "END", data: {}, x: 400, y: maxY + 160 }
-      normalizedNodes.push(endNode)
+      nodes.push(endNode)
     }
     nonTerminalLeaves.forEach((leaf, idx) => {
       if (leaf.id !== endNode!.id) {
-        normalizedEdges.push({ id: `e_end_${leaf.id}_${idx}`, source: leaf.id, target: endNode!.id })
+        edges.push({ id: `e_end_${leaf.id}_${idx}`, source: leaf.id, target: endNode!.id })
       }
     })
   }
 
-  return { nodes: normalizedNodes, edges: normalizedEdges }
+  return { nodes, edges }
 }
 
