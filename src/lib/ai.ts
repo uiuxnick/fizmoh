@@ -1563,18 +1563,6 @@ async function businessIdentity(): Promise<string> {
   if (website) lines.push(`Website: ${website}`)
   if (tone) lines.push(`Tone to use: ${tone}`)
 
-  try {
-    const { TRAINING_COURSES } = await import("@/lib/training-flow")
-    if (TRAINING_COURSES) {
-      lines.push(
-        `Horse Riding Training Packages (باقات تدريب ركوب الخيل):\n` +
-        `- Women's Training (تدريب النساء): 90 OMR, 10 sessions, Sun & Tue, Coach Nouf (الكابتن نوف), Contact: +968 92009161\n` +
-        `- Men's Training (تدريب الرجال): 90 OMR, 10 sessions, Sun & Tue, Coach Yahya (الكابتن يحيى), Contact: +968 92009161\n` +
-        `- Kids' Training (تدريب الأطفال): 90 OMR, 10 sessions, Sun & Tue, Coach Yahya (الكابتن يحيى), Contact: +968 92009161`
-      )
-    }
-  } catch {}
-
   lines.push(
     "Anything not stated above you do not know. Say you will check rather than " +
     "inventing a policy, a price or an opening time — an invented answer is remembered " +
