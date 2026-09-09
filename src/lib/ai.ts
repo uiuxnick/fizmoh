@@ -1108,19 +1108,37 @@ export async function aiChat(
     return HANDOFF_REPLY
   }
 
-  // Mirror whatever language the customer actually wrote in. Tourists here
-  // message in Hindi, Urdu, German and French as often as Arabic, and a stored
-  // preference from one earlier conversation should not override what is in
-  // front of you now.
-  const langInstruction = [
-    "Language: reply in the same language the customer just used, whatever it is.",
-    customerLang === "ar"
-      ? "They usually write in Arabic — use natural Omani dialect, not formal MSA, unless they write formally."
-      : `Their stored preference is "${customerLang}", but the language of their latest message wins.`,
-    "Write the way a helpful colleague speaks: warm, direct, contractions are fine. Never translate a tour's name — keep it as it is.",
-  ].join(" ")
+  // Mirror whatever language the customer actually wrote in.
+  const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content || ""
+  const isArabicMsg = /[\u0600-\u06FF]/.test(lastUserMsg)
+  const langInstruction = isArabicMsg
+    ? "CRITICAL LANGUAGE DIRECTIVE: The customer wrote in Arabic. You MUST reply ONLY in natural, warm Arabic (Omani / Gulf dialect). Do not reply in English under any circumstances."
+    : (customerLang === "ar"
+        ? "CRITICAL LANGUAGE DIRECTIVE: The customer's preferred language is Arabic. Reply warmly and naturally in Arabic unless they explicitly wrote in another language."
+        : `CRITICAL LANGUAGE DIRECTIVE: Reply in the same language the customer just used (${customerLang || "English"}). Write the way a helpful colleague speaks: warm, direct, contractions are fine.`)
 
   const context = await customerContext(customerPhone)
+
+  /*
+   * Retrieve official verified business knowledge chunks directly into the prompt.
+   * This guarantees that policies (e.g. cancellation notice, rules, training) are
+   * accurately answered without depending on tool-calling latency or misses.
+   */
+  let retrievedKnowledge = ""
+  try {
+    const { searchKnowledge, knowledgeReady } = await import("@/lib/knowledge")
+    if (await knowledgeReady() && lastUserMsg.trim()) {
+      const chunks = await searchKnowledge(lastUserMsg, 5)
+      if (chunks && chunks.length > 0) {
+        retrievedKnowledge =
+          "\n\n[OFFICIAL BUSINESS KNOWLEDGE BASE - VERIFIED FACTS]:\n" +
+          chunks.map((c, i) => `--- Fact ${i + 1} (${c.title}):\n${c.content}`).join("\n\n") +
+          "\n\nCRITICAL INSTRUCTION: Use the above verified official business facts to answer the customer accurately in their language. For questions regarding cancellations, refund notice period, training packages, working hours, or contact numbers, strictly adhere to these official facts."
+      }
+    }
+  } catch (err) {
+    console.error("Knowledge retrieval error in aiChat:", err)
+  }
 
   /*
    * A tool the model does not know to reach for is a tool that never runs.
@@ -1146,19 +1164,10 @@ export async function aiChat(
 
   /*
    * Who the assistant is working for.
-   *
-   * The prompt used to name one company and describe its policies, so every
-   * business on the platform had an assistant introducing itself as somebody
-   * else's — and quoting somebody else's cancellation terms as fact, which is
-   * the kind of invented promise a customer holds you to.
-   *
-   * What each business tells us about itself goes in instead. An empty
-   * description leaves the assistant generic rather than wrong, which is the
-   * right failure.
    */
   const identity = await businessIdentity()
 
-  const system = `${ASSISTANT_SYSTEM_PROMPT}\n\n${identity}\n${langInstruction}\n${context}${knowledgeNote}`
+  const system = `${ASSISTANT_SYSTEM_PROMPT}\n\n${identity}\n${langInstruction}\n${context}${knowledgeNote}${retrievedKnowledge}`
 
 
   const turn: TurnRecord = { photosSent: [] }
@@ -1553,6 +1562,19 @@ async function businessIdentity(): Promise<string> {
   if (phone) lines.push(`Contact number: ${phone}`)
   if (website) lines.push(`Website: ${website}`)
   if (tone) lines.push(`Tone to use: ${tone}`)
+
+  try {
+    const { TRAINING_COURSES } = await import("@/lib/training-flow")
+    if (TRAINING_COURSES) {
+      lines.push(
+        `Horse Riding Training Packages (باقات تدريب ركوب الخيل):\n` +
+        `- Women's Training (تدريب النساء): 90 OMR, 10 sessions, Sun & Tue, Coach Nouf (الكابتن نوف), Contact: +968 92009161\n` +
+        `- Men's Training (تدريب الرجال): 90 OMR, 10 sessions, Sun & Tue, Coach Yahya (الكابتن يحيى), Contact: +968 92009161\n` +
+        `- Kids' Training (تدريب الأطفال): 90 OMR, 10 sessions, Sun & Tue, Coach Yahya (الكابتن يحيى), Contact: +968 92009161`
+      )
+    }
+  } catch {}
+
   lines.push(
     "Anything not stated above you do not know. Say you will check rather than " +
     "inventing a policy, a price or an opening time — an invented answer is remembered " +

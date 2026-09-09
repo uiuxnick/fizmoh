@@ -130,6 +130,9 @@ function parseMessage(msg: any): { content: string; mediaId: string | null; mess
   if (type === "text") {
     return { content: msg.text?.body || "", mediaId: null, messageType: "TEXT" }
   }
+  if (type === "sticker") {
+    return { content: "[sticker]", mediaId: msg.sticker?.id || null, messageType: "STICKER" }
+  }
   if (type === "image") {
     return { content: "[Image]", mediaId: msg.image?.id || null, messageType: "IMAGE" }
   }
@@ -160,6 +163,9 @@ function parseMessage(msg: any): { content: string; mediaId: string | null; mess
 // ─── Conversation resolution ───
 
 async function resolveConversation(from: string, customerName: string, customerId: string) {
+  const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
+  const isBotActive = !(botOn === "false" || botOn === "off" || botOn === "0")
+
   // Prefer a live conversation. A CLOSED one is reopened rather than duplicated
   // so the agent keeps the full history on the thread.
   const existing = await db.conversation.findFirst({
@@ -171,7 +177,7 @@ async function resolveConversation(from: string, customerName: string, customerI
     if (existing.status === "CLOSED" || existing.status === "RESOLVED") {
       return db.conversation.update({
         where: { id: existing.id },
-        data: { status: "OPEN", botActive: true },
+        data: { status: "OPEN", botActive: isBotActive },
       })
     }
     return existing
@@ -194,7 +200,7 @@ async function resolveConversation(from: string, customerName: string, customerI
       customerName,
       customerId,
       status: "OPEN",
-      botActive: true,
+      botActive: isBotActive,
       assignedStaffId,
       tenantId: currentTenant()?.tenantId || null,
     },
@@ -541,6 +547,14 @@ async function processMessage(msg: any, contact: any) {
     })
   }
 
+  const hasArabicScript = /[\u0600-\u06FF]/.test(content)
+  if (hasArabicScript && customer.preferredLang !== "ar") {
+    customer = await db.customer.update({
+      where: { id: customer.id },
+      data: { preferredLang: "ar" },
+    })
+  }
+
   const conversation = await resolveConversation(from, customerName, customer.id)
 
   // Blue ticks and "typing…" as soon as the message lands, so the customer can
@@ -663,7 +677,13 @@ async function processMessage(msg: any, contact: any) {
    * for the one message explaining that it's off."
    */
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
-  if (botOn === "false" || botOn === "off" || botOn === "0") return
+  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
+  if (
+    botOn === "false" || botOn === "off" || botOn === "0" ||
+    waBotOn === "false" || waBotOn === "off" || waBotOn === "0"
+  ) {
+    return
+  }
 
   // Away message outside business hours (BRD §6.5.6). The AI keeps working
   // unless the operator explicitly turned that off — a booking assistant that
@@ -763,7 +783,7 @@ async function processMessage(msg: any, contact: any) {
       return
     }
 
-    if (type === "text" || type === "interactive" || type === "button") {
+    if (type === "text" || type === "interactive" || type === "button" || type === "sticker") {
       const flowCtx = { tenantId: currentTenant()?.tenantId || "", conversationId: conversation.id, customerId: customer.id, phone: from }
 
       // Guided booking flow takes precedence: the customer tapped a button we
@@ -982,7 +1002,7 @@ async function processMessage(msg: any, contact: any) {
         }
       }
 
-      if (type === "text") {
+      if (type === "text" || type === "sticker") {
         if (await handleMarketingText(flowCtx, content)) return
         if (await handleAppointmentText(flowCtx, content)) return
         if (await handleVisaText(flowCtx, content)) return
@@ -1008,6 +1028,10 @@ async function processMessage(msg: any, contact: any) {
         // A greeting always restarts the menu if no visual BotFlow matched.
         const existing = await getState(conversation.id)
         const midInput = existing?.step === "ASK_NAME" || existing?.step === "ASK_EMAIL"
+        const { getTrainingState } = await import("@/lib/training-flow")
+        const trainState = await getTrainingState(conversation.id)
+        const midTrain = trainState && (trainState.step === "TRAINING_NAME" || trainState.step === "TRAINING_AGE")
+
         /*
          * The workspace's own flow comes first.
          *
@@ -1024,7 +1048,7 @@ async function processMessage(msg: any, contact: any) {
          * and answering it with the LLM instead of the menu loses them before
          * they see what the business offers.
          */
-        if ((isFlowTrigger(content) || isFirstContact) && !midInput) {
+        if ((isFlowTrigger(content) || isFirstContact || type === "sticker") && !midInput && !midTrain) {
           const ownFlow = await flowWouldMatch({
             tenantId: currentTenant()?.tenantId || "",
             conversationId: conversation.id,
@@ -1044,7 +1068,7 @@ async function processMessage(msg: any, contact: any) {
         content,
         conversationId: conversation.id,
         customerId: customer.id,
-        preferredLang: customer.preferredLang || "en",
+        preferredLang: /[\u0600-\u06FF]/.test(content) ? "ar" : (customer.preferredLang || "en"),
       })
     }
   } catch (aiError) {
@@ -1316,7 +1340,10 @@ async function handleTextMessage(params: {
    */
   const aiOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
   if (aiOn === "false" || aiOn === "off" || aiOn === "0") {
-    await handoffToAgent({ from, conversationId, customerId, intent: "AI_DISABLED" })
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { botActive: false, automationPaused: true, status: "PENDING" },
+    }).catch(() => {})
     return
   }
 
@@ -1426,6 +1453,43 @@ async function handoffToAgent(params: {
   intent: string
 }) {
   const { from, conversationId, customerId, intent } = params
+
+  // 1. Immediately pause bot on this conversation so it never responds again
+  await db.conversation.update({
+    where: { id: conversationId },
+    data: { botActive: false, automationPaused: true, status: "PENDING" },
+  }).catch(() => {})
+
+  // Per BRD §6.5.6 the handoff has to actually reach a human, with context.
+  try {
+    const conversation = await db.conversation.findUnique({
+      where: { id: conversationId },
+      select: { assignedStaffId: true, customerName: true },
+    })
+
+    await notifyStaff({
+      type: "CHAT_HANDOFF",
+      title: "Chat needs a human agent",
+      message: `${conversation?.customerName || from} — detected intent: ${intent}`,
+      forRole: "CHAT_AGENT",
+      forStaffId: conversation?.assignedStaffId || null,
+      data: { conversationId, customerPhone: from, intent },
+    })
+  } catch (err) {
+    console.error("Staff notification error:", err)
+  }
+
+  // 2. Do NOT send automated message if bot is disabled or AI is disabled
+  const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
+  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
+  if (
+    botOn === "false" || botOn === "off" || botOn === "0" ||
+    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
+    intent === "AI_DISABLED"
+  ) {
+    return
+  }
+
   const handoffText = "I'm connecting you with one of our team members who will assist you shortly. 🙏"
 
   await sendWhatsApp({ to: from, body: handoffText, allowOutsideSession: true })
@@ -1443,21 +1507,6 @@ async function handoffToAgent(params: {
   })
 
   publish({ type: "message", conversationId, direction: "BOT", preview: handoffText.slice(0, 120), tenantId: currentTenant()?.tenantId || undefined })
-
-  // Per BRD §6.5.6 the handoff has to actually reach a human, with context.
-  const conversation = await db.conversation.findUnique({
-    where: { id: conversationId },
-    select: { assignedStaffId: true, customerName: true },
-  })
-
-  await notifyStaff({
-    type: "CHAT_HANDOFF",
-    title: "Chat needs a human agent",
-    message: `${conversation?.customerName || from} — detected intent: ${intent}`,
-    forRole: "CHAT_AGENT",
-    forStaffId: conversation?.assignedStaffId || null,
-    data: { conversationId, customerPhone: from, intent },
-  })
 }
 
 
@@ -1659,7 +1708,7 @@ async function processEcho(echo: any) {
 
   await db.conversation.update({
     where: { id: conversation.id },
-    data: { lastMessageAt: new Date() },
+    data: { lastMessageAt: new Date(), botActive: false, automationPaused: true },
   }).catch(() => {})
 }
 

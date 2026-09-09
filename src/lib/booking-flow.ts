@@ -119,11 +119,45 @@ function tourLabel(ctx: FlowContext, tour: { name: string; nameAr?: string | nul
 const PREFIX = "bk_"
 
 /** Trigger words that start the guided flow from free text. */
-const START_WORDS = ["book", "booking", "hi", "hello", "hey", "start", "menu", "مرحبا", "حجز"]
+const START_WORDS = [
+  "book", "booking", "book now", "hi", "hii", "hiii", "hello", "helloo", "hey", "heyy",
+  "start", "menu", "main menu", "welcome", "greetings", "good morning", "good evening",
+  "good afternoon", "salam", "slm", "asalaam alaikum", "assalamu alaikum", "haloo", "hola",
+  "bonjour", "مرحبا", "مرحباً", "مراحب", "مرحب", "اهلا", "أهلا", "أهلاً", "اهلا وسهلا",
+  "أهلاً وسهلاً", "هلا", "يا هلا", "هلا وغلا", "ياهلا", "صباح الخير", "صباح النور",
+  "مساء الخير", "مساء النور", "السلام عليكم", "السلام عليكم ورحمة الله",
+  "السلام عليكم ورحمة الله وبركاته", "سلام عليكم", "وعليكم السلام", "سلام", "حياك", "حياكم",
+  "حياكم الله", "حجز", "الحجز", "احجز", "اريد احجز", "ابي احجز", "ابغي احجز", "بدي احجز",
+  "خيل", "ركوب خيل", "ركوب الخيل", "horse", "horse riding",
+]
+
+const PURE_EMOJI_REGEX = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Modifier}\p{Emoji_Component}\s\p{Punctuation}]+$/u
+const WAVE_EMOJI_REGEX = /[\u{1F44B}\u{1F64B}\u{1F590}\u{270B}\u{1F44D}\u{1F60A}\u{1F600}\u{1F40E}\u{1F42B}]/u
 
 export function isFlowTrigger(text: string): boolean {
-  const t = text.trim().toLowerCase().replace(/[!.،,]/g, "")
-  return START_WORDS.includes(t)
+  if (!text) return false
+  const trimmed = text.trim()
+  if (!trimmed) return false
+
+  // 1. Sticker indicator
+  if (trimmed === "[sticker]" || trimmed.includes("[sticker]")) return true
+
+  // 2. Pure emoji or wave/greeting emoji
+  if (/\p{Extended_Pictographic}/u.test(trimmed)) {
+    if (PURE_EMOJI_REGEX.test(trimmed)) return true
+    if (WAVE_EMOJI_REGEX.test(trimmed) && trimmed.length <= 15) return true
+  }
+
+  // 3. Normalised greeting words (Arabic & English)
+  const t = trimmed.toLowerCase().replace(/[!.،,?؟]/g, "").trim()
+  if (START_WORDS.includes(t)) return true
+
+  // 4. Exact word match or boundary match for greetings
+  return START_WORDS.some(w => {
+    if (t === w) return true
+    if (w.length >= 3 && (t.startsWith(w + " ") || t.endsWith(" " + w))) return true
+    return false
+  })
 }
 
 export function isFlowReply(id?: string | null): boolean {
