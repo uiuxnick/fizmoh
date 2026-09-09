@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { getAIConfig, isAIConfigured } from "@/lib/ai-provider"
+import { normalizeFlowGraph } from "@/lib/flow-normalizer"
 
 /**
  * Drafts a WhatsApp template or a bot flow from a plain-language brief or diagram image.
@@ -54,79 +55,109 @@ Write each card about one specific tour from the operator's list, naming it and
 giving a reason to care — what you see, how long it takes, what it costs. Do not
 invent tours. Do not put image URLs in the JSON; those are attached separately.`
 
-const FLOW_INSTRUCTIONS = `You are an expert conversational AI architect. You design advanced visual WhatsApp automation bot flows for businesses in Oman & the GCC.
+const FLOW_INSTRUCTIONS = `You are an expert conversational AI architect. You design high-converting visual automation bot flows for businesses across WhatsApp, Facebook Messenger, and Instagram.
 
 You can also analyze images of flowcharts, hand-drawn wireframes, or architecture diagrams and convert them directly into interactive bot flows.
 
-Available Node Types:
-- TRIGGER: Starting event (Keywords or Intent)
-- MESSAGE: Plain text message
-- BUTTONS: Interactive Quick Reply buttons (up to 3 buttons)
-- LIST: Interactive List Menu (up to 10 rows with titles & descriptions)
-- CTA_URL: CTA button with website URL or phone number
-- LOCATION: Send location name, address, and Google Maps GPS pin
-- QUESTION: Ask customer for input (text, email, phone, number, select, date, image, document)
-- AI: Smart Assistant responding from knowledge base
-- HOSPITAL: Kauvery Hospital Chemotherapy 30-bed Day Care & Doctor Appointment Booking
-- HOSP_CHEMO: Direct Chemotherapy Day Care Bed Booking (Normal & Special Wards)
-- HOSP_DOCTOR: Oncologist & Doctor Consultation Booking
-- HOSP_BED_MAP: Live Bed & Ward Vacancy Map
-- TOUR: Dynamic Desert Safaris & Tours in Oman
-- TOUR_DETAILS: Featured Tour Card
-- TOUR_AVAIL: Check Tour Dates
-- PAYMENT: AmwalPay secure payment link with amount & description
-- BANK_TRANSFER: Bank account details & receipt screenshot request
-- APPOINTMENT: Medical / Salon Consultation Appointment
-- APT_RESCHEDULE: Manage / Reschedule / Cancel Appointment
-- PRODUCT & CATALOG: WooCommerce products and catalog
-- VISA: Oman Visa enquiry and assistance
-- RESTAURANT: Table reservation & digital menu
-- CONDITION: Branching condition (true/false)
-- HOURS: Business hours filter (open/closed)
-- SPLIT: A/B traffic split (a/b)
-- DELAY: Wait timer (seconds)
-- SET: Store custom variable
-- TAG: Tag customer profile
-- SAVE: Save lead / enquiry
-- HANDOFF: Live agent human handover
-- END: Complete and end flow
+Supported Visual Flow Elements:
+1. TRIGGER:
+   - Root starting point. Automatically connects to the first message.
+2. BUTTONS (Interactive Quick Replies):
+   - For 1 to 3 choices.
+   - "data": { "text": "Message text above buttons", "buttons": [{ "id": "btn_1", "title": "Button Title" }] }
+   - Button title MUST be 1-20 characters.
+   - Outgoing edges: Each button MUST have a dedicated outgoing connection edge to its subsequent node, with edge "label" matching the button title or id.
+3. LIST (Interactive List Menu):
+   - For 4 to 10 choices (services, products, menu items, departments).
+   - "data": { "text": "Introductory message text", "listButton": "View Menu", "rows": [{ "id": "r1", "title": "Item Title", "description": "Short description" }] }
+   - Title max 24 chars, description max 72 chars, listButton max 20 chars.
+   - Outgoing edges: Each row connects to the respective branch node.
+4. MESSAGE:
+   - Plain conversational text message with emojis.
+   - "data": { "text": "Welcome! How can we help you today?" }
+5. QUESTION:
+   - Collects customer inputs.
+   - "data": { "text": "What is your full name?", "name": "full_name", "inputType": "text" | "email" | "phone" | "number" | "date" | "select", "options": ["Option 1", "Option 2"], "required": true }
+6. CTA_URL:
+   - Action button with website URL or phone number.
+   - "data": { "text": "Tap below to visit our portal:", "buttonText": "Open Website", "url": "https://example.com" }
+7. LOCATION:
+   - Sends Google Maps location pin.
+   - "data": { "name": "Company Office", "address": "Building, Street, Muscat, Oman", "latitude": 23.5880, "longitude": 58.3829 }
+8. MEDIA:
+   - Sends image, document, or video attachment.
+   - "data": { "mediaUrl": "https://...", "mediaType": "image" | "video" | "document", "caption": "Caption text" }
+9. AI:
+   - Generative smart AI assistant response from business knowledge base.
+   - "data": { "instruction": "Answer questions helpfully about our services.", "useKnowledge": true }
+10. APPOINTMENT:
+    - Books consultation, meeting, or service appointment.
+    - "data": { "appointmentText": "Let's schedule your appointment:" }
+11. APT_RESCHEDULE:
+    - Reschedule or cancel existing appointment.
+    - "data": { "text": "Please enter your reference to reschedule or cancel:" }
+12. PAYMENT:
+    - Online payment link gateway (AmwalPay / Card).
+    - "data": { "amount": 10, "currency": "OMR", "paymentDescription": "Booking Payment", "text": "Complete your payment:" }
+13. BANK_TRANSFER:
+    - Displays bank details and requests receipt transfer screenshot.
+14. CONDITION:
+    - Dynamic logic branch.
+    - "data": { "field": "variable_name", "op": "equals" | "contains" | "gt" | "lt", "value": "test" }
+    - MUST have two outgoing edges with labels: "yes" and "no".
+15. HOURS:
+    - Business hours filter.
+    - "data": { "from": "08:00", "to": "20:00" }
+    - MUST have two outgoing edges with labels: "open" and "closed".
+16. DELAY:
+    - Timer wait in seconds before next message (e.g. 60 to 3600).
+    - "data": { "seconds": 60 }
+17. SET:
+    - Saves internal session variable.
+    - "data": { "name": "variable_name", "value": "value" }
+18. TAG:
+    - Tags customer profile for segmentation.
+    - "data": { "value": "vip_lead" }
+19. SAVE:
+    - Saves enquiry / lead to CRM database.
+20. HANDOFF:
+    - Transfers conversation to a live human agent. (Terminal node)
+21. END:
+    - Closes and completes the automation flow. (Terminal node)
 
 Return ONLY valid JSON:
 {
-  "name": "short human title (e.g. Kauvery Hospital Triage & Bed Booking)",
+  "name": "short human title",
   "description": "one line summary of the workflow",
   "trigger": "KEYWORD" | "INTENT",
-  "triggerConfig": { "keywords": ["hospital", "chemo", "book doctor"], "matchType": "contains" },
+  "triggerConfig": { "keywords": ["hi", "book", "menu"], "matchType": "contains" },
   "nodes": [
+    { "id": "trigger", "type": "TRIGGER", "data": {}, "x": 400, "y": 50 },
     {
-      "id": "trigger",
-      "type": "TRIGGER",
-      "data": {},
-      "x": 400,
-      "y": 50
-    },
-    {
-      "id": "n1",
-      "type": "BUTTONS" | "LIST" | "MESSAGE" | "QUESTION" | "AI" | "HOSPITAL" | "HOSP_CHEMO" | "HOSP_DOCTOR" | "HOSP_BED_MAP" | "TOUR" | "TOUR_DETAILS" | "TOUR_AVAIL" | "PAYMENT" | "BANK_TRANSFER" | "APPOINTMENT" | "CONDITION" | "HOURS" | "SPLIT" | "DELAY" | "HTTP" | "TAG" | "SET" | "SAVE" | "HANDOFF" | "END",
+      "id": "welcome_menu",
+      "type": "BUTTONS",
       "data": {
-        "text": "Message text with emoji",
-        "buttons": [{ "id": "btn1", "title": "Button text" }],
-        "rows": [{ "id": "r1", "title": "Title", "description": "Desc" }]
+        "text": "Welcome to our business! How may we assist you today?",
+        "buttons": [
+          { "id": "btn_book", "title": "📅 Book Meeting" },
+          { "id": "btn_info", "title": "ℹ️ Services" },
+          { "id": "btn_agent", "title": "👤 Live Support" }
+        ]
       },
       "x": 400,
       "y": 180
     }
   ],
   "edges": [
-    { "id": "e1", "source": "trigger", "target": "n1" }
+    { "id": "e_start", "source": "trigger", "target": "welcome_menu" }
   ]
 }
 
-Layout Guidelines for coordinates:
-- Root trigger: x: 400, y: 50
-- Home Menu: x: 400, y: 180
-- For multi-branch menus, spread children horizontally (e.g. x: 120, x: 380, x: 640, x: 900) and step vertically down (+160px per sequential step).
-- Connect all edge IDs and source/target references.`
+Layout & Connection Rules:
+- Every branch of BUTTONS and LIST must connect to its target node with an edge.
+- Every sequence must end at an END or HANDOFF node.
+- Spread branching children horizontally (e.g., x: 120, x: 400, x: 680) and increment y (+180px) down the canvas.
+- No dangling non-terminal nodes.`
 
 export const POST = withErrors(withModule("AI", async (request: NextRequest) => {
   if (!(await isAIConfigured())) {
@@ -314,6 +345,18 @@ export const POST = withErrors(withModule("AI", async (request: NextRequest) => 
       }
     }
 
+    const normalized = normalizeFlowGraph(rawNodes, rawEdges)
+    const finalNodes = normalized.nodes
+    const finalEdges = normalized.edges
+
+    const selectedChannels = Array.isArray(body?.channels) && body.channels.length
+      ? body.channels
+      : ["WHATSAPP", "FACEBOOK", "INSTAGRAM"]
+
+    const finalTriggerConfig = typeof draft.triggerConfig === "object" && draft.triggerConfig
+      ? { ...draft.triggerConfig, channels: selectedChannels }
+      : { channels: selectedChannels, keywords: ["start", "hello"], matchType: "contains" }
+
     if (body?.preview === true) {
       return NextResponse.json({
         kind,
@@ -321,9 +364,9 @@ export const POST = withErrors(withModule("AI", async (request: NextRequest) => 
           name: String(draft.name || "Generated flow").slice(0, 200),
           description: String(draft.description || "").slice(0, 1000),
           trigger: draft.trigger === "INTENT" ? "INTENT" : "KEYWORD",
-          triggerConfig: draft.triggerConfig ?? { keywords: ["start", "hello"], matchType: "contains" },
-          nodes: rawNodes,
-          edges: rawEdges,
+          triggerConfig: finalTriggerConfig,
+          nodes: finalNodes,
+          edges: finalEdges,
         },
       })
     }
@@ -333,9 +376,9 @@ export const POST = withErrors(withModule("AI", async (request: NextRequest) => 
         name: String(draft.name || "Generated flow").slice(0, 200),
         description: String(draft.description || "").slice(0, 1000) || null,
         trigger: draft.trigger === "INTENT" ? "INTENT" : "KEYWORD",
-        triggerConfig: JSON.stringify(draft.triggerConfig ?? { keywords: ["start", "hello"], matchType: "contains" }),
-        nodes: JSON.stringify(rawNodes),
-        edges: JSON.stringify(rawEdges),
+        triggerConfig: JSON.stringify(finalTriggerConfig),
+        nodes: JSON.stringify(finalNodes),
+        edges: JSON.stringify(finalEdges),
         isActive: false,
         priority: 0,
       },

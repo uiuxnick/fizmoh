@@ -652,7 +652,8 @@ export function FlowEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kind: "flow",
-          brief: `${aiPrompt || "Generate the visual bot flow graph based on the attached flowchart diagram"}\nTarget channels: ${channels.join(", ")}.${channels.some(c => c !== "WHATSAPP") ? ` Use only ${[...SOCIAL_FLOW_NODES].join(", ")} nodes. Choices are numbered text replies. Do not use WhatsApp booking, payment, template or delay nodes.` : ""}`,
+          channels,
+          brief: `${aiPrompt || "Generate the visual bot flow graph based on the attached flowchart diagram"}\nTarget channels: ${channels.join(", ")}. Use available visual flow elements (BUTTONS, LIST, MESSAGE, QUESTION, CONDITION, APPOINTMENT, etc.). Connect all branches with interactive buttons and proper edge labels.`,
           imageBase64: aiImage || undefined,
           preview: true,
           ...(nodes.length > 1 ? { current: { name, description, trigger, keywords, nodes: currentNodes, edges: currentEdges } } : {}),

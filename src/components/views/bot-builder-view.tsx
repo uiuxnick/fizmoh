@@ -143,7 +143,7 @@ export default function BotBuilderView() {
           <p className="text-sm text-stone-500 mt-0.5">Visual conversation flows &amp; AI automation rules</p>
         </div>
         <div className="flex gap-2">
-          {channel === "WHATSAPP" ? <AIDraftButton kind="flow" onCreated={load} /> : <Button variant="outline" onClick={() => { setEditing(null); setCreating(true) }}>Draft with AI</Button>}
+          <AIDraftButton kind="flow" channel={channel} onCreated={load} />
           <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditing(null); setCreating(true) }}>
             <Plus className="h-4 w-4 mr-1.5" /> New Flow
           </Button>

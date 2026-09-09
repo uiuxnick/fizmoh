@@ -15,7 +15,7 @@ import { Sparkles, Loader2, X } from "lucide-react"
  * and Meta rejects templates for reasons a model cannot anticipate, so a person
  * reads it before it goes anywhere.
  */
-export function AIDraftButton({ kind, onCreated }: { kind: "template" | "flow"; onCreated: () => void }) {
+export function AIDraftButton({ kind, channel, onCreated }: { kind: "template" | "flow"; channel?: string; onCreated: () => void }) {
   const [open, setOpen] = useState(false)
   const [brief, setBrief] = useState("")
   const [busy, setBusy] = useState(false)
@@ -27,7 +27,11 @@ export function AIDraftButton({ kind, onCreated }: { kind: "template" | "flow"; 
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, brief }),
+        body: JSON.stringify({
+          kind,
+          brief,
+          ...(channel ? { channels: [channel] } : {}),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(data.error || "Could not generate"); return }
