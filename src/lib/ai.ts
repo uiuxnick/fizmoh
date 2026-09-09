@@ -1132,7 +1132,7 @@ export async function aiChat(
       if (chunks && chunks.length > 0) {
         retrievedKnowledge =
           "\n\n[OFFICIAL BUSINESS KNOWLEDGE BASE - VERIFIED FACTS]:\n" +
-          chunks.map((c, i) => `--- Fact ${i + 1} (${c.title}):\n${c.content}`).join("\n\n") +
+          chunks.map((c, i) => `--- Fact ${i + 1} (${c.sourceTitle}):\n${c.content}`).join("\n\n") +
           "\n\nCRITICAL INSTRUCTION: Use the above verified official business facts to answer the customer accurately in their language. For questions regarding cancellations, refund notice period, training packages, working hours, or contact numbers, strictly adhere to these official facts."
       }
     }
