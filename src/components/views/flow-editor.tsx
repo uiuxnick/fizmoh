@@ -784,9 +784,10 @@ export function FlowEditor({
     if (trigger === "KEYWORD" && !keywords.trim()) { toast.error("Add at least one keyword"); return }
     if (nodes.length === 0) { toast.error("Add at least one node"); return }
     if (trigger === "SCHEDULE" && (!Number.isFinite(Date.parse(scheduledAt)) || !conversationIds || channels.some(c => c !== "WHATSAPP"))) { toast.error("Choose a schedule, conversations and WhatsApp as the channel"); return }
-    const { nodes: apiNodes, edges: apiEdges } = toApiNodes(nodes, edges)
     if (!channels.length) { toast.error("Choose at least one channel"); return }
-    if (apiNodes.some(node => !supportsFlowNode(node.type, channels))) { toast.error("This flow contains steps unavailable on the selected channels. Remove those steps or choose WhatsApp."); return }
+    const { nodes: apiNodes, edges: apiEdges } = toApiNodes(nodes, edges)
+    const unsupported = apiNodes.find(node => !supportsFlowNode(node.type, channels))
+    if (unsupported) { toast.error(`The "${unsupported.type}" step is unavailable on the selected channels. Remove it or choose WhatsApp.`); return }
     const payload = {
       name: name.trim(),
       description: description.trim() || null,
