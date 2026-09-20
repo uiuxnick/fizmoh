@@ -389,13 +389,13 @@ export function SiteHeader() {
     {
       titleEn: "WooCommerce Plugin",
       titleAr: "إضافة ووكومرس",
-      descEn: "Download Fizmoh Connect for WooCommerce & cart recovery.",
-      descAr: "تحميل إضافة ووكومرس الرسمية واستعادة السلات المتروكة.",
-      href: "/api/ecommerce/plugin/download",
+      descEn: "Fizmoh Connect for WooCommerce & cart recovery.",
+      descAr: "إضافة ووكومرس الرسمية واستعادة السلات المتروكة.",
+      href: "/resources/woocommerce",
       icon: ShoppingBag,
       color: "text-[#00B96A] bg-[#00B96A]/10",
-      badgeEn: ".zip",
-      badgeAr: ".zip",
+      badgeEn: "v1.0",
+      badgeAr: "v1.0",
     },
     {
       titleEn: "Contact (Ask)",
