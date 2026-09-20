@@ -22,7 +22,7 @@ export const SEO_POSTS: BlogPost[] = [
     metaTitle: "WhatsApp Business API Oman: Setup, Pricing & Meta BSP Guide (2026)",
     metaTitleAr: "واتساب بزنس API في سلطنة عمان: الأسعار، الربط، وشركاء ميتا (2026)",
     metaDescription:
-      "The definitive 2026 guide to WhatsApp Business API in Oman. Learn Meta Cloud API verification, OMR conversation pricing, multi-agent team inbox setup, and local BSP integration.",
+      "The definitive 2026 guide to WhatsApp Business API in Oman: Meta Cloud API verification, OMR conversation pricing, team inbox, and BSP setup.",
     metaDescriptionAr:
       "الدليل الشامل لربط واتساب بزنس API في سلطنة عمان لعام 2026. خطوات التوثيق الرسمي بالعلامة الخضراء، أسعار المحادثات بالريال العماني، وربط الموظفين عبر Fizmoh.",
     h1: "Complete Guide to WhatsApp Business API in Oman (2026)",
@@ -191,7 +191,7 @@ Ready to upgrade your business communication? [Start your free 14-day Fizmoh tri
     metaTitle: "WhatsApp Automation vs SMS Marketing Oman: 2026 ROI & Conversion",
     metaTitleAr: "مقارنة أتمتة واتساب مع رسائل SMS التسويقية في عمان والخليج 2026",
     metaDescription:
-      "Why Oman businesses are shifting from SMS to WhatsApp automation. Compare open rates (98% vs 18%), click-through metrics, cost per conversion, and rich media benefits.",
+      "Why Oman businesses switch from SMS to WhatsApp automation: compare 98% open rates, click-through metrics, cost per conversion, and interactive buttons.",
     metaDescriptionAr:
       "لماذا تتفوق أتمتة واتساب على رسائل SMS في سلطنة عمان؟ مقارنة معدلات الفتح (98% مقابل 18%)، وتكلفة الرسائل والتحويل، ومزايا الأزرار والكتالوج التفاعلي.",
     h1: "WhatsApp Automation vs SMS Marketing in Oman & GCC (2026)",
@@ -308,7 +308,7 @@ Discover how Fizmoh powers high-converting messaging: [Explore broadcast campaig
     metaTitle: "Build an AI WhatsApp Chatbot in Oman (2026 Step-by-Step)",
     metaTitleAr: "كيف تبني شات بوت واتساب بالذكاء الاصطناعي في عمان (دليل 2026)",
     metaDescription:
-      "Learn how to create an AI-powered WhatsApp chatbot in Oman. Train on your FAQs, support Omani Arabic dialects, automate sales qualification, and hand over to human agents.",
+      "Build an AI WhatsApp chatbot in Oman: train on FAQs, understand Omani Arabic dialects, automate sales qualification, and route chats to human agents.",
     metaDescriptionAr:
       "دليل خطوة بخطوة لبناء شات بوت واتساب ذكي لشركتك في عمان. يفهم اللهجة العمانية والإنجليزية، ويجيب على استفسارات الأسعار والمواعيد ويحول المحادثات للموظفين.",
     h1: "How to Build an AI WhatsApp Chatbot in Oman (2026 Guide)",
@@ -520,7 +520,7 @@ When employees manage clients on personal phones, your customer list walks out t
     metaTitle: "Accept Online Payments on WhatsApp in Oman with AmwalPay (2026)",
     metaTitleAr: "قبول الدفع الإلكتروني عبر واتساب في سلطنة عمان بواسطة أموال باي",
     metaDescription:
-      "Complete guide to integrating AmwalPay payment links inside WhatsApp in Oman. Accept Debit Cards, Credit Cards, Apple Pay, and send instant automated receipts in OMR.",
+      "Guide to integrating AmwalPay payment links in WhatsApp in Oman: accept Debit/Credit Cards and Apple Pay, and send instant automated receipts in OMR.",
     metaDescriptionAr:
       "دليل ربط بوابة أموال باي (AmwalPay) داخل محادثات واتساب في عمان. قبول بطاقات الخصم المباشر وفيزا وماستركارد وأبل باي بالريال العماني مع فواتير وإيصالات فورية.",
     h1: "Accepting Online Payments via WhatsApp in Oman with AmwalPay",

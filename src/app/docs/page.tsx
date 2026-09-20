@@ -3,6 +3,7 @@ import Link from "next/link"
 import { BookOpen, Code2, Download, ExternalLink, ShieldCheck, Workflow, Sparkles, Database, Layers, Send, FileJson, ShoppingBag, CheckCircle2 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
+import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 
 export async function generateMetadata() {
   const { pageSeo } = await import("@/lib/seo-config")
@@ -106,8 +107,58 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 export default function DocsPage() {
+  const docsUrl = absoluteUrl("/docs")
+
+  const techArticleSchema = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: "Fizmoh Developer REST API Reference & System Manual",
+    description: "Official Developer REST API Reference and Operator Manual for WhatsApp commerce, campaigns, automation, CRM, bookings, and payments.",
+    url: docsUrl,
+    author: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: absoluteUrl("/fizmoh-logo.png"),
+    },
+  }
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Developer REST API & Manual",
+        item: docsUrl,
+      },
+    ],
+  }
+
   return (
     <div className="min-h-screen bg-white text-[#1D1D1D]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(techArticleSchema) }}
+        suppressHydrationWarning
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        suppressHydrationWarning
+      />
       <SiteHeader />
       <main>
         {/* Header Hero */}

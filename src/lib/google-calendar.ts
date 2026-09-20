@@ -143,7 +143,7 @@ export async function isCalendarConfigured(): Promise<boolean> {
  * manual approval after an automatic one — updates the same entry instead of
  * leaving two in the calendar.
  */
-function eventIdFor(reference: string): string {
+export function eventIdFor(reference: string): string {
   return crypto.createHash("sha1").update(reference).digest("hex").slice(0, 26).replace(/[^0-9a-v]/g, "0")
 }
 
@@ -156,7 +156,7 @@ function omanTimes(date: Date, startTime: string, durationHours: number) {
   return { start: toRfc3339(start), end: toRfc3339(end) }
 }
 
-interface WriteOptions {
+export interface WriteOptions {
   reference: string
   summary: string
   description: string
@@ -171,7 +171,7 @@ interface WriteOptions {
 }
 
 /** Creates or updates an event. Returns the Meet link when one was made. */
-async function writeEvent(options: WriteOptions): Promise<{ ok: boolean; meetLink?: string; error?: string }> {
+export async function writeEvent(options: WriteOptions): Promise<{ ok: boolean; meetLink?: string; error?: string }> {
   const auth = await access()
   if (!auth) return { ok: false, error: "Google Calendar is not configured" }
 
@@ -380,3 +380,55 @@ export async function syncAppointmentToCalendar(appointmentId: string): Promise<
     data: { calendarEventId: eventIdFor(appointment.reference), meetLink },
   })
 }
+
+/**
+ * Creates a real Google Calendar event and Google Meet room for a website demo lead.
+ * Invites the lead's email and saves the calendarEventId.
+ */
+export async function createDemoMeeting(options: {
+  reference: string
+  name: string
+  email: string
+  phone: string
+  company: string
+  industry: string
+  notes?: string
+  start: Date
+  end: Date
+}): Promise<{ ok: boolean; meetLink?: string; calendarEventId?: string; error?: string }> {
+  const standingRoom = (await getConfigValue("google_meet_link")) || null
+
+  const summary = `Fizmoh WhatsApp Demo: ${options.company} (${options.name})`
+  const description = [
+    `Fizmoh WhatsApp Business Platform & Cloud API Demo (1-on-1)`,
+    `Reference: ${options.reference}`,
+    `Client Name: ${options.name}`,
+    `Company: ${options.company}`,
+    `Industry: ${options.industry}`,
+    `Email: ${options.email}`,
+    `Phone/WhatsApp: ${options.phone}`,
+    options.notes ? `Notes: ${options.notes}` : "",
+    `\nMeeting room and calendar invite generated automatically via Fizmoh Platform.`,
+  ].filter(Boolean).join("\n")
+
+  const result = await writeEvent({
+    reference: options.reference,
+    summary,
+    description,
+    start: toRfc3339(options.start),
+    end: toRfc3339(options.end),
+    wantsMeet: true,
+    attendeeEmail: options.email,
+  })
+
+  const meetLink = result.meetLink || standingRoom || undefined
+  const calendarEventId = result.ok ? eventIdFor(options.reference) : undefined
+
+  return {
+    ok: result.ok || Boolean(meetLink),
+    meetLink,
+    calendarEventId,
+    error: result.error,
+  }
+}
+

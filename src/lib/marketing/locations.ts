@@ -33,7 +33,7 @@ export const LOCATION_PAGES: LocationPage[] = [
     ],
     metaTitle: "WhatsApp Business API & Marketing in Muscat, Oman | Fizmoh",
     metaDescription:
-      "Enterprise WhatsApp Cloud API provider in Muscat, Oman. Automated broadcasts, AmwalPay payment links in OMR, shared team inboxes, and verified Meta Green Tick support.",
+      "WhatsApp Cloud API in Muscat, Oman: automated broadcasts, AmwalPay OMR payments, shared team inboxes, AI bots, and verified Meta Green Tick support.",
     h1: "WhatsApp Business API & Marketing Platform in Muscat",
     subheadline:
       "Empower your Muscat business with official WhatsApp Cloud API: multi-agent customer support, AmwalPay in-chat checkout, and automated AI smart replies.",

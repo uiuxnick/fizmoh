@@ -50,6 +50,9 @@ export function BookDemoDirect() {
     googleMeetUrl: string
     demoDate: string
     demoTime: string
+    reference?: string
+    addToCalendarUrl?: string
+    email?: string
   } | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -86,6 +89,9 @@ export function BookDemoDirect() {
         googleMeetUrl: data.googleMeetUrl,
         demoDate: data.demoDate,
         demoTime: data.demoTime,
+        reference: data.reference,
+        addToCalendarUrl: data.addToCalendarUrl,
+        email,
       })
       toast.success(isAr ? "تم جدولة اجتماع Google Meet بنجاح!" : "Google Meet demo scheduled successfully!")
     } catch {
@@ -103,9 +109,9 @@ export function BookDemoDirect() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const googleCalLink = bookedResult
+  const googleCalLink = bookedResult?.addToCalendarUrl || (bookedResult
     ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`FizMoh Platform Demo: ${company}`)}&details=${encodeURIComponent(`Google Meet Demo with FizMoh Product Specialist.\n\nJoin Link: ${bookedResult.googleMeetUrl}\n\nIndustry: ${industry}\nAttendee: ${name} (${email})`)}&location=${encodeURIComponent(bookedResult.googleMeetUrl)}`
-    : "#"
+    : "#")
 
   return (
     <div className={`max-w-xl mx-auto bg-white rounded-[16px] border border-[#E5E7EB] shadow-sm overflow-hidden ${isAr ? "rtl font-sans" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
@@ -303,6 +309,14 @@ export function BookDemoDirect() {
           </div>
 
           <div className="bg-[#F2F2F2] rounded-[12px] p-4 border border-[#E5E7EB] max-w-sm mx-auto text-left space-y-2.5">
+            {bookedResult.reference && (
+              <div className="flex items-center justify-between text-[12px] border-b border-[#E5E7EB] pb-2">
+                <span className="text-[#717680]">{isAr ? "رقم المرجع:" : "Reference:"}</span>
+                <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                  {bookedResult.reference}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-[12px] border-b border-[#E5E7EB] pb-2">
               <span className="text-[#717680]">{isAr ? "الموعد:" : "Date & Time:"}</span>
               <span className="font-bold text-[#1D1D1D]">
@@ -312,7 +326,7 @@ export function BookDemoDirect() {
             <div className="flex items-center justify-between text-[12px] border-b border-[#E5E7EB] pb-2">
               <span className="text-[#717680]">{isAr ? "المنصة:" : "Platform:"}</span>
               <span className="font-bold text-[#00B96A] flex items-center gap-1">
-                <Video className="h-3.5 w-3.5" /> Google Meet
+                <Video className="h-3.5 w-3.5" /> Google Meet (Live Room)
               </span>
             </div>
             <div className="space-y-1 pt-1">

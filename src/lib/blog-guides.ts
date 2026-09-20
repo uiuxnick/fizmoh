@@ -528,10 +528,10 @@ Pick the one message you send most often — a booking confirmation, a payment r
     slug: "how-to-connect-woocommerce-shopify-whatsapp-guide",
     slugAr: "daleel-rabt-woocommerce-shopify-whatsapp",
     aliases: ["woocommerce-shopify-whatsapp-integration-guide", "woocommerce-whatsapp-plugin-guide"],
-    metaTitle: "How to Connect WooCommerce & Shopify to WhatsApp: Complete Setup Guide (2026) | Fizmoh",
-    metaTitleAr: "دليل ربط ووكومرس وشوبيفاي بواتساب: الدليل الشامل للإعداد والأتمتة (2026) | Fizmoh",
+    metaTitle: "Connect WooCommerce & Shopify to WhatsApp: Setup Guide",
+    metaTitleAr: "دليل ربط ووكومرس وشوبيفاي بواتساب: الإعداد والأتمتة",
     metaDescription:
-      "Step-by-step guide to connecting WooCommerce and Shopify to WhatsApp: recover abandoned carts with 1-click restore buttons, auto-sync order status and shipment tracking, and capture newsletter subscribers.",
+      "Connect WooCommerce & Shopify to WhatsApp: recover abandoned carts with 1-click buttons, sync order status, send tracking alerts, and grow subscribers.",
     metaDescriptionAr:
       "دليل خطوة بخطوة لربط ووكومرس وشوبيفاي بواتساب: استعادة السلات المتروكة بنقرة واحدة، وتحديثات الطلبات والشحن التلقائية، واشتراكات النشرة البريدية.",
     h1: "How to Connect WooCommerce & Shopify to WhatsApp: Complete Setup Guide (2026)",

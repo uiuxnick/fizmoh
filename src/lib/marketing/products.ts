@@ -1276,7 +1276,7 @@ export const PRODUCT_PAGES: MarketingPage[] = [
       ar: "توليد مراجعات QR والرد التلقائي على جوجل | Fizmoh",
     },
     metaDescription: {
-      en: "A QR code that turns a real customer moment into a genuine Google review, an AI-designed print sign to put it on, and an auto-reply engine that answers every review — with a human always able to approve first.",
+      en: "Generate Google reviews from QR scans with AI-designed print signs and automated review replies with human approval options.",
       ar: "رمز QR يحوّل لحظة عميل حقيقية إلى مراجعة جوجل فعلية، لافتة مطبوعة بتصميم ذكاء اصطناعي، ومحرك رد تلقائي يجيب كل مراجعة — مع بقاء الموافقة البشرية خياراً دائماً.",
     },
     eyebrow: { en: "Digital QR Reviews & Google Auto-Reply", ar: "مراجعات QR الرقمية والرد التلقائي على جوجل" },
@@ -1523,7 +1523,7 @@ export const PRODUCT_PAGES: MarketingPage[] = [
       ar: "أتمتة فيسبوك وإنستغرام — صندوق موحد | Fizmoh",
     },
     metaDescription: {
-      en: "One inbox for WhatsApp, Messenger and Instagram DMs, with AI auto-reply, comment automation and lead capture — official Meta APIs only, a human always able to approve first.",
+      en: "One inbox for WhatsApp, Messenger, and Instagram DMs with AI auto-replies, comment automation, and lead capture via official Meta APIs.",
       ar: "صندوق واحد لواتساب وماسنجر ورسائل إنستغرام المباشرة، مع رد تلقائي بالذكاء الاصطناعي وأتمتة تعليقات والتقاط عملاء محتملين — واجهات ميتا الرسمية فقط، مع بقاء الموافقة البشرية خياراً دائماً.",
     },
     eyebrow: { en: "Facebook & Instagram Automation", ar: "أتمتة فيسبوك وإنستغرام" },
@@ -1773,7 +1773,7 @@ export const PRODUCT_PAGES: MarketingPage[] = [
       ar: "بطاقات الأعمال الرقمية الذكية ومولد vCard التفاعلي | فيزموه",
     },
     metaDescription: {
-      en: "Create mobile-first digital business cards with 10+ executive themes, video covers, 1-click RFC 6350 phone contact saving, dynamic QR codes, and WhatsApp lead capture.",
+      en: "Create mobile-first digital business cards with executive themes, video covers, 1-click contact saving, dynamic QR codes, and WhatsApp lead capture.",
       ar: "أنشئ بطاقات أعمال رقمية ذكية مع أكثر من 10 قوالب تنفيذية، أغلفة فيديو، حفظ جهة الاتصال بنقرة واحدة VCF، باركود ديناميكي، والتقاط العملاء عبر واتساب.",
     },
     eyebrow: { en: "Smart Digital Business Cards", ar: "بطاقات الأعمال الرقمية الذكية" },

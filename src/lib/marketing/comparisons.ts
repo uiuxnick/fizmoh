@@ -37,9 +37,9 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       "Wati pricing Oman",
       "Wati competitors Oman",
     ],
-    metaTitle: "Fizmoh vs WATI: The #1 WhatsApp Cloud API Alternative in Oman (2026)",
+    metaTitle: "Fizmoh vs WATI: #1 WhatsApp Cloud API Alternative in Oman",
     metaDescription:
-      "Looking for a WATI alternative in Oman & the GCC? Fizmoh offers native AmwalPay (OMR) checkout, Omani Arabic AI chatbots, local support, and 0% markup on Meta messages.",
+      "Looking for a WATI alternative in Oman & GCC? Fizmoh provides AmwalPay (OMR) checkout, Omani Arabic AI chatbots, local support, and 0% markup on Meta fees.",
     h1: "Fizmoh vs WATI: The Modern WhatsApp Platform for Oman & GCC",
     subheadline:
       "Why growing businesses in Muscat, Dubai, and Riyadh are switching from WATI to Fizmoh for lower message fees, local payment gateways, and Arabic AI.",
@@ -197,9 +197,9 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
       "no code WhatsApp API Oman",
       "Twilio pricing WhatsApp Oman",
     ],
-    metaTitle: "Fizmoh vs Twilio: No-Code WhatsApp Cloud API for Oman (2026)",
+    metaTitle: "Fizmoh vs Twilio: No-Code WhatsApp Cloud API for Oman",
     metaDescription:
-      "Twilio requires software engineers for every single workflow. Fizmoh provides a complete out-of-the-box WhatsApp solution with visual bot builder, team inbox, and AmwalPay.",
+      "Twilio requires engineers for every flow. Fizmoh provides an out-of-the-box WhatsApp platform with visual bot builder, team inbox, and AmwalPay checkout.",
     h1: "Fizmoh vs Twilio: Complete WhatsApp Platform vs Raw API",
     subheadline:
       "Stop spending months coding custom WhatsApp logic on Twilio. Deploy Fizmoh's ready-to-use shared inbox, visual botflow builder, and marketing sequences in 10 minutes.",

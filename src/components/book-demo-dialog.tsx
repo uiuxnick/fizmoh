@@ -58,6 +58,9 @@ export function BookDemoDialog({
     googleMeetUrl: string
     demoDate: string
     demoTime: string
+    reference?: string
+    addToCalendarUrl?: string
+    email?: string
   } | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -93,6 +96,9 @@ export function BookDemoDialog({
         googleMeetUrl: data.googleMeetUrl,
         demoDate: data.demoDate,
         demoTime: data.demoTime,
+        reference: data.reference,
+        addToCalendarUrl: data.addToCalendarUrl,
+        email,
       })
       toast.success("Google Meet demo scheduled successfully!")
     } catch {
@@ -110,6 +116,10 @@ export function BookDemoDialog({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const googleCalLink = bookedResult?.addToCalendarUrl || (bookedResult
+    ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`FizMoh Platform Demo: ${company}`)}&details=${encodeURIComponent(`Google Meet Demo with FizMoh Product Specialist.\n\nJoin Link: ${bookedResult.googleMeetUrl}\n\nIndustry: ${industry}\nAttendee: ${name} (${email})`)}&location=${encodeURIComponent(bookedResult.googleMeetUrl)}`
+    : "#")
+
   const resetForm = () => {
     setBookedResult(null)
     setName("")
@@ -118,10 +128,6 @@ export function BookDemoDialog({
     setCompany("")
     setNotes("")
   }
-
-  const googleCalLink = bookedResult
-    ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`FizMoh Platform Demo: ${company}`)}&details=${encodeURIComponent(`Google Meet Demo with FizMoh Product Specialist.\n\nJoin Link: ${bookedResult.googleMeetUrl}\n\nIndustry: ${industry}\nAttendee: ${name} (${email})`)}&location=${encodeURIComponent(bookedResult.googleMeetUrl)}`
-    : "#"
 
   return (
     <Dialog
@@ -298,14 +304,21 @@ export function BookDemoDialog({
             </div>
 
             <div className="space-y-1.5">
-              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Demo Confirmed
-              </span>
+              <div className="flex items-center justify-center gap-2">
+                <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Demo Confirmed
+                </span>
+                {bookedResult.reference && (
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-stone-100 text-stone-800 border border-stone-200">
+                    {bookedResult.reference}
+                  </span>
+                )}
+              </div>
               <h3 className="text-xl font-black text-stone-900 mt-2">
                 Your Google Meet Demo is Booked!
               </h3>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                We have scheduled your session for <strong className="text-stone-800">{bookedResult.demoDate}</strong> at <strong className="text-stone-800">{bookedResult.demoTime}</strong>.
+                We have scheduled your session for <strong className="text-stone-800">{bookedResult.demoDate}</strong> at <strong className="text-stone-800">{bookedResult.demoTime}</strong>. A calendar invite has been sent to your email.
               </p>
             </div>
 

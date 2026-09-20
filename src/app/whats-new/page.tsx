@@ -1,4 +1,5 @@
 import WhatsNewPage from "./page-client"
+import { absoluteUrl, SITE_URL } from "@/lib/seo"
 
 export async function generateMetadata() {
   const { pageSeo } = await import("@/lib/seo-config")
@@ -10,5 +11,35 @@ export async function generateMetadata() {
 }
 
 export default function Page() {
-  return <WhatsNewPage />
+  const whatsNewUrl = absoluteUrl("/whats-new")
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "What's New & Changelog",
+        item: whatsNewUrl,
+      },
+    ],
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        suppressHydrationWarning
+      />
+      <WhatsNewPage />
+    </>
+  )
 }
