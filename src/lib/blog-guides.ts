@@ -524,4 +524,355 @@ Pick the one message you send most often — a booking confirmation, a payment r
 اختر الرسالة التي ترسلها أكثر من غيرها — تأكيد حجز أو تذكير بدفعة — وانقلها إلى واتساب أولاً.
 `,
   },
+  {
+    slug: "how-to-connect-woocommerce-shopify-whatsapp-guide",
+    slugAr: "daleel-rabt-woocommerce-shopify-whatsapp",
+    aliases: ["woocommerce-shopify-whatsapp-integration-guide", "woocommerce-whatsapp-plugin-guide"],
+    metaTitle: "How to Connect WooCommerce & Shopify to WhatsApp: Complete Setup Guide (2026) | Fizmoh",
+    metaTitleAr: "دليل ربط ووكومرس وشوبيفاي بواتساب: الدليل الشامل للإعداد والأتمتة (2026) | Fizmoh",
+    metaDescription:
+      "Step-by-step guide to connecting WooCommerce and Shopify to WhatsApp: recover abandoned carts with 1-click restore buttons, auto-sync order status and shipment tracking, and capture newsletter subscribers.",
+    metaDescriptionAr:
+      "دليل خطوة بخطوة لربط ووكومرس وشوبيفاي بواتساب: استعادة السلات المتروكة بنقرة واحدة، وتحديثات الطلبات والشحن التلقائية، واشتراكات النشرة البريدية.",
+    h1: "How to Connect WooCommerce & Shopify to WhatsApp: Complete Setup Guide (2026)",
+    h1Ar: "دليل ربط متجر ووكومرس وشوبيفاي بواتساب: الدليل الشامل للإعداد والأتمتة (2026)",
+    category: "E-Commerce & Automation",
+    categoryAr: "التجارة الإلكترونية والأتمتة",
+    readTime: "12 min read",
+    date: "2026-09-20",
+    author: {
+      name: "Nick Sharma",
+      nameAr: "نيك شارما",
+      role: "Lead Solutions Architect & Technical Consultant",
+      roleAr: "كبير مهندسي الحلول التقنية والمحادثات",
+      credential: "WhatsApp Business Platform Specialist · Enterprise SaaS & GCC Commerce Architect",
+      credentialAr: "خبير منصة واتساب للأعمال · مهندس برمجيات SaaS وحلول التجارة التحادثية بالخليج",
+      bio: "Nick designs high-throughput WhatsApp Cloud API infrastructure, visual botflow engines, and automated conversational commerce systems for GCC enterprises.",
+      bioAr: "يقود تطوير البنية التحتية لمنصة واتساب كلاود API ومحركات البوت الذكية وأنظمة التجارة التحادثية للشركات في الخليج.",
+      avatarInitial: "N",
+    },
+    image: "/blog/whatsapp-ecommerce-automation.svg",
+    imageAlt: "WooCommerce and Shopify connected to WhatsApp Cloud API for automated cart recovery and order alerts",
+    imageAltAr: "ربط متجر ووكومرس وشوبيفاي بواتساب كلاود API لاستعادة السلات وتحديثات الطلبات",
+    primaryKeyword: "WooCommerce WhatsApp integration",
+    primaryKeywordAr: "ربط ووكومرس بواتساب",
+    keywords: [
+      "WooCommerce WhatsApp integration",
+      "Shopify WhatsApp abandoned cart",
+      "WooCommerce abandoned cart WhatsApp",
+      "WhatsApp order notifications WooCommerce",
+      "Fizmoh Connect for WooCommerce",
+      "WhatsApp button templates WooCommerce",
+      "e-commerce WhatsApp automation GCC",
+      "WooCommerce HPOS WhatsApp plugin",
+    ],
+    keywordsAr: [
+      "ربط ووكومرس بواتساب",
+      "استعادة السلات المتروكة واتساب",
+      "إشعارات طلبات ووكومرس واتساب",
+      "إضافة ووكومرس واتساب",
+      "أتمتة شوبيفاي واتساب",
+      "تتبع الشحنات واتساب ووكومرس",
+    ],
+    toc: [
+      { id: "overview", titleEn: "Why WhatsApp for E-Commerce?", titleAr: "لماذا واتساب للتجارة الإلكترونية؟" },
+      { id: "step-1", titleEn: "Step 1: Download & Install Fizmoh Connect", titleAr: "الخطوة 1: تحميل وتثبيت إضافة Fizmoh Connect" },
+      { id: "step-2", titleEn: "Step 2: Store Pairing & API Credentials", titleAr: "الخطوة 2: ربط المتجر ومفاتيح API" },
+      { id: "step-3", titleEn: "Step 3: Real-Time Abandoned Cart Typing Capture", titleAr: "الخطوة 3: التقاط السلات المتروكة أثناء الكتابة" },
+      { id: "step-4", titleEn: "Step 4: Interactive Button Templates", titleAr: "الخطوة 4: قوالب الأزرار التفاعلية الافتراضية" },
+      { id: "step-5", titleEn: "Step 5: Order Status & Live Shipment Tracking", titleAr: "الخطوة 5: تحديثات الطلبات وتتبع الشحنات" },
+      { id: "step-6", titleEn: "Step 6: WhatsApp Newsletter Opt-In", titleAr: "الخطوة 6: التقاط المشتركين بالنشرة البريدية" },
+      { id: "step-7", titleEn: "Step 7: Connecting Shopify via Webhooks", titleAr: "الخطوة 7: ربط متجر شوبيفاي عبر الويبهوك" },
+      { id: "faqs", titleEn: "Frequently Asked Questions", titleAr: "الأسئلة الشائعة" },
+    ],
+    faqs: [
+      {
+        q: "Does Fizmoh Connect support WooCommerce High-Performance Order Storage (HPOS)?",
+        a: "Yes. Fizmoh Connect explicitly declares full compatibility with WooCommerce HPOS (`custom_order_tables`) and legacy post-based order storage, ensuring smooth execution without admin incompatibility warnings.",
+      },
+      {
+        q: "How does the abandoned cart capture work if the customer leaves before submitting?",
+        a: "The plugin embeds a lightweight JavaScript beacon on the checkout page. As soon as a shopper enters their phone number and pauses typing for 1.2 seconds, their phone and cart contents are securely transmitted to Fizmoh. If the order is not completed within 15 minutes, automated recovery sequences trigger.",
+      },
+      {
+        q: "Are the WhatsApp action buttons included by default?",
+        a: "Yes. Out of the box, Fizmoh provides pre-built interactive templates featuring direct action buttons such as [Complete Order], [Claim 10% Off], [Track Order], and [Contact Support]. You can also map custom Meta-approved templates from your Fizmoh dashboard.",
+      },
+      {
+        q: "Which shipment tracking plugins are supported?",
+        a: "Fizmoh Connect natively detects tracking numbers, carrier names, and direct tracking URLs from Advanced Shipment Tracking (AST), WooCommerce Shipment Tracking, ShipStation, and custom order metadata.",
+      },
+    ],
+    faqsAr: [
+      {
+        q: "هل تتوافق الإضافة مع نظام تخزين الطلبات عالي الأداء (HPOS) في ووكومرس؟",
+        a: "نعم بالكامل. تم بناء إضافة Fizmoh Connect بتوافق معلن مع HPOS (`custom_order_tables`) والأنظمة التقليدية، لتعمل بكفاءة وسرعة ودون أي تنبيهات تعارض في ووردبريس.",
+      },
+      {
+        q: "كيف يتم التقاط السلة إذا خرج العميل دون إتمام الطلب؟",
+        a: "تتضمن الإضافة كوداً خفيفاً في صفحة الدفع يستمع لحقل رقم الهاتف. بمجرد أن يكتب العميل رقمه ويتوقف لأكثر من ثانية، تُرسل بيانات السلة مشفرة إلى Fizmoh. وإذا لم يتم الطلب خلال 15 دقيقة، تبدأ مسارات الاستعادة تلقائياً.",
+      },
+      {
+        q: "هل الأزرار التفاعلية مدمجة بشكل افتراضي؟",
+        a: "نعم. تأتي المنصة بقوالب أزرار تفاعلية جاهزة ومدمجة مثل [إتمام الطلب]، [احصل على خصم 10%]، [تتبع الشحنة]، و[خدمة العملاء]، مع إمكانية ربط قوالب ميتا المخصصة من لوحة التحكم.",
+      },
+      {
+        q: "ما هي إضافات تتبع الشحنات المدعومة؟",
+        a: "تدعم الإضافة استخراج أرقام وروابط التتبع تلقائياً من Advanced Shipment Tracking (AST)، وWooCommerce Shipment Tracking، وShipStation، والحقول المخصصة لشركات الشحن الخليجية.",
+      },
+    ],
+    contentEn: `
+In e-commerce across the GCC and Oman, email open rates hover between 12% and 18%, while **WhatsApp messages achieve an average open rate of 98% within the first 15 minutes**. 
+
+When an online shopper abandons their shopping cart or wonders where their shipment is, waiting for an email or checking spam folders leads to lost revenue. By connecting your WooCommerce or Shopify store directly to WhatsApp, you turn high-intent moments into completed sales.
+
+In this comprehensive guide, we walk step-by-step through installing the official **Fizmoh Connect for WooCommerce** plugin, configuring automated abandoned cart recovery with interactive buttons, syncing live shipment tracking, and connecting Shopify stores.
+
+---
+
+## Why WhatsApp for E-Commerce? {#overview}
+
+Standard SMS notifications lack branding, support no interactive buttons, and cost significantly more per message. WhatsApp Cloud API provides:
+- **Verified Business Profile**: Displays your store name, logo, website, and green verified badge.
+- **1-Click Interactive Buttons**: Quick Reply buttons (\`[Need Help?]\`) and Direct URL Call-to-Action buttons (\`[Complete Order]\`, \`[Track Shipment]\`).
+- **1-Click Cart Restoration**: Deep links automatically restore the customer's cart items, quantities, and apply recovery coupon discounts instantly.
+- **Unified Two-Way Customer Inbox**: If a customer replies with questions about sizing or shipping to Muscat or Dubai, your team answers immediately inside the Fizmoh CRM inbox.
+
+---
+
+## Step 1: Download & Install Fizmoh Connect for WooCommerce {#step-1}
+
+Fizmoh provides an official, dedicated WordPress plugin engineered specifically for modern WooCommerce setups:
+
+1. **Download the Plugin Package**:
+   Download the latest release directly:
+   **[Download Fizmoh Connect for WooCommerce (.zip)](/api/ecommerce/plugin/download)** (v1.0.0, 17 KB)
+2. **Install in WordPress**:
+   - Log into your WordPress Admin Dashboard.
+   - Navigate to **Plugins → Add New Plugin → Upload Plugin**.
+   - Select \`fizmoh-connect-for-woocommerce.zip\` and click **Install Now**.
+   - Once uploaded, click **Activate Plugin**.
+3. **Verify HPOS Compatibility**:
+   - Fizmoh Connect includes native declaration for WooCommerce High-Performance Order Storage (\`custom_order_tables\`).
+   - Navigate to **WooCommerce → Settings → Advanced → Features** to confirm no incompatibility flags exist.
+
+---
+
+## Step 2: Store Pairing & API Credentials {#step-2}
+
+Once activated, link your WordPress store to your Fizmoh workspace:
+
+1. Open your **Fizmoh Dashboard** and navigate to **Settings → E-Commerce & Stores → Connected Stores**.
+2. Click **Add Store Connection**, choose **WooCommerce**, and enter your Store Name and Domain URL (e.g., \`https://yourstore.com\`).
+3. Click **Generate Pairing Credentials**. You will receive:
+   - **Store Key**: \`fiz_store_...\`
+   - **Fizmoh API Endpoint**: \`https://app.fizmoh.cloud/api/ecommerce\`
+4. In your WordPress Admin, go to **WooCommerce → Fizmoh Connect Settings**.
+5. Paste your **Store Key** and verify the Endpoint URL.
+6. Click **Test Connection**. You should see a green success indicator: \`Connected to Fizmoh Cloud Workspace\`.
+
+---
+
+## Step 3: Real-Time Abandoned Cart Typing Capture {#step-3}
+
+Nearly 70% of e-commerce shopping carts are abandoned before payment. Traditional abandoned cart plugins only trigger if the shopper reaches the final step and submits the form.
+
+Fizmoh Connect solves this with **Real-Time Typing Capture**:
+- When a customer types their phone number into the checkout billing or shipping fields, a debounced (1,200ms) client-side event captures the phone number and current cart contents.
+- The cart token, items list, total value, and currency (e.g., \`OMR\` or \`AED\`) are securely registered with Fizmoh.
+- **Automated 3-Stage Recovery Timeline**:
+  - **Stage 1 (15 Minutes)**: Gentle reminder with a direct \`[Complete Order]\` button. Restores the exact cart session in one click.
+  - **Stage 2 (4 Hours)**: High-converting incentive with an automated \`10% Off\` coupon code pre-applied to the restored cart link.
+  - **Stage 3 (24 Hours)**: Urgency reminder notifying the customer that reserved stock will be released.
+
+When the customer completes their order, Fizmoh automatically marks the cart as **Recovered** and halts subsequent recovery messages immediately.
+
+---
+
+## Step 4: Interactive Button Templates {#step-4}
+
+Unlike plain text alerts, Fizmoh provides default interactive WhatsApp templates out of the box equipped with Call-to-Action (CTA) URL buttons and Quick Reply buttons:
+
+| Event | Notification Purpose | Button 1 (CTA URL) | Button 2 (Quick Reply) |
+| :--- | :--- | :--- | :--- |
+| **Order Placed** | Immediate confirmation & invoice link | \`[Track Order]\` | \`[Contact Support]\` |
+| **Processing** | Kitchen or warehouse packing update | \`[View Order]\` | \`[Need Changes?]\` |
+| **Shipped** | Dispatched with tracking number | \`[Track Shipment]\` | \`[Delivery Help]\` |
+| **Delivered** | Confirmation & review solicitation | \`[Leave Review]\` | \`[Shop Again]\` |
+| **Abandoned Cart 1** | 15-minute quick recovery | \`[Complete Order]\` | \`[Need Help?]\` |
+| **Abandoned Cart 2** | 4-hour recovery with 10% coupon | \`[Claim 10% Off]\` | \`[Ask Question]\` |
+| **Newsletter Welcome** | Welcome gift & discount code | \`[Shop Now]\` | - |
+
+In **Settings → E-Commerce & Stores → Templates & Buttons**, you can preview each message bubble live, send a test message to your personal WhatsApp number, or toggle to map your own custom Meta-approved templates.
+
+---
+
+## Step 5: Order Status & Live Shipment Tracking {#step-5}
+
+Customers want to know exactly where their parcel is. Fizmoh Connect hooks into WooCommerce order status changes and extracts tracking data automatically:
+
+- **Supported Tracking Plugins**:
+  - **Advanced Shipment Tracking (AST)**: Reads tracking number, carrier name (Aramex, DHL, Oman Post, SMSA, etc.), and generated tracking link.
+  - **WooCommerce Shipment Tracking**: Official WooCommerce extension fields.
+  - **ShipStation & Custom Metadata**: Reads custom tracking keys automatically.
+- **Automatic Dispatch**: When an order transitions from *Processing* to *Completed* or *Shipped*, Fizmoh dynamically inserts the carrier tracking URL into the WhatsApp \`[Track Shipment]\` button.
+
+---
+
+## Step 6: WhatsApp Newsletter Opt-In {#step-6}
+
+Building a clean, compliant WhatsApp audience requires explicit customer opt-in:
+1. **Checkout Checkbox**: Fizmoh Connect automatically injects an opt-in checkbox into the WooCommerce checkout page:
+   > *"Receive order updates, tracking alerts, and exclusive VIP offers on WhatsApp."*
+2. **Shortcode for Custom Pages**: Place \`[fizmoh_newsletter_box]\` on your homepage, blog, or landing pages to collect WhatsApp subscribers with name and phone number.
+3. **Automated Welcome Gift**: Upon subscription, Fizmoh immediately dispatches a welcome template with a discount coupon button.
+4. **Consent Timestamp**: Every subscriber record includes a verified ISO-8601 consent timestamp for compliance.
+
+---
+
+## Step 7: Connecting Shopify via Webhooks {#step-7}
+
+If you operate a Shopify store, you can connect it directly using Fizmoh's secure Shopify webhook endpoint:
+
+1. In your **Shopify Admin**, go to **Settings → Notifications → Webhooks**.
+2. Create webhooks pointing to:
+   \`https://app.fizmoh.cloud/api/ecommerce/webhooks/shopify\`
+3. Select the following event topics:
+   - \`orders/create\`
+   - \`orders/updated\`
+   - \`orders/fulfilled\`
+   - \`checkouts/create\` & \`checkouts/update\`
+4. In your Fizmoh Dashboard under **Connected Stores**, enter your Shopify **Shared HMAC Secret**. Fizmoh automatically verifies all incoming requests using HMAC SHA-256 signatures (\`X-Shopify-Hmac-Sha256\`).
+
+---
+
+## Summary & Next Steps {#faqs}
+
+Integrating WhatsApp with WooCommerce and Shopify transforms your e-commerce operations from slow email notifications to instant, high-converting mobile conversations.
+
+- **[Download Fizmoh Connect for WooCommerce](/api/ecommerce/plugin/download)**
+- **[Explore the E-Commerce REST API Documentation](/docs#ecommerce)**
+- **[Open Platform Settings to Connect Your Store](/admin)**
+`,
+    contentAr: `
+في التجارة الإلكترونية عبر دول الخليج وسلطنة عمان، لا تتجاوز معدلات فتح رسائل البريد الإلكتروني حاجز الـ 15%، في حين **تحقق رسائل واتساب معدل فتح مذهلاً يصل إلى 98% خلال أول 15 دقيقة**.
+
+عندما يترك المتسوق سلة مشترياته أو يبحث عن مكان شحنته، فإن الانتظار عبر الإيميل يؤدي غالباً إلى خسارة عملية البيع. ومن خلال ربط متجرك في ووكومرس أو شوبيفاي مباشرة بمنصة Fizmoh عبر واتساب كلاود API، يمكنك تحويل هذه اللحظات إلى مبيعات مؤكدة وأرباح مستعادة.
+
+في هذا الدليل العملي، نستعرض خطوة بخطوة كيفية تثبيت إضافة **Fizmoh Connect for WooCommerce** الرسمية، وإعداد مسارات استعادة السلات المتروكة بأزرار تفاعلية، ومزامنة تتبع الشحنات، وربط متجر شوبيفاي.
+
+---
+
+## لماذا واتساب للتجارة الإلكترونية؟ {#overview}
+
+الرسائل النصية القصيرة (SMS) تفتقر إلى الهوية الموثقة، ولا تدعم الأزرار التفاعلية، وتكلفتها باهظة. في المقابل، تمنحك منصة واتساب للأعمال عبر Fizmoh:
+- **ملف تجاري موثق بالعلامة الخضراء**: يظهر اسم متجرك وشعارك ورابط الموقع الرسمي.
+- **أزرار تفاعلية بنقرة واحدة**: أزرار روابط سريعة مثل \`[إتمام الطلب]\` و\`[تتبع الشحنة]\` وأزرار ردود سريعة مثل \`[خدمة العملاء]\`.
+- **استعادة السلة بضغطة زر**: روابط ذكية تعيد بناء محتويات سلة العميل ومنتجاتها مع تطبيق كود الخصم فوراً.
+- **صندوق وارد موحد للرد على الاستفسارات**: إذا سأل العميل عن المقاسات أو الشحن إلى مسقط أو الرياض، يجيب فريقك فوراً عبر صندوق CRM الموحد.
+
+---
+
+## الخطوة 1: تحميل وتثبيت إضافة Fizmoh Connect {#step-1}
+
+توفر المنصة إضافة ووردبريس رسمية ومخصصة لمتاجر ووكومرس الحديثة:
+
+1. **تحميل حزمة الإضافة**:
+   قم بتحميل الإصدار المباشر:
+   **[تحميل إضافة Fizmoh Connect for WooCommerce (.zip)](/api/ecommerce/plugin/download)** (الإصدار v1.0.0، الحجم 17 كيلوبايت)
+2. **التثبيت في ووردبريس**:
+   - توجه إلى لوحة تحكم ووردبريس.
+   - اختر **الإضافات ← أضف إضافة جديدة ← رفع إضافة**.
+   - اختر الملف \`fizmoh-connect-for-woocommerce.zip\` واضغط **التنصيب الآن**.
+   - بعد اكتمال الرفع، اضغط **تفعيل الإضافة**.
+3. **توافق كامل مع HPOS**:
+   - تدعم الإضافة نظام تخزين الطلبات عالي الأداء الجديد في ووكومرس (\`custom_order_tables\`).
+   - يمكنك التحقق من صفحة **WooCommerce ← الإعدادات ← متقدم ← الميزات** للتأكد من عدم وجود أي تعارض.
+
+---
+
+## الخطوة 2: ربط المتجر ومفاتيح API {#step-2}
+
+بعد التفعيل، اربط متجرك بمساحة عمل Fizmoh:
+
+1. افتح **لوحة تحكم Fizmoh** وتوجه إلى **الإعدادات ← التجارة الإلكترونية والمتاجر ← المتاجر المتصلة**.
+2. اضغط **إضافة متجر جديد**، واختر **WooCommerce**، ثم أدخل اسم المتجر ورابط الموقع (مثل \`https://yourstore.com\`).
+3. اضغط **توليد بيانات الربط**، لتحصل على:
+   - **مفتاح المتجر (Store Key)**: \`fiz_store_...\`
+   - **رابط واجهة API**: \`https://app.fizmoh.cloud/api/ecommerce\`
+4. في ووردبريس، توجه إلى **WooCommerce ← إعدادات Fizmoh Connect**.
+5. الصق **مفتاح المتجر** واضغط **اختبار الاتصال**. ستظهر لك رسالة نجاح خضراء: \`متصل بنجاح مع منصة Fizmoh Cloud\`.
+
+---
+
+## الخطوة 3: التقاط السلات المتروكة أثناء الكتابة {#step-3}
+
+تُترك ما يقرب من 70% من سلات التسوق قبل الدفع. معظم إضافات السلات القديمة لا تلتقط السلة إلا إذا وصل العميل للخطوة الأخيرة وضغط إرسال.
+
+تحل إضافة Fizmoh Connect هذه المشكلة عبر **الالتقاط الفوري أثناء الكتابة**:
+- بمجرد أن يكتب المتسوق رقم هاتفه في حقل الجوال بصفحة إتمام الطلب ويتوقف لثانية واحدة، يتم إرسال الرقم ومحتويات السلة مشفرة إلى Fizmoh.
+- تُحفظ السلة وقيمتها وعملتها (كالريال العماني أو الدرهم الإماراتي).
+- **جدول الاستعادة التلقائي المكون من 3 مراحل**:
+  - **المرحلة 1 (بعد 15 دقيقة)**: تذكير لطيف مع زر \`[إتمام الطلب]\` يعيد بناء السلة بنقرة واحدة.
+  - **المرحلة 2 (بعد 4 ساعات)**: حافز قوي بكود خصم 10% يُطبق تلقائياً في رابط السلة.
+  - **المرحلة 3 (بعد 24 ساعة)**: تذكير عاجل بإخلاء المنتجات المحجوزة في حال عدم إتمام الشراء.
+
+وفور قيام العميل بالشراء، تتعرف المنصة على رقم الطلب وتوقف كافة رسائل الاستعادة المتبقية تلقائياً.
+
+---
+
+## الخطوة 4: قوالب الأزرار التفاعلية الافتراضية {#step-4}
+
+تأتي المنصة مجهزة بقوالب أزرار تفاعلية افتراضية جاهزة للعمل فوراً:
+
+| الحدث | هدف الإشعار | الزر 1 (رابط تفاعلي) | الزر 2 (رد سريع) |
+| :--- | :--- | :--- | :--- |
+| **تأكيد الطلب** | إشعار فوري وتأكيد الشراء | \`[تتبع الطلب]\` | \`[خدمة العملاء]\` |
+| **قيد التجهيز** | إشعار تجهيز وتغليف المنتجات | \`[عرض الطلب]\` | \`[تعديل الطلب]\` |
+| **تم الشحن** | إشعار خروج الشحنة مع رقم التتبع | \`[تتبع الشحنة]\` | \`[استفسار عن الشحن]\` |
+| **تم التوصيل** | إشعار وصول الطلب وطلب التقييم | \`[تقييم المتجر]\` | \`[تسوق مجدداً]\` |
+| **سلة متروكة (15 د)** | استعادة سريعة للسلة | \`[إتمام الطلب]\` | \`[مساعدة في الطلب]\` |
+| **سلة متروكة (4 س)** | كود خصم 10% فوري | \`[استخدم خصم 10%]\` | \`[استفسار]\` |
+| **النشرة البريدية** | هدية ترحيبية وكوبون | \`[تسوق الآن]\` | - |
+
+من خلال **الإعدادات ← التجارة الإلكترونية والمتاجر ← القوالب والأزرار**، يمكنك استعراض فقاعة الرسالة تفاعلياً، وإرسال تجربة حية لهاتفك الشخصي، أو ربط قوالبك المعتمدة الخاصة من Meta.
+
+---
+
+## الخطوة 5: تحديثات الطلبات وتتبع الشحنات الحية {#step-5}
+
+يرغب العملاء دائماً في معرفة موقع طرودهم بدقة. تلتقط إضافة Fizmoh Connect تغييرات حالة الطلب في ووكومرس وتستخرج بيانات التتبع:
+- **دعم إضافات الشحن**: تدعم إضافة Advanced Shipment Tracking (AST)، وWooCommerce Shipment Tracking، وShipStation، بالإضافة للبيانات المخصصة لشركات الشحن كأرامكس وسمسا والبريد العماني وDHL.
+- **تحديث الرابط تلقائياً**: عند تحويل الطلب إلى "تم الشحن"، تضع المنصة رابط التتبع المباشر لشركة الشحن داخل زر \`[تتبع الشحنة]\` تلقائياً في رسالة واتساب.
+
+---
+
+## الخطوة 6: التقاط المشتركين بالنشرة البريدية {#step-6}
+
+لبناء جمهور واتساب ملتزم بسياسات Meta:
+1. **خانة اختيار عند الدفع**: تضيف الإضافة خياراً مريحاً للعميل في صفحة الدفع:
+   > *"أوافق على استلام تحديثات الطلب وتنبيهات الشحن والعروض الحصرية عبر واتساب."*
+2. **كود قصير للصفحات**: يمكنك وضع الكود \`[fizmoh_newsletter_box]\` في أي صفحة أو مقال لجمع المشتركين بسهولة.
+3. **هدية ترحيبية فورية**: يُرسل للمشترك فوراً قالب ترحيبي مع كود خصم للمشتريات القادمة.
+
+---
+
+## الخطوة 7: ربط متجر شوبيفاي عبر الويبهوك {#step-7}
+
+إذا كنت تستخدم منصة شوبيفاي، يمكنك ربطها مباشرة عبر الويبهوك:
+1. في لوحة تحكم شوبيفاي، توجه إلى **Settings ← Notifications ← Webhooks**.
+2. أضف روابط الويبهوك موجهة إلى:
+   \`https://app.fizmoh.cloud/api/ecommerce/webhooks/shopify\`
+3. اختر أحداث الطلبات والشحن والسلات المتروكة.
+4. أدخل مفتاح التوقيع المشترك في لوحة تحكم Fizmoh للتحقق من التوقيع المشفر (\`X-Shopify-Hmac-Sha256\`).
+
+---
+
+## ابدأ اليوم
+
+- **[تحميل إضافة ووكومرس الرسمية (.zip)](/api/ecommerce/plugin/download)**
+- **[دليل المطورين وواجهات REST API](/docs#ecommerce)**
+- **[الانتقال لإعدادات المنصة وربط متجرك](/admin)**
+`,
+  },
 ]

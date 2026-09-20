@@ -828,7 +828,7 @@ export function SiteHeader() {
                 <Sparkles className="h-4 w-4 text-emerald-600" />
                 {isAr ? "ما الجديد" : "What's New"}
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10.5px] font-bold">v6.1</span>
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10.5px] font-bold">v6.3</span>
             </Link>
           </div>
 
@@ -923,6 +923,7 @@ export function SiteFooter() {
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/contact" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "اتصل بنا" : "Contact Desk"}</Link></li>
               <li><a href="/downloads/" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "تحميل التطبيقات" : "Download Apps"}</a></li>
+              <li><a href="/api/ecommerce/plugin/download" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "إضافة ووكومرس (.zip)" : "WooCommerce Plugin"}</a></li>
               <li><Link href="/whats-new" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "التحديثات" : "Changelog"}</Link></li>
               <li><Link href="/docs" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "المطورين" : "REST API"}</Link></li>
               <li><Link href="/privacy" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "الخصوصية" : "Privacy"}</Link></li>

@@ -25,9 +25,42 @@ interface Release {
   itemsEn: string[]
   itemsAr: string[]
   downloadCta?: boolean
+  pluginDownloadCta?: boolean
 }
 
 const RELEASES: Release[] = [
+  {
+    dateEn: "20 September 2026",
+    dateAr: "20 سبتمبر 2026",
+    version: "v6.3.0",
+    titleEn: "Fizmoh Connect for WooCommerce & Shopify: Real-Time Abandoned Cart Recovery, Interactive WhatsApp Button Templates & Live Tracking Sync",
+    titleAr: "إضافة Fizmoh Connect لووكومرس وشوبيفاي: استعادة السلات المتروكة فوريًا، وقوالب أزرار واتساب التفاعلية وتتبع الشحنات",
+    badgeEn: "v6.3 Major E-Commerce Release",
+    badgeAr: "إصدار رئيسي v6.3 للتجارة الإلكترونية",
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    icon: ShoppingBag,
+    pluginDownloadCta: true,
+    itemsEn: [
+      "Official Fizmoh Connect for WooCommerce Plugin: Certified HPOS (High-Performance Order Storage) compatibility (custom_order_tables), downloadable directly as a lightweight 17 KB .zip package ready for instant WordPress upload and activation.",
+      "Real-Time Checkout Typing Capture: Listens to customer typing on checkout phone and billing fields, capturing phone numbers and cart contents before form submission to trigger recovery sequences even if the browser is closed.",
+      "1-Click Deep-Link Cart Restoration: Generates encrypted 1-click cart restoration URLs that rebuild the customer's exact items, quantities, and pre-apply recovery discount coupons upon arrival.",
+      "Default Interactive Action Buttons: All transactional messages arrive with pre-configured interactive buttons ([Track Order], [Complete Order], [Claim 10% Off], [Contact Support]), with the ability to map custom Meta-approved templates in the dashboard.",
+      "Automated 3-Stage Recovery Scheduler: Automated cron worker executes Stage 1 (15m gentle nudge), Stage 2 (4h incentive with 10% coupon), and Stage 3 (24h urgency notice), automatically pausing upon completed purchase.",
+      "Live Shipment Tracking Sync: Natively extracts carrier names and tracking links from Advanced Shipment Tracking (AST), ShipStation, and WooCommerce Shipment Tracking, embedding direct tracking URLs into WhatsApp buttons.",
+      "WhatsApp Newsletter & Checkout Opt-In: Automatically injects a compliant WhatsApp opt-in checkbox into the WooCommerce checkout flow with timestamped consent, plus a [fizmoh_newsletter_box] shortcode for custom landing pages.",
+      "Shopify Webhook Integration: Secure HMAC-SHA256 authenticated webhook connection (X-Shopify-Hmac-Sha256) supporting orders, fulfillments, and abandoned checkouts.",
+    ],
+    itemsAr: [
+      "إضافة Fizmoh Connect الرسمية لووكومرس: متوافقة كلياً مع نظام تخزين الطلبات عالي الأداء HPOS (custom_order_tables)، وقابلة للتنزيل كحزمة مضغوطة .zip بحجم 17 كيلوبايت جاهزة للتثبيت الفوري في ووردبريس.",
+      "التقاط السلات المتروكة أثناء الكتابة: الاستماع لحقول صفحة الدفع والتقاط رقم هاتف العميل ومحتويات السلة بمجرد كتابتها وقبل إرسال النموذج، مما يتيح استعادة السلات حتى لو أغلق العميل المتصفح فجأة.",
+      "استعادة السلة بنقرة واحدة بروابط ذكية: توليد روابط استعادة تشفر بيانات السلة وتعيد بناء كافة المنتجات والكميات وتطبيق كوبون الخصم تلقائياً عند فتح الرابط.",
+      "قوالب أزرار تفاعلية افتراضية جاهزة: وصول رسائل الطلبات والسلات مزودة بأزرار إجراءات تفاعلية افتراضية ([إتمام الطلب]، [احصل على خصم 10%]، [تتبع الطلب]، [خدمة العملاء]) مع إمكانية ربط قوالب ميتا المخصصة.",
+      "جدولة استعادة تلقائية ثلاثية المراحل: نظام استعادة آلي ينفذ المرحلة 1 (تذكير بعد 15 دقيقة)، المرحلة 2 (كود خصم 10% بعد 4 ساعات)، والمرحلة 3 (تذكير أخير بعد 24 ساعة)، ويتوقف فور إتمام الشراء.",
+      "مزامنة أرقام وروابط تتبع الشحنات: استخراج آلي لبيانات شركات الشحن وأرقام التتبع من AST وShipStation وإضافة WooCommerce الرسمية ووضع رابط التتبع المباشر داخل زر الرسالة.",
+      "اشتراك النشرة البريدية وموافقة واتساب عند الدفع: إضافة خانة موافقة معتمدة عند إتمام الطلب مع توثيق وقت الموافقة، وتوفير كود قصير [fizmoh_newsletter_box] لنماذج الاشتراك بالصفحات.",
+      "ربط شوبيفاي عبر الويبهوك المشفر: استقبال أحداث الطلبات والسلات المتروكة من شوبيفاي مع التحقق التلقائي من التوقيع الرقمي (X-Shopify-Hmac-Sha256).",
+    ],
+  },
   {
     dateEn: "10 September 2026",
     dateAr: "10 سبتمبر 2026",
@@ -358,6 +391,36 @@ export default function WhatsNewPage() {
                   </li>
                 ))}
               </ul>
+
+              {rel.pluginDownloadCta && (
+                <div className="pt-3 border-t border-[#E5E7EB] flex flex-wrap items-center justify-between gap-3 bg-[#F9FAFB] p-3.5 rounded-[12px] border border-[#E5E7EB]">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <a
+                      href="/api/ecommerce/plugin/download"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] text-[12.5px] font-extrabold border border-[#00B96A]/30 shadow-xs transition"
+                    >
+                      <Download className="h-4 w-4 text-[#1D1D1D]" />
+                      {isAr ? "تحميل إضافة ووكومرس (.zip)" : "Download WooCommerce Plugin (.zip)"}
+                    </a>
+                    <span className="text-[11.5px] font-bold text-[#717680] font-mono">v1.0.0 · 17 KB · HPOS Ready</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href="/blog/how-to-connect-woocommerce-shopify-whatsapp-guide"
+                      className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#00B96A] hover:underline"
+                    >
+                      <span>{isAr ? "دليل الإعداد بالتفصيل ←" : "Step-by-Step Setup Guide →"}</span>
+                    </Link>
+                    <Link
+                      href="/docs#ecommerce"
+                      className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#717680] hover:text-[#1D1D1D] hover:underline"
+                    >
+                      <span>{isAr ? "توثيق REST API ←" : "API Docs →"}</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               {rel.downloadCta && (
                 <div className="pt-3 border-t border-[#E5E7EB] flex flex-wrap items-center justify-between gap-3">

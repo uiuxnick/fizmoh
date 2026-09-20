@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { BookOpen, Code2, Download, ExternalLink, ShieldCheck, Workflow, Sparkles, Database, Layers, Send, FileJson } from "lucide-react"
+import { BookOpen, Code2, Download, ExternalLink, ShieldCheck, Workflow, Sparkles, Database, Layers, Send, FileJson, ShoppingBag, CheckCircle2 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
 
@@ -49,6 +49,19 @@ const endpointGroups = [
       ["POST", "/api/orders/:id/send-confirmation", "Send a WhatsApp confirmation message"],
       ["GET", "/api/calendar", "Booking calendar data"],
       ["GET", "/api/calendar/ics", "Calendar subscription/download feed"],
+    ],
+  },
+  {
+    title: "E-Commerce & Store Connections",
+    items: [
+      ["GET", "/api/ecommerce/plugin/download", "Direct binary download for the official Fizmoh Connect WooCommerce .zip plugin"],
+      ["GET/POST", "/api/ecommerce/stores", "List or connect WooCommerce and Shopify stores & generate API pairing keys"],
+      ["POST", "/api/ecommerce/orders", "Sync order status transitions, tracking numbers, and auto-dispatch interactive templates"],
+      ["GET/POST", "/api/ecommerce/cart-abandoned", "Ingest checkout typing capture, list abandoned carts, & track recovery stages"],
+      ["POST", "/api/ecommerce/newsletter", "Capture WhatsApp newsletter opt-ins with consent timestamps & issue discount gifts"],
+      ["GET/POST", "/api/ecommerce/templates", "Fetch event definitions, preview button templates, map Meta templates, & send tests"],
+      ["POST", "/api/ecommerce/webhooks/shopify", "Inbound Shopify webhook receiver with HMAC SHA-256 verification"],
+      ["GET", "/api/cron/ecommerce-recovery", "Multi-stage automated recovery scheduler (15m, 4h, 24h)"],
     ],
   },
   {
@@ -133,11 +146,15 @@ export default function DocsPage() {
                 <a href="#quick-start" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">Quick start</a>
                 <a href="#authentication" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">Authentication</a>
                 <a href="#code-examples" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">Code Examples</a>
+                <a href="#ecommerce" className="block text-[#00B96A] hover:text-[#1D1D1D] font-bold transition">WooCommerce &amp; Shopify</a>
                 <a href="#api-reference" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">API Endpoint Catalog</a>
                 <a href="#webhooks" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">Webhooks</a>
                 <a href="#operator-manual" className="block text-[#717680] hover:text-[#1D1D1D] font-medium transition">Operator manual</a>
               </nav>
               <div className="space-y-2 pt-3 border-t border-[#E5E7EB] text-[12.5px]">
+                <a className="flex items-center gap-1.5 text-[#00B96A] hover:underline font-bold" href="/api/ecommerce/plugin/download">
+                  <Download className="h-3.5 w-3.5" /> WooCommerce Plugin (.zip)
+                </a>
                 <a className="flex items-center gap-1.5 text-[#00B96A] hover:underline font-bold" href="/api/docs/openapi.json" target="_blank">
                   <FileJson className="h-3.5 w-3.5" /> OpenAPI Spec (.JSON)
                 </a>
@@ -225,6 +242,123 @@ export default function DocsPage() {
                   'console.log("Message ID:", data.messageId);',
                 ]}
               />
+            </Section>
+
+            <Section id="ecommerce" title="E-Commerce: WooCommerce &amp; Shopify Integration">
+              <p>
+                Connect your online store directly to WhatsApp to automate high-intent conversational workflows: recover abandoned shopping carts with 1-click restoration links, send interactive order confirmations with tracking buttons, and capture compliant WhatsApp newsletter subscribers.
+              </p>
+
+              {/* Official Plugin Card */}
+              <div className="rounded-[14px] border-2 border-[#00B96A]/40 bg-gradient-to-br from-[#00E785]/5 via-[#FAFAFA] to-white p-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded bg-[#00B96A] text-white text-[11px] font-bold px-2 py-0.5">Official Plugin</span>
+                      <span className="text-[11px] font-bold text-[#717680] font-mono">v1.0.0 · 17 KB</span>
+                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 rounded px-1.5 py-0.2">HPOS Compatible</span>
+                    </div>
+                    <h3 className="text-[16px] font-extrabold text-[#1D1D1D]">Fizmoh Connect for WooCommerce</h3>
+                    <p className="text-[12.5px] text-[#717680] leading-relaxed max-w-xl">
+                      Real-time checkout typing capture, 1-click deep-link cart recovery, automatic order &amp; AST/ShipStation shipment tracking sync, WhatsApp opt-in checkbox, and storefront chat widgets.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                    <a
+                      href="/api/ecommerce/plugin/download"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[8px] bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] text-[13px] font-bold border border-[#00B96A]/30 shadow-xs transition"
+                    >
+                      <Download className="h-4 w-4 text-[#1D1D1D]" />
+                      Download Plugin (.zip)
+                    </a>
+                    <Link
+                      href="/blog/how-to-connect-woocommerce-shopify-whatsapp-guide"
+                      className="text-[12px] font-bold text-[#00B96A] hover:underline flex items-center gap-1"
+                    >
+                      Read Step-by-Step Setup Guide &rarr;
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#E5E7EB]">
+                  <div className="flex items-start gap-2 text-[12px] text-[#717680]">
+                    <CheckCircle2 className="h-4 w-4 text-[#00B96A] shrink-0 mt-0.5" />
+                    <span><strong>HPOS Certified:</strong> Works with modern WooCommerce High-Performance Order Storage.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[12px] text-[#717680]">
+                    <CheckCircle2 className="h-4 w-4 text-[#00B96A] shrink-0 mt-0.5" />
+                    <span><strong>Typing Capture:</strong> Detects customer phone before form submission to recover 3x more carts.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[12px] text-[#717680]">
+                    <CheckCircle2 className="h-4 w-4 text-[#00B96A] shrink-0 mt-0.5" />
+                    <span><strong>Action Buttons:</strong> Out-of-the-box WhatsApp buttons for order tracking, discounts, and support.</span>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="font-bold text-[#1D1D1D] text-[14px] mt-6">WooCommerce Setup Instructions</h3>
+              <ol className="list-decimal pl-5 space-y-2 text-[13px] text-[#717680]">
+                <li>Download the plugin package above or navigate to <strong>Settings &rarr; E-Commerce &amp; Stores</strong> in your Fizmoh dashboard.</li>
+                <li>In WordPress, navigate to <strong>Plugins &rarr; Add New &rarr; Upload Plugin</strong> and upload <code className="bg-[#F2F2F2] border border-[#E5E7EB] px-1 py-0.5 rounded font-mono text-[#1D1D1D] font-bold">fizmoh-connect-for-woocommerce.zip</code>.</li>
+                <li>Activate the plugin, then go to <strong>WooCommerce &rarr; Fizmoh Connect Settings</strong>.</li>
+                <li>In Fizmoh, under <strong>Settings &rarr; E-Commerce &amp; Stores &rarr; Connected Stores</strong>, click <strong>Add Store Connection</strong> to generate your unique <code className="bg-[#F2F2F2] border border-[#E5E7EB] px-1 py-0.5 rounded font-mono text-[#1D1D1D] font-bold">Store Key</code>.</li>
+                <li>Paste the Store Key into the WordPress settings page and click <strong>Test Connection</strong>.</li>
+              </ol>
+
+              <h3 className="font-bold text-[#1D1D1D] text-[14px] mt-6">Default Interactive WhatsApp Templates with Action Buttons</h3>
+              <p className="text-[12.5px] text-[#717680]">
+                Fizmoh dispatches high-converting interactive templates out of the box. Merchants can also map custom Meta-approved templates in the dashboard:
+              </p>
+              <div className="overflow-x-auto rounded-[12px] border border-[#E5E7EB] bg-white shadow-xs">
+                <table className="w-full min-w-[580px] text-left text-[12px]">
+                  <thead className="bg-[#F2F2F2] text-[#1D1D1D] border-b border-[#E5E7EB]">
+                    <tr>
+                      <th className="px-3.5 py-2.5 font-bold">Event</th>
+                      <th className="px-3.5 py-2.5 font-bold">Trigger Description</th>
+                      <th className="px-3.5 py-2.5 font-bold">Action Button 1 (URL)</th>
+                      <th className="px-3.5 py-2.5 font-bold">Action Button 2 (Quick Reply)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E5E7EB]">
+                    <tr className="hover:bg-[#FAFAFA]">
+                      <td className="px-3.5 py-2 font-mono font-bold text-[#1D1D1D]">ORDER_CREATED</td>
+                      <td className="px-3.5 py-2 text-[#717680]">New checkout completed by customer</td>
+                      <td className="px-3.5 py-2 text-[#00B96A] font-bold">[Track Order]</td>
+                      <td className="px-3.5 py-2 text-[#717680]">[Contact Support]</td>
+                    </tr>
+                    <tr className="hover:bg-[#FAFAFA]">
+                      <td className="px-3.5 py-2 font-mono font-bold text-[#1D1D1D]">ORDER_SHIPPED</td>
+                      <td className="px-3.5 py-2 text-[#717680]">Order dispatched with carrier tracking</td>
+                      <td className="px-3.5 py-2 text-[#00B96A] font-bold">[Track Shipment]</td>
+                      <td className="px-3.5 py-2 text-[#717680]">[Contact Support]</td>
+                    </tr>
+                    <tr className="hover:bg-[#FAFAFA]">
+                      <td className="px-3.5 py-2 font-mono font-bold text-[#1D1D1D]">CART_ABANDONED_STEP1</td>
+                      <td className="px-3.5 py-2 text-[#717680]">15-minute checkout nudge</td>
+                      <td className="px-3.5 py-2 text-[#00B96A] font-bold">[Complete Order] (1-Click Rebuild)</td>
+                      <td className="px-3.5 py-2 text-[#717680]">[Need Help?]</td>
+                    </tr>
+                    <tr className="hover:bg-[#FAFAFA]">
+                      <td className="px-3.5 py-2 font-mono font-bold text-[#1D1D1D]">CART_ABANDONED_STEP2</td>
+                      <td className="px-3.5 py-2 text-[#717680]">4-hour discount incentive</td>
+                      <td className="px-3.5 py-2 text-[#00B96A] font-bold">[Claim 10% Off] (Auto-Discount)</td>
+                      <td className="px-3.5 py-2 text-[#717680]">[Ask Question]</td>
+                    </tr>
+                    <tr className="hover:bg-[#FAFAFA]">
+                      <td className="px-3.5 py-2 font-mono font-bold text-[#1D1D1D]">NEWSLETTER_WELCOME</td>
+                      <td className="px-3.5 py-2 text-[#717680]">Customer opted in at checkout / shortcode</td>
+                      <td className="px-3.5 py-2 text-[#00B96A] font-bold">[Claim 10% Gift]</td>
+                      <td className="px-3.5 py-2 text-[#717680]">-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 className="font-bold text-[#1D1D1D] text-[14px] mt-6">Shopify Webhook Configuration</h3>
+              <p className="text-[12.5px] text-[#717680]">
+                For Shopify stores, configure your webhooks pointing to <code className="bg-[#F2F2F2] border border-[#E5E7EB] px-1 py-0.5 rounded font-mono text-[#1D1D1D] font-bold">https://app.fizmoh.cloud/api/ecommerce/webhooks/shopify</code>.
+                In your Fizmoh dashboard, paste your Shopify Shared Secret to verify HMAC-SHA256 signatures (<code className="bg-[#F2F2F2] border border-[#E5E7EB] px-1 py-0.5 rounded font-mono text-[#1D1D1D] font-bold">X-Shopify-Hmac-Sha256</code>) automatically.
+              </p>
             </Section>
 
             <Section id="api-reference" title="REST API Endpoint Catalog">

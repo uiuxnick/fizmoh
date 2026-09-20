@@ -764,10 +764,12 @@ export const INDUSTRY_PAGES: MarketingPage[] = [
       },
     ],
     related: [
+      { href: "/api/ecommerce/plugin/download", label: { en: "Download Fizmoh Connect for WooCommerce (.zip)", ar: "تحميل إضافة Fizmoh Connect لووكومرس (.zip)" } },
+      { href: "/blog/how-to-connect-woocommerce-shopify-whatsapp-guide", label: { en: "Step-by-step WooCommerce & Shopify Setup Guide", ar: "دليل إعداد ووكومرس وشوبيفاي خطوة بخطوة" } },
+      { href: "/docs#ecommerce", label: { en: "E-Commerce REST API & Webhook Docs", ar: "توثيق واجهات API والويبهوك للمتاجر" } },
       { href: "/product/payments", label: { en: "AmwalPay Online Payments — checkout in the chat", ar: "مدفوعات أموال باي — الدفع في المحادثة" } },
       { href: "/product/broadcast-campaigns", label: { en: "Broadcast & Marketing Campaigns — back-in-stock", ar: "حملات البث والتسويق — عاد للتوفر" } },
       { href: "/solutions/fashion-perfumes-retail", label: { en: "Fashion, perfumes & retail", ar: "الأزياء والعطور والتجزئة" } },
-      { href: "/solutions/supermarkets-marts", label: { en: "Supermarkets & marts", ar: "الأسواق والتموينات" } },
     ],
     schemaType: "Service",
   },
