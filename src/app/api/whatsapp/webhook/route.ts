@@ -18,42 +18,6 @@ import { tenantForPhoneNumberId } from "@/lib/whatsapp-accounts"
 import { withTenant, currentTenant } from "@/lib/tenant"
 import { getConfigValue } from "@/lib/app-config"
 import {
-  startBookingFlow,
-  handleBookingReply,
-  handleBookingText,
-  isFlowReply,
-  isFlowTrigger,
-  getState,
-  bookingAwaitingScreenshot,
-  completeBooking,
-  isRescheduleIntent,
-  startRescheduleFlow,
-  detectLang,
-} from "@/lib/booking-flow"
-import {
-  startMarketingFlow,
-  handleMarketingReply,
-  handleMarketingText,
-  isMarketingReply,
-  isMarketingTrigger,
-} from "@/lib/fizmoh-marketing-flow"
-import {
-  startAppointmentFlow,
-  handleAppointmentReply,
-  handleAppointmentText,
-  isAppointmentReply,
-  isAppointmentTrigger,
-  getAppointmentState,
-} from "@/lib/appointment-flow"
-import {
-  startVisaFlow,
-  handleVisaReply,
-  handleVisaText,
-  isVisaReply,
-  isVisaTrigger,
-  getVisaState,
-} from "@/lib/visa-flow"
-import {
   isOptInMessage,
   isOptOutMessage,
   recordOptIn,
@@ -841,10 +805,13 @@ async function processMessage(msg: any, contact: any) {
         }
         return
       }
-      await startBookingFlow(
-        { tenantId: opening.tenantId, conversationId: conversation.id, customerId: customer.id, phone: from },
-        "",
-      )
+      const visualFlow = await runBotFlows(opening)
+      if (visualFlow.matched) {
+        if (visualFlow.handoff) {
+          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
+        }
+        return
+      }
       return
     }
 
@@ -876,534 +843,72 @@ async function processMessage(msg: any, contact: any) {
     }
 
     if (type === "text" || type === "interactive" || type === "button" || type === "sticker") {
-      const isArabicIncoming = (type === "text" && detectLang(content) === "ar") || customer.preferredLang === "ar"
-      const flowCtx = {
-        tenantId: currentTenant()?.tenantId || "",
-        conversationId: conversation.id,
-        customerId: customer.id,
-        phone: from,
-        lang: (isArabicIncoming ? "ar" : (customer.preferredLang as any) || undefined),
-      }
-
-      // Guided booking flow takes precedence: the customer tapped a button we
-      // sent, or is answering a question we asked. Handing either to the LLM
-      // would drop them out of a flow they are mid-way through.
       const replyId =
         msg.interactive?.button_reply?.id ||
         msg.interactive?.list_reply?.id ||
         null
 
-      // Appointments are checked first. Their replies carry a distinct prefix,
-      // so this can never intercept a tour booking — but a customer part-way
-      // through arranging a meeting must not have a stray word handed to the
-      // tour flow, which would answer about desert safaris.
-      // Kauvery Hospital Chemotherapy & Doctor Appointment Flow check
-      {
-        const { handleHospitalBookingFlow, getHospitalState } = await import("@/lib/hospital-booking-flow")
-        const tenantId = currentTenant()?.tenantId || ""
-        /*
-         * The tenant has to be passed, or the state is never found.
-         *
-         * setHospitalState writes under `${tenantId}:${phone}` while this read
-         * omitted it and defaulted to the literal "default", so the two keys
-         * never matched. The effect was not a lost edge case: every reply that
-         * was not a hospital keyword or a hosp_ button escaped the flow. A
-         * patient answering "please enter your full name" with their name fell
-         * through to the appointments module and then to the marketing
-         * assistant, which offered them SEO and Google Ads.
-         */
-        const activeHospState = await getHospitalState(from, tenantId)
-        const isHospButtonReply = replyId?.startsWith("hosp_")
-        const isHospKeyword = type === "text" && [
-          "hospital", "kauvery", "chemo", "chemotherapy", "day care", "daycare", "bed booking", "حجز سرير", "كيماوي", "مستشفى"
-        ].some(w => content.toLowerCase().includes(w))
-
-        if (isHospButtonReply || activeHospState || isHospKeyword) {
-          const handled = await handleHospitalBookingFlow({
-            tenantId,
-            customerPhone: from,
-            conversationId: conversation.id,
-            customerName,
-          }, { text: content, buttonId: replyId || undefined })
-          if (handled) return
-        }
+      // ─── Post-Booking Action Buttons ───
+      if (replyId === "bk_chat_ai") {
+        await db.conversation.update({
+          where: { id: conversation.id },
+          data: { botActive: true, automationPaused: false },
+        }).catch(() => {})
+        await sendWhatsApp({
+          to: from,
+          body: /[\u0600-\u06FF]/.test(content) || customer.preferredLang === "ar"
+            ? "🤖 تفضل بسؤالك، وسأقوم بمساعدتك فوراً! 🙏"
+            : "🤖 How can I help you? Feel free to ask any question! 🙏",
+          allowOutsideSession: true,
+        })
+        return
       }
 
-      // Standalone Appointment module (Apt*) check
-      {
-        const { handleAptBookingFlow, getBookingSession } = await import("@/lib/apt-booking-flow")
-        const tenantId = currentTenant()?.tenantId || ""
-        // Check for any active apt booking session for this customer
-        const activeAptSession = tenantId ? await getBookingSession(tenantId, from) : null
-        const hasActiveSession = activeAptSession && activeAptSession.expiresAt > new Date()
-        const isAptButtonReply = replyId?.startsWith("apt_")
-        const isAptKeyword = type === "text" && ["start_apt", "appointment", "doctor", "clinic", "salon", "consultation", "session", "حجز موعد", "موعد"].some(w => content.toLowerCase().includes(w))
-
-        if (isAptButtonReply || hasActiveSession || isAptKeyword) {
-          const handled = await handleAptBookingFlow({
-            tenantId,
-            customerPhone: from,
-            conversationId: conversation.id,
-            customerName,
-          }, { text: content, buttonId: replyId || undefined })
-          if (handled) return
-        }
-      }
-
-      // ─── Restaurant Module: Direct Dish Selection & Dish Search Handlers ───
-      {
-        const rTenantId = conversation.tenantId || currentTenant()?.tenantId || ""
-        const isDishSelection = Boolean(replyId?.startsWith("item_") || replyId?.startsWith("menu_"))
-        const isSearchBtn = replyId === "opt_search" || replyId === "btn_search" || replyId === "search_menu"
-        const lowerText = content.trim().toLowerCase()
-        const isSearchKeyword = type === "text" && (
-          lowerText === "search" ||
-          lowerText === "بحث" ||
-          lowerText.startsWith("search ") ||
-          lowerText.startsWith("find ") ||
-          lowerText.startsWith("بحث ") ||
-          lowerText.startsWith("ابحث ")
-        )
-
-        let isWaitingForSearchQuery = false
-        if (type === "text" && !isDishSelection && !isSearchBtn && !isSearchKeyword) {
-          const lastBotMsg = await db.message.findFirst({
-            where: { conversationId: conversation.id, direction: "BOT" },
-            orderBy: { createdAt: "desc" },
-            select: { content: true },
-          })
-          if (lastBotMsg?.content && (
-            lastBotMsg.content.includes("Search Dishes & Menu") ||
-            lastBotMsg.content.includes("Search Dishes") ||
-            lastBotMsg.content.includes("Search Fizmoh Kitchen Menu") ||
-            lastBotMsg.content.includes("Type any dish, ingredient, or drink")
-          )) {
-            isWaitingForSearchQuery = true
-          }
-        }
-
-        // 1. Dish selection from menu or search list
-        if (isDishSelection) {
-          const itemId = (replyId || "").replace(/^(item_|menu_)/, "")
-          const item = await db.menuItem.findFirst({
-            where: { id: itemId, tenantId: rTenantId || undefined },
-            include: { category: true },
-          })
-
-          if (item) {
-            const tenant = await db.tenant.findUnique({
-              where: { id: item.tenantId },
-              select: { slug: true, name: true, currency: true },
-            })
-            const slug = tenant?.slug || "kitchen"
-            const _baseUrl999 = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
-            const itemUrl = `${_baseUrl999}/menu/${slug}?item=${item.id}`
-
-            const formattedPrice = `${(item.salePrice || item.price).toFixed(3)} ${item.currency}`
-            const tags: string[] = []
-            if (item.isVegetarian) tags.push("🌱 Vegetarian")
-            if (item.isVegan) tags.push("🌿 Vegan")
-            if (item.isGlutenFree) tags.push("🌾 Gluten-Free")
-            if (item.calories) tags.push(`🔥 ~${item.calories} kcal`)
-
-            const bodyLines = [
-              `🍽️ *${item.name}*${item.nameAr ? ` (${item.nameAr})` : ""}`,
-              `💵 *Price:* ${formattedPrice}`,
-              item.category?.name ? `📂 *Category:* ${item.category.name}` : "",
-              tags.length > 0 ? `✨ ${tags.join(" · ")}` : "",
-              "",
-              item.description || item.descriptionAr || "Freshly prepared to order with fine ingredients.",
-              item.allergens ? `\n⚠️ *Allergens:* ${item.allergens}` : "",
-              "",
-              `Tap below to customize and order online with kitchen delivery:`,
-            ].filter(line => line !== "")
-
-            const bodyText = bodyLines.join("\n")
-
-            const { sendCtaUrlMessage } = await import("@/lib/whatsapp")
-
-            // Send CTA button + link (both Web and Mobile compatible)
-            await sendCtaUrlMessage({
-              to: from,
-              body: bodyText,
-              buttonText: "Order This Dish",
-              url: itemUrl,
-            })
-
-            // Navigation quick buttons
-            await sendInteractiveMessage({
-              to: from,
-              body: `Would you like to explore more dishes or need assistance?`,
-              buttons: [
-                { id: "opt_menu", title: "📖 View Full Menu" },
-                { id: "opt_search", title: "🔍 Search Dishes" },
-                { id: "call_waiter", title: "🔔 Call Waiter" },
-              ],
-            })
-
-            // Record bot response in conversation
-            await db.message.create({
-              data: {
-                conversationId: conversation.id,
-                customerId: customer.id,
-                direction: "BOT",
-                type: "TEXT",
-                content: `${bodyText}\n${itemUrl}`,
-                isAiGenerated: false,
-                status: "SENT",
-              },
-            })
-
-            // Clear flow state so customer isn't trapped in node_welcome or old flow step
-            await db.conversation.update({
-              where: { id: conversation.id },
-              data: { flowState: Prisma.DbNull },
-            })
-            return
-          }
-        }
-
-        // 2. Search dishes
-        if (isSearchBtn || isSearchKeyword || isWaitingForSearchQuery) {
-          const tenant = await db.tenant.findUnique({
-            where: { id: rTenantId },
-            select: { slug: true, name: true },
-          })
-          const slug = tenant?.slug || "kitchen"
-          const { sendCtaUrlMessage, sendTextMessage } = await import("@/lib/whatsapp")
-
-          const isJustPrompt = isSearchBtn || lowerText === "search" || lowerText === "بحث" || lowerText === "find"
-
-          if (isJustPrompt) {
-            const promptText =
-              `🔍 *Search Dishes & Menu*\n\n` +
-              `Please type what you are looking for (e.g. *burger*, *pasta*, *pizza*, *fries*, *truffle*, *salad*, *coffee*):`
-
-            await sendTextMessage(from, promptText)
-
-            await db.message.create({
-              data: {
-                conversationId: conversation.id,
-                customerId: customer.id,
-                direction: "BOT",
-                type: "TEXT",
-                content: promptText,
-                isAiGenerated: false,
-                status: "SENT",
-              },
-            })
-            return
-          }
-
-          // Extract keyword
-          let query = content.trim()
-          if (lowerText.startsWith("search ")) query = query.slice(7).trim()
-          else if (lowerText.startsWith("find ")) query = query.slice(5).trim()
-          else if (lowerText.startsWith("بحث ")) query = query.slice(4).trim()
-          else if (lowerText.startsWith("ابحث ")) query = query.slice(5).trim()
-
-          if (query.length >= 2) {
-            const matches = await db.menuItem.findMany({
-              where: {
-                tenantId: rTenantId || undefined,
-                isAvailable: true,
-                isSoldOut: false,
-                OR: [
-                  { name: { contains: query, mode: "insensitive" } },
-                  { nameAr: { contains: query, mode: "insensitive" } },
-                  { description: { contains: query, mode: "insensitive" } },
-                  { category: { name: { contains: query, mode: "insensitive" } } },
-                ],
-              },
-              include: { category: true },
-              take: 8,
-              orderBy: { createdAt: "desc" },
-            })
-
-            const _baseUrl1122 = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
-            const searchMenuUrl = `${_baseUrl1122}/menu/${slug}?q=${encodeURIComponent(query)}`
-
-            if (matches.length > 0) {
-              const rows = matches.map(item => ({
-                id: `item_${item.id}`,
-                title: item.name.slice(0, 24),
-                description: `${(item.salePrice || item.price).toFixed(3)} ${item.currency} · ${item.category?.name || "Dish"}`.slice(0, 72),
-              }))
-
-              const bodyText =
-                `🔍 *Found ${matches.length} dish(es) matching "${query}":*\n\n` +
-                `Tap any dish below to view details and order, or browse all in our interactive menu:\n\n` +
-                `👉 *Open Search in Menu:*\n${searchMenuUrl}`
-
-              await sendInteractiveMessage({
-                to: from,
-                body: bodyText,
-                list: {
-                  title: "View Dishes",
-                  sections: [{ title: `Dishes for "${query.slice(0, 18)}"`, rows }],
-                },
-              })
-
-              await db.message.create({
-                data: {
-                  conversationId: conversation.id,
-                  customerId: customer.id,
-                  direction: "BOT",
-                  type: "TEXT",
-                  content: bodyText,
-                  isAiGenerated: false,
-                  status: "SENT",
-                },
-              })
-              return
-            } else {
-              const noMatchText =
-                `🔍 No dishes found matching *"${query}"*.\n\n` +
-                `Browse our complete digital menu to see everything we're serving today:`
-
-              await sendCtaUrlMessage({
-                to: from,
-                body: noMatchText,
-                buttonText: "Browse Full Menu",
-                url: `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/menu/${slug}`,
-              })
-
-              await db.message.create({
-                data: {
-                  conversationId: conversation.id,
-                  customerId: customer.id,
-                  direction: "BOT",
-                  type: "TEXT",
-                  content: `${noMatchText}\n${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/menu/${slug}`,
-                  isAiGenerated: false,
-                  status: "SENT",
-                },
-              })
-              return
-            }
-          }
-        }
-      }
-
-      // ─── 1. Active flow session resumption (handles text, buttons, list choices) ───
-      if (type === "text" || type === "interactive" || type === "button") {
-        const midFlow = await resumeFlow({
-          tenantId: currentTenant()?.tenantId || "",
+      if (replyId === "bk_chat_human") {
+        await handoffToAgent({
+          from,
           conversationId: conversation.id,
           customerId: customer.id,
-          customerPhone: from,
-          message: content,
-          buttonId: replyId || undefined,
+          intent: "HUMAN_AGENT_REQUESTED",
         })
-        if (midFlow.matched) {
-          if (midFlow.handoff) {
-            await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "FLOW" })
-          }
-          return
-        }
-      }
-
-      // ─── 2. Dashboard BotFlows (highest priority over all hardcoded fallbacks) ───
-      // Moved here so operator-authored flows win over restaurant/hospital/booking
-      // built-in handlers. A BotFlow with an ALWAYS trigger or matching keyword
-      // intercepts the message before any vertical-specific code runs.
-      {
-        const visualFlow = await runBotFlows({
-          tenantId: currentTenant()?.tenantId || "",
-          conversationId: conversation.id,
-          customerId: customer.id,
-          customerPhone: from,
-          message: content,
-          buttonId: replyId || undefined,
-        })
-        if (visualFlow.matched) {
-          if (visualFlow.handoff) {
-            await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
-          }
-          return
-        }
-      }
-
-      // ─── Restaurant Module Interactive & Keyword Handlers (Call Waiter / Bill / Pay) ───
-      {
-        const isWaiterBtn = replyId?.startsWith("call_waiter") || replyId?.startsWith("waiter_") || replyId === "call_waiter"
-        const isBillBtn = replyId?.startsWith("request_bill") || replyId?.startsWith("bill_") || replyId === "request_bill"
-        const isPayBtn = replyId?.startsWith("pay_order") || replyId === "pay_bill"
-        const isWaiterKeyword = type === "text" && [
-          "call waiter", "call_waiter", "waiter", "garcon", "نادل", "طلب نادل", "جرس", "من فضلك نادل", "ممكن نادل"
-        ].some(w => content.toLowerCase().includes(w))
-        const isBillKeyword = type === "text" && [
-          "request bill", "bill please", "check please", "فاتورة", "الحساب", "طلب الحساب", "الفاتورة"
-        ].some(w => content.toLowerCase().includes(w))
-
-        if (isWaiterBtn || isBillBtn || isPayBtn || isWaiterKeyword || isBillKeyword) {
-          const tenantId = currentTenant()?.tenantId || ""
-          const { callWaiter } = await import("@/lib/restaurant")
-          const { sendTextMessage, sendCtaUrlMessage } = await import("@/lib/whatsapp")
-
-          const btnOrderId = replyId?.replace(/^(call_waiter_|request_bill_|pay_order_)/, "") || null
-
-          const activeOrder = await db.kitchenOrder.findFirst({
-            where: {
-              tenantId,
-              ...(btnOrderId ? { id: btnOrderId } : { customerPhone: from }),
-              status: { notIn: ["CANCELLED", "COMPLETED"] },
-            },
-            orderBy: { createdAt: "desc" },
-          })
-
-          const tableNumber = activeOrder?.tableNumber || null
-          const tableId = activeOrder?.tableId || null
-
-          if (isPayBtn && activeOrder) {
-            const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/api/amwalpay/create-session?orderId=KIT-${activeOrder.id}`
-            await sendCtaUrlMessage({
-              to: from,
-              body: `💳 *Pay Restaurant Order #${activeOrder.orderNumber || ""}*\n\nTotal: *${activeOrder.totalAmount.toFixed(3)} ${activeOrder.currency || "OMR"}*\n${tableNumber ? `Table: #${tableNumber}\n\n` : "\n"}Tap below to pay securely with Card:`,
-              buttonText: "Pay Online Now",
-              url: payUrl,
-            })
-            return
-          }
-
-          if (isBillBtn || isBillKeyword) {
-            await callWaiter({
-              tenantId,
-              tableId,
-              tableNumber,
-              requestType: "BILL",
-              message: `Customer requested bill via WhatsApp`,
-            })
-            const reply = `🧾 *Bill Requested!*\n\nOur staff has been alerted and will bring the bill to your table${tableNumber ? ` (Table #${tableNumber})` : ""}.`
-            if (activeOrder && activeOrder.paymentStatus !== "PAID") {
-              const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/api/amwalpay/create-session?orderId=KIT-${activeOrder.id}`
-              await sendCtaUrlMessage({
-                to: from,
-                body: `${reply}\n\nYou can also settle your bill immediately online via Card:`,
-                buttonText: "Pay Online Now",
-                url: payUrl,
-              })
-            } else {
-              await sendTextMessage(from, reply)
-            }
-            return
-          }
-
-          if (isWaiterBtn || isWaiterKeyword) {
-            await callWaiter({
-              tenantId,
-              tableId,
-              tableNumber,
-              requestType: "ASSISTANCE",
-              message: `Customer requested waiter via WhatsApp`,
-            })
-            const reply = `🔔 *Waiter Called!*\n\nA member of our team has been notified and is heading to your table${tableNumber ? ` (Table #${tableNumber})` : ""} right now. Thank you for your patience!`
-            await sendTextMessage(from, reply)
-            return
-          }
-        }
-      }
-
-      // ─── 2. Vertical Module Interactive Replies ───
-      if (isMarketingReply(replyId)) {
-        if (await handleMarketingReply(flowCtx, replyId!)) return
-      }
-
-      if (isAppointmentReply(replyId)) {
-        if (await handleAppointmentReply(flowCtx, replyId!)) return
-      }
-
-      if (isVisaReply(replyId)) {
-        if (await handleVisaReply(flowCtx, replyId!)) return
-      }
-
-      const { isTrainingReply, handleTrainingReply } = await import("@/lib/training-flow")
-      if (isTrainingReply(replyId)) {
-        if (await handleTrainingReply(flowCtx, replyId!)) return
-      }
-
-      if (isFlowReply(replyId)) {
-        if (await handleBookingReply(flowCtx, replyId!)) return
-      }
-
-      // WooCommerce Product interactive selection from catalog node
-      if (replyId?.startsWith("prod_")) {
-        const prodId = replyId.slice(5)
-        try {
-          const { fetchWcProductById } = await import("@/lib/woocommerce-client")
-          const prod = await fetchWcProductById(prodId)
-          if (prod) {
-            const regPrice = prod.regular_price || prod.price || "0"
-            const salePrice = prod.sale_price
-            const isOnSale = Boolean(salePrice && Number(salePrice) > 0)
-            const priceText = isOnSale ? `~${regPrice} OMR~ *${salePrice} OMR* (SALE!)` : `*${regPrice} OMR*`
-            const stockStatus = prod.stock_status === "instock" ? "In Stock" : "Out of Stock"
-            const cleanDesc = prod.description ? prod.description.replace(/<[^>]*>?/gm, "").slice(0, 150) : ""
-            const caption = `🛍️ *${prod.name}*\nPrice: ${priceText}\nStatus: ${stockStatus}${cleanDesc ? `\n\n${cleanDesc}` : ""}${prod.permalink ? `\n\n🛒 *Order Online:* ${prod.permalink}` : ""}`
-
-            const imageUrl = prod.images?.[0]?.src
-            if (imageUrl) {
-              const { sendMediaMessage } = await import("@/lib/whatsapp")
-              await sendMediaMessage({ to: from, type: "image", mediaUrl: imageUrl, caption })
-            } else {
-              await sendWhatsApp({ to: from, body: caption, allowOutsideSession: true })
-            }
-            return
-          }
-        } catch (error) {
-          console.error("Failed to load WooCommerce product details:", error)
-        }
-      }
-
-      // Restaurant menu item selection
-      if (replyId?.startsWith("menu_")) {
-        const itemId = replyId.slice(5)
-        const item = await db.menuItem.findUnique({ where: { id: itemId } })
-        if (item) {
-          const body = `🍽️ *${item.name}*\nPrice: *${item.price.toFixed(3)} ${item.currency}*\n\n${item.description || "Freshly prepared to order."}\n\nReply with your order quantity or choose another item from the menu.`
-          await sendWhatsApp({ to: from, body, allowOutsideSession: true })
-          return
-        }
-      }
-
-      // Restaurant Interactive quick replies
-      if (replyId === "rest_table") {
-        const msg = "🪑 *Table Reservation*\n\nPlease reply with your party size and preferred time (e.g. *4 people at 8:00 PM*)."
-        await sendWhatsApp({ to: from, body: msg, allowOutsideSession: true })
         return
       }
 
-      if (replyId === "rest_menu") {
-        const tenantId = currentTenant()?.tenantId || ""
-        const categories = await db.menuCategory.findMany({
-          where: { tenantId: tenantId || undefined, isActive: true },
-          include: { items: { where: { isAvailable: true }, take: 10, orderBy: { createdAt: "asc" } } },
-          take: 10,
-        })
-        const rows = categories.flatMap(cat => cat.items.slice(0, 10).map(item => ({ id: `menu_${item.id}`, title: item.name.slice(0, 24), description: `${item.price.toFixed(3)} ${item.currency}`.slice(0, 72) }))).slice(0, 10)
-        if (rows.length > 0) {
-          const { sendInteractiveMessage } = await import("@/lib/whatsapp")
-          await sendInteractiveMessage({ to: from, body: "🍽️ *Our Menu Items*:\nTap an item below to view details and order:", list: { title: "View Menu", sections: [{ title: "Available Today", rows }] } })
-        } else {
-          await sendWhatsApp({ to: from, body: "🍽️ Our menu is being updated. Ask our team for today's special!", allowOutsideSession: true })
+      // ─── 1. Active Visual Flow Session Resumption ───
+      // If the customer is mid-flow answering questions, buttons, or list choices, resume it.
+      const midFlow = await resumeFlow({
+        tenantId: currentTenant()?.tenantId || "",
+        conversationId: conversation.id,
+        customerId: customer.id,
+        customerPhone: from,
+        message: content,
+        buttonId: replyId || undefined,
+      })
+      if (midFlow.matched) {
+        if (midFlow.handoff) {
+          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "FLOW" })
         }
         return
       }
 
-      if (replyId === "rest_waitlist") {
-        const msg = "🔔 *Table Waiting List*\n\nYou have been added to our waiting list! We will notify you via WhatsApp the moment a table becomes available. 🙏"
-        await sendWhatsApp({ to: from, body: msg, allowOutsideSession: true })
+      // ─── 2. Dashboard Visual BotFlows (Keyword, Intent, Catch-All Triggers) ───
+      // Evaluates published visual BotFlows for this tenant.
+      const visualFlow = await runBotFlows({
+        tenantId: currentTenant()?.tenantId || "",
+        conversationId: conversation.id,
+        customerId: customer.id,
+        customerPhone: from,
+        message: content,
+        buttonId: replyId || undefined,
+      })
+      if (visualFlow.matched) {
+        if (visualFlow.handoff) {
+          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
+        }
         return
       }
 
-      if (replyId === "tour_waitlist") {
-        const msg = "🔔 *Tour Availability Alert*\n\nYou're on our priority list! We will message you here as soon as new tour dates open. 🐪"
-        await sendWhatsApp({ to: from, body: msg, allowOutsideSession: true })
-        return
-      }
-
-      // Nothing claimed the message and it is this customer's first. The
-      // workspace's own welcome flow gets its turn before the built-in menu.
+      // ─── 3. Welcome BotFlow for First Contact ───
       if (isFirstContact) {
         const welcome = await runNewConversationFlow({
           tenantId: currentTenant()?.tenantId || "",
@@ -1421,71 +926,7 @@ async function processMessage(msg: any, contact: any) {
         }
       }
 
-      if (type === "text" || type === "sticker") {
-        if (isRescheduleIntent(content)) {
-          if (await startRescheduleFlow(flowCtx)) return
-        }
-
-        if (await handleMarketingText(flowCtx, content)) return
-        if (await handleAppointmentText(flowCtx, content)) return
-        if (await handleVisaText(flowCtx, content)) return
-        if (await handleBookingText(flowCtx, content)) return
-
-        const { isTrainingTrigger, startTrainingFlow } = await import("@/lib/training-flow")
-        if (isTrainingTrigger(content)) {
-          if (await startTrainingFlow(flowCtx)) return
-        }
-
-        if (isMarketingTrigger(content)) {
-          if (await startMarketingFlow(flowCtx)) return
-        }
-
-        if (isAppointmentTrigger(content) && !(await getAppointmentState(conversation.id))) {
-          if (await startAppointmentFlow(flowCtx)) return
-        }
-
-        if (isVisaTrigger(content) && !(await getVisaState(conversation.id))) {
-          if (await startVisaFlow(flowCtx)) return
-        }
-
-        // A greeting always restarts the menu if no visual BotFlow matched.
-        const existing = await getState(conversation.id)
-        const midInput = existing?.step === "ASK_NAME" || existing?.step === "ASK_EMAIL"
-        const { getTrainingState } = await import("@/lib/training-flow")
-        const trainState = await getTrainingState(conversation.id)
-        const midTrain = trainState && (trainState.step === "TRAINING_NAME" || trainState.step === "TRAINING_AGE")
-
-        /*
-         * The workspace's own flow comes first.
-         *
-         * "hi" used to start the built-in tour concierge and return, so a
-         * business that had built its own bot was answered by Najwa offering
-         * desert safaris — and editing their flow changed nothing, because it
-         * was never consulted. The built-in greeting is a default, and a
-         * default should only apply when nothing else claims the message.
-         */
-        /*
-         * A greeting word, or simply the first thing they ever said.
-         *
-         * An opening "😀", "?" or a name is someone starting a conversation,
-         * and answering it with the LLM instead of the menu loses them before
-         * they see what the business offers.
-         */
-        if ((isFlowTrigger(content) || isFirstContact || type === "sticker") && !midInput && !midTrain) {
-          const ownFlow = await flowWouldMatch({
-            tenantId: currentTenant()?.tenantId || "",
-            conversationId: conversation.id,
-            customerId: customer.id,
-            customerPhone: from,
-            message: content,
-          })
-          if (!ownFlow) {
-            await startBookingFlow(flowCtx, content)
-            return
-          }
-        }
-      }
-
+      // ─── 4. AI Assistant / Human Fallback (Knowledge Base & RAG) ───
       await handleTextMessage({
         from,
         content,
@@ -1493,6 +934,7 @@ async function processMessage(msg: any, contact: any) {
         customerId: customer.id,
         preferredLang: /[\u0600-\u06FF]/.test(content) ? "ar" : (customer.preferredLang || "en"),
       })
+      return
     }
   } catch (aiError) {
     console.error("AI processing error:", aiError)
@@ -1595,8 +1037,18 @@ async function handlePaymentScreenshot(params: {
   const { from, customerName, mediaId, customerId, conversationId } = params
 
   // If the guided flow is waiting on a screenshot, attach it to that exact
-  // order rather than guessing at the customer's most recent one.
-  const flowOrderId = await bookingAwaitingScreenshot(conversationId)
+  // If the conversation or flow is waiting on a screenshot, attach it to that exact order
+  let flowOrderId: string | null = null
+  try {
+    const conv = await db.conversation.findUnique({
+      where: { id: conversationId },
+      select: { flowState: true, bookingState: true },
+    })
+    const fs = typeof conv?.flowState === "string" ? JSON.parse(conv.flowState) : (conv?.flowState as any)
+    if (fs?.answers?.order_id) flowOrderId = String(fs.answers.order_id)
+    const bs = typeof conv?.bookingState === "string" ? JSON.parse(conv.bookingState) : (conv?.bookingState as any)
+    if (bs?.orderId) flowOrderId = String(bs.orderId)
+  } catch {}
 
   const pendingOrder = flowOrderId
     ? await db.order.findUnique({ where: { id: flowOrderId }, include: { tour: true, slot: true } })
@@ -1685,8 +1137,16 @@ async function handlePaymentScreenshot(params: {
    * notice, while it is still trivial to change. Sent in the language they
    * picked at the start of the conversation.
    */
-  const flowState = await getState(conversationId)
-  const ar = flowState?.lang === "ar"
+  const convForLang = await db.conversation.findUnique({
+    where: { id: conversationId },
+    select: { flowState: true, customer: { select: { preferredLang: true } } },
+  })
+  let flowLang = convForLang?.customer?.preferredLang || "en"
+  try {
+    const fs = typeof convForLang?.flowState === "string" ? JSON.parse(convForLang.flowState) : (convForLang?.flowState as any)
+    if (fs?.answers?.lang) flowLang = fs.answers.lang
+  } catch {}
+  const ar = flowLang === "ar"
   const when = pendingOrder.slot
     ? `${formatDate(pendingOrder.slot.date)} ${ar ? "الساعة" : "at"} ${pendingOrder.slot.startTime}`
     : ""
@@ -1730,13 +1190,20 @@ async function handlePaymentScreenshot(params: {
       tenantId: currentTenant()?.tenantId || undefined,
     }).catch(() => null)
   } else {
-    const { sendPostBookingChatChoice } = await import("@/lib/booking-flow")
-    await sendPostBookingChatChoice({
-      tenantId: currentTenant()?.tenantId || "",
+    await sendOrderConfirmationWA({
+      phone: from,
+      orderRef: pendingOrder.orderNumber,
+      tourName: pendingOrder.tour.name,
+      slotDate: pendingOrder.slot?.date ? String(pendingOrder.slot.date) : null,
+      slotTime: pendingOrder.slot?.startTime ?? null,
+      paxAdult: pendingOrder.paxAdult ?? 1,
+      paxChild: pendingOrder.paxChild ?? 0,
+      totalAmount: pendingOrder.totalAmount,
+      voucherCode: "",
+      lang: ar ? "ar" : "en",
       conversationId,
       customerId,
-      phone: from,
-      lang: ar ? "ar" : "en",
+      tenantId: currentTenant()?.tenantId || undefined,
     }).catch(() => null)
   }
 
@@ -1758,7 +1225,10 @@ async function handlePaymentScreenshot(params: {
   })
 
   if (flowOrderId) {
-    await completeBooking({ tenantId: currentTenant()?.tenantId || "", conversationId, customerId, phone: from })
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { bookingState: Prisma.DbNull, flowState: Prisma.DbNull },
+    }).catch(() => {})
   }
 }
 
