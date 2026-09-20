@@ -42,6 +42,8 @@ const PUBLIC_EXACT = new Set([
 function isPublic(request: NextRequest) {
   const path = request.nextUrl.pathname
   if (PUBLIC_EXACT.has(path) || path.startsWith("/api/external/")) return true
+  if (path.startsWith("/api/ecommerce/")) return true
+  if (path.startsWith("/api/cron")) return true
   if (path.startsWith("/api/campaigns/click/")) return true
   if (path === "/api/campaigns/unsubscribe") return true
   if (request.method === "GET" && /^\/api\/vouchers\/[^/]+\/pdf$/.test(path)) return true
