@@ -87,6 +87,17 @@ export async function generateMetadata(): Promise<Metadata> {
      * body and left to React to hoist. Declaring it here guarantees it is in
      * the head of the served HTML, which is what the verifier fetches.
      */
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
     verification: {
       ...(seo.googleSiteVerification ? { google: seo.googleSiteVerification } : {}),
       ...(seo.bingSiteVerification ? { other: { "msvalidate.01": seo.bingSiteVerification } } : {}),
