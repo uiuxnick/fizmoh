@@ -3220,3 +3220,101 @@ model LiveChatWidget {
 
   @@index([tenantId])
 }
+
+// ============================================================
+// E-COMMERCE INTEGRATION (WooCommerce, Shopify, Custom REST)
+// ============================================================
+
+model EcommerceStore {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  platform        String   // WOOCOMMERCE, SHOPIFY, CUSTOM
+  storeUrl        String
+  apiKey          String?
+  apiSecret       String?
+  webhookSecret   String?
+  currency        String   @default("OMR")
+  isActive        Boolean  @default(true)
+  settings        Json?    // custom platform-specific settings
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  templateMappings EcommerceTemplateMapping[]
+  abandonedCarts   AbandonedCheckout[]
+
+  @@index([tenantId])
+  @@index([platform])
+}
+
+model EcommerceTemplateMapping {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  storeId             String?
+  eventType           String   // ORDER_CREATED, ORDER_PROCESSING, ORDER_SHIPPED, ORDER_DELIVERED, ORDER_CANCELLED, CART_ABANDONED_STEP1, CART_ABANDONED_STEP2, CART_ABANDONED_STEP3, NEWSLETTER_WELCOME
+  useDefaultTemplate  Boolean  @default(true) // If true, uses rich interactive WhatsApp template with buttons
+  customTemplateName  String?  // Name of approved Meta WhatsApp template
+  customTemplateLang  String?  @default("en")
+  variableMapping     Json?    // e.g. { "1": "customer_name", "2": "order_id", "3": "total", "4": "tracking_url" }
+  headerText          String?
+  customButtons       Json?    // Optional overrides for button text / URLs
+  isEnabled           Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  store               EcommerceStore? @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, eventType])
+  @@index([tenantId])
+  @@index([storeId])
+}
+
+model AbandonedCheckout {
+  id                String   @id @default(cuid())
+  tenantId          String
+  storeId           String?
+  cartToken         String   // Unique token from WooCommerce session or Shopify cart token
+  customerPhone     String
+  customerEmail     String?
+  customerName      String?
+  cartTotal         Decimal  @default(0)
+  currency          String   @default("OMR")
+  items             Json     // [{ id, title, quantity, price, image, variant }]
+  checkoutUrl       String   // Direct 1-click cart restoration / checkout link
+  recoveryStage     Int      @default(0) // 0 = captured, 1 = stage 1 sent, 2 = stage 2 sent, 3 = stage 3 sent
+  status            String   @default("PENDING") // PENDING, RECOVERED, EXPIRED, CANCELLED
+  lastNotifiedAt    DateTime?
+  recoveredAt       DateTime?
+  metadata          Json?    // coupon code used, client IP, etc.
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  store             EcommerceStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, cartToken])
+  @@index([tenantId])
+  @@index([status])
+  @@index([customerPhone])
+  @@index([createdAt])
+}
+
+model NewsletterSubscriber {
+  id                String   @id @default(cuid())
+  tenantId          String
+  storeId           String?
+  phone             String
+  email             String?
+  name              String?
+  source            String   @default("CHECKOUT_OPTIN") // CHECKOUT_OPTIN, FOOTER_FORM, POPUP, REST_API
+  tags              Json?    // ["newsletter_subscriber", "vip_buyer"]
+  consentGiven      Boolean  @default(true)
+  consentTimestamp  DateTime @default(now())
+  welcomeSent       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([email])
+}
+

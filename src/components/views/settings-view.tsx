@@ -21,10 +21,11 @@ import {
   Shield, Building2, Clock, Percent, Phone, Languages,
   CheckCircle2, AlertTriangle, Lock, Copy, RefreshCw, ExternalLink,
   Sparkles, Zap, XCircle, KeyRound, Loader2, Plus, Trash2,
-  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send,
+  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send, ShoppingBag,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
+import EcommerceSettingsView from "@/components/views/ecommerce-settings-view"
 
 interface BankAccount {
   id: string
@@ -334,6 +335,7 @@ export default function SettingsView() {
               <TabsTrigger value="apikeys" className="gap-1.5"><KeyRound className="h-3.5 w-3.5" />API Keys & Docs</TabsTrigger>
               <TabsTrigger data-tour="settings-whatsapp-api" value="whatsapp" className="gap-1.5"><WhatsAppIcon className="h-3.5 w-3.5" />WhatsApp</TabsTrigger>
               <TabsTrigger value="social" className="gap-1.5"><Facebook className="h-3.5 w-3.5" />Facebook &amp; Instagram</TabsTrigger>
+              <TabsTrigger value="ecommerce" className="gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />E-Commerce &amp; Stores</TabsTrigger>
               <TabsTrigger value="ai" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />AI</TabsTrigger>
               <TabsTrigger value="email" className="gap-1.5"><Mail className="h-3.5 w-3.5" />Email</TabsTrigger>
               <TabsTrigger data-tour="settings-notifications" value="notifications" className="gap-1.5"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
@@ -1032,6 +1034,10 @@ export default function SettingsView() {
 
         <TabsContent value="social" className="mt-4">
           <SocialChannelsSettings />
+        </TabsContent>
+
+        <TabsContent value="ecommerce" className="mt-4">
+          <EcommerceSettingsView />
         </TabsContent>
 
         {/* AI */}

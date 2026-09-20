@@ -102,12 +102,66 @@ export const POST = withErrors(async (request: NextRequest) => {
     const customerName = `${payload.billing?.first_name || ""} ${payload.billing?.last_name || ""}`.trim() || "Customer"
     const orderNum = payload.number || payload.id || "WC-1001"
     const total = payload.total ? `${payload.total} ${payload.currency || "OMR"}` : "Paid"
+    const currency = payload.currency || "OMR"
+    const itemCount = Array.isArray(payload.line_items) ? payload.line_items.length : 1
+    const orderUrl = payload.order_key ? `${payload.view_order_url || ""}` : ""
 
-    // Automated WhatsApp message send for WooCommerce purchase
-    await sendTextMessage(
-      phone,
-      `🛒 *WooCommerce Order Confirmation*\n\nHi ${customerName}, thank you for your order #${orderNum}! Total: ${total}.\n\nWe will update you here on WhatsApp as your order is processed.`,
-    ).catch(() => {})
+    // Auto-recover any matching pending abandoned cart
+    await db.abandonedCheckout.updateMany({
+      where: {
+        tenantId: tenant.tenantId,
+        customerPhone: { contains: String(phone).replace(/\D/g, "").slice(-8) },
+        status: "PENDING",
+      },
+      data: { status: "RECOVERED", recoveredAt: new Date() },
+    }).catch(() => null)
+
+    // Extract shipment tracking from common WooCommerce plugins (AST, WC Shipment Tracking)
+    let carrier = "Courier"
+    let trackingNumber = ""
+    let trackingUrl = ""
+
+    if (Array.isArray(payload.meta_data)) {
+      const trackingMeta = payload.meta_data.find((m: any) =>
+        m.key === "_wc_shipment_tracking_items" || m.key === "_ast_tracking_items" || m.key === "tracking_number"
+      )
+      if (trackingMeta) {
+        if (Array.isArray(trackingMeta.value) && trackingMeta.value[0]) {
+          const item = trackingMeta.value[0]
+          carrier = item.custom_tracking_provider || item.tracking_provider || "Courier"
+          trackingNumber = item.tracking_number || ""
+          trackingUrl = item.custom_tracking_link || item.tracking_link || ""
+        } else if (typeof trackingMeta.value === "string") {
+          trackingNumber = trackingMeta.value
+        }
+      }
+    }
+
+    // Determine event type based on WooCommerce status
+    const status = String(payload.status || "").toLowerCase()
+    let eventType: any = "ORDER_CREATED"
+    if (status === "processing") eventType = "ORDER_PROCESSING"
+    else if (status === "completed" || trackingNumber) eventType = "ORDER_SHIPPED"
+    else if (status === "cancelled" || status === "refunded") eventType = "ORDER_CANCELLED"
+
+    const { sendEcommerceNotification } = await import("@/lib/ecommerce-templates")
+    await sendEcommerceNotification({
+      tenantId: tenant.tenantId,
+      eventType,
+      to: phone,
+      data: {
+        name: customerName,
+        order_number: orderNum,
+        store_name: tenant.slug || "WooCommerce Store",
+        total,
+        currency,
+        item_count: itemCount,
+        carrier,
+        tracking_number: trackingNumber,
+        tracking_url: trackingUrl || orderUrl,
+        order_url: orderUrl,
+      },
+    }).catch(err => console.error("[woocommerce] error sending notification:", err))
   }
 
   if (delivery) await finishWebhookDelivery(delivery.id, { success: true, topic }).catch(error => failWebhookDelivery(delivery.id, error, false).catch(() => {}))

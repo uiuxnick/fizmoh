@@ -1,0 +1,25 @@
+/**
+ * Fizmoh Connect Storefront Styles
+ */
+
+#fizmoh-floating-wa a:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.fizmoh-order-wa-btn {
+    transition: all 0.2s ease-in-out !important;
+}
+
+.fizmoh-order-wa-btn:hover {
+    background-color: #1eb956 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(37, 211, 102, 0.35);
+}
+
+.fizmoh-checkout-optin-wrap {
+    transition: background-color 0.2s ease;
+}
+
+.fizmoh-checkout-optin-wrap:hover {
+    background-color: #ecfdf5 !important;
+}
