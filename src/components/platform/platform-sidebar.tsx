@@ -18,6 +18,8 @@ export type PlatformSection =
   | "whatsapp-numbers"
   | "whatsapp-quality"
   | "support-tickets"
+  | "feature-requests"
+  | "bug-reports"
   | "live-support"
   | "announcements"
   | "plans"
@@ -67,10 +69,15 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
   {
     key: "support-tickets",
-    label: "Support Tickets",
+    label: "Support & Feedback",
     icon: <Headphones className="h-4 w-4" />,
+    children: [
+      { key: "support-tickets", label: "All Tickets" },
+      { key: "feature-requests", label: "Feature Requests" },
+      { key: "bug-reports", label: "Bug Reports" },
+      { key: "live-support", label: "Website Live Support" },
+    ],
   },
-  { key: "live-support", label: "Website Live Support", icon: <Headphones className="h-4 w-4" /> },
   {
     key: "announcements",
     label: "Announcements",

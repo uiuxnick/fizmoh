@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import {
   Loader2, Search, Headphones, AlertTriangle, Send, Plus,
   CheckCircle2, Clock, MessageSquare, Lock, Globe, User, Building2,
-  RefreshCw, X, ChevronRight,
+  RefreshCw, X, ChevronRight, Lightbulb, Bug, MessageCircle, ExternalLink, Mail, Phone,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -43,7 +43,13 @@ interface Ticket {
   replies?: Reply[]
 }
 
-export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }) {
+export function SupportTicketsPanel({
+  liveOnly = false,
+  initialChannel = "ALL",
+}: {
+  liveOnly?: boolean
+  initialChannel?: string
+}) {
   const listSequence = useRef(0)
   const [total, setTotal] = useState(0)
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -51,8 +57,17 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
+  const [channelFilter, setChannelFilter] = useState(initialChannel)
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [priorityFilter, setPriorityFilter] = useState("ALL")
+  const [metrics, setMetrics] = useState<{
+    total: number
+    featureCount: number
+    bugCount: number
+    liveCount: number
+    openCount: number
+    urgentCount: number
+  } | null>(null)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [fetchingDetail, setFetchingDetail] = useState(false)
   const [replyText, setReplyText] = useState("")
@@ -73,12 +88,24 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
     const sequence = ++listSequence.current
     if (!silent) setLoading(true)
     try {
-      const query = new URLSearchParams({ page: String(page), limit: "50", status: statusFilter, priority: priorityFilter, search, ...(liveOnly ? { mode: "live" } : {}) })
+      const query = new URLSearchParams({
+        page: String(page),
+        limit: "50",
+        status: statusFilter,
+        priority: priorityFilter,
+        channel: channelFilter,
+        search,
+        ...(liveOnly ? { mode: "live" } : {}),
+      })
       const res = await fetch(`/api/platform/support/tickets?${query}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       const list = Array.isArray(data.tickets) ? data.tickets : Array.isArray(data) ? data : []
-      if (sequence === listSequence.current) { setTickets(list); setTotal(data.total || 0) }
+      if (sequence === listSequence.current) {
+        setTickets(list)
+        setTotal(data.total || 0)
+        if (data.metrics) setMetrics(data.metrics)
+      }
     } catch {
       if (!silent && sequence === listSequence.current) toast.error("Failed to load tickets")
     } finally {
@@ -90,7 +117,7 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
     const timer = setTimeout(() => loadTickets(), 250)
     const poll = setInterval(() => { if (!document.hidden) loadTickets(true) }, 10000)
     return () => { clearTimeout(timer); clearInterval(poll); listSequence.current++ }
-  }, [page, search, statusFilter, priorityFilter, liveOnly])
+  }, [page, search, channelFilter, statusFilter, priorityFilter, liveOnly])
 
   useEffect(() => {
     fetch("/api/platform/tenants")
@@ -240,14 +267,47 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
     return "bg-stone-100 text-stone-700"
   }
 
+  const getChannelBadge = (t: Ticket) => {
+    const isFeature = t.channel === "FEATURE_REQUEST" || (t.subject || "").startsWith("[Feature Request]")
+    const isBug = t.channel === "BUG_REPORT" || (t.subject || "").startsWith("[Bug Report]")
+    const isLive = t.channel === "LIVE_CHAT" || t.channel === "WEBSITE"
+
+    if (isFeature) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+          <Lightbulb className="h-3 w-3 text-purple-600" /> Feature Request
+        </span>
+      )
+    }
+    if (isBug) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+          <Bug className="h-3 w-3 text-rose-600" /> Bug Report
+        </span>
+      )
+    }
+    if (isLive) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">
+          <MessageSquare className="h-3 w-3 text-cyan-600" /> Live Chat
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+        <Headphones className="h-3 w-3 text-stone-500" /> Support
+      </span>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-stone-900">{liveOnly ? "Website Live Support" : "Support Tickets"}</h2>
+          <h2 className="text-xl font-black text-stone-900">{liveOnly ? "Website Live Support" : "Support & Product Feedback"}</h2>
           <p className="text-xs text-stone-500 mt-0.5">
-            Manage tickets and website chats. Replies refresh automatically; a public reply takes over from AI.
+            Manage customer tickets, user feature requests, bug reports, and website live chats.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -271,35 +331,117 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
-          <div className="text-xs font-bold text-stone-500">Open Tickets</div>
+          <div className="text-xs font-bold text-stone-500">Total Submissions</div>
+          <div className="text-xl font-black text-stone-800 mt-1">
+            {metrics?.total ?? total}
+          </div>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-purple-200/70 bg-gradient-to-b from-purple-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-purple-700 flex items-center gap-1">
+            <Lightbulb className="h-3.5 w-3.5" /> Feature Requests
+          </div>
+          <div className="text-xl font-black text-purple-800 mt-1">
+            {metrics?.featureCount ?? safeTickets.filter(t => t.channel === "FEATURE_REQUEST" || (t.subject || "").startsWith("[Feature Request]")).length}
+          </div>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-rose-200/70 bg-gradient-to-b from-rose-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-rose-700 flex items-center gap-1">
+            <Bug className="h-3.5 w-3.5" /> Bug Reports
+          </div>
+          <div className="text-xl font-black text-rose-800 mt-1">
+            {metrics?.bugCount ?? safeTickets.filter(t => t.channel === "BUG_REPORT" || (t.subject || "").startsWith("[Bug Report]")).length}
+          </div>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-emerald-200/70 bg-gradient-to-b from-emerald-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-emerald-700">Open / Active</div>
           <div className="text-xl font-black text-emerald-700 mt-1">
-            {safeTickets.filter(t => t.status === "OPEN").length}
+            {metrics?.openCount ?? safeTickets.filter(t => t.status === "OPEN" || t.status === "IN_PROGRESS").length}
           </div>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
-          <div className="text-xs font-bold text-stone-500">In Progress</div>
-          <div className="text-xl font-black text-blue-700 mt-1">
-            {safeTickets.filter(t => t.status === "IN_PROGRESS").length}
+        <div className="p-4 rounded-2xl bg-white border border-amber-200/70 bg-gradient-to-b from-amber-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-amber-700 flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" /> Urgent / Critical
           </div>
-        </div>
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
-          <div className="text-xs font-bold text-stone-500">{liveOnly ? "Waiting for Support" : "Waiting"}</div>
-          <div className="text-xl font-black text-amber-700 mt-1">
-            {safeTickets.filter(t => t.status === "WAITING").length}
-          </div>
-        </div>
-        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
-          <div className="text-xs font-bold text-stone-500">Resolved</div>
-          <div className="text-xl font-black text-stone-700 mt-1">
-            {safeTickets.filter(t => t.status === "RESOLVED" || t.status === "CLOSED").length}
+          <div className="text-xl font-black text-amber-800 mt-1">
+            {metrics?.urgentCount ?? safeTickets.filter(t => t.priority === "URGENT").length}
           </div>
         </div>
       </div>
 
       {/* Main Table Card */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-2xs overflow-hidden">
+        {/* Category Filter Tabs */}
+        {!liveOnly && (
+          <div className="flex flex-wrap items-center gap-2 p-3 bg-stone-100/70 border-b border-stone-200">
+            <button
+              onClick={() => { setChannelFilter("ALL"); setPage(1); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                channelFilter === "ALL"
+                  ? "bg-white text-stone-900 shadow-2xs border border-stone-200/80"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60"
+              }`}
+            >
+              All Submissions ({metrics?.total ?? total})
+            </button>
+            <button
+              onClick={() => { setChannelFilter("FEATURE_REQUEST"); setPage(1); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                channelFilter === "FEATURE_REQUEST"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-purple-700 bg-purple-50/70 hover:bg-purple-100/70 border border-purple-200/60"
+              }`}
+            >
+              <Lightbulb className="h-3.5 w-3.5" /> Feature Requests
+              {metrics?.featureCount !== undefined && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${channelFilter === "FEATURE_REQUEST" ? "bg-purple-800 text-white" : "bg-purple-200 text-purple-900"}`}>
+                  {metrics.featureCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setChannelFilter("BUG_REPORT"); setPage(1); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                channelFilter === "BUG_REPORT"
+                  ? "bg-rose-600 text-white shadow-xs"
+                  : "text-rose-700 bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200/60"
+              }`}
+            >
+              <Bug className="h-3.5 w-3.5" /> Bug Reports
+              {metrics?.bugCount !== undefined && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${channelFilter === "BUG_REPORT" ? "bg-rose-800 text-white" : "bg-rose-200 text-rose-900"}`}>
+                  {metrics.bugCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setChannelFilter("LIVE_CHAT"); setPage(1); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                channelFilter === "LIVE_CHAT"
+                  ? "bg-cyan-600 text-white shadow-xs"
+                  : "text-cyan-700 bg-cyan-50/70 hover:bg-cyan-100/70 border border-cyan-200/60"
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" /> Website Live Chat
+              {metrics?.liveCount !== undefined && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${channelFilter === "LIVE_CHAT" ? "bg-cyan-800 text-white" : "bg-cyan-200 text-cyan-900"}`}>
+                  {metrics.liveCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setChannelFilter("SUPPORT"); setPage(1); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                channelFilter === "SUPPORT"
+                  ? "bg-stone-800 text-white shadow-xs"
+                  : "text-stone-700 bg-white/80 hover:bg-stone-200/60 border border-stone-200/80"
+              }`}
+            >
+              <Headphones className="h-3.5 w-3.5" /> General Support
+            </button>
+          </div>
+        )}
         {/* Filters */}
         <div className="p-4 bg-stone-50/60 border-b border-stone-200/80 flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
@@ -386,7 +528,7 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
                         {t.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-stone-500 uppercase font-mono text-[10px]">{t.channel}</td>
+                    <td className="px-4 py-3.5">{getChannelBadge(t)}</td>
                     <td className="px-4 py-3.5 text-stone-500 whitespace-nowrap">
                       {new Date(t.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </td>
@@ -424,6 +566,7 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(selectedTicket.priority)}`}>
                     {selectedTicket.priority}
                   </span>
+                  {getChannelBadge(selectedTicket)}
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedTicket.tenantId === null && ["LIVE_CHAT", "WEBSITE"].includes(selectedTicket.channel) && !["RESOLVED", "CLOSED"].includes(selectedTicket.status) && (
@@ -473,6 +616,36 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
                   {selectedTicket.body || "No details provided."}
                 </p>
               </div>
+
+              {/* Quick Actions — extract email / phone from body */}
+              {(() => {
+                const emailMatch = (selectedTicket.body || "").match(/Email:\s*([^\s\n]+@[^\s\n]+)/i)
+                const phoneMatch = (selectedTicket.body || "").match(/(?:WhatsApp|Phone|Mobile|Contact):\s*\+?([\d\s\-()]{7,})/i)
+                if (!emailMatch && !phoneMatch) return null
+                return (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Quick Actions:</span>
+                    {emailMatch && (
+                      <a
+                        href={`mailto:${emailMatch[1]}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition"
+                      >
+                        <Mail className="h-3.5 w-3.5" /> Email Submitter
+                      </a>
+                    )}
+                    {phoneMatch && (
+                      <a
+                        href={`https://wa.me/${phoneMatch[1].replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition"
+                      >
+                        <Phone className="h-3.5 w-3.5" /> Chat on WhatsApp
+                      </a>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Replies Thread */}
               <div className="space-y-3">
@@ -597,6 +770,21 @@ export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }
                   <option value="URGENT">Urgent</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Channel / Type</label>
+              <select
+                value={newChannel}
+                onChange={e => setNewChannel(e.target.value)}
+                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-stone-200 bg-white text-stone-800"
+              >
+                <option value="PLATFORM">🛠️ Platform Issue</option>
+                <option value="SUPPORT">🎧 General Support</option>
+                <option value="FEATURE_REQUEST">💡 Feature Request</option>
+                <option value="BUG_REPORT">🐛 Bug Report</option>
+                <option value="LIVE_CHAT">💬 Live Chat Follow-up</option>
+                <option value="WEBSITE">🌐 Website Enquiry</option>
+              </select>
             </div>
             <div>
               <label className="text-xs font-bold text-stone-700 block mb-1">Description / Problem Details</label>

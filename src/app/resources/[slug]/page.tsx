@@ -4,6 +4,8 @@ import { SiteHeader, SiteFooter } from "@/components/site-header"
 import { RESOURCE_PAGES } from "@/lib/resource-pages"
 import { SupportChatButton } from "@/components/support-chat-button"
 import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
+import { FeatureRequestForm } from "@/components/resources/feature-request-form"
+import { BugReportForm } from "@/components/resources/bug-report-form"
 
 export function generateStaticParams() {
   return RESOURCE_PAGES.map(({ slug }) => ({ slug }))
@@ -96,21 +98,38 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
             </a>
           </div>
         )}
-        <div className="mt-12 grid gap-6 sm:grid-cols-2">
-          {page.sections.map(section => (
-            <section key={section.title} className="rounded-2xl border border-stone-200 bg-white p-7 shadow-xs">
-              <h2 className="text-xl font-semibold text-stone-900">{section.title}</h2>
-              <p className="mt-4 leading-7 text-stone-600">{section.body}</p>
-              {section.href && (
-                <Link
-                  href={section.href}
-                  className="mt-5 inline-block font-semibold text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
-                >
-                  {section.label}
-                </Link>
-              )}
-            </section>
-          ))}
+        {slug === "feature-request" && (
+          <div className="mt-10">
+            <FeatureRequestForm />
+          </div>
+        )}
+
+        {slug === "bug-report" && (
+          <div className="mt-10">
+            <BugReportForm />
+          </div>
+        )}
+
+        <div className="mt-16">
+          <h3 className="text-lg font-bold text-stone-900 mb-6">
+            {slug === "feature-request" ? "Tips for submitting feature requests" : slug === "bug-report" ? "Issue reporting guidance" : "Overview & Details"}
+          </h3>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {page.sections.map(section => (
+              <section key={section.title} className="rounded-2xl border border-stone-200 bg-white p-7 shadow-xs">
+                <h2 className="text-xl font-semibold text-stone-900">{section.title}</h2>
+                <p className="mt-4 leading-7 text-stone-600">{section.body}</p>
+                {section.href && (
+                  <Link
+                    href={section.href}
+                    className="mt-5 inline-block font-semibold text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
+                  >
+                    {section.label}
+                  </Link>
+                )}
+              </section>
+            ))}
+          </div>
         </div>
       </main>
       <SiteFooter />

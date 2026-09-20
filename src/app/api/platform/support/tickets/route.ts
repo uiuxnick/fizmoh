@@ -15,6 +15,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   const status = searchParams.get("status");
   const priority = searchParams.get("priority");
   const tenantId = searchParams.get("tenantId");
+  const channel = searchParams.get("channel");
   const page = Number(searchParams.get("page") || "1");
   const limit = Number(searchParams.get("limit") || "20");
   if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ error: "Invalid pagination" }, { status: 400 });
@@ -25,16 +26,62 @@ export const GET = withErrors(async (request: NextRequest) => {
   if (status && status !== "ALL") where.status = status;
   if (priority && priority !== "ALL") where.priority = priority;
   if (tenantId && tenantId !== "ALL") where.tenantId = tenantId;
-  const search = searchParams.get("search")?.trim().slice(0, 160);
-  if (search) where.OR = [{ subject: { contains: search, mode: "insensitive" } }, { reference: { contains: search, mode: "insensitive" } }];
 
-  const [total, tickets] = await Promise.all([
+  if (channel && channel !== "ALL") {
+    if (channel === "FEATURE_REQUEST") {
+      where.OR = [{ channel: "FEATURE_REQUEST" }, { subject: { startsWith: "[Feature Request]" } }];
+    } else if (channel === "BUG_REPORT") {
+      where.OR = [{ channel: "BUG_REPORT" }, { subject: { startsWith: "[Bug Report]" } }];
+    } else if (channel === "LIVE_CHAT") {
+      where.channel = { in: SUPPORT_CHANNELS };
+    } else if (channel === "SUPPORT") {
+      where.channel = { notIn: ["FEATURE_REQUEST", "BUG_REPORT", ...SUPPORT_CHANNELS] };
+    } else {
+      where.channel = channel;
+    }
+  }
+
+  const search = searchParams.get("search")?.trim().slice(0, 160);
+  if (search) {
+    const searchFilter = [
+      { subject: { contains: search, mode: "insensitive" as const } },
+      { reference: { contains: search, mode: "insensitive" as const } },
+    ];
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: searchFilter }];
+      delete where.OR;
+    } else {
+      where.OR = searchFilter;
+    }
+  }
+
+  const [total, tickets, featureCount, bugCount, liveCount, openCount, urgentCount] = await Promise.all([
     raw.supportTicket.count({ where }),
     raw.supportTicket.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
+      include: {
+        replies: {
+          select: { id: true },
+        },
+      },
+    }),
+    raw.supportTicket.count({
+      where: { OR: [{ channel: "FEATURE_REQUEST" }, { subject: { startsWith: "[Feature Request]" } }] },
+    }),
+    raw.supportTicket.count({
+      where: { OR: [{ channel: "BUG_REPORT" }, { subject: { startsWith: "[Bug Report]" } }] },
+    }),
+    raw.supportTicket.count({
+      where: { channel: { in: SUPPORT_CHANNELS } },
+    }),
+    raw.supportTicket.count({
+      where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING"] } },
+    }),
+    raw.supportTicket.count({
+      where: { priority: "URGENT", status: { in: ["OPEN", "IN_PROGRESS"] } },
     }),
   ]);
 
@@ -54,9 +101,23 @@ export const GET = withErrors(async (request: NextRequest) => {
     tenantName: t.tenantId ? tenantMap[t.tenantId] : null,
     creatorName: staffMap[t.createdById] || supportAuthor(t.createdById),
     assigneeName: t.assignedStaffId ? staffMap[t.assignedStaffId] : null,
+    replyCount: t.replies?.length || 0,
   }));
 
-  return NextResponse.json({ tickets: enrichedTickets, total, page, limit });
+  return NextResponse.json({
+    tickets: enrichedTickets,
+    total,
+    page,
+    limit,
+    metrics: {
+      total,
+      featureCount,
+      bugCount,
+      liveCount,
+      openCount,
+      urgentCount,
+    },
+  });
 });
 
 export const POST = withErrors(async (request: NextRequest) => {

@@ -263,8 +263,10 @@ export default function PlatformView() {
       {tab === "revenue" && <RevenueAnalyticsPanel />}
       {tab === "whatsapp-numbers" && <WhatsAppNumbersPanel />}
       {tab === "whatsapp-quality" && <WhatsAppNumbersPanel />}
-      {tab === "support-tickets" && <SupportTicketsPanel />}
-      {tab === "live-support" && <SupportTicketsPanel liveOnly />}
+      {tab === "support-tickets" && <SupportTicketsPanel initialChannel="ALL" />}
+      {tab === "feature-requests" && <SupportTicketsPanel initialChannel="FEATURE_REQUEST" />}
+      {tab === "bug-reports" && <SupportTicketsPanel initialChannel="BUG_REPORT" />}
+      {tab === "live-support" && <SupportTicketsPanel liveOnly initialChannel="LIVE_CHAT" />}
       {tab === "announcements" && <AnnouncementsPanel />}
       {tab === "plans" && <PlansPanel onChanged={load} />}
       {tab === "usage" && <UsageLimitsPanel />}
