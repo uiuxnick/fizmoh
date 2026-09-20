@@ -383,17 +383,19 @@ export function SiteHeader() {
       href: "/whats-new",
       icon: Sparkles,
       color: "text-[#059669] bg-[#059669]/10",
-      badgeEn: "v6.1",
-      badgeAr: "v6.1",
+      badgeEn: "v6.3",
+      badgeAr: "v6.3",
     },
     {
-      titleEn: "WC Plugin & Stores",
-      titleAr: "تكامل المتاجر",
-      descEn: "Recover sales with automated WooCommerce webhooks.",
-      descAr: "استرجاع السلات بربط ويبهوك ووكومرس وشوبيفاي.",
-      href: "/resources/woocommerce",
-      icon: Layers,
-      color: "text-[#0891B2] bg-[#0891B2]/10",
+      titleEn: "WooCommerce Plugin",
+      titleAr: "إضافة ووكومرس",
+      descEn: "Download Fizmoh Connect for WooCommerce & cart recovery.",
+      descAr: "تحميل إضافة ووكومرس الرسمية واستعادة السلات المتروكة.",
+      href: "/api/ecommerce/plugin/download",
+      icon: ShoppingBag,
+      color: "text-[#00B96A] bg-[#00B96A]/10",
+      badgeEn: ".zip",
+      badgeAr: ".zip",
     },
     {
       titleEn: "Contact (Ask)",
@@ -498,23 +500,33 @@ export function SiteHeader() {
                     ))}
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between text-[12px]">
+                  <div className="pt-4 mt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-[12px]">
                     <Link
                       href="/whats-new"
                       onClick={() => setActiveDropdown(null)}
                       className="inline-flex items-center gap-1.5 font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>{isAr ? "ما الجديد في التحديث v6.1" : "Explore What's New in v6.1"}</span>
+                      <span>{isAr ? "ما الجديد في التحديث v6.3" : "Explore What's New in v6.3"}</span>
                     </Link>
-                    <a
-                      href="/downloads/"
-                      onClick={() => setActiveDropdown(null)}
-                      className="inline-flex items-center gap-1 font-bold text-stone-700 hover:text-stone-900 hover:underline"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>{isAr ? "تحميل التطبيقات المرافقة" : "Download Companion Apps"}</span>
-                    </a>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href="/api/ecommerce/plugin/download"
+                        onClick={() => setActiveDropdown(null)}
+                        className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>{isAr ? "إضافة ووكومرس (.zip)" : "WooCommerce Plugin"}</span>
+                      </a>
+                      <a
+                        href="/downloads/"
+                        onClick={() => setActiveDropdown(null)}
+                        className="inline-flex items-center gap-1 font-bold text-stone-700 hover:text-stone-900 hover:underline"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>{isAr ? "تحميل التطبيقات" : "Download Apps"}</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>

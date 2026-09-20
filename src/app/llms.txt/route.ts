@@ -69,7 +69,7 @@ export async function GET() {
     ["/", "Home", "What the platform does, with a live interactive demo"],
     ["/features", "Features", "Team inbox, bot builder, broadcasts, payments, bookings, commerce"],
     ["/pricing", "Pricing", "Plans, included modules, usage limits and add-ons, monthly or yearly"],
-    ["/whats-new", "What's New", "Release changelog and platform updates (v6.1: Omnichannel Social Broadcasts, Dual Gateways & A4 Invoices)"],
+    ["/whats-new", "What's New", "Release changelog and platform updates (v6.3: WooCommerce Plugin, Real-Time Abandoned Cart Recovery & Interactive Action Buttons)"],
     ["/docs", "Developer documentation", "REST API reference and operator manual"],
     ["/product/smart-menu-ordering", "Smart Menu & QR Dining", "Live Kitchen Display System (KDS), table QR ordering, waiter paging, and GPT-4o AI menu scanner"],
     ["/product/digital-vcard", "Smart Digital Business Cards", "10+ executive themes, video covers, dynamic QR codes, and 1-click vCard phone sync"],
