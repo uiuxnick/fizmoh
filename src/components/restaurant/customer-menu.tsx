@@ -108,6 +108,8 @@ interface CustomerMenuProps {
   categories: MenuCategoryData[]
   discounts: Array<{ code: string; name: string; kind: string; value: number }>
   tableToken?: string
+  initialSearchQuery?: string
+  initialItemId?: string
 }
 
 export default function CustomerMenu({
@@ -118,9 +120,11 @@ export default function CustomerMenu({
   categories,
   discounts,
   tableToken,
+  initialSearchQuery,
+  initialItemId,
 }: CustomerMenuProps) {
   const [lang, setLang] = useState<"en" | "ar">("en")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || "")
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || "")
   const [customizingItem, setCustomizingItem] = useState<MenuItemData | null>(null)
   const [isCartOpen, setIsCartOpen] = useState(false)
@@ -184,6 +188,18 @@ export default function CustomerMenu({
       setChosenVariantId(null)
     }
   }
+
+  // Auto-open customized item if initialItemId passed in URL
+  useEffect(() => {
+    if (!initialItemId) return
+    for (const cat of categories) {
+      const found = cat.items.find((it) => it.id === initialItemId)
+      if (found) {
+        openCustomization(found)
+        break
+      }
+    }
+  }, [initialItemId, categories])
 
   // Parse variants and modifiers of active item
   const currentVariants = useMemo(() => {
@@ -496,32 +512,45 @@ export default function CustomerMenu({
 
         {/* Search Bar */}
         <div className="max-w-3xl mx-auto px-4 pb-3">
-          <div className="relative">
-            <Search
-              className={`absolute top-2.5 w-4 h-4 text-slate-400 ${
-                isRtl ? "right-3" : "left-3"
-              }`}
-            />
-            <input
-              type="text"
-              placeholder={isRtl ? "ابحث في قائمة الطعام..." : "Search menu, dishes, or ingredients..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full py-2 bg-slate-100/80 rounded-xl text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition ${
-                isRtl ? "pr-9 pl-4" : "pl-9 pr-4"
-              }`}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className={`absolute top-2.5 text-slate-400 hover:text-slate-600 ${
-                  isRtl ? "left-3" : "right-3"
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search
+                className={`absolute top-2.5 w-4 h-4 text-slate-400 ${
+                  isRtl ? "right-3" : "left-3"
                 }`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+              />
+              <input
+                type="text"
+                placeholder={isRtl ? "ابحث في قائمة الطعام..." : "Search menu, dishes, or ingredients..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full py-2 bg-slate-100/80 rounded-xl text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:bg-white transition ${
+                  isRtl ? "pr-9 pl-4" : "pl-9 pr-4"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className={`absolute top-2.5 text-slate-400 hover:text-slate-600 ${
+                    isRtl ? "left-3" : "right-3"
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById(`category-${categories[0]?.id || ""}`)
+                if (el) el.scrollIntoView({ behavior: "smooth" })
+              }}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-sm transition active:scale-95 shrink-0"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>{isRtl ? "بحث" : "Search"}</span>
+            </button>
           </div>
         </div>
 
@@ -607,7 +636,7 @@ export default function CustomerMenu({
               </div>
 
               {/* Items Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
                 {category.items.map((dish) => {
                   const dishTitle = isRtl && dish.nameAr ? dish.nameAr : dish.name
                   const dishDesc = isRtl && dish.descriptionAr ? dish.descriptionAr : dish.description
@@ -624,64 +653,76 @@ export default function CustomerMenu({
                     <div
                       key={dish.id}
                       onClick={() => openCustomization(dish)}
-                      className="bg-white rounded-2xl p-3 border border-slate-200/80 hover:border-emerald-300 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
+                      className="bg-white rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/80 hover:border-emerald-300 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
                     >
-                      <div className="flex gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <div>
+                        {dish.imageUrl ? (
+                          <div className="relative w-full h-24 sm:h-32 mb-2 rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
+                            <img
+                              src={dish.imageUrl}
+                              alt={dishTitle}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
                             {dish.isVegetarian && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
+                              <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/95 text-green-700 text-[9px] font-bold shadow-xs">
                                 <Leaf className="w-2.5 h-2.5" />
                                 {isRtl ? "نباتي" : "Veg"}
                               </span>
                             )}
                             {dish.isFeatured && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200">
+                              <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[9px] font-bold shadow-xs">
                                 <Flame className="w-2.5 h-2.5" />
                                 {isRtl ? "مميز" : "Special"}
                               </span>
                             )}
-                            {tags.map((tag, tIdx) => (
-                              <span
-                                key={tIdx}
-                                className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium"
-                              >
-                                {tag}
-                              </span>
-                            ))}
                           </div>
+                        ) : (
+                          <div className="w-full h-20 sm:h-28 mb-2 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300">
+                            <Utensils className="w-6 h-6 sm:w-8 sm:h-8" />
+                          </div>
+                        )}
 
-                          <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition">
-                            {dishTitle}
-                          </h3>
-
-                          {dishDesc && (
-                            <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
-                              {dishDesc}
-                            </p>
+                        <div className="flex items-center gap-1 flex-wrap mb-1">
+                          {!dish.imageUrl && dish.isVegetarian && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[9px] font-semibold border border-green-200">
+                              <Leaf className="w-2.5 h-2.5" />
+                              {isRtl ? "نباتي" : "Veg"}
+                            </span>
                           )}
+                          {!dish.imageUrl && dish.isFeatured && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-semibold border border-amber-200">
+                              <Flame className="w-2.5 h-2.5" />
+                              {isRtl ? "مميز" : "Special"}
+                            </span>
+                          )}
+                          {tags.slice(0, 1).map((tag, tIdx) => (
+                            <span
+                              key={tIdx}
+                              className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[9px] font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
 
-                        {dish.imageUrl ? (
-                          <img
-                            src={dish.imageUrl}
-                            alt={dishTitle}
-                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover shrink-0 border border-slate-100"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-slate-300">
-                            <Utensils className="w-8 h-8" />
-                          </div>
+                        <h3 className="font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 sm:line-clamp-2 group-hover:text-emerald-700 transition">
+                          {dishTitle}
+                        </h3>
+
+                        {dishDesc && (
+                          <p className="text-[10px] sm:text-xs text-slate-500 line-clamp-1 sm:line-clamp-2 mt-0.5 leading-relaxed">
+                            {dishDesc}
+                          </p>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="font-bold text-emerald-700 text-sm">
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
+                          <span className="font-bold text-emerald-700 text-xs sm:text-sm">
                             {currency} {displayPrice.toFixed(2)}
                           </span>
                           {dish.salePrice && dish.price > dish.salePrice && (
-                            <span className="text-xs text-slate-400 line-through">
+                            <span className="text-[10px] sm:text-xs text-slate-400 line-through">
                               {currency} {dish.price.toFixed(2)}
                             </span>
                           )}
@@ -689,9 +730,9 @@ export default function CustomerMenu({
 
                         <button
                           type="button"
-                          className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold flex items-center gap-1 transition shadow-2xs"
+                          className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition shadow-2xs"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           <span>{isRtl ? "إضافة" : "Add"}</span>
                         </button>
                       </div>

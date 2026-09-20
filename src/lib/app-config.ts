@@ -282,6 +282,26 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
         hint: "Off, incoming WhatsApp messages get no automated reply at all — a person must answer every one.",
       },
       {
+        key: "bot_whitelist_only",
+        label: "Bot Whitelist Only",
+        envVar: "BOT_WHITELIST_ONLY",
+        options: ["true", "false"],
+        hint: "When on, automated bot and AI replies are only sent to whitelisted test numbers.",
+      },
+      {
+        key: "bot_whitelist",
+        label: "Bot Whitelist Numbers",
+        envVar: "BOT_WHITELIST_NUMBERS",
+        hint: "Comma-separated phone number fragments. Numbers containing any of these patterns always get bot replies, even when bot is disabled or whitelist-only mode is on. E.g. 97312345,96877174255",
+      },
+      {
+        key: "ai_reschedule_enabled",
+        label: "AI booking reschedule",
+        envVar: "AI_RESCHEDULE_ENABLED",
+        options: ["true", "false"],
+        hint: "Allow customers to reschedule tours directly via AI. When off, rescheduling requests are routed to customer service.",
+      },
+      {
         key: "ai_assistant_enabled",
         label: "AI assistant",
         envVar: "AI_ASSISTANT_ENABLED",

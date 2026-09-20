@@ -101,6 +101,72 @@ export const GET = withErrors(
     const base = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
     const orderNumber = decodeURIComponent(reference)
 
+    if (/^KIT-/i.test(orderNumber)) {
+      const kitchenId = orderNumber.replace(/^KIT-/i, "")
+      const kitchen = await raw.kitchenOrder.findUnique({
+        where: { id: kitchenId },
+      })
+      if (kitchen) {
+        const { fetchTransaction } = await import("@/lib/amwalpay-settle")
+        const txn = await fetchTransaction(orderNumber).catch(() => null)
+        const isPaidConfirmed = txn ? (txn.responseCode === "00" || txn.isCaptured === true) : true
+
+        if (isPaidConfirmed && kitchen.paymentStatus !== "PAID") {
+          let history: Array<{ status: string; timestamp: string; note?: string }> = []
+          try {
+            history = JSON.parse(kitchen.statusHistoryJson || "[]")
+          } catch {}
+          history.push({
+            status: kitchen.status,
+            timestamp: new Date().toISOString(),
+            note: `Paid online via AmwalPay Card (Return: ${txn?.id || "settled"})`,
+          })
+
+          await raw.kitchenOrder.update({
+            where: { id: kitchen.id },
+            data: {
+              paymentStatus: "PAID",
+              paymentMethod: "AMWALPAY_ONLINE",
+              paymentRef: String(txn?.id || txn?.idN || "AMWALPAY"),
+              statusHistoryJson: JSON.stringify(history),
+            },
+          })
+
+          const { publish, notifyStaff } = await import("@/lib/realtime")
+          publish({
+            type: "restaurant_order",
+            tenantId: kitchen.tenantId,
+            orderId: kitchen.id,
+            status: kitchen.status,
+            paymentStatus: "PAID",
+            orderNumber: kitchen.orderNumber || undefined,
+            tableNumber: kitchen.tableNumber || undefined,
+            branchId: kitchen.branchId || undefined,
+            totalAmount: kitchen.totalAmount,
+            currency: kitchen.currency,
+          })
+
+          await notifyStaff({
+            tenantId: kitchen.tenantId,
+            type: "RESTAURANT_ORDER",
+            title: `💳 Order #${kitchen.orderNumber || ""} Paid Online!`,
+            message: `${kitchen.tableNumber ? `Table #${kitchen.tableNumber} • ` : ""}${kitchen.totalAmount.toFixed(3)} ${kitchen.currency} received via AmwalPay Card.`,
+            data: { orderId: kitchen.id, orderNumber: kitchen.orderNumber || "" },
+          }).catch(() => {})
+
+          if (kitchen.customerPhone) {
+            const { sendKitchenOrderWhatsAppNotification } = await import("@/lib/restaurant")
+            sendKitchenOrderWhatsAppNotification(kitchen.id).catch(() => {})
+          }
+        }
+
+        return NextResponse.redirect(
+          `${base}/order/${kitchen.publicToken || kitchen.id}?paid=1`,
+          { status: 302 },
+        )
+      }
+    }
+
     const order = await raw.order.findFirst({
       where: { orderNumber },
       select: { orderNumber: true },

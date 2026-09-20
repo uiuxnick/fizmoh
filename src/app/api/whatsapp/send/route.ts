@@ -8,6 +8,7 @@ import { sendCtaUrlMessage } from "@/lib/whatsapp"
 import { businessName } from "@/lib/app-config"
 import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
+import { publish } from "@/lib/realtime"
 
 /**
  * Send WhatsApp Message API
@@ -213,7 +214,17 @@ export const POST = withErrors(async (request: NextRequest) => {
       })
       await db.conversation.update({
         where: { id: conversationId },
-        data: { lastMessageAt: new Date(), lastMessageText: msgContent || "[Media attachment]" },
+        data: {
+          lastMessageAt: new Date(),
+          lastMessageText: msgContent || "[Media attachment]",
+          botActive: false,
+          automationPaused: true,
+        },
+      })
+      publish({
+        type: "conversation",
+        conversationId,
+        tenantId: conversation.tenantId || undefined,
       })
     }
   }

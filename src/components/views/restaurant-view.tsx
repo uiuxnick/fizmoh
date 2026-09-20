@@ -6,8 +6,10 @@ import {
   ChefHat, Layers, Sparkles, Check, Download, Info, Tag, Edit2, Trash2,
   Image as ImageIcon, Upload, Eye, Bell, ExternalLink, QrCode, Receipt,
   Store, CreditCard, DollarSign, TrendingUp, Percent, MapPin, Phone,
-  MessageSquare, ShieldCheck, Flame, Leaf, Volume2
+  MessageSquare, ShieldCheck, Flame, Leaf, Volume2, Globe, Save, Share2,
+  Copy, Smartphone, Search, ArrowUpRight, Lock, Bike, Star, AlertCircle, X
 } from "lucide-react"
+import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import KitchenKds from "@/components/restaurant/kitchen-kds"
 import AiImportDialog from "@/components/restaurant/ai-import-dialog"
 import OrderDetailsDialog from "@/components/restaurant/order-details-dialog"
+import { useRealtime } from "@/lib/use-realtime"
+import { playAlert } from "@/lib/ringtone"
 
 export function RestaurantView() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -82,6 +86,7 @@ export function RestaurantView() {
   // Category form state
   const [categoryName, setCategoryName] = useState("")
   const [categoryNameAr, setCategoryNameAr] = useState("")
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
 
   // Coupon form state
   const [couponCode, setCouponCode] = useState("")
@@ -89,11 +94,44 @@ export function RestaurantView() {
   const [couponKind, setCouponKind] = useState("PERCENT")
   const [couponValue, setCouponValue] = useState("10")
 
+  // Website & Branding form state
+  const [workspaceSlug, setWorkspaceSlug] = useState("")
+  const [restaurantName, setRestaurantName] = useState("")
+  const [restaurantTagline, setRestaurantTagline] = useState("")
+  const [websiteLogoUrl, setWebsiteLogoUrl] = useState("")
+  const [heroBannerUrl, setHeroBannerUrl] = useState("")
+  const [heroEyebrow, setHeroEyebrow] = useState("")
+  const [heroHeadline, setHeroHeadline] = useState("")
+  const [heroSubtitle, setHeroSubtitle] = useState("")
+  const [heroBadge, setHeroBadge] = useState("")
+  const [heroRating, setHeroRating] = useState("")
+  const [offerBadge, setOfferBadge] = useState("")
+  const [offerHeadline, setOfferHeadline] = useState("")
+  const [offerSubtext, setOfferSubtext] = useState("")
+  const [offerCode, setOfferCode] = useState("")
+  const [offerBannerUrl, setOfferBannerUrl] = useState("")
+  const [storyEyebrow, setStoryEyebrow] = useState("")
+  const [storyTitle, setStoryTitle] = useState("")
+  const [storyText, setStoryText] = useState("")
+  const [storyImageUrl, setStoryImageUrl] = useState("")
+  const [whatsappPhone, setWhatsappPhone] = useState("")
+  const [restaurantAddress, setRestaurantAddress] = useState("")
+  const [restaurantHours, setRestaurantHours] = useState("")
+  const [currency, setCurrency] = useState("OMR")
+  const [deliveryFee, setDeliveryFee] = useState("1.500")
+  const [minDelivery, setMinDelivery] = useState("5.000")
+  const [taxRate, setTaxRate] = useState("0.05")
+  const [instagramUrl, setInstagramUrl] = useState("")
+  const [facebookUrl, setFacebookUrl] = useState("")
+  const [isSavingBranding, setIsSavingBranding] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState<Record<string, boolean>>({})
+  const [uploadingDishImage, setUploadingDishImage] = useState(false)
+
   // Load All Dashboard Data
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [bRes, mRes, tRes, oRes, wRes, cRes, aRes, iRes] = await Promise.all([
+      const [bRes, mRes, tRes, oRes, wRes, cRes, aRes, iRes, sRes] = await Promise.all([
         fetch("/api/restaurant/branches").then((r) => r.json()).catch(() => ({ branches: [] })),
         fetch("/api/restaurant/menu").then((r) => r.json()).catch(() => ({ categories: [] })),
         fetch("/api/restaurant/tables").then((r) => r.json()).catch(() => ({ tables: [] })),
@@ -102,6 +140,7 @@ export function RestaurantView() {
         fetch("/api/restaurant/coupons").then((r) => r.json()).catch(() => ({ coupons: [] })),
         fetch("/api/restaurant/analytics?period=today").then((r) => r.json()).catch(() => ({ metrics: null })),
         fetch("/api/restaurant/import").then((r) => r.json()).catch(() => ({ imports: [] })),
+        fetch("/api/settings").then((r) => r.json()).catch(() => ({ settings: {} })),
       ])
 
       if (bRes.branches) setBranches(bRes.branches)
@@ -112,10 +151,123 @@ export function RestaurantView() {
       if (cRes.coupons) setCoupons(cRes.coupons)
       if (aRes.metrics) setAnalytics(aRes)
       if (iRes.imports) setImports(iRes.imports)
+
+      if (sRes.settings) {
+        const s = sRes.settings
+        setWorkspaceSlug(s.workspace_slug || "")
+        setRestaurantName(s.restaurant_name || s.tenant_name || "")
+        setRestaurantTagline(s.restaurant_tagline || "")
+        setWebsiteLogoUrl(s.website_logo_url || "")
+        setHeroBannerUrl(s.restaurant_hero_banner_url || "")
+        setHeroEyebrow(s.restaurant_eyebrow || "")
+        setHeroHeadline(s.restaurant_headline || "")
+        setHeroSubtitle(s.restaurant_subheadline || "")
+        setHeroBadge(s.restaurant_hero_badge || "")
+        setHeroRating(s.restaurant_hero_rating || "")
+        setOfferBadge(s.restaurant_offer_badge || "")
+        setOfferHeadline(s.restaurant_offer_headline || "")
+        setOfferSubtext(s.restaurant_offer_subtext || "")
+        setOfferCode(s.restaurant_offer_code || "")
+        setOfferBannerUrl(s.restaurant_offer_banner_url || "")
+        setStoryEyebrow(s.restaurant_story_eyebrow || "")
+        setStoryTitle(s.restaurant_story_title || "")
+        setStoryText(s.restaurant_story_text || "")
+        setStoryImageUrl(s.restaurant_story_image_url || "")
+        setWhatsappPhone(s.restaurant_whatsapp_phone || s.business_phone || "")
+        setRestaurantAddress(s.restaurant_address || s.business_address || "")
+        setRestaurantHours(s.restaurant_hours || "")
+        setCurrency(s.currency || "OMR")
+        setDeliveryFee(s.restaurant_delivery_fee ? String(s.restaurant_delivery_fee) : "1.500")
+        setMinDelivery(s.restaurant_min_delivery ? String(s.restaurant_min_delivery) : "5.000")
+        setTaxRate(s.restaurant_tax_rate ? String(s.restaurant_tax_rate) : "0.05")
+        setInstagramUrl(s.social_instagram || "")
+        setFacebookUrl(s.social_facebook || "")
+      }
     } catch (err) {
       console.error("Error loading restaurant data", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Upload Media Helper
+  const handleUploadMedia = async (key: string, file: File) => {
+    setUploadingMedia((prev) => ({ ...prev, [key]: true }))
+    try {
+      const form = new FormData()
+      form.append("file", file)
+      const res = await fetch("/api/media/upload", { method: "POST", body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+
+      if (key === "website_logo_url") setWebsiteLogoUrl(data.url)
+      if (key === "restaurant_hero_banner_url") setHeroBannerUrl(data.url)
+      if (key === "restaurant_offer_banner_url") setOfferBannerUrl(data.url)
+      if (key === "restaurant_story_image_url") setStoryImageUrl(data.url)
+
+      // Auto-save setting to backend
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: data.url }),
+      })
+      toast.success("Image uploaded and saved successfully!")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload image")
+    } finally {
+      setUploadingMedia((prev) => ({ ...prev, [key]: false }))
+    }
+  }
+
+  // Save Website Branding
+  const handleSaveBranding = async () => {
+    setIsSavingBranding(true)
+    try {
+      const payload: Record<string, any> = {
+        restaurant_name: restaurantName,
+        restaurant_tagline: restaurantTagline,
+        website_logo_url: websiteLogoUrl,
+        restaurant_hero_banner_url: heroBannerUrl,
+        restaurant_eyebrow: heroEyebrow,
+        restaurant_headline: heroHeadline,
+        restaurant_subheadline: heroSubtitle,
+        restaurant_hero_badge: heroBadge,
+        restaurant_hero_rating: heroRating,
+        restaurant_offer_badge: offerBadge,
+        restaurant_offer_headline: offerHeadline,
+        restaurant_offer_subtext: offerSubtext,
+        restaurant_offer_code: offerCode,
+        restaurant_offer_banner_url: offerBannerUrl,
+        restaurant_story_eyebrow: storyEyebrow,
+        restaurant_story_title: storyTitle,
+        restaurant_story_text: storyText,
+        restaurant_story_image_url: storyImageUrl,
+        restaurant_whatsapp_phone: whatsappPhone,
+        business_phone: whatsappPhone,
+        restaurant_address: restaurantAddress,
+        business_address: restaurantAddress,
+        restaurant_hours: restaurantHours,
+        currency: currency,
+        restaurant_delivery_fee: parseFloat(deliveryFee) || 1.5,
+        restaurant_min_delivery: parseFloat(minDelivery) || 5.0,
+        restaurant_tax_rate: parseFloat(taxRate) || 0.05,
+        social_instagram: instagramUrl,
+        social_facebook: facebookUrl,
+        business_type: "RESTAURANT",
+        site_type: "RESTAURANT",
+      }
+
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error("Failed to save settings")
+      toast.success("Restaurant website & branding saved successfully!")
+    } catch (err: any) {
+      toast.error(err.message || "Error saving branding")
+    } finally {
+      setIsSavingBranding(false)
     }
   }
 
@@ -124,9 +276,31 @@ export function RestaurantView() {
 
     // Listen to realtime staff events
     const eventSource = new EventSource("/api/realtime/stream")
-    eventSource.addEventListener("restaurant_order", () => loadAllData())
-    eventSource.addEventListener("restaurant_waiter_call", () => loadAllData())
-    eventSource.addEventListener("restaurant_bill_request", () => loadAllData())
+    eventSource.addEventListener("restaurant_order", (e: any) => {
+      try {
+        const payload = e?.data ? JSON.parse(e.data) : {}
+        playAlert("order")
+        const isPaid = payload.paymentStatus === "PAID"
+        const title = isPaid
+          ? `💳 Order ${payload.orderNumber || ""} Paid Online!`
+          : `🔔 New Order ${payload.orderNumber || ""} Received!`
+        const desc = `${payload.tableNumber ? `Table #${payload.tableNumber} • ` : ""}${payload.totalAmount ? `${payload.totalAmount} ${payload.currency || "OMR"}` : ""}`
+        toast.success(title, { description: desc })
+      } catch {
+        playAlert("order")
+      }
+      loadAllData()
+    })
+    eventSource.addEventListener("restaurant_waiter_call", () => {
+      playAlert("order")
+      toast.info("🛎️ Table Service / Waiter Called")
+      loadAllData()
+    })
+    eventSource.addEventListener("restaurant_bill_request", () => {
+      playAlert("order")
+      toast.info("🧾 Bill Requested at Table")
+      loadAllData()
+    })
 
     // Listen to tab switches from sidebar submenu
     const handleTab = (e: any) => {
@@ -204,8 +378,61 @@ export function RestaurantView() {
     })
 
     if (res.ok) {
+      toast.success(dishId ? "Dish updated successfully" : "Dish added successfully")
       setIsAddDishOpen(false)
       loadAllData()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error || "Failed to save dish")
+    }
+  }
+
+  const resetDishForm = () => {
+    setDishId(null)
+    setDishCategoryId(categories[0]?.id || "")
+    setDishName("")
+    setDishNameAr("")
+    setDishPrice("")
+    setDishSalePrice("")
+    setDishDesc("")
+    setDishImageUrl("")
+    setDishVeg(false)
+    setDishGlutenFree(false)
+    setDishFeatured(false)
+    setDishPrepTime("15")
+  }
+
+  const handleEditDish = (dish: any) => {
+    setDishId(dish.id)
+    setDishCategoryId(dish.categoryId || categories[0]?.id || "")
+    setDishName(dish.name || "")
+    setDishNameAr(dish.nameAr || "")
+    setDishPrice(dish.price !== undefined ? String(dish.price) : "")
+    setDishSalePrice(dish.salePrice !== undefined && dish.salePrice !== null ? String(dish.salePrice) : "")
+    setDishDesc(dish.description || "")
+    setDishImageUrl(dish.imageUrl || "")
+    setDishVeg(Boolean(dish.isVegetarian))
+    setDishGlutenFree(Boolean(dish.isGlutenFree))
+    setDishFeatured(Boolean(dish.isFeatured))
+    setDishPrepTime(String(dish.prepTimeMinutes || 15))
+    setIsAddDishOpen(true)
+  }
+
+  const handleDeleteDish = async (dishId: string, dishName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${dishName}"?`)) return
+    try {
+      const res = await fetch(`/api/restaurant/menu?id=${dishId}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        toast.success(`"${dishName}" deleted successfully`)
+        loadAllData()
+      } else {
+        const d = await res.json().catch(() => ({}))
+        toast.error(d.error || "Failed to delete dish")
+      }
+    } catch {
+      toast.error("Failed to delete dish")
     }
   }
 
@@ -213,19 +440,50 @@ export function RestaurantView() {
   const handleSaveCategory = async () => {
     if (!categoryName) return
     const res = await fetch("/api/restaurant/menu", {
-      method: "POST",
+      method: editingCategoryId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "CATEGORY",
+        id: editingCategoryId || undefined,
         name: categoryName,
         nameAr: categoryNameAr || null,
       }),
     })
     if (res.ok) {
+      toast.success(editingCategoryId ? "Category updated" : "Category added")
       setIsAddCategoryOpen(false)
+      setEditingCategoryId(null)
       setCategoryName("")
       setCategoryNameAr("")
       loadAllData()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error || "Failed to save category")
+    }
+  }
+
+  const handleEditCategory = (cat: any) => {
+    setEditingCategoryId(cat.id)
+    setCategoryName(cat.name || "")
+    setCategoryNameAr(cat.nameAr || "")
+    setIsAddCategoryOpen(true)
+  }
+
+  const handleDeleteCategory = async (catId: string, catName: string) => {
+    if (!window.confirm(`Are you sure you want to delete category "${catName}" and all its dishes?`)) return
+    try {
+      const res = await fetch(`/api/restaurant/menu?id=${catId}&type=CATEGORY`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        toast.success(`Category "${catName}" deleted`)
+        loadAllData()
+      } else {
+        const d = await res.json().catch(() => ({}))
+        toast.error(d.error || "Failed to delete category")
+      }
+    } catch {
+      toast.error("Failed to delete category")
     }
   }
 
@@ -436,8 +694,12 @@ export function RestaurantView() {
       >
         <div className="overflow-x-auto no-scrollbar pb-1">
           <TabsList className="bg-white p-1 rounded-xl inline-flex gap-1 border border-stone-200 shadow-2xs">
-            <TabsTrigger value="overview" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Overview</TabsTrigger>
-            <TabsTrigger value="orders" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white flex items-center gap-1">
+            <TabsTrigger data-tour="rest-tab-overview" value="overview" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Overview</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-website" value="website" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-amber-500" />
+              <span>Website & Branding</span>
+            </TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-orders" value="orders" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white flex items-center gap-1">
               <span>Orders</span>
               {orders.filter((o) => ["PENDING", "ACCEPTED", "PREPARING"].includes(o.status)).length > 0 && (
                 <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">
@@ -445,10 +707,10 @@ export function RestaurantView() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="menu" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Menu Catalog</TabsTrigger>
-            <TabsTrigger value="tables" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Tables & QR</TabsTrigger>
-            <TabsTrigger value="kitchen" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Kitchen KDS</TabsTrigger>
-            <TabsTrigger value="waiter_requests" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white flex items-center gap-1">
+            <TabsTrigger data-tour="rest-tab-menu" value="menu" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Menu Catalog</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-tables" value="tables" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Tables & QR</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-kitchen" value="kitchen" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Kitchen KDS</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-waiter" value="waiter_requests" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white flex items-center gap-1">
               <span>Waiters</span>
               {waiterRequests.filter((w) => w.status === "PENDING").length > 0 && (
                 <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-bold animate-pulse">
@@ -456,12 +718,12 @@ export function RestaurantView() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="ai_import" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">AI Imports</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-ai" value="ai_import" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">AI Imports</TabsTrigger>
             <TabsTrigger value="coupons" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Coupons</TabsTrigger>
             <TabsTrigger value="payments" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Payments</TabsTrigger>
             <TabsTrigger value="customers" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Customers</TabsTrigger>
             <TabsTrigger value="analytics" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Analytics</TabsTrigger>
-            <TabsTrigger value="branches" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Branches</TabsTrigger>
+            <TabsTrigger data-tour="rest-tab-branches" value="branches" className="rounded-lg text-xs font-semibold px-3 py-1.5 data-[state=active]:bg-stone-900 data-[state=active]:text-white">Branches</TabsTrigger>
           </TabsList>
         </div>
 
@@ -805,11 +1067,7 @@ export function RestaurantView() {
               <Button
                 size="sm"
                 onClick={() => {
-                  setDishId(null)
-                  setDishName("")
-                  setDishPrice("")
-                  setDishDesc("")
-                  setDishCategoryId(categories[0]?.id || "")
+                  resetDishForm()
                   setIsAddDishOpen(true)
                 }}
                 className="rounded-xl text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -831,33 +1089,79 @@ export function RestaurantView() {
                     </CardTitle>
                     {cat.description && <CardDescription className="text-xs">{cat.description}</CardDescription>}
                   </div>
-                  <Badge variant="secondary" className="text-xs">{cat.items?.length || 0} items</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditCategory(cat)}
+                      className="h-7 px-2 text-[11px] font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg gap-1"
+                      title="Edit Category"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>Edit</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="h-7 px-2 text-[11px] font-medium text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg gap-1"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </Button>
+                    <Badge variant="secondary" className="text-xs ml-1">{cat.items?.length || 0} items</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(cat.items || []).map((dish: any) => (
                       <div
                         key={dish.id}
-                        className="border border-slate-200 rounded-2xl p-3 bg-white flex gap-3 justify-between hover:border-emerald-300 transition"
+                        className="border border-slate-200 rounded-2xl p-3 bg-white flex flex-col justify-between hover:border-emerald-300 transition group"
                       >
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-xs text-slate-900 truncate">{dish.name}</h4>
-                          {dish.nameAr && <p className="text-[11px] text-slate-400 truncate">{dish.nameAr}</p>}
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {dish.isVegetarian && <Badge className="text-[9px] bg-green-50 text-green-700 border-green-200 px-1 py-0">Veg</Badge>}
-                            {dish.isFeatured && <Badge className="text-[9px] bg-amber-50 text-amber-700 border-amber-200 px-1 py-0">Special</Badge>}
+                        <div className="flex gap-3 justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-xs text-slate-900 truncate">{dish.name}</h4>
+                            {dish.nameAr && <p className="text-[11px] text-slate-400 truncate">{dish.nameAr}</p>}
+                            <div className="flex items-center gap-1.5 mt-1">
+                              {dish.isVegetarian && <Badge className="text-[9px] bg-green-50 text-green-700 border-green-200 px-1 py-0">Veg</Badge>}
+                              {dish.isFeatured && <Badge className="text-[9px] bg-amber-50 text-amber-700 border-amber-200 px-1 py-0">Special</Badge>}
+                            </div>
+                            <p className="font-mono font-bold text-xs text-emerald-700 mt-2">
+                              {dish.currency || "OMR"} {dish.price.toFixed(2)}
+                            </p>
                           </div>
-                          <p className="font-mono font-bold text-xs text-emerald-700 mt-2">
-                            {dish.currency || "OMR"} {dish.price.toFixed(2)}
-                          </p>
+                          {dish.imageUrl ? (
+                            <img src={dish.imageUrl} alt={dish.name} className="w-16 h-16 rounded-xl object-cover shrink-0 border" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 shrink-0">
+                              <Utensils className="w-6 h-6" />
+                            </div>
+                          )}
                         </div>
-                        {dish.imageUrl ? (
-                          <img src={dish.imageUrl} alt={dish.name} className="w-16 h-16 rounded-xl object-cover shrink-0 border" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 shrink-0">
-                            <Utensils className="w-6 h-6" />
-                          </div>
-                        )}
+
+                        {/* Dish Action Buttons: Edit & Delete */}
+                        <div className="flex items-center justify-end gap-1.5 pt-2.5 mt-2.5 border-t border-slate-100">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditDish(dish)}
+                            className="h-7 px-2.5 text-[11px] font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg gap-1"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Edit Dish</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDish(dish.id, dish.name)}
+                            className="h-7 px-2.5 text-[11px] font-medium text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1308,6 +1612,636 @@ export function RestaurantView() {
             ))}
           </div>
         </TabsContent>
+
+        {/* 13. WEBSITE & BRANDING TAB */}
+        <TabsContent value="website" className="space-y-6">
+          {/* Top Live Bar & Quick Actions */}
+          <Card className="rounded-3xl border-slate-200 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white shadow-xl overflow-hidden">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                      Restaurant Website & Digital Menu Live
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white">
+                    {restaurantName || "Savoro Restaurant"}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-stone-300 font-mono flex items-center gap-2 flex-wrap">
+                    <span>Public URL:</span>
+                    <a
+                      href={typeof window !== "undefined" ? `${window.location.origin}/shop/${workspaceSlug || ""}` : `/shop/${workspaceSlug || ""}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-amber-400 underline hover:text-amber-300 break-all"
+                    >
+                      {typeof window !== "undefined" ? `${window.location.origin}/shop/${workspaceSlug || ""}` : `/shop/${workspaceSlug || ""}`}
+                    </a>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <Button
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? `${window.location.origin}/shop/${workspaceSlug || ""}` : `/shop/${workspaceSlug || ""}`
+                      window.open(url, "_blank")
+                    }}
+                    className="bg-[#D9A441] hover:bg-[#B8862B] text-stone-950 font-bold text-xs rounded-xl shadow-md gap-1.5"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Open Website</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? `${window.location.origin}/shop/${workspaceSlug || ""}` : `/shop/${workspaceSlug || ""}`
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(url)
+                        toast.success("Website URL copied to clipboard!")
+                      }
+                    }}
+                    className="border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs rounded-xl gap-1.5"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Link</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? `${window.location.origin}/shop/${workspaceSlug || ""}` : `/shop/${workspaceSlug || ""}`
+                      const shareText = encodeURIComponent(`Explore our digital restaurant menu & order online directly on WhatsApp:\n${url}`)
+                      window.open(`https://wa.me/?text=${shareText}`, "_blank")
+                    }}
+                    className="border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded-xl gap-1.5"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>Test in WhatsApp</span>
+                  </Button>
+
+                  <Button
+                    onClick={handleSaveBranding}
+                    disabled={isSavingBranding}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1.5 shadow-md"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{isSavingBranding ? "Saving..." : "Save Changes"}</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Grid of Customization Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 1. VISUAL BRANDING & MEDIA UPLOADS */}
+            <Card className="rounded-3xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-[#D9A441]" />
+                      <span>Logos & Banner Images</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Upload high-resolution photography for your restaurant storefront
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5 text-xs">
+                {/* Logo Upload */}
+                <div className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-bold text-slate-800">Restaurant Logo</Label>
+                    <label className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3 h-3" />
+                      <span>{uploadingMedia["website_logo_url"] ? "Uploading..." : "Upload Logo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingMedia["website_logo_url"]}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleUploadMedia("website_logo_url", f)
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-stone-900 border border-stone-200 overflow-hidden flex items-center justify-center shrink-0">
+                      {websiteLogoUrl ? (
+                        <img src={websiteLogoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                      ) : (
+                        <ChefHat className="w-6 h-6 text-[#D9A441]" />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        value={websiteLogoUrl}
+                        onChange={(e) => setWebsiteLogoUrl(e.target.value)}
+                        placeholder="https://... or click Upload Logo"
+                        className="rounded-xl h-8 text-xs"
+                      />
+                      {websiteLogoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setWebsiteLogoUrl("")}
+                          className="text-[10px] text-rose-500 hover:underline"
+                        >
+                          Clear custom logo (use Savoro default)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hero Banner Image */}
+                <div className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="font-bold text-slate-800">Hero Signature Dish Banner</Label>
+                      <p className="text-[11px] text-slate-500">The cinematic featured food photo shown in the hero section</p>
+                    </div>
+                    <label className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer flex items-center gap-1 shrink-0">
+                      <Upload className="w-3 h-3" />
+                      <span>{uploadingMedia["restaurant_hero_banner_url"] ? "Uploading..." : "Upload Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingMedia["restaurant_hero_banner_url"]}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleUploadMedia("restaurant_hero_banner_url", f)
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="relative h-32 w-full rounded-2xl overflow-hidden border border-stone-200 bg-stone-900">
+                    <img
+                      src={heroBannerUrl || "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=85"}
+                      alt="Hero Banner"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={heroBannerUrl}
+                      onChange={(e) => setHeroBannerUrl(e.target.value)}
+                      placeholder="https://... image URL"
+                      className="rounded-xl h-8 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHeroBannerUrl("https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=85")}
+                      className="rounded-xl text-[11px] h-8 shrink-0"
+                    >
+                      Reset Savoro
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Special Offer Banner Image */}
+                <div className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="font-bold text-slate-800">Special Offer Promo Banner</Label>
+                      <p className="text-[11px] text-slate-500">Image for the 20% discount card (e.g. delicious pizza or chef platter)</p>
+                    </div>
+                    <label className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer flex items-center gap-1 shrink-0">
+                      <Upload className="w-3 h-3" />
+                      <span>{uploadingMedia["restaurant_offer_banner_url"] ? "Uploading..." : "Upload Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingMedia["restaurant_offer_banner_url"]}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleUploadMedia("restaurant_offer_banner_url", f)
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="relative h-28 w-full rounded-2xl overflow-hidden border border-stone-200 bg-stone-900">
+                    <img
+                      src={offerBannerUrl || "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80"}
+                      alt="Offer Banner"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={offerBannerUrl}
+                      onChange={(e) => setOfferBannerUrl(e.target.value)}
+                      placeholder="https://... image URL"
+                      className="rounded-xl h-8 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOfferBannerUrl("https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80")}
+                      className="rounded-xl text-[11px] h-8 shrink-0"
+                    >
+                      Reset Savoro
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Our Story / Healthy Ingredients Image */}
+                <div className="p-4 rounded-2xl border border-stone-100 bg-stone-50/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="font-bold text-slate-800">Fresh & Healthy Story Photo</Label>
+                      <p className="text-[11px] text-slate-500">Circular photo featured in the story split promo section</p>
+                    </div>
+                    <label className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer flex items-center gap-1 shrink-0">
+                      <Upload className="w-3 h-3" />
+                      <span>{uploadingMedia["restaurant_story_image_url"] ? "Uploading..." : "Upload Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingMedia["restaurant_story_image_url"]}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) handleUploadMedia("restaurant_story_image_url", f)
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-full border-2 border-stone-200 overflow-hidden shrink-0 shadow-sm">
+                      <img
+                        src={storyImageUrl || "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80"}
+                        alt="Story Bowl"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        value={storyImageUrl}
+                        onChange={(e) => setStoryImageUrl(e.target.value)}
+                        placeholder="https://... image URL"
+                        className="rounded-xl h-8 text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setStoryImageUrl("https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80")}
+                        className="rounded-xl text-[11px] h-7"
+                      >
+                        Reset Savoro
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 2. HERO HEADLINES & BRAND COPY */}
+            <Card className="rounded-3xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Hero Section & Brand Copy</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Customize the main headline, tagline, and customer trust badges
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs">
+                <div>
+                  <Label>Restaurant Brand Name</Label>
+                  <Input
+                    value={restaurantName}
+                    onChange={(e) => setRestaurantName(e.target.value)}
+                    placeholder="e.g. Savoro"
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Tagline</Label>
+                  <Input
+                    value={restaurantTagline}
+                    onChange={(e) => setRestaurantTagline(e.target.value)}
+                    placeholder="e.g. Good Food. Better Mood."
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Hero Eyebrow Badge</Label>
+                    <Input
+                      value={heroEyebrow}
+                      onChange={(e) => setHeroEyebrow(e.target.value)}
+                      placeholder="e.g. DELICIOUS FOOD • HAPPY PEOPLE"
+                      className="rounded-xl mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Customer Count Stat</Label>
+                    <Input
+                      value={heroBadge}
+                      onChange={(e) => setHeroBadge(e.target.value)}
+                      placeholder="e.g. 5,000+ Happy Customers"
+                      className="rounded-xl mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Main Hero Headline</Label>
+                  <Input
+                    value={heroHeadline}
+                    onChange={(e) => setHeroHeadline(e.target.value)}
+                    placeholder="e.g. Good Food Brings People Together"
+                    className="rounded-xl mt-1 font-serif text-sm font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <Label>Hero Subtitle / Description</Label>
+                  <textarea
+                    value={heroSubtitle}
+                    onChange={(e) => setHeroSubtitle(e.target.value)}
+                    rows={3}
+                    placeholder="Experience culinary excellence crafted with passion and fresh local ingredients..."
+                    className="w-full rounded-xl border border-stone-200 bg-white p-2.5 text-xs focus:ring-2 focus:ring-stone-900 outline-hidden mt-1 resize-none"
+                  />
+                </div>
+
+                <div>
+                  <Label>Rating Badge</Label>
+                  <Input
+                    value={heroRating}
+                    onChange={(e) => setHeroRating(e.target.value)}
+                    placeholder="e.g. 4.9 Rating"
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 3. SPECIAL PROMOTIONAL BANNER */}
+            <Card className="rounded-3xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-emerald-600" />
+                  <span>Promotional Deal & Promo Code Banner</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Configure the prominent discount banner shown below the menu
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Offer Badge</Label>
+                    <Input
+                      value={offerBadge}
+                      onChange={(e) => setOfferBadge(e.target.value)}
+                      placeholder="e.g. 20% OFF"
+                      className="rounded-xl mt-1 font-bold text-amber-600"
+                    />
+                  </div>
+                  <div>
+                    <Label>Promo Coupon Code</Label>
+                    <Input
+                      value={offerCode}
+                      onChange={(e) => setOfferCode(e.target.value)}
+                      placeholder="e.g. SAVORO20"
+                      className="rounded-xl mt-1 font-mono font-bold text-stone-900 uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Offer Headline</Label>
+                  <Input
+                    value={offerHeadline}
+                    onChange={(e) => setOfferHeadline(e.target.value)}
+                    placeholder="e.g. Get 20% Off Your First Online Order"
+                    className="rounded-xl mt-1 font-serif font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <Label>Offer Subtext / Conditions</Label>
+                  <Input
+                    value={offerSubtext}
+                    onChange={(e) => setOfferSubtext(e.target.value)}
+                    placeholder="e.g. Use promo code at checkout on orders over 10 OMR."
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 4. OUR STORY SECTION */}
+            <Card className="rounded-3xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Leaf className="w-4 h-4 text-emerald-600" />
+                  <span>Our Story & Culinary Passion</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Share your kitchen story, heritage, and values with guests
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3.5 text-xs">
+                <div>
+                  <Label>Story Eyebrow</Label>
+                  <Input
+                    value={storyEyebrow}
+                    onChange={(e) => setStoryEyebrow(e.target.value)}
+                    placeholder="e.g. FRESH & HEALTHY"
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Story Title</Label>
+                  <Input
+                    value={storyTitle}
+                    onChange={(e) => setStoryTitle(e.target.value)}
+                    placeholder="e.g. Crafted with Love, Rooted in Tradition"
+                    className="rounded-xl mt-1 font-serif font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <Label>Story Text</Label>
+                  <textarea
+                    value={storyText}
+                    onChange={(e) => setStoryText(e.target.value)}
+                    rows={3}
+                    placeholder="Every dish starts with fresh handpicked ingredients from local farms..."
+                    className="w-full rounded-xl border border-stone-200 bg-white p-2.5 text-xs focus:ring-2 focus:ring-stone-900 outline-hidden mt-1 resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 5. WHATSAPP ORDERING & STORE OPERATIONS */}
+            <Card className="rounded-3xl border-slate-200 shadow-xs lg:col-span-2">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                  <span>WhatsApp 1-Tap Ordering & Operations</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Configure the receiving WhatsApp number for instant checkout, delivery rates, and opening hours
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-1">
+                    <Label className="flex items-center gap-1">
+                      <span>WhatsApp Order Phone</span>
+                      <span className="text-rose-500 font-bold">*</span>
+                    </Label>
+                    <Input
+                      value={whatsappPhone}
+                      onChange={(e) => setWhatsappPhone(e.target.value)}
+                      placeholder="+968 9831 4456"
+                      className="rounded-xl mt-1 font-mono font-semibold"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Customer orders with 1-Tap WhatsApp Checkout will be sent here.
+                    </p>
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <Label>Currency</Label>
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger className="rounded-xl mt-1 font-mono font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OMR">OMR (Omani Rial)</SelectItem>
+                        <SelectItem value="AED">AED (UAE Dirham)</SelectItem>
+                        <SelectItem value="SAR">SAR (Saudi Riyal)</SelectItem>
+                        <SelectItem value="QAR">QAR (Qatari Riyal)</SelectItem>
+                        <SelectItem value="KWD">KWD (Kuwaiti Dinar)</SelectItem>
+                        <SelectItem value="BHD">BHD (Bahraini Dinar)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <Label>Opening Hours</Label>
+                    <Input
+                      value={restaurantHours}
+                      onChange={(e) => setRestaurantHours(e.target.value)}
+                      placeholder="e.g. 11:00 AM – 11:30 PM (Daily)"
+                      className="rounded-xl mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Delivery Fee ({currency})</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={deliveryFee}
+                      onChange={(e) => setDeliveryFee(e.target.value)}
+                      placeholder="1.500"
+                      className="rounded-xl mt-1 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Min. Delivery Order ({currency})</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={minDelivery}
+                      onChange={(e) => setMinDelivery(e.target.value)}
+                      placeholder="5.000"
+                      className="rounded-xl mt-1 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Tax / VAT Rate (e.g. 0.05 for 5%)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(e.target.value)}
+                      placeholder="0.05"
+                      className="rounded-xl mt-1 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Physical Restaurant Address</Label>
+                  <Input
+                    value={restaurantAddress}
+                    onChange={(e) => setRestaurantAddress(e.target.value)}
+                    placeholder="e.g. Shatti Al Qurum, Muscat, Sultanate of Oman"
+                    className="rounded-xl mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-stone-100">
+                  <div>
+                    <Label>Instagram Profile URL</Label>
+                    <Input
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      placeholder="https://instagram.com/savoro"
+                      className="rounded-xl mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Facebook Page URL</Label>
+                    <Input
+                      value={facebookUrl}
+                      onChange={(e) => setFacebookUrl(e.target.value)}
+                      placeholder="https://facebook.com/savoro"
+                      className="rounded-xl mt-1"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bottom Sticky Action Bar */}
+          <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-stone-200 shadow-md">
+            <div className="flex items-center gap-2 text-xs text-stone-500">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>All changes take effect immediately on your live website and WhatsApp in-app browser menu.</span>
+            </div>
+            <Button
+              onClick={handleSaveBranding}
+              disabled={isSavingBranding}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-2 shadow-md"
+            >
+              <Save className="w-4 h-4" />
+              <span>{isSavingBranding ? "Saving..." : "Save Website Settings"}</span>
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* ─── DIALOGS ─── */}
@@ -1367,11 +2301,21 @@ export function RestaurantView() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Category Modal */}
-      <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+      {/* Add / Edit Category Modal */}
+      <Dialog
+        open={isAddCategoryOpen}
+        onOpenChange={(open) => {
+          setIsAddCategoryOpen(open)
+          if (!open) {
+            setEditingCategoryId(null)
+            setCategoryName("")
+            setCategoryNameAr("")
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle>Add Menu Category</DialogTitle>
+            <DialogTitle>{editingCategoryId ? "Edit Menu Category" : "Add Menu Category"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2 text-xs">
             <div>
@@ -1394,13 +2338,21 @@ export function RestaurantView() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSaveCategory} className="bg-emerald-600 text-white rounded-xl">Save Category</Button>
+            <Button onClick={handleSaveCategory} className="bg-emerald-600 text-white rounded-xl">
+              {editingCategoryId ? "Update Category" : "Save Category"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Add / Edit Dish Modal */}
-      <Dialog open={isAddDishOpen} onOpenChange={setIsAddDishOpen}>
+      <Dialog
+        open={isAddDishOpen}
+        onOpenChange={(open) => {
+          setIsAddDishOpen(open)
+          if (!open) resetDishForm()
+        }}
+      >
         <DialogContent className="sm:max-w-lg rounded-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dishId ? "Edit Dish" : "Add New Dish"}</DialogTitle>
@@ -1438,8 +2390,58 @@ export function RestaurantView() {
               </div>
             </div>
             <div>
-              <Label>Image URL</Label>
-              <Input value={dishImageUrl} onChange={(e) => setDishImageUrl(e.target.value)} placeholder="https://..." className="rounded-xl mt-1" />
+              <div className="flex items-center justify-between mb-1">
+                <Label>Dish Photo</Label>
+                <label className="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer flex items-center gap-1">
+                  <Upload className="w-3 h-3" />
+                  <span>{uploadingDishImage ? "Uploading..." : "Upload Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingDishImage}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      setUploadingDishImage(true)
+                      try {
+                        const form = new FormData()
+                        form.append("file", file)
+                        const res = await fetch("/api/media/upload", { method: "POST", body: form })
+                        const data = await res.json()
+                        if (data.url) {
+                          setDishImageUrl(data.url)
+                          toast.success("Dish photo uploaded!")
+                        } else {
+                          toast.error(data.error || "Upload failed")
+                        }
+                      } catch {
+                        toast.error("Failed to upload photo")
+                      } finally {
+                        setUploadingDishImage(false)
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              <Input
+                value={dishImageUrl}
+                onChange={(e) => setDishImageUrl(e.target.value)}
+                placeholder="https://... or click Upload Photo"
+                className="rounded-xl"
+              />
+              {dishImageUrl && (
+                <div className="mt-2 relative w-16 h-16 rounded-xl overflow-hidden border border-stone-200">
+                  <img src={dishImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setDishImageUrl("")}
+                    className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 hover:bg-black"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <Label>Description</Label>

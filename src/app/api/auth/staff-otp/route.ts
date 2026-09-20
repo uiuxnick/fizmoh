@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { generateOtp, storeOtp, generateMagicToken, storeMagicToken } from "@/lib/otp"
 import { z } from "zod"
 import { businessName } from "@/lib/app-config"
@@ -12,7 +12,7 @@ const schema = z.object({
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`staff-otp:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`staff-otp:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 })
   }

@@ -795,6 +795,8 @@ class _ComposerState extends State<_Composer> {
           if (paymentMsg != null && paymentMsg.isNotEmpty) {
             await store.send(paymentMsg);
           }
+        case 'vcard':
+          await store.sendDigitalVCard();
       }
     } on AttachmentRefused catch (e) {
       // A refusal has a reason, and the reason is the useful part.

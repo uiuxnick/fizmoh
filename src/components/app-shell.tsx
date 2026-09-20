@@ -17,11 +17,15 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass,
 } from "lucide-react"
 import { SessionGuard } from "@/components/session-guard"
 import { Brand } from "@/components/brand"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
+import { GuideTourOverlay } from "@/components/guide-tour/guide-tour-overlay"
+import { GuideTourModal } from "@/components/guide-tour/guide-tour-modal"
+import { useTourStore } from "@/lib/tour-store"
+import { getTourForView } from "@/lib/guide-tour-data"
 
 const ViewRouter = dynamic(() => import("@/components/view-router"), {
   ssr: false,
@@ -91,6 +95,7 @@ const NAV_ITEMS: NavItem[] = [
     feature: "restaurant",
     submenu: [
       { key: "rest-overview", label: "Overview", tab: "overview", emoji: "📊", icon: LayoutDashboard, accent: "text-emerald-400" },
+      { key: "rest-website", label: "Website & Branding", tab: "website", emoji: "🌐", icon: Globe, accent: "text-teal-400", badge: "LIVE" },
       { key: "rest-kds", label: "Live Kitchen (KDS)", tab: "kitchen", path: "/dashboard/addons/smart-menu-ordering/kitchen", emoji: "👨‍🍳", icon: ChefHat, accent: "text-rose-400", badge: "LIVE" },
       { key: "rest-menus", label: "Digital Menus", tab: "menu", emoji: "📖", icon: BookOpen, accent: "text-amber-400" },
       { key: "rest-dishes", label: "Dishes & Pricing", tab: "menu", emoji: "🍽️", icon: Utensils, accent: "text-orange-400" },
@@ -220,6 +225,7 @@ function NavButton({
     <div className="space-y-0.5">
       <a
         href={targetPath}
+        data-tour={"nav-" + item.key}
         onClick={e => {
           e.preventDefault()
           if (hasSubmenu) {
@@ -285,6 +291,7 @@ function NavButton({
               <button
                 key={sub.key}
                 type="button"
+                data-tour={"submenu-" + sub.key}
                 onClick={e => {
                   e.stopPropagation()
                   if (sub.path) {
@@ -461,13 +468,18 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
     : NAV_ITEMS.filter(i => {
         if (i.key === "platform") return false
         return !i.feature || features === null || features[i.feature]
+      }).map(i => {
+        if (i.key === "customer-site" && features?.restaurant) {
+          return { ...i, label: "Restaurant Website", accent: "text-amber-400" }
+        }
+        return i
       })
   const groups = [...new Set(items.map(i => i.group))]
 
   return (
     <div className="flex flex-col h-full bg-[#0d1520] text-slate-100">
       {/* Brand & Workspace Area */}
-      <div className="px-4 py-4 border-b border-slate-800/80 bg-[#0b111a]">
+      <div data-tour="sidebar-brand" className="px-4 py-4 border-b border-slate-800/80 bg-[#0b111a]">
         <Brand href={isPlatformOperator ? "/platform" : "/dashboard"} size="md" className="text-white" />
         {isPlatformOperator ? (
           <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 shadow-2xs">
@@ -484,7 +496,7 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3.5 space-y-4">
         {groups.map(g => (
-          <div key={g}>
+          <div key={g} data-tour={"group-" + g.toLowerCase().replace(/\s+/g, "-")}>
             <div className="px-2.5 mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{g}</div>
             <div className="space-y-0.5">
               {items.filter(i => i.group === g).map(item => {
@@ -542,6 +554,20 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
 
       <div className="px-3 py-3 border-t border-slate-800/80 space-y-2 bg-[#0b111a]">
         {!isPlatformOperator && <WhatsAppStatusCard />}
+        <button
+          type="button"
+          data-tour="sidebar-guide-tours"
+          onClick={() => useTourStore.getState().setExplorerOpen(true)}
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors"
+        >
+          <div className="flex items-center gap-2 truncate">
+            <Compass className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <span className="truncate">Interactive Guide</span>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
+            Interactive
+          </span>
+        </button>
         <a
           href="/whats-new"
           target="_blank"
@@ -693,6 +719,10 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
         { key: "settings", label: "Platform Settings", icon: Settings, path: "/settings" },
       ]
     : QUICK_LINKS.map(link => {
+        if (link === "bookings" && features?.restaurant && !features?.tours) {
+          const restItem = NAV_ITEMS.find(i => i.key === "restaurant")
+          return restItem ? { key: restItem.key, label: "Menu", icon: restItem.icon, path: pathForView(restItem.key) } : null
+        }
         const it = NAV_ITEMS.find(i => i.key === link)
         return it ? { key: it.key, label: it.label.split(" ")[0], icon: it.icon, path: pathForView(it.key) } : null
       }).filter(Boolean) as { key: ViewKey; label: string; icon: any; path: string }[]
@@ -701,13 +731,28 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
     <>
       <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 md:px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}><Menu className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation" onClick={onMenuClick}><Menu className="h-5 w-5" /></Button>
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shadow-2xs">
               <Icon className="h-[18px] w-[18px] text-emerald-600" />
             </div>
             <div>
-              <h1 className="font-bold text-stone-900 text-base md:text-lg leading-tight">{headerTitle}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold text-stone-900 text-base md:text-lg leading-tight">{headerTitle}</h1>
+                <button
+                  type="button"
+                  data-tour="header-tour-this-page"
+                  onClick={() => {
+                    const tour = getTourForView(view)
+                    if (tour) useTourStore.getState().startTour(tour.id)
+                  }}
+                  className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition-colors cursor-pointer shadow-2xs"
+                  title={`Take an interactive tour of ${headerTitle}`}
+                >
+                  <Compass className="h-3 w-3 text-emerald-600" />
+                  <span>Page Guide</span>
+                </button>
+              </div>
               {now && <p className="text-[11px] text-stone-500 hidden sm:block">{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</p>}
             </div>
           </div>
@@ -741,9 +786,19 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
           })}
         </nav>
 
-        <div className="flex items-center gap-2 md:gap-3">
+        <div data-tour="header-controls" className="flex items-center gap-2 md:gap-3">
           <WorkspaceSwitcher />
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[11px] font-medium text-emerald-700">System Online</span></div>
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[11px] font-medium text-emerald-700">Workspace</span></div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => useTourStore.getState().setExplorerOpen(true)}
+            className="h-8 px-2 md:px-2.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-emerald-700 hover:bg-emerald-50 border border-stone-200/80 hover:border-emerald-200 transition-colors gap-1.5"
+            title="Explore all interactive product guides"
+          >
+            <Compass className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="hidden lg:inline">Interactive Guide</span>
+          </Button>
           <NotificationCenter />
           <button
             type="button"
@@ -967,6 +1022,8 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
             <ViewRouter />
           </main>
         </div>
+        <GuideTourOverlay />
+        <GuideTourModal />
       </div>
     )
   }

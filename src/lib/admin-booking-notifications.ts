@@ -132,7 +132,7 @@ export async function notifyAdminWhatsAppBooking(params: {
   }
 
   // Check if tenant has an approved Meta utility template for admin notifications
-  const approvedTemplate = await raw.template.findFirst({
+  let approvedTemplate = await raw.template.findFirst({
     where: {
       tenantId,
       channel: "WHATSAPP",
@@ -141,6 +141,20 @@ export async function notifyAdminWhatsAppBooking(params: {
     },
     orderBy: { updatedAt: "desc" },
   })
+
+  if (!approvedTemplate) {
+    approvedTemplate = await raw.template.findFirst({
+      where: {
+        channel: "WHATSAPP",
+        name: { in: ["admin_booking_notification", "admin_booking_notification_ar"] },
+        status: "APPROVED",
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+  }
+
+  const templateName = approvedTemplate?.name || "admin_booking_notification"
+  const language = approvedTemplate?.language || "en_US"
 
   const templateVariables = [
     customerName,
@@ -165,14 +179,25 @@ ${specialDetails ? `\n📝 *Notes / Coach:* ${specialDetails}\n` : ""}
 
   let sentCount = 0
 
+  const { getWhatsAppConfig } = await import("@/lib/whatsapp")
+  const config = await getWhatsAppConfig()
+  const cleanSender = (config.phoneNumber || "").replace(/[^\d]/g, "")
+
   for (const recipient of eligibleRecipients) {
     try {
+      const cleanRecip = recipient.phone.replace(/[^\d]/g, "")
+      if (cleanSender && cleanRecip === cleanSender) {
+        console.warn(`[Admin WhatsApp Alert] Skipping ${recipient.name} (${recipient.phone}) because it matches the sender WhatsApp number.`)
+        continue
+      }
+
       const res = await sendWhatsApp({
         to: recipient.phone,
-        templateName: approvedTemplate?.name,
-        language: approvedTemplate?.language || "en_US",
-        templateVariables: approvedTemplate ? templateVariables : undefined,
+        templateName,
+        language,
+        templateVariables,
         body: formattedBody,
+        forceTemplate: true,
       })
 
       if (res.success) {

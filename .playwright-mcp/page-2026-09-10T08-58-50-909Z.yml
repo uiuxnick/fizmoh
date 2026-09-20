@@ -1,0 +1,21 @@
+- generic [ref=f7e1]:
+  - heading "Local support verification" [level=1] [ref=f7e2]
+  - generic [ref=f7e29]:
+    - generic [ref=f7e30]:
+      - generic [ref=f7e31]: F
+      - generic [ref=f7e34]:
+        - generic [ref=f7e35]: Fizmoh Support
+        - generic [ref=f7e36]: AI & platform support team
+        - generic [ref=f7e38]: AI help · Human support on request
+      - button "✕" [ref=f7e40] [cursor=pointer]
+    - generic [ref=f7e41]:
+      - button "💬 Web Live Chat" [ref=f7e42] [cursor=pointer]
+      - button "WhatsApp" [ref=f7e43] [cursor=pointer]
+    - generic [ref=f7e47]:
+      - generic [ref=f7e51]: Chat on WhatsApp
+      - generic [ref=f7e52]: "+96898314456"
+      - generic [ref=f7e53]: Connect directly with our support team on WhatsApp for instant replies and media sharing.
+      - textbox "Type your message here..." [ref=f7e54]: Hello! I have a question about your services.
+      - button "Start WhatsApp Chat ➔" [ref=f7e55] [cursor=pointer]:
+        - generic [ref=f7e56]: Start WhatsApp Chat
+        - generic [ref=f7e57]: ➔

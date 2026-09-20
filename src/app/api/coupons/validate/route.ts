@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant } from "@/lib/tenant-context"
 
@@ -11,7 +11,7 @@ import { currentTenant } from "@/lib/tenant-context"
 export const POST = withErrors(async (request: NextRequest) => {
   // Without a cap this endpoint is a discount-code oracle: unlimited guesses,
   // each answer telling the caller whether a code is real and what it is worth.
-  const rate = checkRateLimit(`coupon:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`coupon:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many attempts, please wait" }, { status: 429 })
 
   // Coupon.code is unique per tenant, not across the installation — two

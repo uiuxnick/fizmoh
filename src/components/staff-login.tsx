@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useApp } from "@/lib/store"
+import { useLanguage } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,7 +22,7 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
-  Globe2,
+  Globe,
 } from "lucide-react"
 
 /**
@@ -39,6 +40,7 @@ import {
  */
 export function StaffLogin() {
   const { setStaffAuth, setView } = useApp()
+  const { isAr, toggleLang } = useLanguage()
   const [method, setMethod] = useState<"password" | "code">("password")
 
   const [email, setEmail] = useState("")
@@ -252,448 +254,384 @@ export function StaffLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col justify-between relative overflow-hidden selection:bg-emerald-500 selection:text-black">
-      {/* Ambient Radial Blooms & Grid Mesh */}
-      <div
-        className="absolute -top-40 left-1/4 w-[700px] h-[700px] bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent rounded-full blur-[140px] pointer-events-none"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute -bottom-40 right-10 w-[600px] h-[600px] bg-gradient-to-tr from-emerald-600/10 via-amber-500/5 to-transparent rounded-full blur-[150px] pointer-events-none"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"
-        aria-hidden="true"
-      />
-
-      {/* Top Header Navigation */}
-      <header className="relative z-20 w-full max-w-7xl mx-auto px-6 pt-12 pb-4 sm:py-6 flex items-center justify-between">
-        <Link
-          href="/"
-          onClick={() => setView("customer-site")}
-          className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors group cursor-pointer"
-        >
-          <div className="h-7 w-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-emerald-500/40 group-hover:bg-emerald-500/10 transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+    <div className={`min-h-screen bg-white text-[#1D1D1D] flex ${isAr ? "rtl font-sans" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
+      {/* Left: Branding & Pitch */}
+      <aside className="hidden lg:flex w-[44%] flex-col justify-between p-12 bg-gradient-to-b from-[#FFF6DA]/60 via-[#FAFAFA] to-[#F2F2F2] border-r border-[#E5E7EB]">
+        <div className="flex items-center justify-between">
+          <Brand href="/" size="sm" className="text-[#1D1D1D]" />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              onClick={() => setView("customer-site")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[#E5E7EB] bg-white text-[12px] font-bold text-[#1D1D1D] hover:bg-[#F2F2F2] transition shadow-xs"
+            >
+              <ArrowLeft className={`h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
+              <span>{isAr ? "الرئيسية" : "Home"}</span>
+            </Link>
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[#E5E7EB] bg-white text-[12px] font-bold text-[#1D1D1D] hover:bg-[#F2F2F2] transition shadow-xs"
+            >
+              <Globe className="h-3.5 w-3.5 text-[#00B96A]" />
+              <span>{isAr ? "English" : "العربية"}</span>
+            </button>
           </div>
-          <span>Back to Homepage</span>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-semibold text-emerald-400">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span>Meta Cloud API · 99.99% Uptime</span>
-          </div>
-
-          <Link
-            href="/signup"
-            className="text-xs font-bold px-3.5 py-1.5 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/30 text-white transition-all cursor-pointer"
-          >
-            Create Workspace
-          </Link>
         </div>
-      </header>
 
-      {/* Centerpiece Content Grid */}
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-          {/* Left Column: Brand Showcase & Interactive Enterprise Card (Desktop) */}
-          <div className="hidden lg:flex flex-col space-y-8 lg:col-span-6 xl:col-span-7 pr-6">
-            <div>
-              <Link href="/" className="inline-block transition-transform hover:scale-[1.01]">
-                <img
-                  src="/brand/fizmoh-mascot-logo.png"
-                  alt="Fizmoh — Automate, Connect, Grow"
-                  className="h-16 sm:h-20 w-auto object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
-                />
-              </Link>
-            </div>
-
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11.5px] font-bold text-emerald-400 uppercase tracking-widest">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Enterprise Operating System</span>
-              </div>
-              <h1 className="text-4xl xl:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
-                Powering high-velocity commerce on{" "}
-                <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200 bg-clip-text text-transparent">
-                  WhatsApp Cloud API
+        <div className="max-w-sm space-y-5">
+          <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight text-[#1D1D1D]">
+            {isAr ? "عملاؤك ينتظرونك على واتساب الآن." : "Your customers are already on WhatsApp."}
+          </h2>
+          <p className="text-[#717680] leading-relaxed text-[14px]">
+            {isAr
+              ? "14 يوماً تجربة مجانية، بدون بطاقة بنكية. اربط رقمك التجاري وابدأ بالرد على الرسائل خلال دقائق."
+              : "Fourteen days, no card, nothing to install. Connect your number and reply to the first message this afternoon."}
+          </p>
+          <ul className="space-y-3 pt-2">
+            {[
+              {
+                icon: Zap,
+                text: isAr ? "صندوق وارد موحد لكل محادثات فريقك" : "One inbox for every conversation",
+              },
+              {
+                icon: Sparkles,
+                text: isAr ? "أتمتة بالذكاء الاصطناعي تجيب العملاء 24/7" : "Automations that answer while you sleep",
+              },
+              {
+                icon: ShieldCheck,
+                text: isAr ? "بياناتك مشفرة ومعزولة بأعلى معايير الأمان" : "Your data stays yours, always",
+              },
+            ].map((item) => (
+              <li key={item.text} className="flex items-center gap-3 text-[13.5px] font-medium text-[#1D1D1D]">
+                <span className="h-7 w-7 rounded-[6px] bg-white border border-[#E5E7EB] grid place-items-center shrink-0 shadow-xs">
+                  <item.icon className="h-4 w-4 text-[#00B96A]" />
                 </span>
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-[12px] text-[#717680] font-medium">
+          {isAr
+            ? "مدعوم رسمياً من منصة واتساب للأعمال (Meta Cloud API)."
+            : "Built on the official WhatsApp Business Platform."}
+        </p>
+      </aside>
+
+      {/* Main Login Form */}
+      <main className="flex-1 bg-white text-[#1D1D1D] flex flex-col">
+        {/* Mobile Header */}
+        <div className="lg:hidden border-b border-[#E5E7EB] px-5 h-14 flex items-center justify-between">
+          <Brand href="/" size="sm" className="text-[#1D1D1D]" />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              onClick={() => setView("customer-site")}
+              className="text-[12px] font-bold text-[#1D1D1D] flex items-center gap-1 border border-[#E5E7EB] rounded-[6px] px-2.5 py-1 bg-[#F2F2F2]"
+            >
+              <ArrowLeft className={`h-3 w-3 ${isAr ? "rotate-180" : ""}`} />
+            </Link>
+            <button
+              onClick={toggleLang}
+              className="text-[12px] font-bold text-[#1D1D1D] flex items-center gap-1 border border-[#E5E7EB] rounded-[6px] px-2.5 py-1 bg-[#F2F2F2]"
+            >
+              <Globe className="h-3.5 w-3.5 text-[#00B96A]" />
+              {isAr ? "EN" : "عربي"}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center px-5 py-10">
+          <div className="w-full max-w-sm space-y-6">
+            {/* Header / Intro */}
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-[#00B96A]">
+                {isAr ? "تسجيل الدخول" : "WELCOME BACK"}
+              </p>
+              <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-[#1D1D1D]">
+                {isAr ? "تسجيل الدخول إلى مساحة العمل" : "Sign in to workspace"}
               </h1>
-              <p className="text-base text-zinc-400 leading-relaxed max-w-xl">
-                Unified multi-agent team inbox, automated botflows, digital vCards, and native AmwalPay checkout for high-growth enterprises in Oman & the GCC.
+              <p className="mt-1 text-base text-[#717680]">
+                {isAr
+                  ? "الوصول إلى صندوق الوارد، أتمتة المحادثات، والبطاقات."
+                  : "Access your enterprise inbox, botflow canvas, and cards."}
               </p>
             </div>
 
-            {/* Live Interactive Enterprise Card Preview */}
-            <div className="relative rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900/90 via-zinc-900/60 to-zinc-950/90 p-6 shadow-2xl backdrop-blur-xl space-y-4 overflow-hidden">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
-              {/* Status Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                    <WhatsAppIcon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-sm font-bold text-white">Grand Hyatt Muscat VIP Desk</h4>
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 fill-emerald-400/20" />
-                    </div>
-                    <p className="text-xs text-zinc-400">Meta Verified Cloud API · +968 2464 1234</p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-300">
-                  ⚡ 42ms Live Webhook
-                </span>
-              </div>
-
-              {/* Message Simulation */}
-              <div className="space-y-2.5 pt-1">
-                <div className="rounded-xl rounded-tl-none bg-emerald-950/40 border border-emerald-500/20 p-3.5 text-xs text-zinc-200 space-y-2">
-                  <p className="leading-relaxed">
-                    “Your Royal Suite booking has been confirmed with AmwalPay (OMR 185.00). Your Executive Digital Key & Concierge vCard are ready below.”
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 border border-emerald-500/30">
-                      ✓ Paid via AmwalPay Gateway
-                    </span>
-                    <span className="rounded-lg bg-zinc-800/80 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 border border-white/10">
-                      📇 vCard 2.0 Synced
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Feature Pills */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
-                {[
-                  { icon: Zap, label: "99.99% Delivery SLA", desc: "Meta Tier 3 Verified" },
-                  { icon: ShieldCheck, label: "Enterprise Security", desc: "SOC2 & 256-Bit TLS" },
-                  { icon: Globe2, label: "GCC Localized", desc: "Oman & GCC Native Gateways" },
-                ].map((item, i) => (
-                  <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-left">
-                    <item.icon className="h-4 w-4 text-emerald-400 mb-1.5" />
-                    <p className="text-[12px] font-bold text-zinc-200">{item.label}</p>
-                    <p className="text-[10.5px] text-zinc-500">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: $10M Auth Card */}
-          <div className="w-full max-w-[450px] mx-auto lg:col-span-6 xl:col-span-5">
-            {/* Mobile Brand Mascot Logo */}
-            <div className="lg:hidden text-center mb-6">
-              <Link href="/" className="inline-block">
-                <img
-                  src="/brand/fizmoh-mascot-logo.png"
-                  alt="Fizmoh"
-                  className="h-14 w-auto mx-auto object-contain drop-shadow-xl"
-                />
-              </Link>
+            {/* Segmented Method Switcher */}
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-[10px] bg-[#F2F2F2] border border-[#E5E7EB]">
+              <button
+                type="button"
+                onClick={() => {
+                  setMethod("password")
+                  setSent(false)
+                  setOtp("")
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-[8px] text-xs font-bold transition-all cursor-pointer ${
+                  method === "password"
+                    ? "bg-white text-[#1D1D1D] border border-[#E5E7EB] shadow-xs"
+                    : "text-[#717680] hover:text-[#1D1D1D]"
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{isAr ? "كلمة المرور" : "Password"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMethod("code")
+                  setSent(false)
+                  setOtp("")
+                }}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-[8px] text-xs font-bold transition-all cursor-pointer ${
+                  method === "code"
+                    ? "bg-white text-[#1D1D1D] border border-[#E5E7EB] shadow-xs"
+                    : "text-[#717680] hover:text-[#1D1D1D]"
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{isAr ? "رمز واتساب" : "WhatsApp Code"}</span>
+              </button>
             </div>
 
-            <div className="relative rounded-[28px] border border-white/10 bg-zinc-900/80 p-7 sm:p-9 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.85)] backdrop-blur-2xl overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-emerald-400/50 before:to-transparent">
-              {/* Card Header */}
-              <div className="space-y-1.5 text-left mb-6">
-                <h2 className="text-2xl font-bold tracking-tight text-white">Sign in to Workspace</h2>
-                <p className="text-xs sm:text-sm text-zinc-400">
-                  Access your enterprise inbox, botflow canvas, and cards.
-                </p>
-              </div>
-
-              {/* Segmented Method Switcher */}
-              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-black/40 border border-white/10 mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod("password")
-                    setSent(false)
-                    setOtp("")
-                  }}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    method === "password"
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Password</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod("code")
-                    setSent(false)
-                    setOtp("")
-                  }}
-                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    method === "code"
-                      ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>WhatsApp Code</span>
-                </button>
-              </div>
-
-              {/* Method 1: Password Flow */}
-              {method === "password" ? (
-                <div className="space-y-4">
-                  <div className="space-y-1.5 text-left">
-                    <Label className="text-xs font-semibold text-zinc-300">Work Email Address</Label>
-                    <div className="relative">
-                      <Input
-                        autoFocus
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") signInWithPassword()
-                        }}
-                        placeholder="you@company.com"
-                        className="h-11 bg-white/[0.04] border-white/10 rounded-xl px-3.5 text-white placeholder:text-zinc-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-left">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-zinc-300">Password</Label>
-                      <button
-                        type="button"
-                        onClick={() => setMethod("code")}
-                        className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium cursor-pointer"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") signInWithPassword()
-                        }}
-                        placeholder="••••••••••••"
-                        className="h-11 bg-white/[0.04] border-white/10 rounded-xl px-3.5 text-white placeholder:text-zinc-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sign In Primary CTA */}
-                  <Button
-                    className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer text-sm"
-                    disabled={busy || !email || !password}
-                    onClick={signInWithPassword}
-                  >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
-                    ) : (
-                      <>
-                        <span>Sign In to Workspace</span>
-                        <ArrowRight className="ml-1.5 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Google SSO Container */}
-                  {googleClientId && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center gap-3">
-                        <div className="h-px flex-1 bg-white/10" />
-                        <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-bold">
-                          or continue with
-                        </span>
-                        <div className="h-px flex-1 bg-white/10" />
-                      </div>
-                      <div
-                        id="google-signin-button"
-                        className="flex justify-center rounded-xl overflow-hidden [&>div]:!w-full border border-white/10 hover:border-white/20 transition-colors"
-                      />
-                    </div>
-                  )}
+            {/* Method 1: Password Flow */}
+            {method === "password" ? (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-[13px] font-semibold text-[#1D1D1D] block mb-1.5">
+                    {isAr ? "البريد الإلكتروني للعمل" : "Work Email Address"}
+                  </Label>
+                  <Input
+                    autoFocus
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") signInWithPassword()
+                    }}
+                    placeholder="you@company.com"
+                    className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] placeholder:text-[#717680]/60 text-base focus:ring-2 focus:ring-[#00E785] focus:border-transparent transition ltr-force"
+                  />
                 </div>
-              ) : !sent ? (
-                /* Method 2: One-Time Code Request */
-                <div className="space-y-4 text-left">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-zinc-300">
-                      Work Email or WhatsApp Number
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label className="text-[13px] font-semibold text-[#1D1D1D]">
+                      {isAr ? "كلمة المرور" : "Password"}
                     </Label>
-                    <Input
-                      autoFocus
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") sendCode()
-                      }}
-                      placeholder="+968 9123 4567 or you@company.com"
-                      className="h-11 bg-white/[0.04] border-white/10 rounded-xl px-3.5 text-white placeholder:text-zinc-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
+                    <button
+                      type="button"
+                      onClick={() => setMethod("code")}
+                      className="text-[12px] text-[#00B96A] hover:text-[#009655] font-semibold transition-colors cursor-pointer"
+                    >
+                      {isAr ? "نسيت كلمة المرور؟" : "Forgot password?"}
+                    </button>
+                  </div>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") signInWithPassword()
+                    }}
+                    placeholder="••••••••••••"
+                    className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] placeholder:text-[#717680]/60 text-base focus:ring-2 focus:ring-[#00E785] focus:border-transparent transition ltr-force"
+                  />
+                </div>
+
+                {/* Sign In Primary CTA */}
+                <Button
+                  className="w-full h-11 bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold text-base rounded-[8px] border border-[#00B96A]/20 transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                  disabled={busy || !email || !password}
+                  onClick={signInWithPassword}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#1D1D1D]" />
+                  ) : (
+                    <>
+                      <span>{isAr ? "تسجيل الدخول إلى مساحة العمل" : "Sign In to Workspace"}</span>
+                      <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
+                    </>
+                  )}
+                </Button>
+
+                {/* Google SSO Container */}
+                {googleClientId && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-[#E5E7EB]" />
+                      <span className="text-[11px] uppercase tracking-wider text-[#717680] font-bold">
+                        {isAr ? "أو المتابعة عبر" : "or continue with"}
+                      </span>
+                      <div className="h-px flex-1 bg-[#E5E7EB]" />
+                    </div>
+                    <div
+                      id="google-signin-button"
+                      className="flex justify-center rounded-[8px] overflow-hidden [&>div]:!w-full border border-[#E5E7EB] hover:border-[#D1D5DB] transition-colors"
                     />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-zinc-400">Dispatch Channel</Label>
-                    <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/40 border border-white/10">
-                      {[
-                        { id: "whatsapp", label: "WhatsApp Chat", icon: WhatsAppIcon },
-                        { id: "email", label: "Email Inbox", icon: Mail },
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setChannel(opt.id as any)}
-                          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition cursor-pointer ${
-                            channel === opt.id
-                              ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                              : "text-zinc-400 hover:text-white"
-                          }`}
-                        >
-                          <opt.icon className="h-3.5 w-3.5" />
-                          <span>{opt.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 cursor-pointer text-sm"
-                    disabled={busy || !identifier}
-                    onClick={sendCode}
-                  >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
-                    ) : (
-                      <>
-                        <span>Send 6-Digit Code</span>
-                        <ArrowRight className="ml-1.5 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
+                )}
+              </div>
+            ) : !sent ? (
+              /* Method 2: One-Time Code Request */
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-[13px] font-semibold text-[#1D1D1D] block mb-1.5">
+                    {isAr ? "البريد الإلكتروني أو رقم هاتف واتساب" : "Work Email or WhatsApp Number"}
+                  </Label>
+                  <Input
+                    autoFocus
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") sendCode()
+                    }}
+                    placeholder="+968 9123 4567 or you@company.com"
+                    className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] placeholder:text-[#717680]/60 text-base focus:ring-2 focus:ring-[#00E785] focus:border-transparent transition ltr-force"
+                  />
                 </div>
-              ) : (
-                /* Method 2 (Step 2): One-Time Code Verification */
-                <div className="space-y-5 text-left">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSent(false)
-                        setOtp("")
-                      }}
-                      className="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" />
-                      <span>Use different address</span>
-                    </button>
-                    <span className="text-[11px] text-emerald-400 font-semibold">Code Dispatched</span>
-                  </div>
 
-                  <div className="space-y-2 text-center">
-                    <Label className="text-xs font-semibold text-zinc-300">
-                      Enter 6-Digit Verification Code
-                    </Label>
-                    <p className="text-xs text-zinc-400">
-                      Sent to <span className="font-semibold text-white">{identifier}</span>. Valid for 5 minutes.
-                    </p>
-
-                    <div className="flex justify-center pt-2">
-                      <InputOTP
-                        maxLength={6}
-                        value={otp}
-                        onChange={(value) => {
-                          setOtp(value)
-                          if (value.length === 6) verifyCode(value)
-                        }}
+                <div>
+                  <Label className="text-[12px] font-semibold text-[#717680] block mb-1.5">
+                    {isAr ? "قناة الإرسال" : "Dispatch Channel"}
+                  </Label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-[10px] bg-[#F2F2F2] border border-[#E5E7EB]">
+                    {[
+                      { id: "whatsapp", label: isAr ? "محادثة واتساب" : "WhatsApp Chat", icon: WhatsAppIcon },
+                      { id: "email", label: isAr ? "البريد الإلكتروني" : "Email Inbox", icon: Mail },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setChannel(opt.id as any)}
+                        className={`flex items-center justify-center gap-1.5 rounded-[8px] py-2 text-xs font-semibold transition cursor-pointer ${
+                          channel === opt.id
+                            ? "bg-white text-[#1D1D1D] border border-[#E5E7EB] shadow-xs"
+                            : "text-[#717680] hover:text-[#1D1D1D]"
+                        }`}
                       >
-                        <InputOTPGroup className="gap-2">
-                          {[0, 1, 2, 3, 4, 5].map((index) => (
-                            <InputOTPSlot
-                              key={index}
-                              index={index}
-                              className="h-12 w-10 sm:w-11 text-lg font-bold bg-white/[0.04] border-white/20 text-emerald-400 rounded-xl focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
-                            />
-                          ))}
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
+                        <opt.icon className="h-3.5 w-3.5" />
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  {busy && (
-                    <div className="flex items-center justify-center gap-2 text-xs text-zinc-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
-                      <span>Verifying cryptographic credentials…</span>
-                    </div>
+                <Button
+                  className="w-full h-11 bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold text-base rounded-[8px] border border-[#00B96A]/20 transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                  disabled={busy || !identifier}
+                  onClick={sendCode}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#1D1D1D]" />
+                  ) : (
+                    <>
+                      <span>{isAr ? "إرسال رمز التحقق (6 أرقام)" : "Send 6-Digit Code"}</span>
+                      <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
+                    </>
                   )}
+                </Button>
+              </div>
+            ) : (
+              /* Method 2 (Step 2): One-Time Code Verification */
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSent(false)
+                      setOtp("")
+                    }}
+                    className="text-xs text-[#717680] hover:text-[#1D1D1D] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className={`h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
+                    <span>{isAr ? "استخدام بريد/رقم آخر" : "Use different address"}</span>
+                  </button>
+                  <span className="text-[11px] text-[#00B96A] font-bold">
+                    {isAr ? "تم إرسال الرمز" : "Code Dispatched"}
+                  </span>
+                </div>
 
-                  <div className="flex items-center justify-between pt-1 text-xs">
-                    <span className="text-zinc-500">Didn't receive code?</span>
-                    <button
-                      type="button"
-                      onClick={sendCode}
-                      className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors cursor-pointer"
+                <div className="space-y-2 text-center">
+                  <Label className="text-xs font-semibold text-[#1D1D1D]">
+                    {isAr ? "أدخل رمز التحقق المكون من 6 أرقام" : "Enter 6-Digit Verification Code"}
+                  </Label>
+                  <p className="text-xs text-[#717680]">
+                    {isAr ? "تم الإرسال إلى " : "Sent to "}
+                    <span className="font-semibold text-[#1D1D1D]">{identifier}</span>.
+                    {isAr ? " صالح لمدة 5 دقائق." : " Valid for 5 minutes."}
+                  </p>
+
+                  <div className="flex justify-center pt-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={otp}
+                      onChange={(value) => {
+                        setOtp(value)
+                        if (value.length === 6) verifyCode(value)
+                      }}
                     >
-                      Resend Code
-                    </button>
+                      <InputOTPGroup className="gap-2">
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <InputOTPSlot
+                            key={index}
+                            index={index}
+                            className="h-12 w-10 sm:w-11 text-lg font-bold bg-[#F2F2F2] border-[#E5E7EB] text-[#1D1D1D] rounded-[8px] focus:border-[#00E785] focus:ring-2 focus:ring-[#00E785]"
+                          />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
                   </div>
                 </div>
-              )}
 
-              {/* Bottom Support & Signup Links */}
-              <div className="mt-8 pt-5 border-t border-white/10 text-center space-y-3">
-                <p className="text-xs text-zinc-400">
-                  New to Fizmoh?{" "}
-                  <Link
-                    href="/signup"
-                    className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors underline-offset-4 hover:underline cursor-pointer"
+                {busy && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-[#717680]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00B96A]" />
+                    <span>{isAr ? "جاري التحقق من بيانات الدخول..." : "Verifying credentials…"}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <span className="text-[#717680]">{isAr ? "لم يصلك الرمز؟" : "Didn't receive code?"}</span>
+                  <button
+                    type="button"
+                    onClick={sendCode}
+                    className="text-[#00B96A] font-bold hover:text-[#009655] transition-colors cursor-pointer"
                   >
-                    Start 14-day free trial
-                  </Link>
-                </p>
-                <div className="flex items-center justify-center gap-2 text-[11px] text-zinc-500">
-                  <WhatsAppIcon className="h-3 w-3 text-emerald-500" />
-                  <span>Need urgent help?</span>
-                  <a
-                    href="https://wa.me/96892000000"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-zinc-400 hover:text-white transition-colors underline cursor-pointer"
-                  >
-                    WhatsApp Support
-                  </a>
+                    {isAr ? "إعادة إرسال الرمز" : "Resend Code"}
+                  </button>
                 </div>
+              </div>
+            )}
+
+            {/* Bottom Support & Signup Links */}
+            <div className="pt-4 border-t border-[#E5E7EB] text-center space-y-2">
+              <p className="text-[12.5px] text-[#717680]">
+                {isAr ? "ليس لديك مساحة عمل بعد؟ " : "New to Fizmoh? "}
+                <Link
+                  href="/signup"
+                  className="text-[#00B96A] font-bold hover:underline"
+                >
+                  {isAr ? "ابدأ التجربة المجانية لمدة 14 يوماً" : "Start 14-day free trial"}
+                </Link>
+              </p>
+              <div className="flex items-center justify-center gap-2 text-[11px] text-[#717680]">
+                <WhatsAppIcon className="h-3 w-3 text-[#00B96A]" />
+                <span>{isAr ? "تحتاج مساعدة فورية؟" : "Need urgent help?"}</span>
+                <a
+                  href="https://wa.me/96898314456"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#1D1D1D] font-medium hover:underline"
+                >
+                  {isAr ? "دعم واتساب" : "WhatsApp Support"}
+                </a>
               </div>
             </div>
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="relative z-20 w-full max-w-7xl mx-auto px-6 py-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11.5px] text-zinc-500">
-        <p>© {new Date().getFullYear()} Fizmoh Cloud Platform. All rights reserved.</p>
-        <div className="flex items-center gap-6">
-          <Link href="/privacy" className="hover:text-zinc-300 transition-colors">
-            Privacy Policy
-          </Link>
-          <Link href="/terms" className="hover:text-zinc-300 transition-colors">
-            Terms of Service
-          </Link>
-          <Link href="/acceptable-use" className="hover:text-zinc-300 transition-colors">
-            Acceptable Use
-          </Link>
-          <span className="text-emerald-500/80 font-semibold">Meta Cloud API Certified</span>
-        </div>
-      </footer>
     </div>
   )
 }
-

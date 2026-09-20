@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { raw } from "@/lib/db";
 import { withErrors } from "@/lib/api-handler";
 import { requirePlatformAdmin } from "@/app/api/platform/tenants/route";
+import { supportReference, supportAuthor, SUPPORT_CHANNELS } from "@/lib/platform-support";
+import { Prisma } from "@prisma/client";
 
 export const GET = withErrors(async (request: NextRequest) => {
   const admin = await requirePlatformAdmin(request);
@@ -13,14 +15,18 @@ export const GET = withErrors(async (request: NextRequest) => {
   const status = searchParams.get("status");
   const priority = searchParams.get("priority");
   const tenantId = searchParams.get("tenantId");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const page = Number(searchParams.get("page") || "1");
+  const limit = Number(searchParams.get("limit") || "20");
+  if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ error: "Invalid pagination" }, { status: 400 });
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.SupportTicketWhereInput = {};
+  if (searchParams.get("mode") === "live") { where.tenantId = null; where.channel = { in: SUPPORT_CHANNELS }; }
   if (status && status !== "ALL") where.status = status;
   if (priority && priority !== "ALL") where.priority = priority;
   if (tenantId && tenantId !== "ALL") where.tenantId = tenantId;
+  const search = searchParams.get("search")?.trim().slice(0, 160);
+  if (search) where.OR = [{ subject: { contains: search, mode: "insensitive" } }, { reference: { contains: search, mode: "insensitive" } }];
 
   const [total, tickets] = await Promise.all([
     raw.supportTicket.count({ where }),
@@ -46,7 +52,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   const enrichedTickets = tickets.map((t: any) => ({
     ...t,
     tenantName: t.tenantId ? tenantMap[t.tenantId] : null,
-    creatorName: staffMap[t.createdById] || "Unknown",
+    creatorName: staffMap[t.createdById] || supportAuthor(t.createdById),
     assigneeName: t.assignedStaffId ? staffMap[t.assignedStaffId] : null,
   }));
 
@@ -59,20 +65,19 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Not a platform administrator" }, { status: 403 });
   }
 
-  const staffId = request.headers.get("x-wptour-staff-id") || admin.id;
+  const staffId = admin.id;
 
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
   const { tenantId, subject, body: content, priority, channel } = body;
   
-  if (!subject || !content) {
+  if (typeof subject !== "string" || !subject.trim() || subject.length > 160 || typeof content !== "string" || !content.trim() || content.length > 8000 || (priority && !["LOW", "MEDIUM", "HIGH", "URGENT"].includes(priority))) {
     return NextResponse.json({ error: "Subject and body are required" }, { status: 400 });
   }
 
   // Generate reference
-  const count = await raw.supportTicket.count();
-  const reference = `FZ-${String(count + 1).padStart(4, "0")}`;
+  const reference = supportReference();
 
   const ticket = await raw.supportTicket.create({
     data: {

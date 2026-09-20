@@ -77,23 +77,32 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
      * This is an operator's decision, and the audit log records it as one —
      * it is not, and must not be presented as, gateway verification.
      */
-    if (next === "CONFIRMED" && !["APPROVED", "PAID"].includes(order.paymentStatus)) {
-      // The gateway's own transaction number, when staff have it from the
-      // AmwalPay receipt. It is what reconciles this order against the
-      // merchant statement, so it is worth capturing even though we could not
-      // obtain it automatically.
+    if (next === "CONFIRMED") {
       const gatewayReference = String(body.gatewayReference || "").trim().slice(0, 120)
-      await db.payment.updateMany({
-        where: { orderId: id, status: { in: ["PENDING", "SUBMITTED"] } },
-        data: {
-          status: "APPROVED",
-          verifiedById: staffId,
-          verifiedAt: new Date(),
-          ...(gatewayReference ? { gatewayReference } : {}),
-        },
-      })
-      await db.order.update({ where: { id }, data: { paymentStatus: "APPROVED" } })
-      await confirmSlotSeats(order.slotId, order.paxAdult + order.paxChild).catch(() => {})
+      if (!["APPROVED", "PAID"].includes(order.paymentStatus)) {
+        await db.payment.updateMany({
+          where: { orderId: id, status: { in: ["PENDING", "SUBMITTED"] } },
+          data: {
+            status: "APPROVED",
+            verifiedById: staffId,
+            verifiedAt: new Date(),
+            ...(gatewayReference ? { gatewayReference } : {}),
+          },
+        })
+        await db.order.update({
+          where: { id },
+          data: { paymentStatus: "APPROVED", confirmedAt: new Date() },
+        })
+      } else if (!order.confirmedAt) {
+        await db.order.update({
+          where: { id },
+          data: { confirmedAt: new Date() },
+        })
+      }
+
+      if (!order.confirmedAt) {
+        await confirmSlotSeats(order.slotId, order.paxAdult + order.paxChild).catch(() => {})
+      }
 
       if (!(await db.voucher.findFirst({ where: { orderId: id } }))) {
         await db.voucher.create({
@@ -113,7 +122,7 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
         entity: "ORDER",
         entityId: id,
         reason,
-        details: `Marked paid by staff — no gateway notification${gatewayReference ? ` · ${gatewayReference}` : ""}`,
+        details: `Marked paid/confirmed by staff${gatewayReference ? ` · ${gatewayReference}` : ""}`,
       }).catch(() => {})
 
       void sendOrderConfirmation(id).catch(() => {})
@@ -147,10 +156,12 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
     })
     // Release seats
     if (order.slot) {
-      await db.slot.update({
-        where: { id: order.slotId },
-        data: { seatsBooked: { decrement: order.paxAdult + order.paxChild }, status: "OPEN" },
-      })
+      const pax = order.paxAdult + order.paxChild
+      if (order.confirmedAt || order.orderStatus === "CONFIRMED" || order.paymentStatus === "APPROVED" || order.paymentStatus === "PAID") {
+        await db.$executeRaw`UPDATE "Slot" SET "seatsBooked" = GREATEST(0, "seatsBooked" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId}`
+      } else {
+        await db.$executeRaw`UPDATE "Slot" SET "seatsHeld" = GREATEST(0, "seatsHeld" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId}`
+      }
     }
     await refreshCustomerTotals(order.customerId)
     void syncOrderToCalendar(order.id)

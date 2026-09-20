@@ -55,6 +55,7 @@ export function BookDemoDirect() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     if (!name.trim() || !email.trim() || !phone.trim() || !company.trim()) {
       toast.error(isAr ? "يرجى ملء جميع الحقول المطلوبة" : "Please fill in all required fields")
       return
@@ -122,7 +123,7 @@ export function BookDemoDirect() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1D1D1D]">
               {isAr ? "حدد موعد العرض التوضيحي للمنصة" : "Schedule Your Platform Demo"}
             </h1>
-            <p className="text-[#717680] text-[13px] mt-1.5 leading-relaxed">
+            <p className="text-[#717680] text-base mt-1.5 leading-relaxed">
               {isAr
                 ? "اجتمع مباشرة مع مهندس حلول لاستكشاف مسارات تجارة واتساب المخصصة، وإعدادات روبوت الذكاء الاصطناعي لشركتك."
                 : "Meet live with a product engineer to explore customized WhatsApp Commerce flows and AI Bot configurations."}
@@ -130,37 +131,37 @@ export function BookDemoDirect() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-4">
+          <form {...{ toolname: "requestProductDemo", tooldescription: "Prepare a product demo request with contact details and preferred date and time. Review before submitting." }} onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-name" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "الاسم الكامل *" : "Full Name *"}
                 </Label>
                 <div className="relative">
                   <User className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-                  <Input
+                  <Input id="demo-name" name="name" autoComplete="name"
                     required
                     placeholder={isAr ? "سالم الرواحي" : "Salim Al-Rawahi"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-email" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "البريد الإلكتروني للعمل *" : "Work Email *"}
                 </Label>
                 <div className="relative">
                   <Mail className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-                  <Input
+                  <Input id="demo-email" name="email" autoComplete="email"
                     required
                     type="email"
                     placeholder="salim@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
                   />
                 </div>
               </div>
@@ -168,46 +169,46 @@ export function BookDemoDirect() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-phone" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "رقم الهاتف / واتساب *" : "WhatsApp Number *"}
                 </Label>
                 <div className="relative">
                   <Phone className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-                  <Input
+                  <Input id="demo-phone" name="phone" autoComplete="tel" type="tel"
                     required
                     placeholder="+968 9123 4567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-company" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "اسم الشركة *" : "Company Name *"}
                 </Label>
                 <div className="relative">
                   <Building2 className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-                  <Input
+                  <Input id="demo-company" name="company" autoComplete="organization"
                     required
                     placeholder={isAr ? "شركة النماء" : "Your Company LLC"}
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                    className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[12px] font-bold text-[#1D1D1D]">
+              <Label htmlFor="demo-industry" className="text-[12px] font-bold text-[#1D1D1D]">
                 {isAr ? "القطاع / مجال النشاط" : "Industry / Solution Focus"}
               </Label>
-              <select
+              <select id="demo-industry" name="industry"
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
-                className="w-full h-10 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-[13px] font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
+                className="w-full h-11 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-base font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
               >
                 {INDUSTRIES.map((ind) => (
                   <option key={ind.en} value={ind.en}>
@@ -219,27 +220,27 @@ export function BookDemoDirect() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-demoDate" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "التاريخ المفضل *" : "Preferred Date *"}
                 </Label>
-                <Input
+                <Input id="demo-demoDate" name="demoDate"
                   type="date"
                   required
                   min={new Date().toISOString().split("T")[0]}
                   value={demoDate}
                   onChange={(e) => setDemoDate(e.target.value)}
-                  className="h-10 rounded-[8px] text-[13px] bg-white border-[#E5E7EB] text-[#1D1D1D]"
+                  className="h-11 rounded-[8px] text-base bg-white border-[#E5E7EB] text-[#1D1D1D]"
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[12px] font-bold text-[#1D1D1D]">
+                <Label htmlFor="demo-demoTime" className="text-[12px] font-bold text-[#1D1D1D]">
                   {isAr ? "الوقت المفضل *" : "Preferred Time Slot *"}
                 </Label>
-                <select
+                <select id="demo-demoTime" name="demoTime"
                   value={demoTime}
                   onChange={(e) => setDemoTime(e.target.value)}
-                  className="w-full h-10 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-[13px] font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
+                  className="w-full h-11 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-base font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
                 >
                   {TIME_SLOTS.map((slot) => (
                     <option key={slot} value={slot}>
@@ -251,10 +252,10 @@ export function BookDemoDirect() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[12px] font-bold text-[#1D1D1D]">
+              <Label htmlFor="demo-notes" className="text-[12px] font-bold text-[#1D1D1D]">
                 {isAr ? "ملاحظات أو استفسارات خاصة (اختياري)" : "Topics & Objectives (Optional)"}
               </Label>
-              <Textarea
+              <Textarea id="demo-notes" name="notes"
                 placeholder={
                   isAr
                     ? "ما هي الميزات أو التكاملات المحددة التي ترغب بمناقشتها؟"
@@ -262,7 +263,7 @@ export function BookDemoDirect() {
                 }
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="rounded-[8px] text-[13px] min-h-20 bg-white border-[#E5E7EB] text-[#1D1D1D] focus:ring-[#00E785]"
+                className="rounded-[8px] text-base min-h-20 bg-white border-[#E5E7EB] text-[#1D1D1D] focus:ring-[#00E785]"
               />
             </div>
 
@@ -294,7 +295,7 @@ export function BookDemoDirect() {
             <h2 className="text-2xl font-extrabold text-[#1D1D1D]">
               {isAr ? "تم حجز موعدك بنجاح!" : "Your Demo is Confirmed!"}
             </h2>
-            <p className="text-[13px] text-[#717680] max-w-sm mx-auto leading-relaxed">
+            <p className="text-base text-[#717680] max-w-sm mx-auto leading-relaxed">
               {isAr
                 ? "تم إرسال دعوة التقويم إلى بريدك الإلكتروني. سيلتقي بك أحد مهندسي الحلول في الوقت المحدد."
                 : "A calendar invitation has been sent to your email. One of our engineers will meet with you at the selected time."}
@@ -339,7 +340,7 @@ export function BookDemoDirect() {
               href={bookedResult.googleMeetUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] text-[13px] font-bold transition border border-[#00B96A]/20"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] text-base font-bold transition border border-[#00B96A]/20"
             >
               <Video className="h-4 w-4" />
               <span>{isAr ? "فتح الغرفة الآن" : "Open Room"}</span>
@@ -350,7 +351,7 @@ export function BookDemoDirect() {
               href={googleCalLink}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] border border-[#1D1D1D] bg-white hover:bg-[#F2F2F2] text-[#1D1D1D] text-[13px] font-semibold transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] border border-[#1D1D1D] bg-white hover:bg-[#F2F2F2] text-[#1D1D1D] text-base font-semibold transition"
             >
               <Calendar className="h-4 w-4 text-[#00B96A]" />
               <span>Google Calendar</span>

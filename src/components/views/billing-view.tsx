@@ -1,5 +1,7 @@
 "use client"
 
+import { MODULE_REGISTRY } from "@/lib/module-registry"
+
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -75,17 +77,7 @@ interface Billing {
   usage: { staff: number; contacts: number; numbers: number; messagesPerMonth: number; limits: Record<string, number> }
 }
 
-const MODULE_NAMES: Record<string, string> = {
-  INBOX: "WhatsApp Inbox & Live Chat",
-  TOURS: "Tours, Bookings & Vouchers",
-  VISA: "Visa & Travel Enquiries",
-  APPOINTMENTS: "Appointment Scheduling",
-  BROADCAST: "WhatsApp Broadcast Campaigns",
-  FLOWS: "Visual Botflow Automations",
-  AI: "AI Smart Replies & OCR Analysis",
-  CALLS: "Voice & VoIP Calling",
-  PAYMENTS: "AmwalPay Online Card Gateway",
-}
+const MODULE_NAMES: Record<string, string> = Object.fromEntries(MODULE_REGISTRY.map(module => [module.key, module.label]))
 
 interface TenantInvoice {
   id: string
@@ -634,7 +626,7 @@ export default function BillingView() {
                     : "-"
                   const planDesc =
                     inv.items?.[0]?.description ||
-                    (inv.subscription?.plan?.name
+                    (inv.reference.startsWith("ADDON-") ? "Add-on purchase" : inv.subscription?.plan?.name
                       ? `${inv.subscription.plan.name} (${inv.period === "YEARLY" ? "Yearly" : "Monthly"})`
                       : "Subscription")
                   return (

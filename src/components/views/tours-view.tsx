@@ -67,26 +67,14 @@ export default function ToursView() {
   }
 
   const removeTour = async (tour: Tour) => {
-    if (!confirm(`Delete “${tour.name}”? This cannot be undone.`)) return
+    if (!confirm(`Are you sure you want to completely delete “${tour.name}”?\n\nThis will permanently remove the tour, all its dates/slots, and any associated bookings. This cannot be undone.`)) return
     const res = await fetch(`/api/tours/${tour.id}`, { method: "DELETE" })
     const data = await res.json().catch(() => ({}))
-    // A tour that has sold cannot be deleted without breaking its orders. Say
-    // so, and offer the thing that is actually wanted — off the site, history
-    // intact — instead of leaving the operator to find it in the editor.
-    if (res.status === 409 && data.orders) {
-      if (!confirm(`${data.error}\n\nArchive “${tour.name}” now? It comes off your site and the bot, and its ${data.orders} booking${data.orders === 1 ? "" : "s"} stay intact.`)) return
-      const archived = await fetch(`/api/tours/${tour.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ARCHIVED" }),
-      })
-      if (!archived.ok) { toast.error("Could not archive the tour"); return }
-      toast.success("Tour archived")
-      load()
+    if (!res.ok) {
+      toast.error(data.error || "Could not delete the tour")
       return
     }
-    if (!res.ok) { toast.error(data.error || "Could not delete the tour"); return }
-    toast.success("Tour deleted")
+    toast.success(data.message || "Tour deleted completely")
     load()
   }
 
@@ -98,7 +86,7 @@ export default function ToursView() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-none space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div data-tour="tours-header-actions" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
             <div className="h-9 w-9 rounded-lg bg-emerald-50 flex items-center justify-center"><Map className="h-5 w-5 text-emerald-600" /></div>
@@ -125,7 +113,7 @@ export default function ToursView() {
       ) : filtered.length === 0 ? (
         <Card className="border-dashed"><CardContent className="py-16 text-center"><Map className="h-10 w-10 text-stone-300 mx-auto mb-3" /><p className="text-stone-500">No tours found</p></CardContent></Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-tour="tours-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(t => {
             const Icon = CATEGORY_ICONS[t.category] || Sun
             return (
@@ -155,7 +143,7 @@ export default function ToursView() {
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditing(t as unknown as TourRecord); setCreating(false) }}>
                       <Pencil className="h-3.5 w-3.5 mr-1" />Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setSlotsFor(t)}>
+                    <Button data-tour="tours-slot-config" variant="outline" size="sm" className="flex-1" onClick={() => setSlotsFor(t)}>
                       <CalendarDays className="h-3.5 w-3.5 mr-1" />Dates
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="Duplicate" onClick={() => duplicate(t)}>

@@ -1,0 +1,2002 @@
+     1→"use client"
+     2→
+     3→import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+     4→import { useApp } from "@/lib/store"
+     5→import { cn } from "@/lib/utils"
+     6→import {
+     7→  formatCurrency,
+     8→  formatDateTime,
+     9→  formatDate,
+    10→  timeAgo,
+    11→  prettifyStatus,
+    12→} from "@/lib/helpers"
+    13→import { toast } from "sonner"
+    14→
+    15→import { Card, CardContent } from "@/components/ui/card"
+    16→import { Badge } from "@/components/ui/badge"
+    17→import { Button } from "@/components/ui/button"
+    18→import { Input } from "@/components/ui/input"
+    19→import { Textarea } from "@/components/ui/textarea"
+    20→import { Label } from "@/components/ui/label"
+    21→import { Separator } from "@/components/ui/separator"
+    22→import { Skeleton } from "@/components/ui/skeleton"
+    23→import { ScrollArea } from "@/components/ui/scroll-area"
+    24→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+    25→import { Checkbox } from "@/components/ui/checkbox"
+    26→import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+    27→import {
+    28→  Table,
+    29→  TableBody,
+    30→  TableCell,
+    31→  TableHead,
+    32→  TableHeader,
+    33→  TableRow,
+    34→} from "@/components/ui/table"
+    35→import {
+    36→  Dialog,
+    37→  DialogContent,
+    38→  DialogDescription,
+    39→  DialogFooter,
+    40→  DialogHeader,
+    41→  DialogTitle,
+    42→} from "@/components/ui/dialog"
+    43→import {
+    44→  Sheet,
+    45→  SheetContent,
+    46→  SheetDescription,
+    47→  SheetHeader,
+    48→  SheetTitle,
+    49→} from "@/components/ui/sheet"
+    50→import {
+    51→  Select,
+    52→  SelectContent,
+    53→  SelectItem,
+    54→  SelectTrigger,
+    55→  SelectValue,
+    56→} from "@/components/ui/select"
+    57→import {
+    58→  Popover,
+    59→  PopoverContent,
+    60→  PopoverTrigger,
+    61→} from "@/components/ui/popover"
+    62→import {
+    63→  DropdownMenu,
+    64→  DropdownMenuContent,
+    65→  DropdownMenuItem,
+    66→  DropdownMenuSeparator,
+    67→  DropdownMenuTrigger,
+    68→} from "@/components/ui/dropdown-menu"
+    69→import {
+    70→  Tooltip,
+    71→  TooltipContent,
+    72→  TooltipProvider,
+    73→  TooltipTrigger,
+    74→} from "@/components/ui/tooltip"
+    75→import { Calendar } from "@/components/ui/calendar"
+    76→
+    77→import {
+    78→  ShoppingBag,
+    79→  Search,
+    80→  Filter,
+    81→  Plus,
+    82→  Eye,
+    83→  Edit,
+    84→  Ban,
+    85→  CheckCircle,
+    86→  Calendar as CalendarIcon,
+    87→  Clock,
+    88→  User,
+    89→  Phone,
+    90→  Mail,
+    91→  MapPin,
+    92→  Users,
+    93→  DollarSign,
+    94→  FileText,
+    95→  History,
+    96→  Send,
+    97→  Download,
+    98→  RotateCcw,
+    99→  ChevronLeft,
+   100→  ChevronRight,
+   101→  MoreHorizontal,
+   102→  X,
+   103→  Loader2,
+   104→  TrendingUp,
+   105→  CheckCircle2,
+   106→  XCircle,
+   107→  AlertTriangle,
+   108→  CreditCard,
+   109→  Landmark,
+   110→  QrCode,
+   111→  MessageCircle,
+   112→  CalendarCheck,
+   113→  CalendarX,
+   114→  Ticket,
+   115→  Receipt,
+   116→  Sparkles,
+   117→  ArrowRight,
+   118→  Check,
+   119→  Minus,
+   120→  Plus as PlusIcon,
+   121→} from "lucide-react"
+   122→
+   123→// ============================================================
+   124→// TYPES
+   125→// ============================================================
+   126→interface Customer {
+   127→  id: string
+   128→  name: string | null
+   129→  email: string | null
+   130→  phone: string
+   131→  loyaltyTier?: string
+   132→  loyaltyPoints?: number
+   133→  totalBookings?: number
+   134→  totalSpent?: number
+   135→}
+   136→
+   137→interface Tour {
+   138→  id: string
+   139→  slug: string
+   140→  name: string
+   141→  city: string
+   142→  category: string
+   143→  basePrice: number
+   144→  childPrice?: number | null
+   145→  durationHours: number
+   146→  meetingPoint?: string | null
+   147→  capacityPerSlot: number
+   148→  status?: string
+   149→  featured?: boolean
+   150→  media?: any
+   151→  addOns?: AddOn[]
+   152→}
+   153→
+   154→interface AddOn {
+   155→  id?: string
+   156→  name: string
+   157→  price: number
+   158→  type: string // FLAT | PER_PAX
+   159→  isActive?: boolean
+   160→}
+   161→
+   162→interface Slot {
+   163→  id: string
+   164→  tourId: string
+   165→  date: string
+   166→  startTime: string
+   167→  endTime?: string | null
+   168→  capacity: number
+   169→  seatsBooked: number
+   170→  seatsHeld: number
+   171→  status: string
+   172→  priceOverride?: number | null
+   173→  tour?: Tour | null
+   174→}
+   175→
+   176→interface Payment {
+   177→  id: string
+   178→  orderId: string
+   179→  method: string
+   180→  amount: number
+   181→  currency: string
+   182→  status: string
+   183→  gatewayReference?: string | null
+   184→  bankReference?: string | null
+   185→  bankName?: string | null
+   186→  transferDate?: string | null
+   187→  screenshotUrl?: string | null
+   188→  verifiedById?: string | null
+   189→  verifiedAt?: string | null
+   190→  rejectionReason?: string | null
+   191→  verifierComment?: string | null
+   192→  verifier?: { id: string; name: string; role: string } | null
+   193→  createdAt: string
+   194→  updatedAt: string
+   195→}
+   196→
+   197→interface Voucher {
+   198→  id: string
+   199→  voucherCode: string
+   200→  orderId: string
+   201→  customerId: string
+   202→  qrData: string
+   203→  pdfUrl?: string | null
+   204→  status: string // VALID | USED | EXPIRED | CANCELLED
+   205→  checkedInAt?: string | null
+   206→  checkedInBy?: string | null
+   207→  createdAt: string
+   208→}
+   209→
+   210→interface AuditLog {
+   211→  id: string
+   212→  staffId?: string | null
+   213→  customerId?: string | null
+   214→  orderId?: string | null
+   215→  action: string
+   216→  entity: string
+   217→  entityId: string
+   218→  details?: any
+   219→  reason?: string | null
+   220→  createdAt: string
+   221→  staff?: { id: string; name: string; role: string } | null
+   222→}
+   223→
+   224→interface Order {
+   225→  id: string
+   226→  orderNumber: string
+   227→  customerId: string
+   228→  tourId: string
+   229→  slotId: string
+   230→  paxAdult: number
+   231→  paxChild: number
+   232→  addOns?: any
+   233→  customerName: string
+   234→  customerPhone: string
+   235→  customerEmail?: string | null
+   236→  pickupLocation?: string | null
+   237→  specialRequests?: string | null
+   238→  subtotal: number
+   239→  discount: number
+   240→  taxAmount: number
+   241→  totalAmount: number
+   242→  paymentMethod: string
+   243→  paymentStatus: string
+   244→  orderStatus: string
+   245→  channel: string
+   246→  couponCode?: string | null
+   247→  createdById?: string | null
+   248→  confirmedAt?: string | null
+   249→  completedAt?: string | null
+   250→  cancelledAt?: string | null
+   251→  cancelReason?: string | null
+   252→  createdAt: string
+   253→  updatedAt: string
+   254→  tour: Tour
+   255→  slot: Slot
+   256→  customer: Customer | null
+   257→  payments?: Payment[]
+   258→  vouchers?: Voucher[]
+   259→  auditLogs?: AuditLog[]
+   260→  createdBy?: { id: string; name: string; role: string } | null
+   261→}
+   262→
+   263→// ============================================================
+   264→// CONSTANTS — emerald/teal/amber/rose/purple/stone (NO blue/indigo)
+   265→// ============================================================
+   266→type StatusKey = "ALL" | "PENDING_PAYMENT" | "PAYMENT_SUBMITTED" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
+   267→
+   268→const STATUS_TABS: { key: StatusKey; label: string; tint: string }[] = [
+   269→  { key: "ALL", label: "All", tint: "data-[state=active]:bg-stone-800 data-[state=active]:text-stone-50" },
+   270→  { key: "PENDING_PAYMENT", label: "Pending Payment", tint: "data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800" },
+   271→  { key: "PAYMENT_SUBMITTED", label: "Payment Submitted", tint: "data-[state=active]:bg-teal-100 data-[state=active]:text-teal-800" },
+   272→  { key: "CONFIRMED", label: "Confirmed", tint: "data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800" },
+   273→  { key: "COMPLETED", label: "Completed", tint: "data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-900" },
+   274→  { key: "CANCELLED", label: "Cancelled", tint: "data-[state=active]:bg-rose-100 data-[state=active]:text-rose-800" },
+   275→]
+   276→
+   277→const ORDER_STATUS_BADGE: Record<string, string> = {
+   278→  PENDING_PAYMENT: "bg-amber-100 text-amber-800 border-amber-200",
+   279→  PAYMENT_SUBMITTED: "bg-teal-100 text-teal-800 border-teal-200",
+   280→  CONFIRMED: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   281→  COMPLETED: "bg-emerald-200 text-emerald-900 border-emerald-300",
+   282→  CANCELLED: "bg-rose-100 text-rose-800 border-rose-200",
+   283→  REFUNDED: "bg-purple-100 text-purple-800 border-purple-200",
+   284→  NO_SHOW: "bg-stone-200 text-stone-700 border-stone-300",
+   285→}
+   286→
+   287→const PAYMENT_STATUS_BADGE: Record<string, string> = {
+   288→  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
+   289→  SUBMITTED: "bg-teal-100 text-teal-800 border-teal-200",
+   290→  APPROVED: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   291→  PAID: "bg-emerald-200 text-emerald-900 border-emerald-300",
+   292→  REJECTED: "bg-rose-100 text-rose-800 border-rose-200",
+   293→  FAILED: "bg-rose-100 text-rose-800 border-rose-200",
+   294→  REFUNDED: "bg-purple-100 text-purple-800 border-purple-200",
+   295→}
+   296→
+   297→const CHANNEL_BADGE: Record<string, string> = {
+   298→  WEB: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   299→  WHATSAPP: "bg-teal-100 text-teal-800 border-teal-200",
+   300→  ADMIN: "bg-amber-100 text-amber-800 border-amber-200",
+   301→  API: "bg-rose-100 text-rose-800 border-rose-200",
+   302→}
+   303→
+   304→const CHANNEL_DOT: Record<string, string> = {
+   305→  WEB: "bg-emerald-500",
+   306→  WHATSAPP: "bg-teal-500",
+   307→  ADMIN: "bg-amber-500",
+   308→  API: "bg-rose-500",
+   309→}
+   310→
+   311→const CHANNEL_LABEL: Record<string, string> = {
+   312→  WEB: "Web",
+   313→  WHATSAPP: "WhatsApp",
+   314→  ADMIN: "Admin",
+   315→  API: "API",
+   316→}
+   317→
+   318→const METHOD_LABEL: Record<string, string> = {
+   319→  AMWALPAY: "AmwalPay",
+   320→  BANK_TRANSFER: "Bank Transfer",
+   321→}
+   322→
+   323→const CANCEL_REASONS = [
+   324→  "Customer request",
+   325→  "Schedule conflict",
+   326→  "Weather conditions",
+   327→  "Payment not received",
+   328→  "Duplicate booking",
+   329→  "No-show by customer",
+   330→  "Tour cancelled by operator",
+   331→  "Other",
+   332→] as const
+   333→
+   334→const AUDIT_ACTION_LABEL: Record<string, string> = {
+   335→  APPROVE_PAYMENT: "Payment Approved",
+   336→  REJECT_PAYMENT: "Payment Rejected",
+   337→  CANCEL_ORDER: "Order Cancelled",
+   338→  COMPLETE_ORDER: "Order Completed",
+   339→  MARK_NO_SHOW: "Marked No-Show",
+   340→  RESCHEDULE_ORDER: "Order Rescheduled",
+   341→  CREATE_ORDER: "Order Created",
+   342→  MODIFY_ORDER: "Order Modified",
+   343→  REFUND: "Refund Issued",
+   344→  VOUCHER_ISSUED: "Voucher Issued",
+   345→}
+   346→
+   347→const LOYALTY_BADGE: Record<string, string> = {
+   348→  BRONZE: "bg-amber-100 text-amber-800 border-amber-200",
+   349→  SILVER: "bg-stone-200 text-stone-700 border-stone-300",
+   350→  GOLD: "bg-yellow-100 text-yellow-800 border-yellow-300",
+   351→}
+   352→
+   353→const VOUCHER_STATUS_BADGE: Record<string, string> = {
+   354→  VALID: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   355→  USED: "bg-stone-200 text-stone-700 border-stone-300",
+   356→  EXPIRED: "bg-rose-100 text-rose-800 border-rose-200",
+   357→  CANCELLED: "bg-rose-100 text-rose-800 border-rose-200",
+   358→}
+   359→
+   360→// ============================================================
+   361→// HELPERS
+   362→// ============================================================
+   363→function getInitials(name: string | null | undefined): string {
+   364→  if (!name) return "?"
+   365→  return name.trim().split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() || "").join("") || "?"
+   366→}
+   367→
+   368→function parseAddOns(raw: any): AddOn[] {
+   369→  if (!raw) return []
+   370→  if (Array.isArray(raw)) return raw as AddOn[]
+   371→  if (typeof raw === "string") {
+   372→    try {
+   373→      const parsed = JSON.parse(raw)
+   374→      return Array.isArray(parsed) ? parsed : []
+   375→    } catch {
+   376→      return []
+   377→    }
+   378→  }
+   379→  return []
+   380→}
+   381→
+   382→function parseDetails(raw: any): any {
+   383→  if (raw == null) return null
+   384→  if (typeof raw === "string") {
+   385→    try { return JSON.parse(raw) } catch { return null }
+   386→  }
+   387→  return raw
+   388→}
+   389→
+   390→function isSameDay(a: Date, b: Date): boolean {
+   391→  return a.getFullYear() === b.getFullYear() &&
+   392→    a.getMonth() === b.getMonth() &&
+   393→    a.getDate() === b.getDate()
+   394→}
+   395→
+   396→function slotDateKey(slot: Slot): string {
+   397→  return new Date(slot.date).toISOString().slice(0, 10)
+   398→}
+   399→
+   400→// ============================================================
+   401→// MAIN COMPONENT
+   402→// ============================================================
+   403→export default function BookingsView() {
+   404→  const setView = useApp((s) => s.setView)
+   405→  const setSelectedConversation = useApp((s) => s.setSelectedConversation)
+   406→  const currentStaffId = useApp((s) => s.currentStaffId)
+   407→
+   408→  const [orders, setOrders] = useState<Order[]>([])
+   409→  const [allOrders, setAllOrders] = useState<Order[]>([])
+   410→  const [loading, setLoading] = useState(true)
+   411→  const [error, setError] = useState<string | null>(null)
+   412→
+   413→  // Filters
+   414→  const [statusTab, setStatusTab] = useState<StatusKey>("ALL")
+   415→  const [channel, setChannel] = useState<string>("ALL")
+   416→  const [search, setSearch] = useState("")
+   417→  const [searchInput, setSearchInput] = useState("")
+   418→  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined)
+   419→  const [dateTo, setDateTo] = useState<Date | undefined>(undefined)
+   420→  const [datePopoverOpen, setDatePopoverOpen] = useState(false)
+   421→
+   422→  // Dialogs
+   423→  const [detailOrder, setDetailOrder] = useState<Order | null>(null)
+   424→  const [newBookingOpen, setNewBookingOpen] = useState(false)
+   425→  const [rescheduleTarget, setRescheduleTarget] = useState<Order | null>(null)
+   426→  const [cancelTarget, setCancelTarget] = useState<Order | null>(null)
+   427→
+   428→  // ---- fetch orders (server-side filters: status/channel/search) ----
+   429→  const fetchOrders = useCallback(async () => {
+   430→    try {
+   431→      const params = new URLSearchParams()
+   432→      if (statusTab !== "ALL") params.set("status", statusTab)
+   433→      if (channel !== "ALL") params.set("channel", channel)
+   434→      if (search) params.set("search", search)
+   435→      params.set("limit", "200")
+   436→      const url = `/api/orders${params.toString() ? "?" + params.toString() : ""}`
+   437→      const res = await fetch(url, { cache: "no-store" })
+   438→      if (!res.ok) throw new Error("Failed to load orders")
+   439→      const json = await res.json()
+   440→      setOrders(json.orders || [])
+   441→      setError(null)
+   442→    } catch (e: any) {
+   443→      setError(e?.message || "Unable to load orders")
+   444→    } finally {
+   445→      setLoading(false)
+   446→    }
+   447→  }, [statusTab, channel, search])
+   448→
+   449→  // ---- fetch all orders for stats ----
+   450→  const fetchAllOrders = useCallback(async () => {
+   451→    try {
+   452→      const res = await fetch("/api/orders?limit=500", { cache: "no-store" })
+   453→      if (!res.ok) return
+   454→      const json = await res.json()
+   455→      setAllOrders(json.orders || [])
+   456→    } catch {
+   457→      // silent — stats are best-effort
+   458→    }
+   459→  }, [])
+   460→
+   461→  useEffect(() => {
+   462→    setLoading(true)
+   463→    fetchOrders()
+   464→  }, [fetchOrders])
+   465→
+   466→  useEffect(() => {
+   467→    fetchAllOrders()
+   468→  }, [fetchAllOrders])
+   469→
+   470→  // auto-refresh every 20s
+   471→  useEffect(() => {
+   472→    const t = setInterval(() => {
+   473→      fetchOrders()
+   474→      fetchAllOrders()
+   475→    }, 20_000)
+   476→    return () => clearInterval(t)
+   477→  }, [fetchOrders, fetchAllOrders])
+   478→
+   479→  // ---- search submit (debounced via Enter / button) ----
+   480→  const submitSearch = () => {
+   481→    setSearch(searchInput.trim())
+   482→  }
+   483→
+   484→  // ---- derived stats (from full dataset) ----
+   485→  const stats = useMemo(() => {
+   486→    return {
+   487→      total: allOrders.length,
+   488→      confirmed: allOrders.filter(o => o.orderStatus === "CONFIRMED").length,
+   489→      pendingPayment: allOrders.filter(o => o.orderStatus === "PENDING_PAYMENT").length,
+   490→      completed: allOrders.filter(o => o.orderStatus === "COMPLETED").length,
+   491→      cancelled: allOrders.filter(o => o.orderStatus === "CANCELLED").length,
+   492→    }
+   493→  }, [allOrders])
+   494→
+   495→  // ---- client-side date filtering on already-fetched orders ----
+   496→  const visibleOrders = useMemo(() => {
+   497→    return orders.filter(o => {
+   498→      const created = new Date(o.createdAt)
+   499→      if (dateFrom && created < dateFrom) return false
+   500→      if (dateTo) {
+   501→        const end = new Date(dateTo)
+   502→        end.setHours(23, 59, 59, 999)
+   503→        if (created > end) return false
+   504→      }
+   505→      return true
+   506→    })
+   507→  }, [orders, dateFrom, dateTo])
+   508→
+   509→  const hasActiveFilters = statusTab !== "ALL" || channel !== "ALL" || !!search || !!dateFrom || !!dateTo
+   510→
+   511→  const clearFilters = () => {
+   512→    setStatusTab("ALL")
+   513→    setChannel("ALL")
+   514→    setSearch("")
+   515→    setSearchInput("")
+   516→    setDateFrom(undefined)
+   517→    setDateTo(undefined)
+   518→  }
+   519→
+   520→  // ---- generic order action ----
+   521→  const handleOrderAction = async (
+   522→    order: Order,
+   523→    action: "CANCEL" | "COMPLETE" | "NO_SHOW" | "RESCHEDULE",
+   524→    extra: Record<string, any> = {}
+   525→  ) => {
+   526→    const tid = `act-${order.id}-${action}`
+   527→    toast.loading("Updating order…", { id: tid })
+   528→    try {
+   529→      const res = await fetch(`/api/orders/${order.id}`, {
+   530→        method: "PATCH",
+   531→        headers: { "Content-Type": "application/json" },
+   532→        body: JSON.stringify({ action, staffId: currentStaffId, ...extra }),
+   533→      })
+   534→      if (!res.ok) {
+   535→        const j = await res.json().catch(() => ({}))
+   536→        throw new Error(j.error || "Action failed")
+   537→      }
+   538→      const data = await res.json()
+   539→      toast.success(`Order ${action.toLowerCase().replace("_", " ")} succeeded`, { id: tid, icon: <CheckCircle2 className="h-4 w-4" /> })
+   540→      // refresh
+   541→      fetchOrders()
+   542→      fetchAllOrders()
+   543→      // refresh detail if open
+   544→      if (detailOrder?.id === order.id) {
+   545→        setDetailOrder(data.order)
+   546→      }
+   547→      return true
+   548→    } catch (e: any) {
+   549→      toast.error(e?.message || "Could not update order", { id: tid })
+   550→      return false
+   551→    }
+   552→  }
+   553→
+   554→  // ---- approve payment (uses payments API) ----
+   555→  const handleApprovePayment = async (order: Order) => {
+   556→    const submitted = (order.payments || []).find(p => p.status === "SUBMITTED" || p.status === "PENDING")
+   557→    if (!submitted) {
+   558→      toast.error("No pending payment found for this order")
+   559→      return
+   560→    }
+   561→    const tid = `appr-${order.id}`
+   562→    toast.loading("Approving payment…", { id: tid })
+   563→    try {
+   564→      const res = await fetch(`/api/payments/${submitted.id}/verify`, {
+   565→        method: "POST",
+   566→        headers: { "Content-Type": "application/json" },
+   567→        body: JSON.stringify({ action: "APPROVE", staffId: currentStaffId, comment: "Approved from bookings view" }),
+   568→      })
+   569→      if (!res.ok) {
+   570→        const j = await res.json().catch(() => ({}))
+   571→        throw new Error(j.error || "Approve failed")
+   572→      }
+   573→      const data = await res.json()
+   574→      toast.success(
+   575→        `Payment approved — ${data.voucher?.voucherCode ? "Voucher " + data.voucher.voucherCode + " issued" : "order confirmed"}`,
+   576→        { id: tid, icon: <CheckCircle2 className="h-4 w-4" /> }
+   577→      )
+   578→      fetchOrders()
+   579→      fetchAllOrders()
+   580→      // refresh detail
+   581→      const detail = await fetch(`/api/orders/${order.id}`, { cache: "no-store" }).then(r => r.json()).catch(() => null)
+   582→      if (detail?.order) setDetailOrder(detail.order)
+   583→    } catch (e: any) {
+   584→      toast.error(e?.message || "Could not approve payment", { id: tid })
+   585→    }
+   586→  }
+   587→
+   588→  // ---- open WhatsApp conversation ----
+   589→  const openWhatsApp = async (order: Order) => {
+   590→    try {
+   591→      toast.loading("Looking up conversation…", { id: `wa-${order.id}` })
+   592→      const res = await fetch("/api/conversations", {
+   593→        method: "POST",
+   594→        headers: { "Content-Type": "application/json" },
+   595→        body: JSON.stringify({ customerPhone: order.customerPhone, customerName: order.customerName }),
+   596→      })
+   597→      if (!res.ok) throw new Error("Failed")
+   598→      const data = await res.json()
+   599→      setSelectedConversation(data.conversation.id)
+   600→      setView("inbox")
+   601→      toast.success("Opened conversation in inbox", { id: `wa-${order.id}` })
+   602→    } catch {
+   603→      toast.error("Could not open conversation", { id: `wa-${order.id}` })
+   604→    }
+   605→  }
+   606→
+   607→  // ---- resend confirmation / generate invoice (toast only) ----
+   608→  const resendConfirmation = (order: Order) => {
+   609→    toast.success(`Confirmation sent to ${order.customerPhone} via WhatsApp`, { icon: <Send className="h-4 w-4" /> })
+   610→  }
+   611→  const generateInvoice = (order: Order) => {
+   612→    toast.success(`Invoice ${order.orderNumber}.pdf generated`, { icon: <Download className="h-4 w-4" /> })
+   613→  }
+   614→
+   615→  // ============================================================
+   616→  // RENDER
+   617→  // ============================================================
+   618→  return (
+   619→    <div className="min-h-screen bg-stone-50">
+   620→      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+   621→        {/* ============= HEADER ============= */}
+   622→        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+   623→          <div className="flex items-start gap-4">
+   624→            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
+   625→              <ShoppingBag className="h-6 w-6" />
+   626→            </div>
+   627→            <div>
+   628→              <h1 className="text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
+   629→                Bookings & Orders
+   630→              </h1>
+   631→              <p className="mt-1 text-sm text-stone-500">
+   632→                Manage every booking — verify payments, reschedule tours, issue vouchers, and audit the full lifecycle.
+   633→              </p>
+   634→            </div>
+   635→          </div>
+   636→          <div className="flex items-center gap-2">
+   637→            <Button
+   638→              variant="outline"
+   639→              onClick={() => { fetchOrders(); fetchAllOrders() }}
+   640→              className="border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+   641→            >
+   642→              <RotateCcw className="mr-2 h-4 w-4" />
+   643→              Refresh
+   644→            </Button>
+   645→            <Button
+   646→              onClick={() => setNewBookingOpen(true)}
+   647→              className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
+   648→            >
+   649→              <Plus className="mr-2 h-4 w-4" />
+   650→              New Booking
+   651→            </Button>
+   652→          </div>
+   653→        </header>
+   654→
+   655→        {/* ============= STATS ROW ============= */}
+   656→        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+   657→          <StatCard
+   658→            label="Total Orders"
+   659→            value={stats.total}
+   660→            icon={<ShoppingBag className="h-5 w-5" />}
+   661→            gradient="from-stone-700 to-stone-900"
+   662→            onClick={() => clearFilters()}
+   663→          />
+   664→          <StatCard
+   665→            label="Confirmed"
+   666→            value={stats.confirmed}
+   667→            icon={<CheckCircle className="h-5 w-5" />}
+   668→            gradient="from-emerald-500 to-emerald-700"
+   669→            onClick={() => setStatusTab("CONFIRMED")}
+   670→          />
+   671→          <StatCard
+   672→            label="Pending Payment"
+   673→            value={stats.pendingPayment}
+   674→            icon={<Clock className="h-5 w-5" />}
+   675→            gradient="from-amber-500 to-orange-600"
+   676→            onClick={() => setStatusTab("PENDING_PAYMENT")}
+   677→          />
+   678→          <StatCard
+   679→            label="Completed"
+   680→            value={stats.completed}
+   681→            icon={<CheckCircle2 className="h-5 w-5" />}
+   682→            gradient="from-emerald-600 to-teal-700"
+   683→            onClick={() => setStatusTab("COMPLETED")}
+   684→          />
+   685→          <StatCard
+   686→            label="Cancelled"
+   687→            value={stats.cancelled}
+   688→            icon={<Ban className="h-5 w-5" />}
+   689→            gradient="from-rose-500 to-rose-700"
+   690→            onClick={() => setStatusTab("CANCELLED")}
+   691→          />
+   692→        </div>
+   693→
+   694→        {/* ============= FILTER BAR ============= */}
+   695→        <Card className="mb-4 border-stone-200 bg-white shadow-sm">
+   696→          <CardContent className="p-4">
+   697→            <div className="flex flex-col gap-4">
+   698→              {/* Status tabs */}
+   699→              <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as StatusKey)}>
+   700→                <TabsList className="flex h-auto w-full flex-wrap gap-1 bg-stone-100 p-1">
+   701→                  {STATUS_TABS.map(tab => (
+   702→                    <TabsTrigger
+   703→                      key={tab.key}
+   704→                      value={tab.key}
+   705→                      className={cn(
+   706→                        "data-[state=active]:shadow-sm transition-all",
+   707→                        tab.tint
+   708→                      )}
+   709→                    >
+   710→                      {tab.label}
+   711→                    </TabsTrigger>
+   712→                  ))}
+   713→                </TabsList>
+   714→              </Tabs>
+   715→
+   716→              {/* Search + Channel + Date */}
+   717→              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+   718→                <div className="relative flex-1">
+   719→                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+   720→                  <Input
+   721→                    placeholder="Search by order #, customer name, or phone…"
+   722→                    value={searchInput}
+   723→                    onChange={(e) => setSearchInput(e.target.value)}
+   724→                    onKeyDown={(e) => { if (e.key === "Enter") submitSearch() }}
+   725→                    className="border-stone-200 bg-stone-50 pl-9 pr-3 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-400"
+   726→                  />
+   727→                </div>
+   728→
+   729→                <Select value={channel} onValueChange={setChannel}>
+   730→                  <SelectTrigger className="w-full border-stone-200 bg-stone-50 sm:w-[160px] focus-visible:ring-emerald-500/30">
+   731→                    <div className="flex items-center gap-2">
+   732→                      <Filter className="h-4 w-4 text-stone-400" />
+   733→                      <SelectValue placeholder="Channel" />
+   734→                    </div>
+   735→                  </SelectTrigger>
+   736→                  <SelectContent>
+   737→                    <SelectItem value="ALL">All Channels</SelectItem>
+   738→                    <SelectItem value="WEB">🌐 Web</SelectItem>
+   739→                    <SelectItem value="WHATSAPP">💬 WhatsApp</SelectItem>
+   740→                    <SelectItem value="ADMIN">⚙️ Admin</SelectItem>
+   741→                    <SelectItem value="API">🔌 API</SelectItem>
+   742→                  </SelectContent>
+   743→                </Select>
+   744→
+   745→                <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+   746→                  <PopoverTrigger asChild>
+   747→                    <Button variant="outline" className="w-full justify-start border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 sm:w-[220px]">
+   748→                      <CalendarIcon className="mr-2 h-4 w-4 text-stone-400" />
+   749→                      {dateFrom || dateTo ? (
+   750→                        <span className="truncate text-sm">
+   751→                          {dateFrom ? formatDate(dateFrom) : "Any"} — {dateTo ? formatDate(dateTo) : "Any"}
+   752→                        </span>
+   753→                      ) : (
+   754→                        <span className="text-sm text-stone-500">Date range</span>
+   755→                      )}
+   756→                    </Button>
+   757→                  </PopoverTrigger>
+   758→                  <PopoverContent className="w-auto p-0" align="start">
+   759→                    <div className="flex flex-col gap-3 p-3">
+   760→                      <div className="flex items-center gap-2">
+   761→                        <CalendarIcon className="h-4 w-4 text-emerald-600" />
+   762→                        <span className="text-sm font-medium text-stone-700">Filter by created date</span>
+   763→                      </div>
+   764→                      <Calendar
+   765→                        mode="range"
+   766→                        selected={{ from: dateFrom, to: dateTo }}
+   767→                        onSelect={(range) => {
+   768→                          setDateFrom(range?.from)
+   769→                          setDateTo(range?.to)
+   770→                        }}
+   771→                        numberOfMonths={1}
+   772→                      />
+   773→                      <div className="flex items-center justify-between gap-2">
+   774→                        <Button
+   775→                          variant="ghost"
+   776→                          size="sm"
+   777→                          onClick={() => { setDateFrom(undefined); setDateTo(undefined) }}
+   778→                          className="text-stone-500 hover:text-stone-700"
+   779→                        >
+   780→                          Clear
+   781→                        </Button>
+   782→                        <Button
+   783→                          size="sm"
+   784→                          onClick={() => setDatePopoverOpen(false)}
+   785→                          className="bg-emerald-600 text-white hover:bg-emerald-700"
+   786→                        >
+   787→                          Apply
+   788→                        </Button>
+   789→                      </div>
+   790→                    </div>
+   791→                  </PopoverContent>
+   792→                </Popover>
+   793→
+   794→                {hasActiveFilters && (
+   795→                  <Button
+   796→                    variant="ghost"
+   797→                    onClick={clearFilters}
+   798→                    className="text-stone-500 hover:text-stone-700"
+   799→                  >
+   800→                    <X className="mr-1 h-4 w-4" />
+   801→                    Clear
+   802→                  </Button>
+   803→                )}
+   804→              </div>
+   805→            </div>
+   806→          </CardContent>
+   807→        </Card>
+   808→
+   809→        {/* ============= ORDERS LIST ============= */}
+   810→        {error ? (
+   811→          <ErrorState message={error} onRetry={() => { fetchOrders(); fetchAllOrders() }} />
+   812→        ) : loading ? (
+   813→          <BookingsSkeleton />
+   814→        ) : visibleOrders.length === 0 ? (
+   815→          <EmptyState hasFilters={hasActiveFilters} onClear={clearFilters} onNewBooking={() => setNewBookingOpen(true)} />
+   816→        ) : (
+   817→          <Card className="border-stone-200 bg-white shadow-sm">
+   818→            <CardContent className="p-0">
+   819→              {/* Desktop table */}
+   820→              <div className="hidden lg:block">
+   821→                <OrdersTable
+   822→                  orders={visibleOrders}
+   823→                  onView={setDetailOrder}
+   824→                  onReschedule={(o) => setRescheduleTarget(o)}
+   825→                  onCancel={(o) => setCancelTarget(o)}
+   826→                  onComplete={(o) => handleOrderAction(o, "COMPLETE")}
+   827→                  onNoShow={(o) => handleOrderAction(o, "NO_SHOW")}
+   828→                  onApprovePayment={handleApprovePayment}
+   829→                  onOpenWhatsApp={openWhatsApp}
+   830→                  onResend={resendConfirmation}
+   831→                  onInvoice={generateInvoice}
+   832→                />
+   833→              </div>
+   834→              {/* Mobile cards */}
+   835→              <div className="block lg:hidden">
+   836→                <OrdersCardList
+   837→                  orders={visibleOrders}
+   838→                  onView={setDetailOrder}
+   839→                  onReschedule={(o) => setRescheduleTarget(o)}
+   840→                  onCancel={(o) => setCancelTarget(o)}
+   841→                  onComplete={(o) => handleOrderAction(o, "COMPLETE")}
+   842→                  onNoShow={(o) => handleOrderAction(o, "NO_SHOW")}
+   843→                  onApprovePayment={handleApprovePayment}
+   844→                />
+   845→              </div>
+   846→            </CardContent>
+   847→          </Card>
+   848→        )}
+   849→
+   850→        {/* ============= ORDER DETAIL SHEET ============= */}
+   851→        <Sheet
+   852→          open={!!detailOrder}
+   853→          onOpenChange={(open) => { if (!open) setDetailOrder(null) }}
+   854→        >
+   855→          <SheetContent
+   856→            side="right"
+   857→            className="w-full overflow-y-auto bg-stone-50 p-0 sm:max-w-2xl lg:max-w-3xl"
+   858→          >
+   859→            {detailOrder && (
+   860→              <OrderDetailContent
+   861→                key={detailOrder.id}
+   862→                order={detailOrder}
+   863→                onClose={() => setDetailOrder(null)}
+   864→                onApprovePayment={handleApprovePayment}
+   865→                onReschedule={(o) => { setDetailOrder(null); setRescheduleTarget(o) }}
+   866→                onCancel={(o) => { setDetailOrder(null); setCancelTarget(o) }}
+   867→                onComplete={(o) => handleOrderAction(o, "COMPLETE")}
+   868→                onNoShow={(o) => handleOrderAction(o, "NO_SHOW")}
+   869→                onOpenWhatsApp={openWhatsApp}
+   870→                onResend={resendConfirmation}
+   871→                onInvoice={generateInvoice}
+   872→              />
+   873→            )}
+   874→          </SheetContent>
+   875→        </Sheet>
+   876→
+   877→        {/* ============= NEW BOOKING DIALOG ============= */}
+   878→        <NewBookingDialog
+   879→          open={newBookingOpen}
+   880→          onOpenChange={setNewBookingOpen}
+   881→          currentStaffId={currentStaffId}
+   882→          onCreated={(order) => {
+   883→            setNewBookingOpen(false)
+   884→            fetchOrders()
+   885→            fetchAllOrders()
+   886→            toast.success(`Booking ${order.orderNumber} created`, { icon: <CheckCircle2 className="h-4 w-4" /> })
+   887→            setDetailOrder(order)
+   888→          }}
+   889→        />
+   890→
+   891→        {/* ============= RESCHEDULE DIALOG ============= */}
+   892→        {rescheduleTarget && (
+   893→          <RescheduleDialog
+   894→            key={rescheduleTarget.id}
+   895→            order={rescheduleTarget}
+   896→            onOpenChange={(open) => { if (!open) setRescheduleTarget(null) }}
+   897→            onConfirm={async (newSlotId) => {
+   898→              const ok = await handleOrderAction(rescheduleTarget, "RESCHEDULE", { newSlotId })
+   899→              if (ok) setRescheduleTarget(null)
+   900→            }}
+   901→          />
+   902→        )}
+   903→
+   904→        {/* ============= CANCEL DIALOG ============= */}
+   905→        {cancelTarget && (
+   906→          <CancelDialog
+   907→            key={cancelTarget.id}
+   908→            order={cancelTarget}
+   909→            onOpenChange={(open) => { if (!open) setCancelTarget(null) }}
+   910→            onConfirm={async (reason) => {
+   911→              const ok = await handleOrderAction(cancelTarget, "CANCEL", { reason })
+   912→              if (ok) setCancelTarget(null)
+   913→            }}
+   914→          />
+   915→        )}
+   916→      </div>
+   917→    </div>
+   918→  )
+   919→}
+   920→
+   921→// ============================================================
+   922→// STAT CARD
+   923→// ============================================================
+   924→function StatCard({
+   925→  label,
+   926→  value,
+   927→  icon,
+   928→  gradient,
+   929→  onClick,
+   930→}: {
+   931→  label: string
+   932→  value: number
+   933→  icon: React.ReactNode
+   934→  gradient: string
+   935→  onClick?: () => void
+   936→}) {
+   937→  return (
+   938→    <button
+   939→      onClick={onClick}
+   940→      className="group relative overflow-hidden rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+   941→    >
+   942→      <div className="flex items-center justify-between">
+   943→        <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm", gradient)}>
+   944→          {icon}
+   945→        </div>
+   946→        <span className="text-3xl font-bold tabular-nums text-stone-900">{value}</span>
+   947→      </div>
+   948→      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
+   949→    </button>
+   950→  )
+   951→}
+   952→
+   953→// ============================================================
+   954→// ORDERS TABLE (desktop)
+   955→// ============================================================
+   956→function OrdersTable({
+   957→  orders,
+   958→  onView,
+   959→  onReschedule,
+   960→  onCancel,
+   961→  onComplete,
+   962→  onNoShow,
+   963→  onApprovePayment,
+   964→  onOpenWhatsApp,
+   965→  onResend,
+   966→  onInvoice,
+   967→}: {
+   968→  orders: Order[]
+   969→  onView: (o: Order) => void
+   970→  onReschedule: (o: Order) => void
+   971→  onCancel: (o: Order) => void
+   972→  onComplete: (o: Order) => void
+   973→  onNoShow: (o: Order) => void
+   974→  onApprovePayment: (o: Order) => void
+   975→  onOpenWhatsApp: (o: Order) => void
+   976→  onResend: (o: Order) => void
+   977→  onInvoice: (o: Order) => void
+   978→}) {
+   979→  return (
+   980→    <Table>
+   981→      <TableHeader>
+   982→        <TableRow className="border-stone-200 bg-stone-50/80 hover:bg-stone-50">
+   983→          <TableHead className="pl-4 text-xs font-semibold uppercase tracking-wide text-stone-500">Order #</TableHead>
+   984→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Customer</TableHead>
+   985→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Tour</TableHead>
+   986→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Pax</TableHead>
+   987→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Amount</TableHead>
+   988→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Method</TableHead>
+   989→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Pay Status</TableHead>
+   990→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Order Status</TableHead>
+   991→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Channel</TableHead>
+   992→          <TableHead className="text-xs font-semibold uppercase tracking-wide text-stone-500">Created</TableHead>
+   993→          <TableHead className="pr-4 text-right text-xs font-semibold uppercase tracking-wide text-stone-500">Actions</TableHead>
+   994→        </TableRow>
+   995→      </TableHeader>
+   996→      <TableBody>
+   997→        {orders.map(order => (
+   998→          <OrderTableRow
+   999→            key={order.id}
+  1000→            order={order}
+  1001→            onView={onView}
+  1002→            onReschedule={onReschedule}
+  1003→            onCancel={onCancel}
+  1004→            onComplete={onComplete}
+  1005→            onNoShow={onNoShow}
+  1006→            onApprovePayment={onApprovePayment}
+  1007→            onOpenWhatsApp={onOpenWhatsApp}
+  1008→            onResend={onResend}
+  1009→            onInvoice={onInvoice}
+  1010→          />
+  1011→        ))}
+  1012→      </TableBody>
+  1013→    </Table>
+  1014→  )
+  1015→}
+  1016→
+  1017→function OrderTableRow({
+  1018→  order,
+  1019→  onView,
+  1020→  onReschedule,
+  1021→  onCancel,
+  1022→  onComplete,
+  1023→  onNoShow,
+  1024→  onApprovePayment,
+  1025→  onOpenWhatsApp,
+  1026→  onResend,
+  1027→  onInvoice,
+  1028→}: {
+  1029→  order: Order
+  1030→  onView: (o: Order) => void
+  1031→  onReschedule: (o: Order) => void
+  1032→  onCancel: (o: Order) => void
+  1033→  onComplete: (o: Order) => void
+  1034→  onNoShow: (o: Order) => void
+  1035→  onApprovePayment: (o: Order) => void
+  1036→  onOpenWhatsApp: (o: Order) => void
+  1037→  onResend: (o: Order) => void
+  1038→  onInvoice: (o: Order) => void
+  1039→}) {
+  1040→  const hasPendingPayment = (order.payments || []).some(p => p.status === "SUBMITTED" || p.status === "PENDING")
+  1041→  const canComplete = order.orderStatus === "CONFIRMED"
+  1042→  const canCancel = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(order.orderStatus)
+  1043→  const canNoShow = order.orderStatus === "CONFIRMED"
+  1044→  const canReschedule = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(order.orderStatus)
+  1045→
+  1046→  return (
+  1047→    <TableRow
+  1048→      className="cursor-pointer border-stone-100 transition-colors hover:bg-emerald-50/40"
+  1049→      onClick={() => onView(order)}
+  1050→    >
+  1051→      <TableCell className="pl-4 py-3">
+  1052→        <div className="flex items-center gap-2">
+  1053→          <span className="font-mono text-sm font-semibold text-stone-800">{order.orderNumber}</span>
+  1054→          {order.couponCode && (
+  1055→            <Tooltip>
+  1056→              <TooltipTrigger asChild>
+  1057→                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+  1058→              </TooltipTrigger>
+  1059→              <TooltipContent>Coupon: {order.couponCode}</TooltipContent>
+  1060→            </Tooltip>
+  1061→          )}
+  1062→        </div>
+  1063→      </TableCell>
+  1064→      <TableCell className="py-3">
+  1065→        <div className="flex items-center gap-2">
+  1066→          <Avatar className="h-8 w-8 border border-stone-200 bg-gradient-to-br from-emerald-100 to-teal-100">
+  1067→            <AvatarFallback className="bg-transparent text-xs font-semibold text-emerald-700">
+  1068→              {getInitials(order.customerName)}
+  1069→            </AvatarFallback>
+  1070→          </Avatar>
+  1071→          <div className="min-w-0">
+  1072→            <div className="truncate text-sm font-medium text-stone-800">{order.customerName}</div>
+  1073→            <div className="truncate text-xs text-stone-500">{order.customerPhone}</div>
+  1074→          </div>
+  1075→        </div>
+  1076→      </TableCell>
+  1077→      <TableCell className="py-3">
+  1078→        <div className="max-w-[220px]">
+  1079→          <div className="truncate text-sm font-medium text-stone-800">{order.tour.name}</div>
+  1080→          <div className="flex items-center gap-1 text-xs text-stone-500">
+  1081→            <CalendarIcon className="h-3 w-3" />
+  1082→            {formatDate(order.slot.date)}
+  1083→            <Clock className="ml-1 h-3 w-3" />
+  1084→            {order.slot.startTime}
+  1085→          </div>
+  1086→        </div>
+  1087→      </TableCell>
+  1088→      <TableCell className="py-3">
+  1089→        <div className="flex items-center gap-1 text-sm text-stone-700">
+  1090→          <Users className="h-3.5 w-3.5 text-stone-400" />
+  1091→          <span className="font-medium">{order.paxAdult + order.paxChild}</span>
+  1092→          <span className="text-xs text-stone-400">
+  1093→            ({order.paxAdult}A{order.paxChild > 0 ? `+${order.paxChild}C` : ""})
+  1094→          </span>
+  1095→        </div>
+  1096→      </TableCell>
+  1097→      <TableCell className="py-3">
+  1098→        <div className="text-sm font-semibold text-stone-900">{formatCurrency(order.totalAmount)}</div>
+  1099→      </TableCell>
+  1100→      <TableCell className="py-3">
+  1101→        <div className="flex items-center gap-1.5 text-xs text-stone-600">
+  1102→          {order.paymentMethod === "AMWALPAY" ? (
+  1103→            <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
+  1104→          ) : (
+  1105→            <Landmark className="h-3.5 w-3.5 text-teal-600" />
+  1106→          )}
+  1107→          {METHOD_LABEL[order.paymentMethod] || order.paymentMethod}
+  1108→        </div>
+  1109→      </TableCell>
+  1110→      <TableCell className="py-3">
+  1111→        <Badge variant="outline" className={cn("text-xs", PAYMENT_STATUS_BADGE[order.paymentStatus] || "bg-stone-100 text-stone-700 border-stone-200")}>
+  1112→          {prettifyStatus(order.paymentStatus)}
+  1113→        </Badge>
+  1114→      </TableCell>
+  1115→      <TableCell className="py-3">
+  1116→        <Badge variant="outline" className={cn("text-xs", ORDER_STATUS_BADGE[order.orderStatus] || "bg-stone-100 text-stone-700 border-stone-200")}>
+  1117→          {prettifyStatus(order.orderStatus)}
+  1118→        </Badge>
+  1119→      </TableCell>
+  1120→      <TableCell className="py-3">
+  1121→        <Badge variant="outline" className={cn("gap-1 text-xs", CHANNEL_BADGE[order.channel] || "bg-stone-100 text-stone-700 border-stone-200")}>
+  1122→          <span className={cn("h-1.5 w-1.5 rounded-full", CHANNEL_DOT[order.channel])} />
+  1123→          {CHANNEL_LABEL[order.channel] || order.channel}
+  1124→        </Badge>
+  1125→      </TableCell>
+  1126→      <TableCell className="py-3">
+  1127→        <Tooltip>
+  1128→          <TooltipTrigger asChild>
+  1129→            <span className="text-xs text-stone-500">{timeAgo(order.createdAt)}</span>
+  1130→          </TooltipTrigger>
+  1131→          <TooltipContent>{formatDateTime(order.createdAt)}</TooltipContent>
+  1132→        </Tooltip>
+  1133→      </TableCell>
+  1134→      <TableCell className="pr-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+  1135→        <DropdownMenu>
+  1136→          <DropdownMenuTrigger asChild>
+  1137→            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-stone-100">
+  1138→              <MoreHorizontal className="h-4 w-4" />
+  1139→            </Button>
+  1140→          </DropdownMenuTrigger>
+  1141→          <DropdownMenuContent align="end" className="w-48">
+  1142→            <DropdownMenuItem onClick={() => onView(order)}>
+  1143→              <Eye className="mr-2 h-4 w-4" /> View Details
+  1144→            </DropdownMenuItem>
+  1145→            {hasPendingPayment && (
+  1146→              <DropdownMenuItem
+  1147→                onClick={() => onApprovePayment(order)}
+  1148→                className="text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50"
+  1149→              >
+  1150→                <CheckCircle className="mr-2 h-4 w-4" /> Approve Payment
+  1151→              </DropdownMenuItem>
+  1152→            )}
+  1153→            <DropdownMenuSeparator />
+  1154→            {canReschedule && (
+  1155→              <DropdownMenuItem onClick={() => onReschedule(order)}>
+  1156→                <RotateCcw className="mr-2 h-4 w-4" /> Reschedule
+  1157→              </DropdownMenuItem>
+  1158→            )}
+  1159→            {canComplete && (
+  1160→              <DropdownMenuItem
+  1161→                onClick={() => onComplete(order)}
+  1162→                className="text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50"
+  1163→              >
+  1164→                <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Complete
+  1165→              </DropdownMenuItem>
+  1166→            )}
+  1167→            {canNoShow && (
+  1168→              <DropdownMenuItem
+  1169→                onClick={() => onNoShow(order)}
+  1170→                className="text-stone-700 focus:bg-stone-100"
+  1171→              >
+  1172→                <XCircle className="mr-2 h-4 w-4" /> Mark No-Show
+  1173→              </DropdownMenuItem>
+  1174→            )}
+  1175→            <DropdownMenuItem onClick={() => onOpenWhatsApp(order)}>
+  1176→              <MessageCircle className="mr-2 h-4 w-4" /> Open WhatsApp
+  1177→            </DropdownMenuItem>
+  1178→            <DropdownMenuItem onClick={() => onResend(order)}>
+  1179→              <Send className="mr-2 h-4 w-4" /> Resend Confirmation
+  1180→            </DropdownMenuItem>
+  1181→            <DropdownMenuItem onClick={() => onInvoice(order)}>
+  1182→              <Download className="mr-2 h-4 w-4" /> Generate Invoice
+  1183→            </DropdownMenuItem>
+  1184→            {canCancel && (
+  1185→              <>
+  1186→                <DropdownMenuSeparator />
+  1187→                <DropdownMenuItem
+  1188→                  onClick={() => onCancel(order)}
+  1189→                  className="text-rose-700 focus:text-rose-800 focus:bg-rose-50"
+  1190→                >
+  1191→                  <Ban className="mr-2 h-4 w-4" /> Cancel Order
+  1192→                </DropdownMenuItem>
+  1193→              </>
+  1194→            )}
+  1195→          </DropdownMenuContent>
+  1196→        </DropdownMenu>
+  1197→      </TableCell>
+  1198→    </TableRow>
+  1199→  )
+  1200→}
+  1201→
+  1202→// ============================================================
+  1203→// ORDERS CARD LIST (mobile)
+  1204→// ============================================================
+  1205→function OrdersCardList({
+  1206→  orders,
+  1207→  onView,
+  1208→  onReschedule,
+  1209→  onCancel,
+  1210→  onComplete,
+  1211→  onNoShow,
+  1212→  onApprovePayment,
+  1213→}: {
+  1214→  orders: Order[]
+  1215→  onView: (o: Order) => void
+  1216→  onReschedule: (o: Order) => void
+  1217→  onCancel: (o: Order) => void
+  1218→  onComplete: (o: Order) => void
+  1219→  onNoShow: (o: Order) => void
+  1220→  onApprovePayment: (o: Order) => void
+  1221→}) {
+  1222→  return (
+  1223→    <div className="divide-y divide-stone-100">
+  1224→      {orders.map(order => (
+  1225→        <OrderCard
+  1226→          key={order.id}
+  1227→          order={order}
+  1228→          onView={onView}
+  1229→          onReschedule={onReschedule}
+  1230→          onCancel={onCancel}
+  1231→          onComplete={onComplete}
+  1232→          onNoShow={onNoShow}
+  1233→          onApprovePayment={onApprovePayment}
+  1234→        />
+  1235→      ))}
+  1236→    </div>
+  1237→  )
+  1238→}
+  1239→
+  1240→function OrderCard({
+  1241→  order,
+  1242→  onView,
+  1243→  onReschedule,
+  1244→  onCancel,
+  1245→  onComplete,
+  1246→  onNoShow,
+  1247→  onApprovePayment,
+  1248→}: {
+  1249→  order: Order
+  1250→  onView: (o: Order) => void
+  1251→  onReschedule: (o: Order) => void
+  1252→  onCancel: (o: Order) => void
+  1253→  onComplete: (o: Order) => void
+  1254→  onNoShow: (o: Order) => void
+  1255→  onApprovePayment: (o: Order) => void
+  1256→}) {
+  1257→  const hasPendingPayment = (order.payments || []).some(p => p.status === "SUBMITTED" || p.status === "PENDING")
+  1258→  const canComplete = order.orderStatus === "CONFIRMED"
+  1259→  const canCancel = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(order.orderStatus)
+  1260→  const canNoShow = order.orderStatus === "CONFIRMED"
+  1261→  const canReschedule = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(order.orderStatus)
+  1262→
+  1263→  return (
+  1264→    <div
+  1265→      className="cursor-pointer p-4 transition-colors hover:bg-emerald-50/40 active:bg-emerald-50/60"
+  1266→      onClick={() => onView(order)}
+  1267→    >
+  1268→      <div className="flex items-start justify-between gap-3">
+  1269→        <div className="flex items-center gap-3">
+  1270→          <Avatar className="h-10 w-10 border border-stone-200 bg-gradient-to-br from-emerald-100 to-teal-100">
+  1271→            <AvatarFallback className="bg-transparent text-xs font-semibold text-emerald-700">
+  1272→              {getInitials(order.customerName)}
+  1273→            </AvatarFallback>
+  1274→          </Avatar>
+  1275→          <div>
+  1276→            <div className="flex items-center gap-2">
+  1277→              <span className="font-mono text-sm font-semibold text-stone-800">{order.orderNumber}</span>
+  1278→              <Badge variant="outline" className={cn("gap-1 text-[10px]", CHANNEL_BADGE[order.channel])}>
+  1279→                <span className={cn("h-1.5 w-1.5 rounded-full", CHANNEL_DOT[order.channel])} />
+  1280→                {CHANNEL_LABEL[order.channel]}
+  1281→              </Badge>
+  1282→            </div>
+  1283→            <div className="mt-0.5 text-sm font-medium text-stone-800">{order.customerName}</div>
+  1284→            <div className="text-xs text-stone-500">{order.customerPhone}</div>
+  1285→          </div>
+  1286→        </div>
+  1287→        <DropdownMenu>
+  1288→          <DropdownMenuTrigger asChild>
+  1289→            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+  1290→              <MoreHorizontal className="h-4 w-4" />
+  1291→            </Button>
+  1292→          </DropdownMenuTrigger>
+  1293→          <DropdownMenuContent align="end" className="w-48">
+  1294→            <DropdownMenuItem onClick={() => onView(order)}>
+  1295→              <Eye className="mr-2 h-4 w-4" /> View Details
+  1296→            </DropdownMenuItem>
+  1297→            {hasPendingPayment && (
+  1298→              <DropdownMenuItem onClick={() => onApprovePayment(order)} className="text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50">
+  1299→                <CheckCircle className="mr-2 h-4 w-4" /> Approve Payment
+  1300→              </DropdownMenuItem>
+  1301→            )}
+  1302→            {canReschedule && (
+  1303→              <DropdownMenuItem onClick={() => onReschedule(order)}>
+  1304→                <RotateCcw className="mr-2 h-4 w-4" /> Reschedule
+  1305→              </DropdownMenuItem>
+  1306→            )}
+  1307→            {canComplete && (
+  1308→              <DropdownMenuItem onClick={() => onComplete(order)} className="text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50">
+  1309→                <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Complete
+  1310→              </DropdownMenuItem>
+  1311→            )}
+  1312→            {canNoShow && (
+  1313→              <DropdownMenuItem onClick={() => onNoShow(order)} className="text-stone-700 focus:bg-stone-100">
+  1314→                <XCircle className="mr-2 h-4 w-4" /> Mark No-Show
+  1315→              </DropdownMenuItem>
+  1316→            )}
+  1317→            {canCancel && (
+  1318→              <>
+  1319→                <DropdownMenuSeparator />
+  1320→                <DropdownMenuItem onClick={() => onCancel(order)} className="text-rose-700 focus:text-rose-800 focus:bg-rose-50">
+  1321→                  <Ban className="mr-2 h-4 w-4" /> Cancel Order
+  1322→                </DropdownMenuItem>
+  1323→              </>
+  1324→            )}
+  1325→          </DropdownMenuContent>
+  1326→        </DropdownMenu>
+  1327→      </div>
+  1328→
+  1329→      <div className="mt-3 rounded-lg bg-stone-50 p-3">
+  1330→        <div className="flex items-start justify-between gap-2">
+  1331→          <div className="min-w-0 flex-1">
+  1332→            <div className="truncate text-sm font-medium text-stone-800">{order.tour.name}</div>
+  1333→            <div className="mt-1 flex items-center gap-2 text-xs text-stone-500">
+  1334→              <CalendarIcon className="h-3 w-3" />
+  1335→              {formatDate(order.slot.date)}
+  1336→              <Clock className="ml-1 h-3 w-3" />
+  1337→              {order.slot.startTime}
+  1338→            </div>
+  1339→          </div>
+  1340→          <div className="text-right">
+  1341→            <div className="text-sm font-semibold text-stone-900">{formatCurrency(order.totalAmount)}</div>
+  1342→            <div className="flex items-center justify-end gap-1 text-xs text-stone-500">
+  1343→              <Users className="h-3 w-3" />
+  1344→              {order.paxAdult + order.paxChild} pax
+  1345→            </div>
+  1346→          </div>
+  1347→        </div>
+  1348→      </div>
+  1349→
+  1350→      <div className="mt-3 flex flex-wrap items-center gap-2">
+  1351→        <Badge variant="outline" className={cn("text-xs", ORDER_STATUS_BADGE[order.orderStatus])}>
+  1352→          {prettifyStatus(order.orderStatus)}
+  1353→        </Badge>
+  1354→        <Badge variant="outline" className={cn("text-xs", PAYMENT_STATUS_BADGE[order.paymentStatus])}>
+  1355→          {prettifyStatus(order.paymentStatus)}
+  1356→        </Badge>
+  1357→        <Badge variant="outline" className="text-xs text-stone-600 border-stone-200 bg-stone-50">
+  1358→          {order.paymentMethod === "AMWALPAY" ? <CreditCard className="mr-1 h-3 w-3" /> : <Landmark className="mr-1 h-3 w-3" />}
+  1359→          {METHOD_LABEL[order.paymentMethod]}
+  1360→        </Badge>
+  1361→        <span className="ml-auto text-xs text-stone-400">{timeAgo(order.createdAt)}</span>
+  1362→      </div>
+  1363→    </div>
+  1364→  )
+  1365→}
+  1366→
+  1367→// ============================================================
+  1368→// ORDER DETAIL CONTENT
+  1369→// ============================================================
+  1370→function OrderDetailContent({
+  1371→  order,
+  1372→  onClose,
+  1373→  onApprovePayment,
+  1374→  onReschedule,
+  1375→  onCancel,
+  1376→  onComplete,
+  1377→  onNoShow,
+  1378→  onOpenWhatsApp,
+  1379→  onResend,
+  1380→  onInvoice,
+  1381→}: {
+  1382→  order: Order
+  1383→  onClose: () => void
+  1384→  onApprovePayment: (o: Order) => void
+  1385→  onReschedule: (o: Order) => void
+  1386→  onCancel: (o: Order) => void
+  1387→  onComplete: (o: Order) => void
+  1388→  onNoShow: (o: Order) => void
+  1389→  onOpenWhatsApp: (o: Order) => void
+  1390→  onResend: (o: Order) => void
+  1391→  onInvoice: (o: Order) => void
+  1392→}) {
+  1393→  const [fullOrder, setFullOrder] = useState<Order | null>(null)
+  1394→  const [loading, setLoading] = useState(true)
+  1395→  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  1396→
+  1397→  useEffect(() => {
+  1398→    let cancelled = false
+  1399→    fetch(`/api/orders/${order.id}`, { cache: "no-store" })
+  1400→      .then(r => r.json())
+  1401→      .then(json => {
+  1402→        if (!cancelled && json.order) setFullOrder(json.order)
+  1403→      })
+  1404→      .catch(() => {})
+  1405→      .finally(() => { if (!cancelled) setLoading(false) })
+  1406→    return () => { cancelled = true }
+  1407→  }, [order.id])
+  1408→
+  1409→  // Use fullOrder (with audit logs) if available, fall back to passed order
+  1410→  const o = fullOrder || order
+  1411→  const auditLogs = o.auditLogs || []
+  1412→  const payments = o.payments || []
+  1413→  const vouchers = o.vouchers || []
+  1414→  const addOns = parseAddOns(o.addOns)
+  1415→  const pendingPayment = payments.find(p => p.status === "SUBMITTED" || p.status === "PENDING")
+  1416→  const approvedPayment = payments.find(p => p.status === "APPROVED" || p.status === "PAID")
+  1417→
+  1418→  const canComplete = o.orderStatus === "CONFIRMED"
+  1419→  const canCancel = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(o.orderStatus)
+  1420→  const canNoShow = o.orderStatus === "CONFIRMED"
+  1421→  const canReschedule = ["PENDING_PAYMENT", "PAYMENT_SUBMITTED", "CONFIRMED"].includes(o.orderStatus)
+  1422→  const canApprovePayment = !!pendingPayment && ["PENDING_PAYMENT", "PAYMENT_SUBMITTED"].includes(o.orderStatus)
+  1423→
+  1424→  return (
+  1425→    <TooltipProvider delayDuration={150}>
+  1426→      {/* Header */}
+  1427→      <SheetHeader className="border-b border-stone-200 bg-white px-6 py-4">
+  1428→        <div className="flex items-start justify-between gap-3 pr-8">
+  1429→          <div className="min-w-0 flex-1">
+  1430→            <div className="flex items-center gap-2">
+  1431→              <SheetTitle className="font-mono text-lg font-bold text-stone-900">
+  1432→                {o.orderNumber}
+  1433→              </SheetTitle>
+  1434→              <Badge variant="outline" className={cn("gap-1 text-xs", CHANNEL_BADGE[o.channel])}>
+  1435→                <span className={cn("h-1.5 w-1.5 rounded-full", CHANNEL_DOT[o.channel])} />
+  1436→                {CHANNEL_LABEL[o.channel]}
+  1437→              </Badge>
+  1438→            </div>
+  1439→            <SheetDescription className="mt-1 text-xs">
+  1440→              Created {formatDateTime(o.createdAt)} · Updated {timeAgo(o.updatedAt)}
+  1441→            </SheetDescription>
+  1442→          </div>
+  1443→        </div>
+  1444→        <div className="mt-3 flex flex-wrap items-center gap-2">
+  1445→          <Badge variant="outline" className={cn("text-xs", ORDER_STATUS_BADGE[o.orderStatus])}>
+  1446→            {prettifyStatus(o.orderStatus)}
+  1447→          </Badge>
+  1448→          <Badge variant="outline" className={cn("text-xs", PAYMENT_STATUS_BADGE[o.paymentStatus])}>
+  1449→            {prettifyStatus(o.paymentStatus)}
+  1450→          </Badge>
+  1451→          {o.couponCode && (
+  1452→            <Badge variant="outline" className="gap-1 text-xs bg-amber-50 text-amber-800 border-amber-200">
+  1453→              <Sparkles className="h-3 w-3" />
+  1454→              {o.couponCode}
+  1455→            </Badge>
+  1456→          )}
+  1457→        </div>
+  1458→      </SheetHeader>
+  1459→
+  1460→      {/* Body */}
+  1461→      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+  1462→        {loading && (
+  1463→          <div className="space-y-3">
+  1464→            <Skeleton className="h-32 w-full" />
+  1465→            <Skeleton className="h-32 w-full" />
+  1466→            <Skeleton className="h-32 w-full" />
+  1467→          </div>
+  1468→        )}
+  1469→
+  1470→        {!loading && (
+  1471→          <>
+  1472→            {/* Customer Info */}
+  1473→            <DetailSection icon={<User className="h-4 w-4" />} title="Customer" accent="emerald">
+  1474→              <div className="flex items-start gap-3">
+  1475→                <Avatar className="h-12 w-12 border border-stone-200 bg-gradient-to-br from-emerald-100 to-teal-100">
+  1476→                  <AvatarFallback className="bg-transparent text-sm font-semibold text-emerald-700">
+  1477→                    {getInitials(o.customerName)}
+  1478→                  </AvatarFallback>
+  1479→                </Avatar>
+  1480→                <div className="min-w-0 flex-1">
+  1481→                  <div className="flex flex-wrap items-center gap-2">
+  1482→                    <span className="text-base font-semibold text-stone-900">{o.customerName}</span>
+  1483→                    {o.customer?.loyaltyTier && (
+  1484→                      <Badge variant="outline" className={cn("text-[10px]", LOYALTY_BADGE[o.customer.loyaltyTier] || "bg-stone-100 text-stone-700 border-stone-200")}>
+  1485→                        {o.customer.loyaltyTier}
+  1486→                      </Badge>
+  1487→                    )}
+  1488→                  </div>
+  1489→                  <div className="mt-1 grid grid-cols-1 gap-1 text-sm text-stone-600 sm:grid-cols-2">
+  1490→                    <div className="flex items-center gap-2">
+  1491→                      <Phone className="h-3.5 w-3.5 text-stone-400" />
+  1492→                      <span className="font-mono text-xs">{o.customerPhone}</span>
+  1493→                    </div>
+  1494→                    {o.customerEmail && (
+  1495→                      <div className="flex items-center gap-2">
+  1496→                        <Mail className="h-3.5 w-3.5 text-stone-400" />
+  1497→                        <span className="truncate text-xs">{o.customerEmail}</span>
+  1498→                      </div>
+  1499→                    )}
+  1500→                  </div>
+  1501→                  {o.customer && (
+  1502→                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-stone-500">
+  1503→                      <span>📚 {o.customer.totalBookings ?? 0} bookings</span>
+  1504→                      <span>💰 {formatCurrency(o.customer.totalSpent ?? 0)} spent</span>
+  1505→                      <span>⭐ {o.customer.loyaltyPoints ?? 0} points</span>
+  1506→                    </div>
+  1507→                  )}
+  1508→                </div>
+  1509→              </div>
+  1510→            </DetailSection>
+  1511→
+  1512→            {/* Tour + Slot */}
+  1513→            <DetailSection icon={<MapPin className="h-4 w-4" />} title="Tour & Slot" accent="teal">
+  1514→              <div>
+  1515→                <div className="text-base font-semibold text-stone-900">{o.tour.name}</div>
+  1516→                <div className="mt-0.5 text-xs text-stone-500">
+  1517→                  {o.tour.category} · {o.tour.city} · {o.tour.durationHours}h
+  1518→                </div>
+  1519→                <Separator className="my-3 bg-stone-100" />
+  1520→                <div className="grid grid-cols-2 gap-3 text-sm">
+  1521→                  <div>
+  1522→                    <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Date</div>
+  1523→                    <div className="mt-0.5 flex items-center gap-1.5 text-stone-800">
+  1524→                      <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
+  1525→                      {formatDate(o.slot.date)}
+  1526→                    </div>
+  1527→                  </div>
+  1528→                  <div>
+  1529→                    <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Time</div>
+  1530→                    <div className="mt-0.5 flex items-center gap-1.5 text-stone-800">
+  1531→                      <Clock className="h-3.5 w-3.5 text-emerald-600" />
+  1532→                      {o.slot.startTime}
+  1533→                      {o.slot.endTime && ` — ${o.slot.endTime}`}
+  1534→                    </div>
+  1535→                  </div>
+  1536→                  {o.tour.meetingPoint && (
+  1537→                    <div className="col-span-2">
+  1538→                      <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Meeting Point</div>
+  1539→                      <div className="mt-0.5 flex items-start gap-1.5 text-stone-800">
+  1540→                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />
+  1541→                        <span>{o.tour.meetingPoint}</span>
+  1542→                      </div>
+  1543→                    </div>
+  1544→                  )}
+  1545→                  {o.pickupLocation && (
+  1546→                    <div className="col-span-2">
+  1547→                      <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Pickup Location</div>
+  1548→                      <div className="mt-0.5 flex items-start gap-1.5 text-stone-800">
+  1549→                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+  1550→                        <span>{o.pickupLocation}</span>
+  1551→                      </div>
+  1552→                    </div>
+  1553→                  )}
+  1554→                </div>
+  1555→                <div className="mt-3 flex items-center justify-between rounded-lg bg-stone-50 px-3 py-2 text-xs">
+  1556→                  <span className="text-stone-500">Slot Capacity</span>
+  1557→                  <span className="font-medium text-stone-700">
+  1558→                    {o.slot.seatsBooked}/{o.slot.capacity} booked · {Math.max(0, o.slot.capacity - o.slot.seatsBooked - o.slot.seatsHeld)} available
+  1559→                  </span>
+  1560→                </div>
+  1561→              </div>
+  1562→            </DetailSection>
+  1563→
+  1564→            {/* Pax + Add-ons */}
+  1565→            <DetailSection icon={<Users className="h-4 w-4" />} title="Pax & Add-ons" accent="emerald">
+  1566→              <div className="grid grid-cols-2 gap-3">
+  1567→                <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+  1568→                  <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Adults</div>
+  1569→                  <div className="mt-1 text-2xl font-bold text-stone-900">{o.paxAdult}</div>
+  1570→                </div>
+  1571→                <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+  1572→                  <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Children</div>
+  1573→                  <div className="mt-1 text-2xl font-bold text-stone-900">{o.paxChild}</div>
+  1574→                </div>
+  1575→              </div>
+  1576→              {addOns.length > 0 && (
+  1577→                <>
+  1578→                  <Separator className="my-3 bg-stone-100" />
+  1579→                  <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Add-ons</div>
+  1580→                  <div className="mt-2 space-y-1.5">
+  1581→                    {addOns.map((a, i) => (
+  1582→                      <div key={i} className="flex items-center justify-between rounded-md bg-emerald-50/50 px-3 py-1.5 text-sm">
+  1583→                        <span className="text-stone-700">{a.name}</span>
+  1584→                        <span className="font-medium text-stone-800">
+  1585→                          {formatCurrency(a.price)}{a.type === "PER_PAX" ? " × pax" : ""}
+  1586→                        </span>
+  1587→                      </div>
+  1588→                    ))}
+  1589→                  </div>
+  1590→                </>
+  1591→              )}
+  1592→              {o.specialRequests && (
+  1593→                <>
+  1594→                  <Separator className="my-3 bg-stone-100" />
+  1595→                  <div className="text-xs font-medium uppercase tracking-wide text-stone-400">Special Requests</div>
+  1596→                  <div className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+  1597→                    {o.specialRequests}
+  1598→                  </div>
+  1599→                </>
+  1600→              )}
+  1601→            </DetailSection>
+  1602→
+  1603→            {/* Price Breakdown */}
+  1604→            <DetailSection icon={<DollarSign className="h-4 w-4" />} title="Price Breakdown" accent="emerald">
+  1605→              <div className="space-y-2 text-sm">
+  1606→                <PriceRow label="Subtotal" value={formatCurrency(o.subtotal)} />
+  1607→                {o.discount > 0 && (
+  1608→                  <PriceRow label="Discount" value={`- ${formatCurrency(o.discount)}`} tint="emerald" />
+  1609→                )}
+  1610→                <PriceRow label="VAT (5%)" value={formatCurrency(o.taxAmount)} muted />
+  1611→                <Separator className="my-2 bg-stone-200" />
+  1612→                <div className="flex items-center justify-between">
+  1613→                  <span className="text-base font-semibold text-stone-900">Total</span>
+  1614→                  <span className="text-xl font-bold text-emerald-700">{formatCurrency(o.totalAmount)}</span>
+  1615→                </div>
+  1616→              </div>
+  1617→            </DetailSection>
+  1618→
+  1619→            {/* Payment Info */}
+  1620→            <DetailSection icon={<CreditCard className="h-4 w-4" />} title="Payment" accent="teal">
+  1621→              <div className="space-y-3">
+  1622→                <div className="flex items-center justify-between">
+  1623→                  <div className="flex items-center gap-2">
+  1624→                    {o.paymentMethod === "AMWALPAY" ? (
+  1625→                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">
+  1626→                        <CreditCard className="h-4 w-4 text-emerald-700" />
+  1627→                      </div>
+  1628→                    ) : (
+  1629→                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-100">
+  1630→                        <Landmark className="h-4 w-4 text-teal-700" />
+  1631→                      </div>
+  1632→                    )}
+  1633→                    <div>
+  1634→                      <div className="text-sm font-medium text-stone-800">{METHOD_LABEL[o.paymentMethod]}</div>
+  1635→                      <Badge variant="outline" className={cn("mt-0.5 text-[10px]", PAYMENT_STATUS_BADGE[o.paymentStatus])}>
+  1636→                        {prettifyStatus(o.paymentStatus)}
+  1637→                      </Badge>
+  1638→                    </div>
+  1639→                  </div>
+  1640→                  <div className="text-right">
+  1641→                    <div className="text-sm font-semibold text-stone-900">{formatCurrency(o.totalAmount)}</div>
+  1642→                  </div>
+  1643→                </div>
+  1644→
+  1645→                {/* Payment details */}
+  1646→                {approvedPayment && (
+  1647→                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+  1648→                    <div className="flex items-center gap-2 text-xs font-medium text-emerald-800">
+  1649→                      <CheckCircle2 className="h-3.5 w-3.5" />
+  1650→                      Payment Verified
+  1651→                    </div>
+  1652→                    <div className="mt-2 space-y-1 text-xs text-stone-700">
+  1653→                      {approvedPayment.gatewayReference && (
+  1654→                        <div className="flex justify-between">
+  1655→                          <span className="text-stone-500">Gateway Ref</span>
+  1656→                          <span className="font-mono">{approvedPayment.gatewayReference}</span>
+  1657→                        </div>
+  1658→                      )}
+  1659→                      {approvedPayment.bankReference && (
+  1660→                        <div className="flex justify-between">
+  1661→                          <span className="text-stone-500">Bank Ref</span>
+  1662→                          <span className="font-mono">{approvedPayment.bankReference}</span>
+  1663→                        </div>
+  1664→                      )}
+  1665→                      {approvedPayment.bankName && (
+  1666→                        <div className="flex justify-between">
+  1667→                          <span className="text-stone-500">Bank</span>
+  1668→                          <span>{approvedPayment.bankName}</span>
+  1669→                        </div>
+  1670→                      )}
+  1671→                      {approvedPayment.verifiedAt && (
+  1672→                        <div className="flex justify-between">
+  1673→                          <span className="text-stone-500">Verified At</span>
+  1674→                          <span>{formatDateTime(approvedPayment.verifiedAt)}</span>
+  1675→                        </div>
+  1676→                      )}
+  1677→                      {approvedPayment.verifier && (
+  1678→                        <div className="flex justify-between">
+  1679→                          <span className="text-stone-500">Verified By</span>
+  1680→                          <span>{approvedPayment.verifier.name}</span>
+  1681→                        </div>
+  1682→                      )}
+  1683→                    </div>
+  1684→                  </div>
+  1685→                )}
+  1686→
+  1687→                {pendingPayment && (
+  1688→                  <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+  1689→                    <div className="flex items-center gap-2 text-xs font-medium text-amber-800">
+  1690→                      <Clock className="h-3.5 w-3.5" />
+  1691→                      Awaiting Verification
+  1692→                    </div>
+  1693→                    {pendingPayment.screenshotUrl && (
+  1694→                      <div className="mt-2">
+  1695→                        <div className="text-xs text-stone-600">Payment proof:</div>
+  1696→                        <button
+  1697→                          onClick={() => setLightboxUrl(pendingPayment.screenshotUrl!)}
+  1698→                          className="mt-1 block overflow-hidden rounded-md border border-stone-200 bg-white"
+  1699→                        >
+  1700→                          <img
+  1701→                            src={pendingPayment.screenshotUrl}
+  1702→                            alt="Payment proof"
+  1703→                            className="h-32 w-full object-cover transition-transform hover:scale-105"
+  1704→                          />
+  1705→                        </button>
+  1706→                      </div>
+  1707→                    )}
+  1708→                    {pendingPayment.bankReference && (
+  1709→                      <div className="mt-2 flex justify-between text-xs">
+  1710→                        <span className="text-stone-500">Bank Ref</span>
+  1711→                        <span className="font-mono">{pendingPayment.bankReference}</span>
+  1712→                      </div>
+  1713→                    )}
+  1714→                  </div>
+  1715→                )}
+  1716→
+  1717→                {payments.length === 0 && (
+  1718→                  <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-center text-xs text-stone-500">
+  1719→                    No payment records yet.
+  1720→                  </div>
+  1721→                )}
+  1722→              </div>
+  1723→            </DetailSection>
+  1724→
+  1725→            {/* Voucher Info */}
+  1726→            {vouchers.length > 0 && (
+  1727→              <DetailSection icon={<Ticket className="h-4 w-4" />} title="Voucher" accent="emerald">
+  1728→                <div className="space-y-2">
+  1729→                  {vouchers.map(v => (
+  1730→                    <div key={v.id} className="rounded-lg border-2 border-dashed border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
+  1731→                      <div className="flex items-start justify-between gap-3">
+  1732→                        <div>
+  1733→                          <div className="flex items-center gap-2">
+  1734→                            <QrCode className="h-5 w-5 text-emerald-700" />
+  1735→                            <span className="font-mono text-base font-bold text-emerald-800">{v.voucherCode}</span>
+  1736→                          </div>
+  1737→                          <Badge variant="outline" className={cn("mt-2 text-[10px]", VOUCHER_STATUS_BADGE[v.status])}>
+  1738→                            {prettifyStatus(v.status)}
+  1739→                          </Badge>
+  1740→                        </div>
+  1741→                        {v.status === "VALID" && (
+  1742→                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white shadow-sm">
+  1743→                            <QrCode className="h-12 w-12 text-emerald-700" />
+  1744→                          </div>
+  1745→                        )}
+  1746→                      </div>
+  1747→                      <div className="mt-3 space-y-1 text-xs text-stone-600">
+  1748→                        <div className="flex justify-between">
+  1749→                          <span className="text-stone-500">Issued</span>
+  1750→                          <span>{formatDate(v.createdAt)}</span>
+  1751→                        </div>
+  1752→                        {v.checkedInAt && (
+  1753→                          <div className="flex justify-between">
+  1754→                            <span className="text-stone-500">Checked In</span>
+  1755→                            <span>{formatDateTime(v.checkedInAt)}</span>
+  1756→                          </div>
+  1757→                        )}
+  1758→                        <div className="mt-1 truncate font-mono text-[10px] text-stone-400" title={v.qrData}>
+  1759→                          {v.qrData}
+  1760→                        </div>
+  1761→                      </div>
+  1762→                    </div>
+  1763→                  ))}
+  1764→                </div>
+  1765→              </DetailSection>
+  1766→            )}
+  1767→
+  1768→            {/* Communication */}
+  1769→            <DetailSection icon={<MessageCircle className="h-4 w-4" />} title="Communication" accent="teal">
+  1770→              <div className="flex flex-col gap-2">
+  1771→                <Button
+  1772→                  variant="outline"
+  1773→                  onClick={() => onOpenWhatsApp(o)}
+  1774→                  className="justify-start border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 hover:text-teal-900"
+  1775→                >
+  1776→                  <MessageCircle className="mr-2 h-4 w-4" />
+  1777→                  Open WhatsApp Conversation
+  1778→                </Button>
+  1779→                <Button
+  1780→                  variant="outline"
+  1781→                  onClick={() => onResend(o)}
+  1782→                  className="justify-start border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+  1783→                >
+  1784→                  <Send className="mr-2 h-4 w-4" />
+  1785→                  Resend Confirmation
+  1786→                </Button>
+  1787→                <Button
+  1788→                  variant="outline"
+  1789→                  onClick={() => onInvoice(o)}
+  1790→                  className="justify-start border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+  1791→                >
+  1792→                  <Download className="mr-2 h-4 w-4" />
+  1793→                  Generate Invoice
+  1794→                </Button>
+  1795→              </div>
+  1796→            </DetailSection>
+  1797→
+  1798→            {/* Audit Log Timeline */}
+  1799→            <DetailSection icon={<History className="h-4 w-4" />} title={`Audit Log${auditLogs.length ? ` (${auditLogs.length})` : ""}`} accent="stone">
+  1800→              {auditLogs.length === 0 ? (
+  1801→                <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-center text-xs text-stone-500">
+  1802→                  No audit records yet.
+  1803→                </div>
+  1804→              ) : (
+  1805→                <div className="relative space-y-3 pl-4">
+  1806→                  <div className="absolute left-1 top-1 bottom-1 w-px bg-stone-200" />
+  1807→                  {[...auditLogs].reverse().map(log => {
+  1808→                    const details = parseDetails(log.details)
+  1809→                    return (
+  1810→                      <div key={log.id} className="relative">
+  1811→                        <div className="absolute -left-3.5 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+  1812→                        <div className="flex items-center justify-between gap-2">
+  1813→                          <div className="text-sm font-medium text-stone-800">
+  1814→                            {AUDIT_ACTION_LABEL[log.action] || prettifyStatus(log.action)}
+  1815→                          </div>
+  1816→                          <div className="text-xs text-stone-400">{timeAgo(log.createdAt)}</div>
+  1817→                        </div>
+  1818→                        <div className="mt-0.5 text-xs text-stone-500">
+  1819→                          {log.staff?.name || "System"} · {formatDateTime(log.createdAt)}
+  1820→                        </div>
+  1821→                        {log.reason && (
+  1822→                          <div className="mt-1 rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-800">
+  1823→                            Reason: {log.reason}
+  1824→                          </div>
+  1825→                        )}
+  1826→                        {details && (
+  1827→                          <div className="mt-1 text-[11px] text-stone-400">
+  1828→                            {Object.entries(details).slice(0, 3).map(([k, v]) => (
+  1829→                              <div key={k}>
+  1830→                                <span className="font-mono">{k}:</span> {String(v)}
+  1831→                              </div>
+  1832→                            ))}
+  1833→                          </div>
+  1834→                        )}
+  1835→                      </div>
+  1836→                    )
+  1837→                  })}
+  1838→                </div>
+  1839→              )}
+  1840→            </DetailSection>
+  1841→          </>
+  1842→        )}
+  1843→      </div>
+  1844→
+  1845→      {/* Footer Actions */}
+  1846→      <div className="border-t border-stone-200 bg-white p-4">
+  1847→        <div className="flex flex-wrap gap-2">
+  1848→          {canApprovePayment && (
+  1849→            <Button
+  1850→              onClick={() => onApprovePayment(o)}
+  1851→              className="bg-emerald-600 text-white hover:bg-emerald-700"
+  1852→            >
+  1853→              <CheckCircle className="mr-2 h-4 w-4" />
+  1854→              Approve Payment
+  1855→            </Button>
+  1856→          )}
+  1857→          {canReschedule && (
+  1858→            <Button
+  1859→              variant="outline"
+  1860→              onClick={() => onReschedule(o)}
+  1861→              className="border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+  1862→            >
+  1863→              <RotateCcw className="mr-2 h-4 w-4" />
+  1864→              Reschedule
+  1865→            </Button>
+  1866→          )}
+  1867→          {canComplete && (
+  1868→            <Button
+  1869→              variant="outline"
+  1870→              onClick={() => onComplete(o)}
+  1871→              className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+  1872→            >
+  1873→              <CheckCircle2 className="mr-2 h-4 w-4" />
+  1874→              Mark Complete
+  1875→            </Button>
+  1876→          )}
+  1877→          {canNoShow && (
+  1878→            <Button
+  1879→              variant="outline"
+  1880→              onClick={() => onNoShow(o)}
+  1881→              className="border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100"
+  1882→            >
+  1883→              <XCircle className="mr-2 h-4 w-4" />
+  1884→              No-Show
+  1885→            </Button>
+  1886→          )}
+  1887→          {canCancel && (
+  1888→            <Button
+  1889→              variant="outline"
+  1890→              onClick={() => onCancel(o)}
+  1891→              className="ml-auto border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+  1892→            >
+  1893→              <Ban className="mr-2 h-4 w-4" />
+  1894→              Cancel
+  1895→            </Button>
+  1896→          )}
+  1897→          {!canApprovePayment && !canReschedule && !canComplete && !canNoShow && !canCancel && (
+  1898→            <div className="w-full text-center text-xs text-stone-400">
+  1899→              No actions available for this order status.
+  1900→            </div>
+  1901→          )}
+  1902→        </div>
+  1903→      </div>
+  1904→
+  1905→      {/* Lightbox */}
+  1906→      {lightboxUrl && (
+  1907→        <div
+  1908→          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+  1909→          onClick={() => setLightboxUrl(null)}
+  1910→        >
+  1911→          <button className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30">
+  1912→            <X className="h-5 w-5" />
+  1913→          </button>
+  1914→          <img
+  1915→            src={lightboxUrl}
+  1916→            alt="Payment proof (full size)"
+  1917→            className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl"
+  1918→          />
+  1919→        </div>
+  1920→      )}
+  1921→    </TooltipProvider>
+  1922→  )
+  1923→}
+  1924→
+  1925→function DetailSection({
+  1926→  icon,
+  1927→  title,
+  1928→  accent,
+  1929→  children,
+  1930→}: {
+  1931→  icon: React.ReactNode
+  1932→  title: string
+  1933→  accent: "emerald" | "teal" | "amber" | "stone" | "rose"
+  1934→  children: React.ReactNode
+  1935→}) {
+  1936→  const accentMap: Record<string, string> = {
+  1937→    emerald: "bg-emerald-100 text-emerald-700",
+  1938→    teal: "bg-teal-100 text-teal-700",
+  1939→    amber: "bg-amber-100 text-amber-700",
+  1940→    stone: "bg-stone-200 text-stone-700",
+  1941→    rose: "bg-rose-100 text-rose-700",
+  1942→  }
+  1943→  return (
+  1944→    <Card className="border-stone-200 bg-white shadow-sm">
+  1945→      <CardContent className="p-4">
+  1946→        <div className="mb-3 flex items-center gap-2">
+  1947→          <div className={cn("flex h-7 w-7 items-center justify-center rounded-md", accentMap[accent])}>
+  1948→            {icon}
+  1949→          </div>
+  1950→          <h3 className="text-sm font-semibold text-stone-800">{title}</h3>
+  1951→        </div>
+  1952→        {children}
+  1953→      </CardContent>
+  1954→    </Card>
+  1955→  )
+  1956→}
+  1957→
+  1958→function PriceRow({
+  1959→  label,
+  1960→  value,
+  1961→  muted,
+  1962→  tint,
+  1963→}: {
+  1964→  label: string
+  1965→  value: string
+  1966→  muted?: boolean
+  1967→  tint?: "emerald"
+  1968→}) {
+  1969→  return (
+  1970→    <div className="flex items-center justify-between">
+  1971→      <span className={cn("text-stone-600", muted && "text-stone-400")}>{label}</span>
+  1972→      <span className={cn(
+  1973→        "font-medium",
+  1974→        tint === "emerald" ? "text-emerald-700" : "text-stone-800"
+  1975→      )}>
+  1976→        {value}
+  1977→      </span>
+  1978→    </div>
+  1979→  )
+  1980→}
+  1981→
+  1982→// ============================================================
+  1983→// NEW BOOKING DIALOG — Multi-step wizard
+  1984→// ============================================================
+  1985→const BOOKING_STEPS = [
+  1986→  { key: "tour", label: "Tour" },
+  1987→  { key: "slot", label: "Date & Slot" },
+  1988→  { key: "pax", label: "Pax & Add-ons" },
+  1989→  { key: "customer", label: "Customer" },
+  1990→  { key: "payment", label: "Payment" },
+  1991→  { key: "review", label: "Review" },
+  1992→] as const
+  1993→
+  1994→function NewBookingDialog({
+  1995→  open,
+  1996→  onOpenChange,
+  1997→  currentStaffId,
+  1998→  onCreated,
+  1999→}: {
+  2000→  open: boolean
+
+[showing lines 1-2000 of 3103; use offset=2001 with limit to continue reading]

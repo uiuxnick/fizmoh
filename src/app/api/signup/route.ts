@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 /**
  * A business signing itself up.
@@ -36,7 +36,7 @@ const schema = z.object({
 export const POST = withErrors(async (request: NextRequest) => {
   // Sign-up is the one endpoint an unknown person is meant to reach, which
   // makes it the one worth limiting hardest.
-  const rate = checkRateLimit(`signup:${requestIp(request.headers)}`, 5, 60 * 60 * 1000)
+  const rate = await checkRateLimit(`signup:${requestIp(request.headers)}`, 5, 60 * 60 * 1000)
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many sign-ups from here. Try again later." }, { status: 429 })
   }

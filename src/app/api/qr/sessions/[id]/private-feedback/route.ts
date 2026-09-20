@@ -16,7 +16,7 @@ import { withSessionTenant, isRouteError, qrRateLimited } from "@/lib/qr-review"
 export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
 
-  const limited = qrRateLimited(request.headers, "write")
+  const limited = await qrRateLimited(request.headers, "write")
   if (limited) return limited
   const body = await request.json().catch(() => null)
   const feedbackText = typeof body?.feedbackText === "string" ? body.feedbackText.trim().slice(0, 2000) : ""

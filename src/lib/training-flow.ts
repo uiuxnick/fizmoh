@@ -376,7 +376,7 @@ async function ensureTrainingTourAndSlot(tenantId: string) {
         basePrice: 70,
         currency: "OMR",
         durationHours: 1,
-        capacityPerSlot: 10,
+        capacityPerSlot: 8,
         status: "ACTIVE",
       },
     })
@@ -402,7 +402,7 @@ async function ensureTrainingTourAndSlot(tenantId: string) {
         date: today,
         startTime: "19:15",
         endTime: "20:15",
-        capacity: 10,
+        capacity: 8,
         seatsBooked: 1,
         status: "OPEN",
       },

@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/chat_store.dart';
@@ -28,7 +29,7 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   bool _showThreadOnNarrow = false;
-  bool _askedForNotifications = false;
+  bool _askedForNotifications = true; // default to true until checked
   int _tab = 0;
   bool _details = true;
 
@@ -37,11 +38,39 @@ class _ShellState extends State<Shell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatStore>().start();
+      _checkInitialNotificationPermission();
     });
   }
 
+  Future<void> _checkInitialNotificationPermission() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final alreadyPrompted = prefs.getBool('notifications_prompted') ?? false;
+      if (!alreadyPrompted) {
+        await prefs.setBool('notifications_prompted', true);
+        // Ask platform permission once upon first installation / launch
+        await Notifier.instance.requestPermission();
+      }
+      if (mounted) {
+        setState(() => _askedForNotifications = true);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _enableNotifications() async {
-    await Notifier.instance.requestPermission();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_prompted', true);
+      await Notifier.instance.requestPermission();
+    } catch (_) {}
+    if (mounted) setState(() => _askedForNotifications = true);
+  }
+
+  Future<void> _dismissNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_prompted', true);
+    } catch (_) {}
     if (mounted) setState(() => _askedForNotifications = true);
   }
 
@@ -77,7 +106,7 @@ class _ShellState extends State<Shell> {
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 900;
 
-      final banner = Notifier.instance.supported
+      final banner = wide && Notifier.instance.supported
           && !Notifier.instance.granted
           && !_askedForNotifications
           ? MaterialBanner(
@@ -87,8 +116,7 @@ class _ShellState extends State<Shell> {
                 style: TextStyle(fontSize: 13),
               ),
               actions: [
-                TextButton(onPressed: () => setState(() => _askedForNotifications = true),
-                    child: const Text('Not now')),
+                TextButton(onPressed: _dismissNotifications, child: const Text('Not now')),
                 FilledButton(onPressed: _enableNotifications, child: const Text('Turn on')),
               ],
             )
@@ -175,7 +203,6 @@ class _ShellState extends State<Shell> {
           bottom: false,
           child: Column(children: [
             _ConnectionBanner(live: store.live),
-            if (banner != null) banner,
             if (!showingThread && _tab != 0) _TopBar(live: store.live),
             Expanded(
               child: showingThread

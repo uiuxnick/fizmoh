@@ -59,13 +59,13 @@ export default function AIAssistantView() {
       {/* Left panel */}
       <div className="hidden md:flex w-72 border-r border-stone-200 bg-white flex-col">
         <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-tour="ai-assistant-toggle">
             <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center"><Sparkles className="h-6 w-6 text-white" /></div>
             <div><div className="font-bold text-stone-900">Najwa</div><div className="text-[11px] text-stone-500 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />Online 24/7</div></div>
           </div>
         </div>
         <ScrollArea className="flex-1 p-4 space-y-4">
-          <div>
+          <div data-tour="ai-instructions">
             <div className="text-[10px] font-bold uppercase text-stone-400 mb-2">Capabilities</div>
             <div className="grid grid-cols-2 gap-2">{capabilities.map((c, i) => <div key={i} className="p-2 rounded-lg bg-stone-50 flex flex-col items-center gap-1"><c.icon className="h-4 w-4 text-emerald-600" /><span className="text-[10px] text-stone-600 text-center">{c.label}</span></div>)}</div>
           </div>
@@ -73,7 +73,7 @@ export default function AIAssistantView() {
             <div className="text-[10px] font-bold uppercase text-stone-400 mb-2">Quick Prompts</div>
             <div className="space-y-1.5">{quickPrompts.map((p, i) => <button key={i} onClick={() => send(p.text)} className="w-full flex items-center gap-2 p-2 rounded-lg border hover:bg-emerald-50 hover:border-emerald-200 text-left text-xs text-stone-700"><p.icon className="h-3.5 w-3.5 text-emerald-600 shrink-0" />{p.text}</button>)}</div>
           </div>
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100"><div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mb-1"><Bot className="h-3.5 w-3.5" />WhatsApp Powered</div><p className="text-[10px] text-emerald-600">This AI powers WhatsApp conversations. Test it here before going live.</p></div>
+          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100" data-tour="ai-knowledge-sync"><div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 mb-1"><Bot className="h-3.5 w-3.5" />WhatsApp Powered</div><p className="text-[10px] text-emerald-600">This AI powers WhatsApp conversations. Test it here before going live.</p></div>
         </ScrollArea>
         <div className="p-3 border-t flex items-center justify-between">
           <span className="text-xs text-stone-500">Language</span>

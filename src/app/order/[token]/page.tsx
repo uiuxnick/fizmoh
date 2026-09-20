@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import {
   CheckCircle2,
   Clock,
@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Sparkles,
   MapPin,
+  CreditCard,
 } from "lucide-react"
 
 interface OrderDetails {
@@ -60,7 +61,9 @@ interface OrderDetails {
 
 export default function OrderTrackingPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const token = params?.token as string
+  const paidParam = searchParams?.get("paid") === "1"
 
   const [orderData, setOrderData] = useState<{
     order: OrderDetails
@@ -88,20 +91,34 @@ export default function OrderTrackingPage() {
     if (!token) return
     fetchOrder()
 
+    let pollCount = 0
+    let pollInterval: any = null
+    if (paidParam) {
+      pollInterval = setInterval(() => {
+        pollCount++
+        if (pollCount <= 5) {
+          fetchOrder()
+        } else {
+          clearInterval(pollInterval)
+        }
+      }, 2000)
+    }
+
     // Setup SSE live stream
     const eventSource = new EventSource(`/api/restaurant/stream?token=${token}`)
 
     eventSource.addEventListener("restaurant_order", (e) => {
       try {
         const payload = JSON.parse(e.data)
-        if (payload.status) {
+        if (payload.status || payload.paymentStatus) {
           setOrderData((prev) => {
             if (!prev) return prev
             return {
               ...prev,
               order: {
                 ...prev.order,
-                status: payload.status,
+                ...(payload.status ? { status: payload.status } : {}),
+                ...(payload.paymentStatus ? { paymentStatus: payload.paymentStatus } : {}),
               },
             }
           })
@@ -111,9 +128,10 @@ export default function OrderTrackingPage() {
     })
 
     return () => {
+      if (pollInterval) clearInterval(pollInterval)
       eventSource.close()
     }
-  }, [token])
+  }, [token, paidParam])
 
   if (loading) {
     return (
@@ -385,6 +403,74 @@ export default function OrderTrackingPage() {
               <span>Total Amount</span>
               <span className="font-mono text-emerald-700">{order.currency} {order.totalAmount.toFixed(2)}</span>
             </div>
+          </div>
+
+          {/* Payment Status & Digital Receipt */}
+          <div className="pt-2">
+            {order.paymentStatus === "PAID" ? (
+              <div className="rounded-2xl border border-emerald-300 bg-gradient-to-b from-emerald-50 to-white p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+                      ✓
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">🎉 Thank You For Your Order!</h4>
+                      <p className="text-[11px] text-emerald-800 font-medium">Payment confirmed via AmwalPay Card</p>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-600 text-white text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full font-bold shadow-xs">
+                    PAID
+                  </span>
+                </div>
+
+                {/* Receipt Details Box */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center text-slate-500 text-[11px] pb-1 border-b border-slate-100">
+                    <span>Receipt No:</span>
+                    <span className="font-mono font-bold text-slate-700">
+                      REC-{order.orderNumber.replace("#", "")}-{order.id.slice(-4).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500 text-[11px]">
+                    <span>Payment Method:</span>
+                    <span className="font-semibold text-slate-800">
+                      {order.paymentMethod === "AMWALPAY_ONLINE" ? "AmwalPay Card (Online)" : order.paymentMethod?.replace(/_/g, " ") || "Card"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500 text-[11px]">
+                    <span>Amount Paid:</span>
+                    <span className="font-mono font-bold text-emerald-700">
+                      {order.currency} {order.totalAmount.toFixed(3)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Print Receipt Action */}
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="w-full h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Print / Save Official Receipt</span>
+                </button>
+              </div>
+            ) : order.status !== "CANCELLED" ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
+                  <span>Payment Status:</span>
+                  <span className="font-bold text-amber-800">{order.paymentMethod ? order.paymentMethod.replace(/_/g, " ") : "UNPAID"}</span>
+                </div>
+                <a
+                  href={`/api/amwalpay/create-session?orderId=KIT-${order.id}`}
+                  className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Pay Now Online ({order.currency} {order.totalAmount.toFixed(3)})</span>
+                </a>
+              </div>
+            ) : null}
           </div>
         </div>
 

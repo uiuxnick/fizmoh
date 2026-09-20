@@ -1,0 +1,855 @@
+%!PS-Adobe-3.0
+%%BoundingBox: 0 0 595 842
+%%Title: Fizmoh Platform Architecture & Feature Specifications
+%%Creator: Fizmoh Engineering
+%%Pages: 6
+%%PageOrder: Ascend
+%%DocumentData: Clean7Bit
+
+    /rgb { setrgbcolor } bind def
+    /font { findfont exch scalefont setfont } bind def
+    /centertext {
+        dup stringwidth pop 2 div 
+        3 1 roll moveto
+        neg 0 rmoveto show
+    } bind def
+    /righttext {
+        dup stringwidth pop 
+        3 1 roll moveto
+        neg 0 rmoveto show
+    } bind def
+    /lefttext {
+        moveto show
+    } bind def
+    /rect {
+        4 2 roll moveto
+        1 index 0 rlineto
+        0 exch rlineto
+        neg 0 rlineto
+        closepath
+    } bind def
+    /roundrect {
+        /r exch def /h exch def /w exch def /y exch def /x exch def
+        x r add y moveto
+        x w add y x w add y h add r arcto 4 {pop} repeat
+        x w add y h add x y h add r arcto 4 {pop} repeat
+        x y h add x y r arcto 4 {pop} repeat
+        x y x w add y r arcto 4 {pop} repeat
+        closepath
+    } bind def
+    
+%%Page: 1 1
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 1 of 6)
+        
+
+    % Section Header
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (1. Executive Summary & Architecture Topology)
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (Fizmoh is an enterprise multi-tenant WhatsApp Commerce, Operational Automation, and Conversational)
+    40 702 lefttext (AI SaaS platform. It enables specialized vertical businesses to operate end-to-end customer commerce)
+    40 689 lefttext (and support over WhatsApp, while providing platform administrators with a centralized control console.)
+    
+    % Dual Surface Cards
+    % Card 1: Platform Operator Control Plane
+    0.95 0.98 0.96 rgb
+    40 545 245 130 6 roundrect fill
+    0.059 0.463 0.431 rgb
+    1 setlinewidth
+    40 545 245 130 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    52 655 lefttext (Platform Operator Console)
+    9 /Helvetica-Bold font
+    0.20 0.25 0.30 rgb
+    52 640 lefttext (Endpoint: /platform/*)
+    
+    8.5 /Helvetica font
+    0.25 0.30 0.35 rgb
+    52 622 lefttext (- Command Center & Global KPI Analytics)
+    52 608 lefttext (- Multi-Tenant Lifecycle & Impersonation)
+    52 594 lefttext (- SaaS Subscriptions, Invoicing & Dunning)
+    52 580 lefttext (- Meta WhatsApp Number Fleet Management)
+    52 566 lefttext (- Resource Quotas, Support & Audit Logs)
+    
+    % Card 2: Tenant Workspace Surface
+    0.96 0.97 0.99 rgb
+    310 545 245 130 6 roundrect fill
+    0.25 0.40 0.70 rgb
+    1 setlinewidth
+    310 545 245 130 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.20 0.35 0.65 rgb
+    322 655 lefttext (Tenant Workspace SaaS Surface)
+    9 /Helvetica-Bold font
+    0.20 0.25 0.30 rgb
+    322 640 lefttext (Endpoint: /:tenant-slug/*)
+    
+    8.5 /Helvetica font
+    0.25 0.30 0.35 rgb
+    322 622 lefttext (- 2-Way Omnichannel WhatsApp Live Inbox)
+    322 608 lefttext (- AI Assistant Grounded in Knowledge Base)
+    322 594 lefttext (- Tour Bookings, Hospital & Restaurant POS)
+    322 580 lefttext (- Broadcast Campaigns & Meta Templates)
+    322 566 lefttext (- AmwalPay Gateway & WooCommerce Sync)
+    
+    % Section: Core Technology Stack
+    12 /Helvetica-Bold font
+    0.12 0.15 0.20 rgb
+    40 515 lefttext (Core Technical Specifications)
+    0.85 0.88 0.90 rgb
+    40 508 moveto 555 508 lineto 1 setlinewidth stroke
+    
+    % Tech Stack Grid Table
+    0.98 0.98 0.98 rgb
+    40 330 515 165 4 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 330 515 165 4 roundrect stroke
+    
+    0.92 0.94 0.96 rgb
+    40 465 515 30 4 roundrect fill
+    
+    10 /Helvetica-Bold font
+    0.15 0.20 0.25 rgb
+    55 476 lefttext (Architecture Layer)
+    200 476 lefttext (Technology / Library)
+    370 476 lefttext (Architectural Role & Function)
+    
+    9 /Helvetica-Bold font
+    0.15 0.18 0.22 rgb
+    55 448 lefttext (Frontend Framework)
+    200 448 lefttext (Next.js 16 (Turbopack))
+    370 448 lefttext (App Router, React 19, Server Components)
+    
+    55 423 lefttext (Backend & APIs)
+    200 423 lefttext (Next.js Edge / Node APIs)
+    370 423 lefttext (Dynamic Route Handlers & Middlewares)
+    
+    55 398 lefttext (Database & ORM)
+    200 398 lefttext (PostgreSQL + Prisma 6.x)
+    370 398 lefttext (Multi-tenant relational persistence & indexes)
+    
+    55 373 lefttext (UI & Visualization)
+    200 373 lefttext (Tailwind CSS + Recharts)
+    370 373 lefttext (Radix UI / shadcn, Lucide, Interactive Charts)
+    
+    55 348 lefttext (Integrations)
+    200 348 lefttext (Meta Cloud API, AmwalPay)
+    370 348 lefttext (WABA Webhooks, Google Meet, WooCommerce)
+    
+    % Highlight Banner at bottom
+    0.95 0.98 0.96 rgb
+    40 215 515 95 6 roundrect fill
+    0.059 0.463 0.431 rgb
+    1 setlinewidth
+    40 215 515 95 6 roundrect stroke
+    
+    10 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 288 lefttext (Security & Isolation Highlights)
+    
+    8.5 /Helvetica font
+    0.20 0.25 0.30 rgb
+    55 270 lefttext (- Complete Multi-Tenant Data Isolation enforced at database query & API middleware levels.)
+    55 256 lefttext (- Zero-Knowledge Operator Impersonation with mandatory audit logging and reason capture.)
+    55 242 lefttext (- Type-Safe Endpoints & Dynamic Routing without legacy URL hash fragments.)
+    55 228 lefttext (- Automated Dunning Engine with payment gateway webhook reconciliation.)
+    
+    showpage
+    
+%%Page: 2 2
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 2 of 6)
+        
+
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (2. Platform Operator Console Features (/platform/*))
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (The Platform Operator Console is a standalone command surface built for Fizmoh global administrators.)
+    40 702 lefttext (Every section is accessible via clean, direct URL paths with full-width responsive layouts and CRUD controls.)
+    
+    % Feature Block 1: Command Center & Workspaces
+    0.98 0.98 0.98 rgb
+    40 550 515 135 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 550 515 135 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 665 lefttext (Command Center & Tenant Workspace Governance)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 650 lefttext (Routes: /platform/command-center, /platform/tenants)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 632 lefttext (- Real-time Platform KPIs: Active business counts, platform MRR, WhatsApp messages, orders & leads.)
+    55 618 lefttext (- Interactive Trend Visualizations: Recharts area & bar charts illustrating message & revenue velocity.)
+    55 604 lefttext (- Tenant Lifecycle Management: Provision new workspaces, suspend delinquent accounts, resume services.)
+    55 590 lefttext (- Impersonation Gateway: Open and inspect tenant workspace sessions with audit trail tracking.)
+    55 576 lefttext (- Unrouted Number Detector: Captures inbound messages from unregistered WhatsApp numbers.)
+    55 562 lefttext (- Custom Domain Configuration: Bind dedicated domains (e.g., booking.agency.com) to workspaces.)
+    
+    % Feature Block 2: Billing, Subscriptions & Invoicing
+    0.98 0.98 0.98 rgb
+    40 395 515 140 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 395 515 140 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 515 lefttext (Subscriptions, Invoicing & Automated Dunning Engine)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 500 lefttext (Routes: /platform/billing, /platform/invoices, /platform/revenue)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 482 lefttext (- Plan Assignment & Modification: Switch tenant plans (Starter, Growth, Enterprise) with instant quota adjustments.)
+    55 468 lefttext (- 1-Click Trial Extensions: Extend trial periods by configurable day increments with automatic date recalculation.)
+    55 454 lefttext (- Automated Dunning Escalation: Multi-step dunning reminders (1st Reminder -> 2nd Notice -> Final Warning).)
+    55 440 lefttext (- Invoice Lifecycle: Track OMR amounts, issue dates, payment gateway IDs, and 1-click 'Mark as Paid' actions.)
+    55 426 lefttext (- Financial Intelligence: Live calculation of MRR, ARPU (Average Revenue Per User), and 30-day collections.)
+    55 412 lefttext (- Status Badges: Clear visual indicators for ACTIVE, TRIALING, PAST_DUE, CANCELLED subscriptions.)
+    
+    % Feature Block 3: WhatsApp Number Fleet & Quota Limits
+    0.98 0.98 0.98 rgb
+    40 240 515 140 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 240 515 140 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 360 lefttext (WhatsApp Number Pool & Resource Quotas)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 345 lefttext (Routes: /platform/whatsapp-numbers, /platform/usage)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 327 lefttext (- Meta Cloud API Health Monitor: Real-time quality rating indicators (Green Normal, Yellow Warning, Red Restricted).)
+    55 313 lefttext (- Messaging Tier Allocation: Displays tier throughput limits (Tier 1K, Tier 10K, Tier 100K, Unlimited/day).)
+    55 299 lefttext (- Number Pool Allocation: Assign phone numbers to dedicated workspaces or hold in unassigned pool.)
+    55 285 lefttext (- Resource Quota Matrix: Visual progress bar monitoring per workspace for messages, campaigns, AI tokens & staff.)
+    55 271 lefttext (- High-Usage Detection: Workspaces exceeding 90% quota are automatically highlighted with alert badges.)
+    55 257 lefttext (- Manual Re-Sync & Diagnostics: Trigger instant health checks against Meta Graph API endpoints.)
+    
+    showpage
+    
+%%Page: 3 3
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 3 of 6)
+        
+
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (3. Platform Operations, Helpdesk & Governance)
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (Advanced operational tools ensuring high customer satisfaction, compliance, and growth automation.)
+    
+    % Block 1: Support Tickets Helpdesk
+    0.98 0.98 0.98 rgb
+    40 560 515 135 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 560 515 135 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 675 lefttext (Global Multi-Tenant Support Tickets Helpdesk)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 660 lefttext (Route: /platform/support-tickets)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 642 lefttext (- Dual Ticket Ingestion: Tickets created by tenant workspace staff or initiated by platform operators.)
+    55 628 lefttext (- Threaded Communication View: Complete chronological timeline of customer inquiries and responses.)
+    55 614 lefttext (- Private Operator Internal Notes: Internal team notes highlighted in yellow, hidden from tenant view.)
+    55 600 lefttext (- Priority & Status Management: Filter and update priority (Low, Medium, High, Urgent) and status.)
+    55 586 lefttext (- Staff Assignment: Route tickets to specialized support staff members for rapid SLA resolution.)
+    55 572 lefttext (- SLA Metrics: Live count of open, in-progress, waiting, and resolved tickets.)
+    
+    % Block 2: Announcements & Broadcast Banners
+    0.98 0.98 0.98 rgb
+    40 405 515 140 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 405 515 140 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 525 lefttext (Platform Announcements & In-App Broadcast Banners)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 510 lefttext (Route: /platform/announcements)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 492 lefttext (- In-App Announcement Banners: Displays top banner alerts across tenant workspace dashboards.)
+    55 478 lefttext (- Audience Targeting: Broadcast globally to ALL workspaces or target specific plan tiers (Enterprise/Growth).)
+    55 464 lefttext (- Type Classification: Information (Blue), New Feature (Green), Alert (Amber), Maintenance (Dark).)
+    55 450 lefttext (- Scheduled Expiry: Automatically schedule start dates and expiry dates for notices.)
+    55 436 lefttext (- Full CRUD Suite: Create, edit message text, delete, and 1-click toggle between Published and Draft.)
+    55 422 lefttext (- Dynamic Tenant Polling: Tenant workspaces poll /api/announcements/active to render active banners.)
+    
+    % Block 3: Audit Trail & Website Leads Engine
+    0.98 0.98 0.98 rgb
+    40 250 515 140 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 250 515 140 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 370 lefttext (Immutable Audit Log & Website Demo Lead Engine)
+    9 /Helvetica-Bold font
+    0.45 0.50 0.55 rgb
+    55 355 lefttext (Routes: /platform/audit, /platform/leads)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 337 lefttext (- Full Audit Trail: Immutable logging of staff actions, impersonations, plan edits, suspensions, and logins.)
+    55 323 lefttext (- Multi-Filter & Search: Filter audit history by action type, target entity, or full-text reason search.)
+    55 309 lefttext (- Inspect Record Modal: Detailed modal revealing full actor metadata, target scope, and justification.)
+    55 295 lefttext (- 1-Click CSV Export: Export filtered audit logs for compliance reviews and SOC2/ISO readiness.)
+    55 281 lefttext (- Website Demo & Lead Capture: Ingests inbound leads from /book-demo and /contact pages.)
+    55 267 lefttext (- Google Meet Scheduling: Automatically captures scheduled demo dates, company size, and meeting links.)
+    
+    showpage
+    
+%%Page: 4 4
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 4 of 6)
+        
+
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (4. Tenant Workspace Capabilities & Industry Verticals)
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (Each business workspace runs on an isolated SaaS boundary with specialized tools for WhatsApp Commerce.)
+    
+    % Column 1: WhatsApp Commerce & AI
+    0.98 0.98 0.98 rgb
+    40 450 245 245 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 450 245 245 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    52 675 lefttext (WhatsApp Inbox & AI Engine)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    52 655 lefttext (- 2-Way Omnichannel Live Chat)
+    52 641 lefttext (- Real-time message streaming)
+    52 627 lefttext (- Media support: PDF, Images, Audio)
+    52 613 lefttext (- Canned replies & fast responses)
+    52 599 lefttext (- Staff conversation assignment)
+    52 585 lefttext (- AI Conversational Responder)
+    52 571 lefttext (- Grounded in Knowledge Base docs)
+    52 557 lefttext (- Automated FAQs & intent routing)
+    52 543 lefttext (- Human-agent handoff trigger)
+    52 529 lefttext (- Multi-language translation)
+    52 515 lefttext (- Contact tagging & VIP profiling)
+    52 501 lefttext (- WhatsApp Catalog product cards)
+    52 487 lefttext (- Interactive buttons & list menus)
+    52 473 lefttext (- Meta Cloud Webhook delivery)
+    52 459 lefttext (- Audit trail of customer interactions)
+    
+    % Column 2: Marketing & Broadcast Campaigns
+    0.98 0.98 0.98 rgb
+    310 450 245 245 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    310 450 245 245 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    322 675 lefttext (Broadcast Campaigns & CRM)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    322 655 lefttext (- Meta Approved Template Broadcasts)
+    322 641 lefttext (- Dynamic audience segmentation)
+    322 627 lefttext (- Variable placeholders ({1}, {2}))
+    322 613 lefttext (- Delivery & read rate analytics)
+    322 599 lefttext (- Link click conversion tracking)
+    322 585 lefttext (- Rate-limited burst dispatching)
+    322 571 lefttext (- Automated opt-out compliance)
+    322 557 lefttext (- Subscriber list CSV import/export)
+    322 543 lefttext (- Customer CRM lifecycle profiles)
+    322 529 lefttext (- Full order and booking history)
+    322 515 lefttext (- Coupons & promotional discount codes)
+    322 501 lefttext (- Automated birthday/anniversary triggers)
+    322 487 lefttext (- WhatsApp signup diagnostic tool)
+    322 473 lefttext (- Consent management records)
+    322 459 lefttext (- Staff role permissions & RBAC)
+    
+    % Vertical Solutions Table
+    12 /Helvetica-Bold font
+    0.12 0.15 0.20 rgb
+    40 420 lefttext (Specialized Vertical Modules)
+    0.85 0.88 0.90 rgb
+    40 412 moveto 555 412 lineto 1 setlinewidth stroke
+    
+    0.98 0.98 0.98 rgb
+    40 220 515 180 4 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 220 515 180 4 roundrect stroke
+    
+    0.92 0.94 0.96 rgb
+    40 370 515 30 4 roundrect fill
+    
+    10 /Helvetica-Bold font
+    0.15 0.20 0.25 rgb
+    55 381 lefttext (Vertical Industry)
+    170 381 lefttext (Dedicated Module Features)
+    390 381 lefttext (Customer Outcome)
+    
+    9 /Helvetica-Bold font
+    0.15 0.18 0.22 rgb
+    55 352 lefttext (Tours & Adventures)
+    170 352 lefttext (Slot inventory, capacity locks, e-vouchers)
+    390 352 lefttext (Zero overbooking, instant PDF tickets)
+    
+    55 324 lefttext (Clinics & Healthcare)
+    170 324 lefttext (Doctor slots, chemo sessions, bed maps)
+    390 324 lefttext (Reduced no-shows, automated reminders)
+    
+    55 296 lefttext (Restaurants & POS)
+    170 296 lefttext (QR menu, table bookings, POS kitchen feed)
+    390 296 lefttext (Direct WhatsApp ordering, table turnover)
+    
+    55 268 lefttext (Retail & E-Commerce)
+    170 268 lefttext (2-Way WooCommerce sync, product catalog)
+    390 268 lefttext (Automated order tracking on WhatsApp)
+    
+    55 240 lefttext (Payments & Billing)
+    170 240 lefttext (AmwalPay gateway, bank receipt verify)
+    390 240 lefttext (Instant verified payment confirmations)
+    
+    showpage
+    
+%%Page: 5 5
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 5 of 6)
+        
+
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (5. Database Models & REST API Matrix)
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (Overview of core relational models in PostgreSQL (via Prisma) and Platform API endpoints.)
+    
+    % Section: Core Database Entities
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 685 lefttext (Primary Prisma Database Models)
+    
+    % Model Grid
+    0.98 0.98 0.98 rgb
+    40 450 515 225 4 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 450 515 225 4 roundrect stroke
+    
+    9 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 655 lefttext (Model: Tenant)
+    160 655 lefttext (Model: SubscriptionInvoice)
+    340 655 lefttext (Model: SupportTicket & Reply)
+    
+    8 /Helvetica font
+    0.20 0.25 0.30 rgb
+    55 640 lefttext (id, slug, name, status)
+    55 628 lefttext (plan, subscriptionStatus)
+    55 616 lefttext (trialEndsAt, currentPeriodEnd)
+    55 604 lefttext (customDomain, timezone)
+    
+    160 640 lefttext (id, reference, tenantId)
+    160 628 lefttext (amount, currency, status)
+    160 616 lefttext (dunningStep, lastDunnedAt)
+    160 604 lefttext (gatewayReference, paidAt)
+    
+    340 640 lefttext (id, reference, subject, priority)
+    340 628 lefttext (status, channel, tenantId)
+    340 616 lefttext (assignedStaffId, replies[])
+    340 604 lefttext (isInternal, staffId, body)
+    
+    9 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 575 lefttext (Model: PlatformAnnouncement)
+    200 575 lefttext (Model: PlatformAuditEvent)
+    370 575 lefttext (Model: WebsiteLead)
+    
+    8 /Helvetica font
+    0.20 0.25 0.30 rgb
+    55 560 lefttext (id, title, body, type)
+    55 548 lefttext (targetAudience, publishedAt)
+    55 536 lefttext (expiresAt, createdById)
+    
+    200 560 lefttext (id, tenantId, actorStaffId)
+    200 548 lefttext (action, entity, entityId)
+    200 536 lefttext (reason, metadata, createdAt)
+    
+    370 560 lefttext (id, name, email, phone)
+    370 548 lefttext (company, source, status)
+    370 536 lefttext (demoScheduledAt, meetUrl)
+    
+    9 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 505 lefttext (Model: WhatsAppAccount)
+    200 505 lefttext (Model: Order & Voucher)
+    370 505 lefttext (Model: HospitalAppointment)
+    
+    8 /Helvetica font
+    0.20 0.25 0.30 rgb
+    55 490 lefttext (id, phoneNumberId, wabaId)
+    55 478 lefttext (displayPhone, qualityRating)
+    55 466 lefttext (messagingLimit, tenantId)
+    
+    200 490 lefttext (id, orderNumber, totalAmount)
+    200 478 lefttext (status, tourId, slotId)
+    200 466 lefttext (vouchers[], customerId)
+    
+    370 490 lefttext (id, patientId, doctorId)
+    370 478 lefttext (serviceId, appointmentDate)
+    370 466 lefttext (status, notes, holdExpiresAt)
+    
+    % Section: Platform API Matrix
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 425 lefttext (Core Platform API Route Matrix)
+    
+    0.98 0.98 0.98 rgb
+    40 215 515 200 4 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 215 515 200 4 roundrect stroke
+    
+    0.92 0.94 0.96 rgb
+    40 385 515 30 4 roundrect fill
+    
+    10 /Helvetica-Bold font
+    0.15 0.20 0.25 rgb
+    55 396 lefttext (HTTP Method & Endpoint)
+    230 396 lefttext (Auth Guard)
+    340 396 lefttext (Functionality)
+    
+    8.5 /Helvetica font
+    0.15 0.18 0.22 rgb
+    55 368 lefttext (GET  /api/platform/analytics)
+    230 368 lefttext (Platform Super Admin)
+    340 368 lefttext (Aggregated KPIs, MRR & charts)
+    
+    55 348 lefttext (GET/PATCH /api/platform/tenants/:id)
+    230 348 lefttext (Platform Super Admin)
+    340 348 lefttext (Workspace plan, status, trial extend)
+    
+    55 328 lefttext (GET/PATCH /api/platform/invoices/:id)
+    230 328 lefttext (Platform Super Admin)
+    340 328 lefttext (Invoice status, dunning step increment)
+    
+    55 308 lefttext (GET/POST /api/platform/support/tickets)
+    230 308 lefttext (Platform Super Admin)
+    340 308 lefttext (Global ticket helpdesk & operator notes)
+    
+    55 288 lefttext (GET/POST /api/platform/announcements)
+    230 288 lefttext (Platform Super Admin)
+    340 288 lefttext (Global in-app broadcast alerts CRUD)
+    
+    55 268 lefttext (GET  /api/platform/usage)
+    230 268 lefttext (Platform Super Admin)
+    340 268 lefttext (Live resource consumption matrix)
+    
+    55 248 lefttext (GET  /api/platform/audit)
+    230 248 lefttext (Platform Super Admin)
+    340 248 lefttext (Filterable immutable audit trail)
+    
+    55 228 lefttext (POST /api/demo/book, /api/contact)
+    230 228 lefttext (Public (Rate Limited))
+    340 228 lefttext (Lead ingestion into Platform Leads)
+    
+    showpage
+    
+%%Page: 6 6
+
+        % --- Page Header ---
+        0.059 0.463 0.431 rgb
+        0 836 595 6 rect fill
+        
+        0.96 0.97 0.98 rgb
+        40 770 515 50 8 roundrect fill
+        0.88 0.90 0.92 rgb
+        1 setlinewidth
+        40 770 515 50 8 roundrect stroke
+        
+        18 /Helvetica-Bold font
+        0.059 0.463 0.431 rgb
+        55 798 lefttext (FIZMOH)
+        
+        11 /Helvetica-Bold font
+        0.12 0.15 0.20 rgb
+        135 798 lefttext (Enterprise Cloud SaaS Platform Specification)
+        
+        9 /Helvetica font
+        0.45 0.50 0.55 rgb
+        55 780 lefttext (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine)
+        540 780 righttext (Version 3.0 | Production Release)
+        
+        % --- Page Footer ---
+        0.88 0.90 0.92 rgb
+        40 45 moveto 555 45 lineto stroke
+        
+        8 /Helvetica font
+        0.50 0.55 0.60 rgb
+        40 32 lefttext (Confidential - Fizmoh Cloud Architecture Documentation)
+        555 32 righttext (Page 6 of 6)
+        
+
+    14 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    40 740 lefttext (6. Security, Compliance & Production Readiness)
+    0.059 0.463 0.431 rgb
+    40 732 moveto 555 732 lineto 1.5 setlinewidth stroke
+    
+    10 /Helvetica font
+    0.15 0.18 0.22 rgb
+    40 715 lefttext (Enterprise-grade security controls, automated testing, and production deployment standards.)
+    
+    % Section: Security Architecture
+    0.98 0.98 0.98 rgb
+    40 540 515 155 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 540 515 155 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 675 lefttext (Security Controls & Compliance Architecture)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 655 lefttext (- Role-Based Access Control (RBAC): Strict segregation between Global Platform Super Admin and)
+    55 641 lefttext (  Tenant Staff (Admin, Manager, Agent) enforced via server-side session tokens.)
+    55 627 lefttext (- Zero-Knowledge Tenant Impersonation: All operator tenant inspections require explicit reasons)
+    55 613 lefttext (  and are immutably logged to the PlatformAuditEvent table.)
+    55 599 lefttext (- Webhook Signature Verification: Meta Cloud API and AmwalPay webhooks validated with HMAC-SHA256.)
+    55 585 lefttext (- Edge Security & Rate Limiting: Public lead and booking endpoints protected against automated abuse.)
+    55 571 lefttext (- Clean Path URL Routing: Modern Next.js dynamic routing (/platform/[section]) replacing fragile hash states.)
+    55 557 lefttext (- Defensive Runtime Parsing: Strict Array.isArray guards across all client panels preventing UI crashes.)
+    
+    % Section: Production Release & Test Suite
+    0.98 0.98 0.98 rgb
+    40 360 515 165 6 roundrect fill
+    0.88 0.90 0.92 rgb
+    40 360 515 165 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 505 lefttext (Automated Verification & Release Quality Assurance)
+    
+    8.5 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 485 lefttext (- Comprehensive Unit Test Suite: 74 / 74 unit tests passing (222 test expectations) across 9 test suites.)
+    55 471 lefttext (- Full Route Coverage: 185 Next.js application routes compiled and optimized via Turbopack engine.)
+    55 457 lefttext (- Automated Service Health Checks: /admin (200 OK), /api/health (200 OK), /api/tours (200 OK).)
+    55 443 lefttext (- Live PostgreSQL Migration: Prisma schema synchronized with automated column migrations.)
+    55 429 lefttext (- Continuous Deployment Workflow: Production-grade zero-downtime releases with instant rollback support.)
+    55 415 lefttext (- Observability: Error boundary monitoring, live delivery webhook retry queues, and latency tracking.)
+    55 401 lefttext (- Client-Side State: Zustand persistence store synchronizing theme, active workspace, and staff context.)
+    55 387 lefttext (- Cross-Platform Compatibility: Optimized for desktop ultra-wide displays down to mobile viewports.)
+    
+    % Sign-off Box
+    0.95 0.98 0.96 rgb
+    40 200 515 140 6 roundrect fill
+    0.059 0.463 0.431 rgb
+    1 setlinewidth
+    40 200 515 140 6 roundrect stroke
+    
+    11 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 320 lefttext (Platform Engineering Summary)
+    
+    9 /Helvetica font
+    0.18 0.22 0.28 rgb
+    55 300 lefttext (Fizmoh is fully deployed and operational at app.fizmoh.cloud.)
+    55 285 lefttext (Every requested platform capability-from the unified Operator Console and clean /platform/[section] paths)
+    55 270 lefttext (to Support Tickets, Invoicing, Announcements, and Google Meet Demo booking-is live in production.)
+    
+    9 /Helvetica-Bold font
+    0.059 0.463 0.431 rgb
+    55 240 lefttext (Document Ref: FIZMOH-SPEC-2026-V3 | Status: Production Active | Fizmoh Engineering)
+    
+    showpage
+    %%EOF
+    

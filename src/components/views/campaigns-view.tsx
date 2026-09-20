@@ -154,6 +154,7 @@ export default function CampaignsView() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            data-tour="camp-create-btn"
             onClick={() => setShowNew(true)}
             className="bg-emerald-600 hover:bg-emerald-700 shadow-sm"
           >
@@ -163,7 +164,7 @@ export default function CampaignsView() {
       </div>
 
       {/* Channel Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-stone-100 rounded-2xl border border-stone-200/80">
+      <div data-tour="camp-channel-tabs" className="flex flex-wrap items-center gap-1.5 p-1.5 bg-stone-100 rounded-2xl border border-stone-200/80">
         {[
           { id: "ALL" as const, label: "All Campaigns", icon: Megaphone, count: campaigns.length },
           { id: "WHATSAPP" as const, label: "WhatsApp Broadcast", icon: WhatsAppIcon, accent: "text-[#25D366]", count: campaigns.filter(c => c.channel === "WHATSAPP").length },
@@ -229,7 +230,7 @@ export default function CampaignsView() {
       ) : (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div data-tour="camp-analytics" className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Total Sent", value: totalSent, icon: Send, color: "text-emerald-600 bg-emerald-50" },
               { label: "Delivery Rate", value: `${deliveryRate.toFixed(1)}%`, icon: CheckCircle, color: "text-teal-600 bg-teal-50" },

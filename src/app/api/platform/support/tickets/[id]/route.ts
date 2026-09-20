@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { raw } from "@/lib/db";
 import { withErrors } from "@/lib/api-handler";
 import { requirePlatformAdmin } from "@/app/api/platform/tenants/route";
+import { supportAuthor } from "@/lib/platform-support";
 
 export const GET = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const admin = await requirePlatformAdmin(request);
@@ -32,11 +33,11 @@ export const GET = withErrors(async (request: NextRequest, { params }: { params:
     ticket: {
       ...ticket,
       tenant,
-      creatorName: staffMap[ticket.createdById] || "Unknown",
+      creatorName: staffMap[ticket.createdById] || supportAuthor(ticket.createdById),
       assigneeName: ticket.assignedStaffId ? staffMap[ticket.assignedStaffId] : null,
       replies: ticket.replies.map(r => ({
         ...r,
-        staffName: staffMap[r.staffId] || "Unknown",
+        staffName: staffMap[r.staffId] || supportAuthor(r.staffId),
       }))
     }
   });
@@ -47,12 +48,15 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   if (!admin) return NextResponse.json({ error: "Not a platform administrator" }, { status: 403 });
 
   const { id } = await params;
-  const staffId = request.headers.get("x-wptour-staff-id");
+  const staffId = admin.id;
 
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
   const { status, priority, assignedStaffId, resolvedAt, closedAt } = body;
+  if ((status !== undefined && !["OPEN", "IN_PROGRESS", "WAITING", "RESOLVED", "CLOSED"].includes(status)) || (priority !== undefined && !["LOW", "MEDIUM", "HIGH", "URGENT"].includes(priority))) return NextResponse.json({ error: "Invalid ticket status or priority" }, { status: 400 });
+  if (assignedStaffId !== undefined && assignedStaffId !== null && typeof assignedStaffId !== "string") return NextResponse.json({ error: "Invalid assignee" }, { status: 400 });
+  for (const date of [resolvedAt, closedAt]) if (date !== undefined && date !== null && (typeof date !== "string" || !Number.isFinite(Date.parse(date)))) return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   
   const existingTicket = await raw.supportTicket.findUnique({ where: { id } });
   if (!existingTicket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
@@ -63,7 +67,7 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
       data: {
         status: status !== undefined ? status : existingTicket.status,
         priority: priority !== undefined ? priority : existingTicket.priority,
-        assignedStaffId: assignedStaffId !== undefined ? assignedStaffId : existingTicket.assignedStaffId,
+        assignedStaffId: body.claim === true ? admin.id : assignedStaffId !== undefined ? assignedStaffId : existingTicket.assignedStaffId,
         resolvedAt: resolvedAt !== undefined ? (resolvedAt ? new Date(resolvedAt) : null) : existingTicket.resolvedAt,
         closedAt: closedAt !== undefined ? (closedAt ? new Date(closedAt) : null) : existingTicket.closedAt,
       },

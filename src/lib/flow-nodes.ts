@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { sendWhatsApp, sendInteractiveMessage, sendMediaMessage } from "@/lib/flow-delivery"
+import { sendWhatsApp, sendInteractiveMessage, sendMediaMessage, sendCtaUrlMessage } from "@/lib/flow-delivery"
 import { assertSafeHttpUrl } from "@/lib/safe-url"
 import { holdSlotSeats } from "@/lib/slots-server"
 import { calculateOrderPrice } from "@/lib/helpers"
@@ -26,6 +26,7 @@ export type NodeKind =
   | "APPOINTMENT" | "APT_RESCHEDULE" | "HOSPITAL" | "HOSP_CHEMO" | "HOSP_DOCTOR" | "HOSP_BED_MAP"
   | "TOUR" | "TOUR_DETAILS" | "TOUR_AVAIL" | "PAYMENT" | "BANK_TRANSFER"
   | "CTA_URL" | "LOCATION" | "VISA" | "RESTAURANT" | "RESTAURANT_MENU" | "RESTAURANT_ORDER_STATUS" | "HOSPITAL_AVAILABILITY"
+  | "RESTAURANT_SITE" | "RESTAURANT_TABLES" | "RESTAURANT_ORDER" | "RESTAURANT_PAY" | "RESTAURANT_CALL_WAITER" | "RESTAURANT_SCAN" | "RESTAURANT_SEARCH"
   | "BOOKING"
 
 export interface NodeData {
@@ -102,6 +103,8 @@ export interface NodeData {
   accountNumber?: string
   accountTitle?: string
   orderId?: string
+  tableNumber?: string
+  requestType?: "WATER" | "BILL" | "CUTLERY" | "CLEAN_TABLE" | "ASSISTANCE" | "OTHER"
 }
 
 export interface NodeContext {
@@ -111,6 +114,7 @@ export interface NodeContext {
   customerPhone: string
   variables: Record<string, string>
   lastMessage: string
+  buttonId?: string
 }
 
 /** The result of running one node: where to go next, and whether to stop. */
@@ -878,17 +882,28 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
 
     case "CTA_URL": {
       const txt = fill(data.text || "Please visit our website or get in touch:", ctx)
-      const bText = fill(data.buttonText || "Open Website", ctx)
+      const bText = fill(data.buttonText || "Open Website", ctx).slice(0, 20)
       const linkUrl = fill(data.url || "https://app.fizmoh.cloud", ctx)
       const phoneNum = fill(data.phone || "", ctx)
 
-      let fullMsg = `${txt}\n\n🔗 *${bText}:* ${linkUrl}`
-      if (phoneNum) fullMsg += `\n📞 *Call Us:* ${phoneNum}`
+      let res = { success: false }
+      if (/^https:\/\//i.test(linkUrl)) {
+        res = await sendCtaUrlMessage({
+          to: ctx.customerPhone,
+          body: phoneNum ? `${txt}\n\n📞 Call Us: ${phoneNum}` : txt,
+          buttonText: bText,
+          url: linkUrl,
+        })
+      }
 
-      await sendWhatsApp({
-        to: ctx.customerPhone,
-        body: fullMsg,
-      })
+      if (!res.success) {
+        let fullMsg = `${txt}\n\n🔗 *${bText}:* ${linkUrl}`
+        if (phoneNum) fullMsg += `\n📞 *Call Us:* ${phoneNum}`
+        await sendWhatsApp({
+          to: ctx.customerPhone,
+          body: fullMsg,
+        })
+      }
       return {}
     }
 
@@ -1200,68 +1215,365 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       return { wait: "reply" }
     }
 
-    case "RESTAURANT": {
-      /*
-       * Only offer a table when there is one.
-       *
-       * "Book a Table" was a button with nothing behind it. The free tables are
-       * counted first, so the offer reflects the room: with none free the
-       * customer is told plainly and sent to the menu rather than into a dead
-       * end. Sections are listed because "terrace or indoors" is the question
-       * people actually ask.
-       */
-      const freeTables = await db.restaurantTable.findMany({
-        where: { tenantId: ctx.tenantId, status: "AVAILABLE" },
-        select: { section: true, capacity: true },
-      })
-      const seats = freeTables.reduce((total, table) => total + table.capacity, 0)
-      const sections = [...new Set(freeTables.map(table => table.section))]
+    case "RESTAURANT":
+    case "RESTAURANT_TABLES": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
 
-      const msg = fill(
-        data.text ||
-          (freeTables.length > 0
-            ? `🍽️ *Table Reservation & Menu*\n\nWe have *${freeTables.length} table${freeTables.length === 1 ? "" : "s"}* free right now (${seats} seats)${sections.length ? ` across ${sections.join(", ").toLowerCase()}` : ""}.\n\nWould you like to reserve one, or see the menu?`
-            : "🍽️ *Table Reservation & Menu*\n\nEvery table is taken at the moment — we can add you to the waiting list, or you can order from the menu."),
-        ctx,
-      )
+      const allTables = await db.restaurantTable.findMany({
+        where: { tenantId },
+        select: { number: true, status: true, section: true, area: true, capacity: true },
+      })
+      const freeTables = allTables.filter(t => t.status === "AVAILABLE")
+      const seats = freeTables.reduce((total, table) => total + table.capacity, 0)
+
+      const indoorFree = freeTables.filter(t => t.area === "INDOOR" || t.section === "MAIN").length
+      const terraceFree = freeTables.filter(t => t.area === "TERRACE" || t.area === "OUTDOOR" || t.section === "TERRACE").length
+      const vipFree = freeTables.filter(t => t.area === "VIP" || t.section === "VIP").length
+
+      const areaBreakdown = [
+        indoorFree > 0 ? `🏛️ Indoor: ${indoorFree} free` : null,
+        terraceFree > 0 ? `🌊 Terrace: ${terraceFree} free` : null,
+        vipFree > 0 ? `👑 VIP Majlis: ${vipFree} free` : null,
+      ].filter(Boolean).join(" · ")
+
+      const defaultMsg = freeTables.length > 0
+        ? `🍽️ *Live Table Visibility (${tenant?.name || "Restaurant"})*\n\n🟢 *${freeTables.length} Tables Available* (${seats} seats free)\n${areaBreakdown ? `${areaBreakdown}\n` : ""}\nOrder directly to your table or reserve ahead:`
+        : `🍽️ *Table Status (${tenant?.name || "Restaurant"})*\n\nAll tables are currently occupied. You can order takeaway, delivery, or join our waitlist:`
+
+      const msg = fill(data.text || defaultMsg, ctx)
       const restResult = await sendInteractiveMessage({
         to: ctx.customerPhone,
         body: msg,
         buttons: freeTables.length > 0
           ? [
-              { id: "rest_table", title: "🪑 Book a Table" },
               { id: "rest_menu", title: "📖 View Menu" },
+              { id: "rest_order", title: "🛍️ Order Food" },
+              { id: "rest_waiter", title: "🔔 Call Waiter" },
             ]
           : [
-              { id: "rest_waitlist", title: "🔔 Waiting list" },
               { id: "rest_menu", title: "📖 View Menu" },
+              { id: "rest_order", title: "🛍️ Takeaway / Delivery" },
             ],
       })
       await record(ctx, msg, restResult.success)
       return { wait: "reply", set: { "restaurant.tables_free": String(freeTables.length) } }
     }
 
-    case "RESTAURANT_MENU": {
-      const categories = await db.menuCategory.findMany({
-        where: { tenantId: (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || "", isActive: true },
-        include: { items: { where: { isAvailable: true }, take: 10, orderBy: { createdAt: "asc" } } },
-        take: 10,
+    case "RESTAURANT_SITE": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
+      const siteUrl = `https://app.fizmoh.cloud/menu/${slug}`
+
+      const txt = fill(data.text || `🍽️ *${tenant?.name || "Restaurant"} — Smart Menu & Ordering*\n\nExplore our chef specials, customize dishes, and order directly for Delivery, Pickup or Dine-In with online card payment:`, ctx)
+      
+      const res = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body: txt,
+        buttonText: "Open Menu & Order",
+        url: siteUrl,
       })
-      const rows = categories.flatMap(category => category.items.slice(0, 10).map(item => ({ id: `menu_${item.id}`, title: item.name.slice(0, 24), description: `${item.price.toFixed(3)} ${item.currency}`.slice(0, 72) }))).slice(0, 10)
-      if (!rows.length) {
-        await sendWhatsApp({ to: ctx.customerPhone, body: fill(data.text || "Our menu is being updated. Please ask an agent for today's options.", ctx), allowOutsideSession: true })
-        return { wait: "reply" }
+
+      await record(ctx, `${txt}\n${siteUrl}`, res.success)
+
+      if (!res.success) {
+        const fullMsg = `${txt}\n\n👉 *Open Menu & Order:*\n${siteUrl}`
+        await sendWhatsApp({
+          to: ctx.customerPhone,
+          body: fullMsg,
+          allowOutsideSession: true,
+        })
       }
-      const body = fill(data.text || "🍽️ Choose from our available menu:", ctx)
-      const result = await sendInteractiveMessage({ to: ctx.customerPhone, body, list: { title: "View Menu", sections: [{ title: "Available today", rows }] } })
-      await record(ctx, body, result.success)
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_MENU": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
+
+      const categories = await db.menuCategory.findMany({
+        where: { tenantId, isActive: true },
+        include: {
+          items: {
+            where: { isAvailable: true, isSoldOut: false },
+            take: 6,
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+        take: 10,
+        orderBy: { displayOrder: "asc" },
+      })
+
+      const rows = categories.flatMap(cat =>
+        cat.items.map(item => ({
+          id: `item_${item.id}`,
+          title: item.name.slice(0, 24),
+          description: `${(item.salePrice || item.price).toFixed(3)} ${item.currency} · ${cat.name}`.slice(0, 72),
+        }))
+      ).slice(0, 10)
+
+      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}`
+      const intro = fill(
+        data.text ||
+          `🍽️ *${tenant?.name || "Restaurant"} Menu*\n\nBrowse our popular dishes below, or open our full interactive digital menu with high-res photos & online ordering:`,
+        ctx,
+      )
+
+      if (rows.length > 0) {
+        const result = await sendInteractiveMessage({
+          to: ctx.customerPhone,
+          body: `${intro}\n\n👉 *Open Full Digital Menu:*\n${menuUrl}`,
+          list: {
+            title: "View Menu",
+            sections: [{ title: "Popular Dishes", rows }],
+          },
+        })
+        await record(ctx, `${intro}\n${menuUrl}`, result.success)
+      } else {
+        const cta = await sendCtaUrlMessage({
+          to: ctx.customerPhone,
+          body: intro,
+          buttonText: "Open Menu & Order",
+          url: menuUrl,
+        })
+        await record(ctx, `${intro}\n${menuUrl}`, cta.success)
+        if (!cta.success) {
+          await sendWhatsApp({
+            to: ctx.customerPhone,
+            body: `${intro}\n\n👉 *Open Menu & Order:*\n${menuUrl}`,
+            allowOutsideSession: true,
+          })
+        }
+      }
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_SEARCH": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
+      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}`
+
+      await db.conversation.update({
+        where: { id: ctx.conversationId },
+        data: {
+          flowState: JSON.stringify({ waitingFor: "SEARCH_QUERY", tenantId, startedAt: new Date().toISOString() }),
+        },
+      }).catch(() => {})
+
+      const promptMsg =
+        `🔍 *Search Menu & Dishes (${tenant?.name || "Restaurant"})*\n\n` +
+        `What dish or craving are you looking for today?\n\n` +
+        `Type any dish or ingredient like *pasta*, *burger*, *pizza*, *fries*, *salad*, *steak*, etc.\n\n` +
+        `👉 *Or Browse Full Digital Menu Online:*\n${menuUrl}`
+
+      const cta = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body: promptMsg,
+        buttonText: "Open Full Menu",
+        url: menuUrl,
+      })
+      await record(ctx, promptMsg, cta.success)
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_ORDER": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
+      const tableParam = data.tableNumber ? `?table=${encodeURIComponent(data.tableNumber)}` : ""
+      const orderUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+
+      const txt = fill(
+        data.text ||
+          `🍽️ *Place an Order (${tenant?.name || "Restaurant"})*\n\n` +
+          `🛵 *Home Delivery* — Fast to your address\n` +
+          `🥡 *Self Pickup* — Fresh and ready\n` +
+          `🍽️ *Dine-In* ${data.tableNumber ? `(Table #${data.tableNumber})` : "— Order to your table"}\n\n` +
+          `Tap below to open interactive menu & order:`,
+        ctx,
+      )
+
+      const res = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body: txt,
+        buttonText: "Open Menu & Order",
+        url: orderUrl,
+      })
+
+      await record(ctx, `${txt}\n${orderUrl}`, res.success)
+
+      if (!res.success) {
+        await sendWhatsApp({
+          to: ctx.customerPhone,
+          body: `${txt}\n\n👉 *Start Order:* ${orderUrl}`,
+          allowOutsideSession: true,
+        })
+      }
       return { wait: "reply" }
     }
 
     case "RESTAURANT_ORDER_STATUS": {
-      const tenantId = (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
-      const order = await db.kitchenOrder.findFirst({ where: { tenantId, ...(data.orderId ? { id: fill(data.orderId, ctx) } : { customerPhone: ctx.customerPhone }), status: { not: "CANCELLED" } }, orderBy: { createdAt: "desc" } })
-      const body = order ? `🍽️ Order *#${order.id.slice(-8).toUpperCase()}* is currently *${order.status.replace(/_/g, " ")}*.\nTotal: ${order.totalAmount.toFixed(3)} ${order.currency}` : "I could not find an active restaurant order for this number."
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const order = await db.kitchenOrder.findFirst({
+        where: {
+          tenantId,
+          ...(data.orderId ? { id: fill(data.orderId, ctx) } : { customerPhone: ctx.customerPhone }),
+          status: { not: "CANCELLED" },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+
+      if (!order) {
+        const body = "🍽️ We could not find an active restaurant order for this number. If you placed an order under another phone, please send your order number."
+        await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+        return { wait: "reply" }
+      }
+
+      const statusIcons: Record<string, string> = {
+        PENDING: "⏳ Order Received (Sending to kitchen)",
+        ACCEPTED: "👍 Order Accepted by Kitchen",
+        PREPARING: "👨‍🍳 Cooking in Progress",
+        READY: "🍽️ Ready for Serving / Pickup!",
+        SERVED: "✨ Served at Table",
+        COMPLETED: "✅ Completed",
+      }
+      const readableStatus = statusIcons[order.status] || order.status.replace(/_/g, " ")
+      const isPaid = order.paymentStatus === "PAID"
+
+      let itemsSummary = ""
+      try {
+        const items = JSON.parse(order.itemsJson || "[]")
+        if (Array.isArray(items) && items.length > 0) {
+          itemsSummary = `\n*Items:*\n` + items.map((i: any) => `• ${i.qty || 1}x ${i.name}`).join("\n") + "\n"
+        }
+      } catch {}
+
+      const trackingUrl = `https://app.fizmoh.cloud/order/${order.publicToken || order.id}`
+      const payUrl = `https://app.fizmoh.cloud/api/amwalpay/create-session?orderId=KIT-${order.id}`
+
+      let body =
+        `🍽️ *Restaurant Order #${order.orderNumber || order.id.slice(-6).toUpperCase()}*\n\n` +
+        `Status: *${readableStatus}*\n` +
+        `Type: *${order.orderType}${order.tableNumber ? ` (Table #${order.tableNumber})` : ""}*\n` +
+        itemsSummary +
+        `\n💰 Total: *${order.totalAmount.toFixed(3)} ${order.currency || "OMR"}*\n` +
+        `💳 Payment: *${isPaid ? "✅ Paid" : "⚠️ Pending Payment"}*`
+
+      const targetUrl = !isPaid && order.status !== "CANCELLED" ? payUrl : trackingUrl
+      const btnText = !isPaid && order.status !== "CANCELLED" ? "Pay Online Now" : "Track Live Order"
+
+      const cta = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body: body + `\n\nTap below to ${!isPaid ? "complete payment" : "track order in real-time"}:`,
+        buttonText: btnText,
+        url: targetUrl,
+      })
+
+      if (!cta.success) {
+        let fallbackMsg = body + `\n\n📍 *Live Tracker:* ${trackingUrl}`
+        if (!isPaid && order.status !== "CANCELLED") {
+          fallbackMsg += `\n\n💳 *Pay Online Now via Card:*\n${payUrl}`
+        }
+        await sendWhatsApp({ to: ctx.customerPhone, body: fallbackMsg, allowOutsideSession: true })
+      }
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_PAY": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const order = await db.kitchenOrder.findFirst({
+        where: {
+          tenantId,
+          ...(data.orderId ? { id: fill(data.orderId, ctx) } : { customerPhone: ctx.customerPhone }),
+          paymentStatus: { not: "PAID" },
+          status: { not: "CANCELLED" },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+
+      if (!order) {
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } })
+        const body = `💳 You have no pending restaurant bills. If you want to place a new order, view our menu:\nhttps://app.fizmoh.cloud/${tenant?.slug || "kitchen"}`
+        await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+        return { wait: "reply" }
+      }
+
+      const payUrl = `https://app.fizmoh.cloud/api/amwalpay/create-session?orderId=KIT-${order.id}`
+      const body = fill(
+        data.text ||
+          `💳 *Pay Restaurant Order #${order.orderNumber || order.id.slice(-6).toUpperCase()}*\n\n` +
+          `Order: ${order.orderType}${order.tableNumber ? ` (Table #${order.tableNumber})` : ""}\n` +
+          `Total Amount: *${order.totalAmount.toFixed(3)} ${order.currency || "OMR"}*\n\n` +
+          `Tap below to pay securely with Credit / Debit Card:`,
+        ctx,
+      )
+
+      const cta = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body,
+        buttonText: "Pay Online Now",
+        url: payUrl,
+      })
+
+      if (!cta.success) {
+        await sendWhatsApp({ to: ctx.customerPhone, body: `${body}\n\n👉 ${payUrl}`, allowOutsideSession: true })
+      }
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_CALL_WAITER": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tableNumber = fill(data.tableNumber || ctx.buttonId?.replace(/^table_/, "") || "", ctx) || null
+      const requestType = data.requestType || "ASSISTANCE"
+
+      const { callWaiter } = await import("@/lib/restaurant")
+      let tableId: string | null = null
+      if (tableNumber) {
+        const table = await db.restaurantTable.findFirst({ where: { tenantId, number: tableNumber } })
+        if (table) tableId = table.id
+      }
+
+      await callWaiter({
+        tenantId,
+        tableId,
+        tableNumber,
+        requestType,
+        message: `Customer ${ctx.customerPhone} called waiter via WhatsApp`,
+      }).catch(e => console.error("Call waiter failed:", e))
+
+      const typeLabel = requestType === "BILL" ? "Bill & Receipt" : requestType === "WATER" ? "Water Refill" : requestType === "CUTLERY" ? "Cutlery" : "Waiter Assistance"
+      const body = fill(
+        data.text ||
+          `🔔 *Staff Notified!*\n\n` +
+          `Your request for *${typeLabel}* has been sent to our restaurant team${tableNumber ? ` for Table #${tableNumber}` : ""}.\n` +
+          `Our staff will attend to your table shortly. Thank you for your patience!`,
+        ctx,
+      )
+
+      await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+      return { wait: "reply" }
+    }
+
+    case "RESTAURANT_SCAN": {
+      const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+      const slug = tenant?.slug || "kitchen"
+
+      const body = fill(
+        data.text ||
+          `📱 *Dine-In Table QR Scan*\n\n` +
+          `1️⃣ Scan the QR code placed on your dining table\n` +
+          `2️⃣ Browse our live interactive menu\n` +
+          `3️⃣ Add your dishes & send order straight to our kitchen chefs\n` +
+          `4️⃣ Pay online instantly or pay at the table\n\n` +
+          `👉 *Or open our live menu directly:* https://app.fizmoh.cloud/${slug}`,
+        ctx,
+      )
+
       await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
       return { wait: "reply" }
     }

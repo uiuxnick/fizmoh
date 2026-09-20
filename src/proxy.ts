@@ -97,6 +97,7 @@ function isPublic(request: NextRequest) {
 
     if (request.method === "GET" && (
       path === "/api/hospital/departments" ||
+      path === "/api/hospital/patient-session" ||
       path === "/api/hospital/doctors" ||
       path === "/api/hospital/availability" ||
       path === "/api/hospital/beds" ||
@@ -128,6 +129,9 @@ function isPublic(request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+  // Identity headers are only meaningful after session verification below.
+  const cleanHeaders = new Headers(request.headers)
+  for (const name of ["x-wptour-auth-kind", "x-wptour-staff-id", "x-wptour-customer-id"]) cleanHeaders.delete(name)
   const pathname = request.nextUrl.pathname
 
   // Protect platform dashboard routes
@@ -167,7 +171,7 @@ export async function proxy(request: NextRequest) {
       const session = await verifySession(token)
       const customerRoute = request.nextUrl.pathname.startsWith("/api/customer/")
       if (session.kind === "staff" || (customerRoute && session.kind === "customer")) {
-        const headers = new Headers(request.headers)
+        const headers = new Headers(cleanHeaders)
         headers.set("x-wptour-auth-kind", session.kind)
         if (session.staffId) headers.set("x-wptour-staff-id", session.staffId)
         if (session.customerId) headers.set("x-wptour-customer-id", session.customerId)
@@ -178,7 +182,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (open) return NextResponse.next()
+  if (open) return NextResponse.next({ request: { headers: cleanHeaders } })
 
   return NextResponse.json({ error: "Authentication required" }, { status: 401 })
 }

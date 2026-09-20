@@ -128,24 +128,20 @@ export function MarketingLanding({
                 {t(page.subheadline)}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <Link href="/signup">
-                  <Button
+                <Button
                     size="lg"
                     className="h-12 gap-2 rounded-full bg-[var(--mk-ink)] px-7 font-semibold text-white hover:bg-[var(--mk-gold)] cursor-pointer"
-                  >
+                   asChild><Link href="/signup">
                     {c.startTrial}
                     <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} aria-hidden="true" />
-                  </Button>
-                </Link>
-                <Link href="/book-demo">
-                  <Button
+                  </Link></Button>
+                <Button
                     size="lg"
                     variant="outline"
                     className="h-12 rounded-full border-[var(--mk-line)] px-6 font-semibold cursor-pointer"
-                  >
+                   asChild><Link href="/book-demo">
                     {c.bookDemo}
-                  </Button>
-                </Link>
+                  </Link></Button>
               </div>
               <p className="mt-4 text-[13px] text-[var(--mk-muted)]">{t(page.heroNote)}</p>
             </div>
@@ -376,24 +372,20 @@ export function MarketingLanding({
             <h2 className="mk-display text-[32px] sm:text-[40px]">{c.ctaHeading}</h2>
             <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-[var(--mk-ink-soft)]">{c.ctaBody}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/signup">
-                <Button
+              <Button
                   size="lg"
                   className="h-12 gap-2 rounded-full bg-[var(--mk-ink)] px-7 font-semibold text-white hover:bg-[var(--mk-gold)] cursor-pointer"
-                >
+                 asChild><Link href="/signup">
                   {c.startTrial}
                   <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} aria-hidden="true" />
-                </Button>
-              </Link>
-              <Link href="/book-demo">
-                <Button
+                </Link></Button>
+              <Button
                   size="lg"
                   variant="outline"
                   className="h-12 rounded-full border-[var(--mk-line)] px-6 font-semibold cursor-pointer"
-                >
+                 asChild><Link href="/book-demo">
                   {c.bookDemo}
-                </Button>
-              </Link>
+                </Link></Button>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-1 text-[12.5px] text-[var(--mk-muted)]">
               <span className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-[var(--mk-green-deep)]" aria-hidden="true" /> {isAr ? "بدون بطاقة ائتمان" : "No credit card"}</span>

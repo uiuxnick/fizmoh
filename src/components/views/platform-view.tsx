@@ -264,6 +264,7 @@ export default function PlatformView() {
       {tab === "whatsapp-numbers" && <WhatsAppNumbersPanel />}
       {tab === "whatsapp-quality" && <WhatsAppNumbersPanel />}
       {tab === "support-tickets" && <SupportTicketsPanel />}
+      {tab === "live-support" && <SupportTicketsPanel liveOnly />}
       {tab === "announcements" && <AnnouncementsPanel />}
       {tab === "plans" && <PlansPanel onChanged={load} />}
       {tab === "usage" && <UsageLimitsPanel />}

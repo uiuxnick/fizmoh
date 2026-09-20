@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { db } from "@/lib/db"
 import { publish } from "@/lib/realtime"
-import { sendTextMessage } from "@/lib/whatsapp"
+import { sendTextMessage, sendCtaUrlMessage, sendInteractiveMessage } from "@/lib/whatsapp"
 
 export interface OrderItemSnapshot {
   id: string
@@ -480,6 +480,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     type: "restaurant_order",
     orderId: order.id,
     status: order.status,
+    tableId: order.tableId || undefined,
     tableNumber: order.tableNumber || undefined,
     orderNumber: order.orderNumber || undefined,
     branchId: order.branchId || undefined,
@@ -490,31 +491,101 @@ export async function placeOrder(input: PlaceOrderInput) {
 
   // 8. Optionally send WhatsApp Order Confirmation
   if (customerPhone) {
-    try {
-      const tenant = await db.tenant.findUnique({
-        where: { id: tenantId },
-        select: { name: true, slug: true },
-      })
-      const businessName = tenant?.name || "Our Restaurant"
-      const trackingUrl = `https://app.fizmoh.cloud/order/${publicToken}`
-      const locationText = orderType === "DINE_IN" && order.tableNumber
-        ? `Table ${order.tableNumber}`
-        : orderType === "ROOM_SERVICE" && order.roomNumber
-        ? `Room ${order.roomNumber}`
-        : orderType
-
-      const messageBody = `🍽️ *${businessName}* - Order Confirmed!
-Order ${orderNumber} (${locationText}) has been received by the kitchen.
-
-Total: ${calculation.currency} ${calculation.totalAmount.toFixed(2)}
-Track live preparation & order status here:
-${trackingUrl}`
-
-      await sendTextMessage(customerPhone, messageBody).catch(() => {})
-    } catch {}
+    sendKitchenOrderWhatsAppNotification(order.id).catch((e) => {
+      console.error("Failed to send WhatsApp order notification:", e)
+    })
   }
 
   return order
+}
+
+/**
+ * Sends or resends WhatsApp order confirmation with:
+ * 1. Track Order CTA button (in-app WhatsApp web browser)
+ * 2. Interactive action buttons (Call Waiter / Pay Online / Request Bill)
+ */
+export async function sendKitchenOrderWhatsAppNotification(orderId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const order = await db.kitchenOrder.findUnique({
+      where: { id: orderId },
+    })
+    if (!order || !order.customerPhone) {
+      return { success: false, error: "Order or customer phone not found" }
+    }
+
+    const tenant = await db.tenant.findUnique({
+      where: { id: order.tenantId },
+      select: { name: true, slug: true },
+    })
+
+    const businessName = tenant?.name || "Our Restaurant"
+    const trackingUrl = `https://app.fizmoh.cloud/order/${order.publicToken || order.id}`
+    const locationText = order.orderType === "DINE_IN" && order.tableNumber
+      ? `Table ${order.tableNumber}`
+      : order.orderType === "ROOM_SERVICE" && order.roomNumber
+      ? `Room ${order.roomNumber}`
+      : order.orderType
+
+    let itemsList = ""
+    try {
+      const items = JSON.parse(order.itemsJson || "[]")
+      if (Array.isArray(items)) {
+        itemsList = items.map((i: any) => {
+          const portion = i.variant ? ` (${i.variant.name})` : ""
+          return `• ${i.qty || 1}x ${i.name || i.menuItem?.name || "Item"}${portion} — ${order.currency} ${(Number(i.price || 0) * Number(i.qty || 1)).toFixed(3)}`
+        }).join("\n")
+      }
+    } catch {}
+
+    const isPaid = order.paymentStatus === "PAID"
+    const subtotal = order.subtotalAmount != null ? order.subtotalAmount : order.totalAmount
+    const tax = order.taxAmount != null ? order.taxAmount : 0
+    const discount = order.discountAmount != null ? order.discountAmount : 0
+
+    const body =
+      `🍽️ *${businessName} — Order Confirmed!*\n\n` +
+      `Order Number: *${order.orderNumber}*\n` +
+      `Type: *${locationText}*\n\n` +
+      (itemsList ? `📋 *Order Details:*\n${itemsList}\n\n` : "") +
+      `💰 Subtotal: ${order.currency} ${subtotal.toFixed(3)}\n` +
+      (tax > 0 ? `🧾 VAT / Tax: ${order.currency} ${tax.toFixed(3)}\n` : "") +
+      (discount > 0 ? `🏷️ Discount: -${order.currency} ${discount.toFixed(3)}\n` : "") +
+      `💵 *Total Amount:* *${order.currency} ${order.totalAmount.toFixed(3)}*\n` +
+      `💳 *Payment:* ${isPaid ? "✅ Paid Online" : "⚠️ Pending Payment"}\n\n` +
+      `Tap below to track cooking progress & view your digital receipt:`
+
+    // 1. Message with in-app WhatsApp browser Track button
+    const cta = await sendCtaUrlMessage({
+      to: order.customerPhone,
+      body,
+      buttonText: "Track Order",
+      url: trackingUrl,
+    }).catch(() => ({ success: false }))
+
+    if (!cta.success) {
+      const fallback = `${body}\n📍 ${trackingUrl}`
+      await sendTextMessage(order.customerPhone, fallback).catch(() => {})
+    }
+
+    // 2. Interactive action buttons (Call Waiter / Pay / Bill)
+    if (order.orderType === "DINE_IN" || order.tableNumber || order.roomNumber) {
+      await sendInteractiveMessage({
+        to: order.customerPhone,
+        body: `Need assistance at your table while your food is prepared?`,
+        buttons: [
+          { id: `call_waiter_${order.id}`, title: "🔔 Call Waiter" },
+          ...(!isPaid
+            ? [{ id: `pay_order_${order.id}`, title: "💳 Pay Online" }]
+            : [{ id: `request_bill_${order.id}`, title: "🧾 Request Bill" }]),
+        ],
+      }).catch(() => {})
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("sendKitchenOrderWhatsAppNotification error:", error)
+    return { success: false, error: error?.message || "Failed to send notification" }
+  }
 }
 
 export async function updateOrderStatus(
@@ -573,6 +644,7 @@ export async function updateOrderStatus(
     type: "restaurant_order",
     orderId: updated.id,
     status: updated.status,
+    tableId: updated.tableId || undefined,
     tableNumber: updated.tableNumber || undefined,
     orderNumber: updated.orderNumber || undefined,
     branchId: updated.branchId || undefined,

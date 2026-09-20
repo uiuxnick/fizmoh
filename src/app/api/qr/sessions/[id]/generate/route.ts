@@ -11,7 +11,7 @@ import { generateReviewSuggestions } from "@/lib/review-ai"
  * their review even without AI.
  */
 export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-  const limited = qrRateLimited(request.headers, "generate")
+  const limited = await qrRateLimited(request.headers, "generate")
   if (limited) return limited
 
   const { id } = await params

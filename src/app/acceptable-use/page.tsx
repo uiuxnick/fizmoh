@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/acceptable-use" },
   title: "Acceptable Use | Fizmoh",
   description: "What businesses may and may not do with Fizmoh and the WhatsApp Business Platform.",
 }

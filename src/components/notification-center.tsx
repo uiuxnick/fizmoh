@@ -12,7 +12,7 @@ import { useApp } from "@/lib/store"
 import { useRealtime } from "@/lib/use-realtime"
 import {
   playAlert, startRinging, stopRinging, readSoundPreference, writeSoundPreference,
-  type SoundPreference,
+  type SoundPreference, type AlertSound,
 } from "@/lib/ringtone"
 
 interface Notification {
@@ -43,18 +43,17 @@ export function NotificationCenter() {
   const { setView, setFocus } = useApp()
   const [items, setItems] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
-  const [live, setLive] = useState(false)
   const [sound, setSound] = useState<SoundPreference>(() => readSoundPreference())
   const [ringing, setRinging] = useState(false)
   const [, setPermission] = useState<string>("default")
 
-  const alert = useCallback((kind: "message" | "call" | "notification") => {
+  const alert = useCallback((kind: AlertSound) => {
     if (!sound.enabled) return
     // A single chime is easy to miss. An unanswered customer message keeps
     // ringing until an agent acknowledges it.
     if (sound.repeat && kind !== "notification") {
       setRinging(true)
-      startRinging(kind, sound.volume)
+      startRinging(kind as any, sound.volume)
     } else {
       playAlert(kind, sound.volume)
     }
@@ -97,8 +96,7 @@ export function NotificationCenter() {
     document.title = unread > 0 ? `(${unread}) ${base}` : base
   }, [unread])
 
-  useRealtime(event => {
-    setLive(true)
+  const connectionState = useRealtime(event => {
     if (event.type === "message" && event.direction === "INBOUND") {
       alert("message")
       toast.message("New WhatsApp message", {
@@ -107,8 +105,31 @@ export function NotificationCenter() {
       })
       notifyOnDesktop("New WhatsApp message", event.preview)
     }
+    if ((event as any).type === "restaurant_order") {
+      alert("order")
+      const isPaid = (event as any).paymentStatus === "PAID"
+      const title = isPaid
+        ? `💳 Order ${(event as any).orderNumber || ""} Paid Online!`
+        : `🔔 New Restaurant Order ${(event as any).orderNumber || ""} Received!`
+      const desc = `${(event as any).tableNumber ? `Table ${(event as any).tableNumber} • ` : ""}${(event as any).totalAmount ? `${(event as any).totalAmount} ${(event as any).currency || "OMR"}` : ""}`
+      toast.success(title, {
+        description: desc,
+        action: {
+          label: "View Orders",
+          onClick: () => {
+            window.location.href = "/restaurant?tab=orders"
+          },
+        },
+      })
+      notifyOnDesktop(title, desc)
+      load()
+    }
     if (event.type === "notification") {
-      alert("notification")
+      if (event.notificationType === "RESTAURANT_ORDER") {
+        alert("order")
+      } else {
+        alert("notification")
+      }
       toast.message(event.title, { description: event.message })
       notifyOnDesktop(event.title, event.message)
     }
@@ -120,6 +141,7 @@ export function NotificationCenter() {
     }
     load()
   })
+  const live = connectionState === "live"
 
   const markAll = async () => {
     setItems(prev => prev.map(n => ({ ...n, isRead: true })))
@@ -142,7 +164,7 @@ export function NotificationCenter() {
           variant="ghost"
           size="icon"
           className="relative"
-          title={live ? "Live" : "Connecting…"}
+          title={live ? "Live" : connectionState === "retrying" ? "Reconnecting…" : connectionState === "offline" ? "Offline" : "Connecting…"}
           onClick={silence}
         >
           {ringing

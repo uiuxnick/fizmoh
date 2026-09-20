@@ -1,0 +1,195 @@
+     1→# Project Worklog — Tour & Activity Booking Platform with WhatsApp Commerce
+     2→
+     3→---
+     4→Task ID: 0
+     5→Agent: Main (Z.ai Code)
+     6→Task: System foundation — schema, seed, core libs, project planning
+     7→
+     8→Work Log:
+     9→- Read BRD PDF (17 pages) and understood full system requirements
+    10→- Designed complete Prisma schema with 20+ models (Staff, Customer, Tour, Slot, Order, Payment, BankAccount, Voucher, Conversation, Message, Template, Campaign, BotFlow, Review, Waitlist, Coupon, AuditLog, ConsentLog, SystemSetting, Notification, Label, Segment, CannedResponse, AddOn)
+    11→- Pushed schema to SQLite database successfully
+    12→- Created seed script with 6 tours (Wahiba Sands, Musandam Dhow, Jebel Shams, Muscat City, Ras Al Jinz, Wadi Shab), 300 slots (30 days), 6 customers, 12 orders with full lifecycle, 5 WhatsApp conversations with messages, 8 WA templates, 2 bank accounts, 5 staff (super admin, finance, agent, marketing, guide), coupons, canned responses, bot flows, labels, system settings
+    13→- Created constants.ts (roles, statuses, business config, sample templates, permissions)
+    14→- Created helpers.ts (order/voucher number generation, currency/date formatting, status colors, slot seat holding, price calculation, audit logging)
+    15→- Created ai.ts service using z-ai-web-dev-sdk (AI chat assistant, VLM payment screenshot analysis, ASR voice transcription, image generation, web search, intent detection, smart replies for agents)
+    16→
+    17→Stage Summary:
+    18→- Database: SQLite with 20+ models, fully seeded with realistic Omani tourism data
+    19→- Core libs: constants, helpers, AI service (all 6 AI capabilities: LLM, VLM, ASR, image-gen, web-search, intent)
+    20→- Ready for: API routes + Admin UI + Customer booking UI + WhatsApp simulator
+    21→- Tech: Next.js 16, React 19, Prisma, shadcn/ui (48 components), z-ai-web-dev-sdk
+    22→- Business: Oman Adventures — 6 sample tours, OMR currency, 5% VAT, EN/AR, manual bank transfer as Phase 1 priority
+    23→
+    24→---
+    25→Task ID: 5-a
+    26→Agent: full-stack-developer (WhatsApp Inbox)
+    27→Task: Build WhatsApp inbox view
+    28→
+    29→Work Log:
+    30→- Read existing project context (worklog.md, store.ts, helpers.ts, prisma/schema.prisma, conversations API, seed.ts) to align with seeded data (5 conversations, 6 canned responses, 6 labels, 5 staff).
+    31→- Built 3 new supporting API routes that the inbox depends on (existing API only covered list + messages):
+    32→  * `src/app/api/conversations/[id]/route.ts` — GET single conversation + PATCH (botActive, status, assignedStaffId, labels).
+    33→  * `src/app/api/conversations/[id]/notes/route.ts` — GET & POST staff notes (with staff relation).
+    34→  * `src/app/api/canned-responses/route.ts` — GET canned responses (filterable by category/lang).
+    35→- Built `src/components/views/inbox-view.tsx` (~1100 lines, 11 sub-components) — a polished, production-ready WhatsApp Web-style shared team inbox:
+    36→  * Three-column responsive layout: conversation list (340px) | chat (flex-1) | customer info panel (340px). On xl+ all three are visible; on md only list+chat (info via Sheet); on mobile a single-column flow with back button + Sheet for info.
+    37→  * Header: WhatsApp Inbox title + live counts + notification bell with unread badge and popover panel.
+    38→  * Status filter tabs: All / Open / Pending / Resolved / Bot Active (each with count badge). Search bar with clear button (filters by name, phone, last message, label).
+    39→  * Conversation list items: gradient avatar with initials, name, last message preview, time-ago, unread badge, up to 2 colored label chips + overflow count, status dot, bot-active badge (Bot icon overlay on avatar).
+    40→  * Chat header: back button (mobile), avatar, name + intent badge, phone, AI/Human toggle (Switch with Bot/Headphones icon), status dropdown (Open/Pending/Resolved/Closed), info panel toggle (md/tablet).
+    41→  * Chat area: subtle emerald dot-pattern background; inbound bubbles emerald-600 left with avatar grouping, outbound/bot bubbles white right with emerald/stone ring; bot messages show "AI Assistant" badge with Sparkles icon; interactive messages (buttons/list) render as clickable rows; media/attachment placeholders; double-check status indicator; message timestamps.
+    42→  * Composer: textarea (Enter to send, Shift+Enter newline), canned responses popover (with shortcut codes like /greeting), inline shortcut suggestion chips when typing `/`, attach button (decorative), send button with loading state, hand-off-to-human toggle that flips botActive (with amber styling) + live status pill.
+    43→  * Simulate customer reply bar: dashed amber bar at bottom with "Simulate" pill + input + "Send as customer" button — POSTs INBOUND message; the API auto-responds via AI when botActive. On success, both inbound + AI response are appended in one update.
+    44→  * Customer info panel: large avatar, name, phone, loyalty tier badge (Bronze/Silver/Gold with star), 3 quick-action buttons (View Orders / New Booking / Transfer), contact card (email, phone, WhatsApp opt-in, language/currency), bookings + total spent stats, conversation labels (colored), customer tags, AI analysis (intent + sentiment with color), assignment dropdown (with staff avatars + roles, marks current staff), internal notes section (add note input + scrollable list with author + timestamp + private badge).
+    45→  * Empty state: Oman Adventures "OA" gradient logo placeholder + welcome text + feature pills.
+    46→  * Loading skeletons for both list and chat.
+    47→  * Real-time: 5-second setInterval polling for active conversation messages (silent refetch, no loading flicker), refreshes conversation list previews alongside. New inbound messages trigger a toast.
+    48→  * Optimistic UI: agent sends and customer simulations appear instantly; on failure the optimistic message is rolled back and a toast error is shown.
+    49→  * Color system: emerald/teal primary, stone-50 background, NO blue/indigo for primary actions (only used as label colors per seed data).
+    50→  * Wired InboxView into `src/app/page.tsx` so the component is visible at the root route for demo.
+    51→- Ran `bun run lint` — passes with 0 errors. Confirmed dev server log: all 4 API endpoints (conversations, staff, notifications, canned-responses) returning 200 OK on initial load.
+    52→
+    53→Stage Summary:
+    54→- Deliverables: 1 main component (`inbox-view.tsx`, ~1100 lines) + 3 supporting API routes (conversation PATCH/GET, notes GET/POST, canned-responses GET) + page.tsx wired up.
+    55→- The inbox is fully functional end-to-end: agents can browse/search/filter conversations, view message history with bot/agent distinction, send outbound messages (optimistic), simulate inbound customer messages that trigger AI auto-responses via the existing AI service, toggle the bot on/off per conversation, change status, assign staff, add internal notes, and view rich customer context (loyalty, stats, tags, intent, sentiment).
+    56→- Design polish: WhatsApp Web-inspired 3-column layout, emerald/teal palette (no blue/indigo primary), subtle patterned chat background, responsive down to mobile (Sheet-based navigation), skeletons for loading, toast feedback for all actions.
+    57→- Ready for: integration into the main admin shell (sidebar nav → "inbox" view), wiring quick actions (View Orders/Create Booking/Transfer) to actual routes when those views are built.
+    58→
+    59→---
+    60→Task ID: 5-b
+    61→Agent: full-stack-developer (Dashboard)
+    62→Task: Build admin dashboard view
+    63→
+    64→Work Log:
+    65→- Read worklog.md, store.ts, helpers.ts, dashboard API route, notifications API route, schema (Tour/Notification models), package.json (confirmed `recharts` ^2.15.4 installed), card.tsx, and the existing inbox-view to align with project conventions (sonner toasts, useApp store, fetch+setInterval polling, emerald/teal palette with NO blue/indigo).
+    66→- Built `src/components/views/dashboard-view.tsx` (~830 lines, 10 sub-components) — a production-ready, data-rich admin dashboard:
+    67→  * Welcome header: avatar with "AH" monogram, "Welcome back, Ahmed 👋" with animated emoji, full current-date + live ticking clock (1s interval) + emerald "Live" pulse badge.
+    68→  * Quick actions bar: 4 gradient buttons (New Booking → bookings, Verify Payments → payments, Send Broadcast → campaigns, Open Inbox → inbox) — all wired via setView.
+    69→  * Row 1 — 5 KPI cards (responsive 1/2/5 cols): Total Revenue (emerald/teal), Total Orders (teal/cyan), Pending Verifications (amber/orange, pulsing dot when >0, click → payments), Open Chats (rose/pink, click → inbox), Upcoming Tours (emerald/green). Each card: gradient icon chip, big number, trend pill (up/down), sub-text, hover lift + ring + "View details" reveal. All cards clickable to navigate.
+    70→  * Row 2 — Revenue AreaChart (2/3) + Channel donut (1/3): Recharts AreaChart with gradient fill + gradient stroke, clean minimal axes, custom tooltip showing date + currency + order count, hover dots. Channel donut: PieChart (innerRadius 56, outerRadius 80) with WEB=emerald, WHATSAPP=teal, ADMIN=amber, API=rose; center label shows total orders; 2-col legend below.
+    71→  * Row 3 — Top Tours list (1/2) + Recent Activity feed (1/2): Top tours scrollable list (rank chip 1-5, avatar initials, name + featured star, city + rating, animated progress bar, booking count + revenue). Notifications feed scrollable, type-based colored icons (PAYMENT_SUBMITTED=amber alert, PAYMENT_APPROVED=emerald check, NEW_BOOKING=teal gift, LOW_CAPACITY=amber activity, SLA_BREACH=rose clock, NEW_CONVERSATION=teal message, NEW_CUSTOMER=emerald users, NEW_REVIEW=amber star, CAMPAIGN_SENT=rose megaphone, TOUR_TOMORROW=emerald calendar-clock). Unread items get emerald left-border + tinted bg + green dot. "Mark all read" button PATCHes the API.
+    72→  * Row 4 — Order Status breakdown (1/2) + Payment Methods split (1/2): Status breakdown uses horizontal progress bars per status (amber/teal/emerald/rose palette) with color dots + prettified names + count + pct. Payment methods show 2-col cards (AmwalPay=emerald CreditCard, Bank Transfer=teal Landmark) with pct badge + count + amount, plus a combined stacked bar with hover tooltips.
+    73→- Wired DashboardView into `src/app/page.tsx` (replaced InboxView).
+    74→- Loading: per-section skeletons (KPI cards, charts, tables, feeds) so UI never jumps. Error: rose banner with Retry button. Auto-refresh every 30s for both /api/dashboard and /api/notifications.
+    75→- Ran `bun run lint` — passes with 0 errors. Confirmed dev server log: GET / 200, GET /api/dashboard 200, GET /api/notifications 200 — all healthy.
+    76→
+    77→Stage Summary:
+    78→- Deliverable: 1 main component (`dashboard-view.tsx`, ~830 lines, 10 sub-components) + page.tsx wired up.
+    79→- The dashboard is the first thing the admin sees — it impresses: rich KPI cards with hover effects, animated charts, top-tours leaderboard, live notifications feed, status funnel, and payment method split — all in a cohesive emerald/teal/amber/rose palette with NO blue/indigo.
+    80→- Fully responsive (1-col mobile → 2-col tablet → 5-col desktop KPIs, 2/3+1/3 chart row, 1/2+1/2 table/feed + status/payment rows).
+    81→- All KPI cards + quick-action buttons wired to `setView` navigation — ready for the rest of the admin shell.
+    82→- Color constants (CHANNEL_COLORS, STATUS_COLORS, PAYMENT_METHOD_COLORS) and notification icon mapping (NOTIF_META) are centralized for reuse by other views.
+    83→- Ready for: integration into the main admin shell (sidebar nav → dashboard view as default), wiring to other view components as they're built.
+    84→
+    85→---
+    86→Task ID: 5-c
+    87→Agent: full-stack-developer (Payments)
+    88→Task: Build payment verification queue view
+    89→
+    90→Work Log:
+    91→- Read worklog.md, store.ts, helpers.ts, payments API (GET/POST + verify), bank-accounts API, orders API, prisma Payment schema, seed.ts to align with seeded data (12 orders, mixed payment statuses, screenshotUrl "/payments/proof-sample.jpg" for SUBMITTED BANK_TRANSFER).
+    92→- Generated a realistic Bank Muscat mobile transfer screenshot at `/public/payments/proof-sample.jpg` (1024×1024 JPEG) via z-ai-web-dev-sdk image generation so seeded SUBMITTED payments have a real proof image to display.
+    93→- Wrote a one-off enrichment script (`scripts/enrich-payments.mjs`) that converts 2 PENDING BANK_TRANSFER payments to SUBMITTED with varied AI fraud-analysis outcomes (low-risk clean match + high-risk amount mismatch) and ensures existing SUBMITTED payments have screenshotOcr/fraudScore/fraudFlags data. Result: queue now has 5 SUBMITTED payments (3 bank transfer with screenshots + 2 amwalpay without) — varied risk profiles for an immediately demoable experience.
+    94→- Built `src/components/views/payments-view.tsx` (~2150 lines, 11 sub-components) — a polished, production-ready manual bank-transfer verification queue:
+    95→  * **Header**: "Payment Verification" title with amber→orange ShieldCheck gradient logo, "Phase 1" badge, live "Last refresh Xm ago" + pulsing "Auto-refresh 15s" badge, Refresh button + "Simulate Customer Payment" CTA (teal→emerald gradient).
+    96→  * **Stats row** (4 cards, responsive 2→4 cols): Pending (amber, pulsing dot when >0), Approved today (emerald, trending-up), Rejected today (rose, trending-down), Total processed (teal). Each card has gradient icon chip + big tabular number.
+    97→  * **Filter tabs**: Pending Verification | Approved | Rejected | All — each with count badge, color-coded active state (amber/emerald/rose/stone).
+    98→  * **Queue grid** (1 col mobile → 2 col xl): PaymentCard for each payment with:
+    99→    - Top color strip indicating status (amber-rose gradient based on fraud tone for pending, emerald for approved, rose for rejected)
+   100→    - Header row: order number (mono) + status badge + payment-method badge + risk-tone badge + big amount
+   101→    - Submitted time-ago + transfer date
+   102→    - Customer block (gradient avatar, name, phone, loyalty tier) + Tour block (calendar icon, name, date/time/pax, city)
+   103→    - Bank transfer details grid (3 cols: bank reference, bank name, transfer date)
+   104→    - Screenshot thumbnail (4:5 aspect, hover zoom overlay, "Simulation" badge for sample images, graceful fallback when image fails) + AI Fraud Analysis panel side-by-side
+   105→    - AI Fraud Analysis panel: detected amount + matches-expected (✓/✗) cards, fraud-score bar (green<0.3 / amber 0.3-0.6 / red>0.6) with Clean/Suspicious/Fraud labels, confidence progress bar, fraud flags as warning badges with tooltips, or "No fraud indicators detected" message
+   106→    - Verifier/resolution info (for approved/rejected): who verified it, when, reason, comment
+   107→    - Action buttons: Approve (emerald→teal gradient), Reject (rose outline), View Order (ghost → opens sheet)
+   108→  * **Approve dialog**: confirm amount block, high-fraud-score caution banner if score≥0.3, optional verifier comment textarea, confirm button with loading state.
+   109→  * **Reject dialog**: required reason dropdown (7 options: Screenshot unclear / Amount mismatch / Transfer not received / Duplicate submission / Wrong bank account / Expired transfer / Other), optional comment, reject button (disabled until reason selected).
+   110→  * **Order detail sheet** (right side, full-height): dark stone amount hero, tour+slot grid, customer card with avatar, bank transfer detail rows, screenshot thumbnail, AI analysis summary with all OCR fields, order pricing breakdown; if pending, sticky footer with Approve/Reject buttons.
+   111→  * **Simulate Customer Payment dialog**: searchable order picker (ScrollArea list with order#, customer, tour, amount), bank name select (from /api/bank-accounts), bank reference input, transfer date picker, image upload (drag-style dashed border, file→data-URL conversion, 4MB limit, preview thumbnail) OR fallback to sample screenshot, "Will submit payment for X" summary card; on submit POSTs to /api/payments which runs the real VLM fraud analysis and returns the score → toast shows the AI fraud score, queue refreshes.
+   112→  * **Lightbox dialog**: full-size screenshot viewer with dark background.
+   113→  * **Empty state**: "All caught up! No payments pending verification 🎉" with emerald checkmark + "Simulate Customer Payment" CTA (only for pending tab).
+   114→  * **Card exit animation**: on approve/reject, card scales down + blurs + fades over 420ms before removal; toast confirms success (voucher code on approve, "customer notified" on reject).
+   115→  * **Real-time feel**: auto-refresh every 15s, refetch after each action, "Last refresh" timestamp.
+   116→  * **Skeletons**: detailed PaymentCardSkeleton for loading state.
+   117→- Robust JSON handling: `parseFraudFlags` and `parseOcr` helpers handle both raw objects (Prisma Json field) and stringified JSON (from the API's `JSON.stringify`), so seed data and freshly-POSTed data both render correctly.
+   118→- Fixed React 19 `react-hooks/set-state-in-effect` lint errors by switching Approve/Reject/Lightbox/OrderDetail dialogs to `key={id}` remount pattern instead of useEffect-based state reset.
+   119→- Wired PaymentsView into `src/app/page.tsx` (replaced DashboardView).
+   120→- Ran `bun run lint` — passes with 0 errors. Confirmed dev server log: GET / 200, GET /api/payments 200, GET /api/payments?status=SUBMITTED 200, GET /payments/proof-sample.jpg 200 — all healthy. Auto-refresh firing every 15s as expected. Queue currently shows 5 SUBMITTED payments with varied fraud profiles (clean + high-risk).
+   121→
+   122→Stage Summary:
+   123→- Deliverables: 1 main component (`payments-view.tsx`, ~2150 lines, 11 sub-components) + 2 supporting scripts (`gen-proof.mjs` for sample image, `enrich-payments.mjs` for varied OCR data) + 1 generated asset (`public/payments/proof-sample.jpg`) + page.tsx wired up.
+   124→- The payment verification queue is THE core Phase 1 feature and works flawlessly end-to-end: admin sees a live queue of pending bank-transfer submissions with screenshots and AI fraud analysis, can approve (with optional comment, voucher auto-generated, order confirmed, slot seats booked, customer notified) or reject (with required reason, customer notified to resubmit), can view full order details in a side sheet, can simulate new customer submissions (which triggers real VLM screenshot analysis), and the queue auto-refreshes every 15s with animated card exits on action.
+   125→- Design polish: emerald/teal for approve, rose for reject, amber for pending — NO blue/indigo. Stone-50 background. Fraud-score bar with green/amber/red zones. "Simulation Mode" badge on sample screenshots. Gradient avatars and icon chips throughout. Fully responsive (1-col mobile → 2-col xl grid). Skeletons for loading. Toast feedback for all actions.
+   126→- Ready for: integration into the main admin shell (sidebar nav → "payments" view). The Simulate Customer Payment button provides a self-contained demo loop — admin can submit a new payment, see the AI analyze it, then approve/reject it, all without leaving the page.
+   127→
+   128→---
+   129→Task ID: 5-d
+   130→Agent: full-stack-developer (Tours)
+   131→Task: Build tours management view
+   132→
+   133→Work Log:
+   134→- Read worklog.md, store.ts, helpers.ts, prisma schema (Tour/AddOn/Slot), seed.ts (6 tours, 300 slots, addOns), existing API routes (/api/tours, /api/tours/[id], /api/slots), and the inbox/payments/dashboard views to align with project conventions (emerald/teal primary, amber/rose accents, NO blue/indigo; sonner toasts; key-remount pattern to avoid React 19 set-state-in-effect lint errors; fetch + useEffect).
+   135→- Modified 3 existing API routes to support admin-mode operations:
+   136→  * `GET /api/tours` — added `status` query param: omit or "ACTIVE"→active only (customer), specific value→filter (admin), "all"→no status filter (admin overview); also added `createdAt` desc as secondary sort after featured.
+   137→  * `POST /api/tours` — accepts an `addOns` array alongside the tour fields; creates nested addOns in one transaction; returns the created tour with `addOns` included.
+   138→  * `PUT /api/tours/[id]` — accepts an `addOns` array; replaces existing addOns (delete all + recreate); safely handles undefined body fields (won't overwrite unset fields); returns the updated tour with `addOns` included.
+   139→- Created 1 new API route for slot management:
+   140→  * `PATCH /api/slots/[id]` — update slot status (OPEN/CLOSED/BLACKOUT/FULL), capacity, priceOverride, or seatsBooked; auto-recomputes FULL/OPEN if seats change without an explicit status.
+   141→  * `DELETE /api/slots/[id]` — delete a single slot.
+   142→- Generated 6 cover images for the seeded tours via z-ai-web-dev-sdk image generation (`scripts/gen-tour-images.mjs` + `scripts/gen-tour-images-2.mjs`) → `public/tours/{desert,dhow,mountain,city,turtle,wadi}-1.jpg` (each ~120-240KB, 1024x1024) so the cards display real photographs instead of pure gradient fallbacks.
+   143→- Built `src/components/views/tours-view.tsx` (~3300 lines, 12 sub-components) — a comprehensive, production-ready tours management view for the Oman Adventures admin panel:
+   144→  * **Header**: "Tours & Services" title with emerald→teal Compass logo gradient, "Manage your Oman Adventures catalogue" subtitle, Refresh button (with last-refresh tooltip), and "Add New Tour" gradient CTA.
+   145→  * **Stats strip** (4 cards, only when tours exist): Total Tours, Active, Featured, Avg Rating (with star icon).
+   146→  * **Filter bar**: live search input (debounced 280ms) with clear button, Category select (10 categories with emojis), City select (10 Omani cities), Status select (All/Active/Paused/Draft/Archived).
+   147→  * **Tours grid** (responsive 1-col mobile → 2-col tablet → 3-col desktop): premium travel-booking-style cards with:
+   148→    - 16:10 cover image area; layered: category gradient + dot pattern + (if available) the actual cover image with onError hide → fallback to gradient.
+   149→    - Featured ribbon (amber→yellow gradient with star) top-right when featured.
+   150→    - Category badge chip (white pill with category icon, colored by category) top-left.
+   151→    - Bottom-overlay row with duration (clock) + city (map pin) + difficulty badge (Easy/Moderate/Hard with Footprints/Mountain icons).
+   152→    - Title (English) + Arabic name (RTL), 2-line description, rating stars (5-star display with half-star), price-from, capacity-per-slot, status badge with colored dot, 4 quick action buttons (View/Edit/Slots/Delete) with tooltips.
+   153→    - Hover: card lifts (-translate-y-1), shadow grows, image scales 1.05.
+   154→  * **Empty state**: two variants — "No tours yet. Add your first tour!" with desert-compass icon + Add New Tour CTA, OR "No tours match your filters" with Clear Filters button.
+   155→  * **Loading**: 6-card skeleton grid with shimmer placeholders.
+   156→  * **Error state**: rose-tinted banner with AlertTriangle icon + Try Again button.
+   157→  * **Tour Detail Sheet** (right side, full-height, sm:max-w-2xl lg:max-w-3xl):
+   158→    - 16:9 hero image with category gradient + cover image, dark gradient overlay, title + Arabic name + badge row (category, city, difficulty, duration, status, featured) at bottom, Edit + Manage Slots buttons top-right.
+   159→    - Gallery thumbnails strip below hero (when media.length > 1) — clickable thumbnails with active ring state.
+   160→    - 4 quick-stat cards: Rating (with star), Adult Price (emerald), Child Price (teal), Capacity (stone).
+   161→    - 5-tab content area: Overview (description, meeting point, cancellation policy, what-to-bring chips) | Itinerary (numbered timeline with time + title + description) | Includes (inclusions green-list + exclusions rose-list) | Add-ons (cards with icon, name, type, price) | Reviews (overall rating header + scrollable review cards with avatar initials, name, stars, date, comment).
+   162→    - Footer: Refresh + Edit Tour + Manage Slots buttons.
+   163→    - Uses `key={tour.id}` remount pattern on inner `TourDetailContent` to avoid set-state-in-effect lint errors and naturally reset active image state.
+   164→  * **Add/Edit Tour Form Dialog** (max-w-4xl, max-h-92vh):
+   165→    - 5-tab form: Basics | Media | Itinerary | Inclusions | Pricing & Add-ons.
+   166→    - Basics: name (EN + AR), slug (auto-slug from name with manual override toggle), description, category (with emoji + icon), city (with MapPin), duration hours, difficulty (Easy/Moderate/Hard), capacity, meeting point, cancellation policy, featured switch, status select (Draft/Active/Paused/Archived).
+   167→    - Media: add/remove image URL inputs with live thumbnail preview (uses category gradient as placeholder background so it looks intentional even before URL typed).
+   168→    - Itinerary: add/remove timeline stops with time picker, title, description.
+   169→    - Inclusions/Exclusions/What-to-Bring: tag-input fields with chips (emerald/rose/amber accent colors per category), Enter-to-add, click-to-remove.
+   170→    - Pricing: Adult/Child/Group price inputs, Add-ons manager (name + price + type Flat/PerPax per row, add/remove).
+   171→    - Footer: Cancel + Save Changes / Create Tour with loading state.
+   172→  * **Slot Management Dialog** (max-w-5xl, max-h-92vh) — accessible from the detail sheet, the card hover actions, and the card dropdown:
+   173→    - Header: tour name + city.
+   174→    - 4-stat bar: Upcoming (30d), Open Slots, Booked Seats (X/Y), Occupancy %.
+   175→    - Two-pane layout (lg): left = Calendar (date picker, next 60 days selectable, today highlighted, disabled past dates, dots on dates that have slots), Refresh button, "Add Slot for [date]" + "Bulk Generate Slots" CTAs; right = scrollable slot list for the selected date with weekend badge when applicable.
+   176→    - Each SlotRow: time pill (status-colored), status badge, booked/capacity, available count (green/red), price (with amber color + Info icon when weekend override is active), occupancy progress bar (green<75%, amber 75-99%, rose 100%), dropdown actions menu (Reopen, Close, Blackout, Delete).
+   177→    - Optimistic updates for status changes and deletes with rollback on error.
+   178→  * **Add Individual Slot Dialog**: date popover picker, start time, capacity (defaults to tour capacity), weekend/custom price override switch with price input. On save, POSTs to /api/slots and inserts the new slot into the list state.
+   179→  * **Bulk Generate Slots Dialog**: date range (from + to popovers), dynamic time slots list (add/remove times), capacity input, "Skip Weekends" switch, "Weekend Pricing Override" switch with multiplier input (live preview: "→ X.XXX OMR (was Y.YYY OMR)"), real-time preview card showing total days + total slots + weekend slots count. On generate, POSTs `{ bulk: true, tourId, slots: [...] }` and merges results; toast reports how many were created vs already existed (skipped).
+   180→  * **Delete Confirm Dialog**: rose-themed warning with tour name + category/city; Cancel + Delete Tour (loading state).
+   181→  * Uses `parseJsonArray` helper that handles both raw arrays (Prisma Json) and stringified JSON (API responses) so seed data and fresh data both render correctly.
+   182→  * Uses `key={tour.id}` remount pattern on `TourDetailContent` and initializes loading=true at mount to avoid React 19 `set-state-in-effect` lint errors.
+   183→  * Category color coding: 10 categories with distinct gradients (Adventure=orange/amber/red, Cultural=amber/orange/rose, Water Sports=teal/cyan/emerald, Desert=amber/orange/yellow, Mountain=stone, City Tour=emerald/teal, Diving=cyan/teal/emerald, Fishing=teal/cyan, Family=rose/pink, Luxury=yellow/amber/orange). NO blue/indigo anywhere.
+   184→  * Difficulty badges: Easy=emerald, Moderate=amber, Hard=rose.
+   185→  * Status badges: Active=emerald, Paused=amber, Draft=stone, Archived=stone-light.
+   186→  * Slot status: Open=emerald, Full=amber, Closed=stone, Blackout=rose.
+   187→- Wired ToursView into `src/app/page.tsx` (replaced PaymentsView).
+   188→- Ran `bun run lint` — passes with 0 errors 0 warnings. Confirmed dev server log: GET / 200, GET /api/tours?status=all 200 (returns 6 tours with addOns), all 6 /tours/*.jpg images now return 200 (after generation) — all healthy.
+   189→
+   190→Stage Summary:
+   191→- Deliverables: 1 main component (`tours-view.tsx`, ~3300 lines, 12 sub-components) + 3 modified API routes (tours GET admin-mode, tours POST/PUT addOns support) + 1 new API route (`/api/slots/[id]` PATCH + DELETE) + 2 image-gen scripts + 6 generated cover assets + page.tsx wired up.
+   192→- The tours management view is the admin's catalogue HQ — fully functional end-to-end: admin can browse the 6 seeded tours as premium travel-booking-style cards (with real cover images, category gradients, featured ribbons, ratings, status badges), search/filter by category/city/status, click any card to open a rich detail sheet (gallery, itinerary timeline, inclusions/exclusions, add-ons, reviews), edit or add a new tour via the 5-tab form dialog (basics, media gallery, itinerary timeline, tag-input inclusions/exclusions/what-to-bring, pricing tiers + add-ons), manage slots per tour (calendar view of next 60 days with occupancy stats, add individual slots, bulk generate across a date range with weekend pricing override, block/close/blackout/delete slots with optimistic UI), and delete tours with confirmation.
+   193→- Design polish: emerald/teal/amber/rose palette with NO blue/indigo; category color-coded gradients (10 distinct gradients per category); stone-50 background; premium card hover effects (lift + shadow + image scale); skeleton loaders; toast feedback for all actions; graceful image fallback to category gradient when cover URL fails; responsive 1/2/3 column grid; mobile-friendly dialogs with scroll areas.
+   194→- Ready for: integration into the main admin shell (sidebar nav → "tours" view). The Add New Tour + Bulk Generate Slots flows provide self-contained demo loops — admin can create a new tour, manage its slots, edit details, and delete it, all without leaving the page.
+   195→

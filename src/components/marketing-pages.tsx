@@ -462,7 +462,7 @@ interface PublicPlan {
   id: string
   name: string
   slug: string
-  description?: string
+  description?: string | null
   currency: string
   priceMonthly: number
   priceYearly: number
@@ -476,22 +476,26 @@ interface PublicPlan {
   } | null
 }
 
-export function MarketingPage({ kind }: { kind: PageKind }) {
+export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; initialPlans?: PublicPlan[] }) {
   const content = CONTENT[kind] || CONTENT.features
-  const [plans, setPlans] = useState<PublicPlan[]>([])
+  const [plans, setPlans] = useState<PublicPlan[]>(initialPlans)
+  const [plansError, setPlansError] = useState(false)
+  const [plansAttempt, setPlansAttempt] = useState(0)
   const [annual, setAnnual] = useState(false)
   const { lang, isAr } = useLanguage()
 
   useEffect(() => {
     if (kind === "pricing") {
+      setPlansError(false)
       fetch("/api/plans/public")
-        .then((res) => res.json())
+        .then((res) => { if (!res.ok) throw new Error("Plan catalogue unavailable"); return res.json() })
         .then((data) => {
-          if (data.plans) setPlans(data.plans)
+          if (!Array.isArray(data.plans) || !data.plans.length) throw new Error("No public plans available")
+          setPlans(data.plans)
         })
-        .catch(() => {})
+        .catch(() => setPlansError(true))
     }
-  }, [kind])
+  }, [kind, plansAttempt])
 
   return (
     <div className={`marketing min-h-screen bg-[var(--mk-surface)] text-[var(--mk-ink)] ${isAr ? "font-sans rtl" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
@@ -522,18 +526,14 @@ export function MarketingPage({ kind }: { kind: PageKind }) {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-3 pt-1">
-                    <Link href="/signup">
-                      <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20 shadow-none">
+                    <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20 shadow-none" asChild><Link href="/signup">
                         {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
                         <ArrowRight className={`ml-1.5 h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
-                      </Button>
-                    </Link>
-                    <Link href="/book-demo">
-                      <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold">
+                      </Link></Button>
+                    <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold" asChild><Link href="/book-demo">
                         <Video className="h-4 w-4 text-[#00B96A] mr-1.5" />
                         {isAr ? "طلب عرض حي مخصص" : "Book Google Meet Demo"}
-                      </Button>
-                    </Link>
+                      </Link></Button>
                   </div>
 
                   {/* Interactive Capabilities Grid */}
@@ -600,22 +600,18 @@ export function MarketingPage({ kind }: { kind: PageKind }) {
                   </p>
 
                   <div className="flex flex-wrap gap-3 pt-2">
-                    <Link href="/signup">
-                      <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20">
+                    <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20" asChild><Link href="/signup">
                         {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
                         <ArrowRight className={`ml-1.5 h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
-                      </Button>
-                    </Link>
-                    <Link href="/book-demo">
-                      <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold">
+                      </Link></Button>
+                    <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold" asChild><Link href="/book-demo">
                         {isAr ? "طلب عرض توضيحي" : "Book Google Meet Demo"}
-                      </Button>
-                    </Link>
+                      </Link></Button>
                   </div>
                 </div>
               </div>
             </section>
-            <Pricing plans={plans} annual={annual} setAnnual={setAnnual} isAr={isAr} />
+            <Pricing plansError={plansError} onRetry={() => setPlansAttempt(value => value + 1)} plans={plans} annual={annual} setAnnual={setAnnual} isAr={isAr} />
           </>
         ) : (
           /* ========================================================================= */
@@ -639,17 +635,13 @@ export function MarketingPage({ kind }: { kind: PageKind }) {
                   </p>
 
                   <div className="flex flex-wrap gap-3 pt-2">
-                    <Link href="/signup">
-                      <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20">
+                    <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20" asChild><Link href="/signup">
                         {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
                         <ArrowRight className={`ml-1.5 h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
-                      </Button>
-                    </Link>
-                    <Link href="/book-demo">
-                      <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold">
+                      </Link></Button>
+                    <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold" asChild><Link href="/book-demo">
                         {isAr ? "طلب عرض توضيحي" : "Book Google Meet Demo"}
-                      </Button>
-                    </Link>
+                      </Link></Button>
                   </div>
                 </div>
               </div>
@@ -693,18 +685,14 @@ function FeaturesDetailedSuite({ isAr }: { isAr: boolean }) {
             </p>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/signup">
-                <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[#000000] hover:text-white text-[14px] font-extrabold rounded-[8px] px-7 h-12 border border-[#047857]/30 shadow-sm cursor-pointer">
+              <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[#000000] hover:text-white text-[14px] font-extrabold rounded-[8px] px-7 h-12 border border-[#047857]/30 shadow-sm cursor-pointer" asChild><Link href="/signup">
                   {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
                   <ArrowRight className={`ml-1.5 h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
-                </Button>
-              </Link>
-              <Link href="/product/simulator">
-                <Button size="lg" variant="outline" className="border-2 border-[#111827] bg-white text-[var(--mk-ink)] hover:bg-[#F3F4F6] rounded-[8px] px-6 h-12 text-[14px] font-bold shadow-xs cursor-pointer">
+                </Link></Button>
+              <Button size="lg" variant="outline" className="border-2 border-[#111827] bg-white text-[var(--mk-ink)] hover:bg-[#F3F4F6] rounded-[8px] px-6 h-12 text-[14px] font-bold shadow-xs cursor-pointer" asChild><Link href="/product/simulator">
                   <Sparkles className="h-4 w-4 text-[#047857] mr-1.5" />
                   {isAr ? "فتح المحاكي التفاعلي المباشر" : "Open Live Interactive Simulator"}
-                </Button>
-              </Link>
+                </Link></Button>
             </div>
           </div>
         </div>
@@ -1207,17 +1195,13 @@ function FeaturesDetailedSuite({ isAr }: { isAr: boolean }) {
               : "Start your 14-day full-access trial without a credit card, or book a 1-on-1 Google Meet walkthrough with a solutions engineer."}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href="/signup">
-              <Button size="lg" className="h-12 gap-2 rounded-[8px] bg-[#1D1D1D] px-8 text-[15px] font-bold text-white shadow-none hover:bg-black">
+            <Button size="lg" className="h-12 gap-2 rounded-[8px] bg-[#1D1D1D] px-8 text-[15px] font-bold text-white shadow-none hover:bg-black" asChild><Link href="/signup">
                 {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
                 <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
-              </Button>
-            </Link>
-            <Link href="/book-demo">
-              <Button size="lg" variant="outline" className="h-12 gap-2 rounded-[8px] border-[#1D1D1D]/30 bg-white/20 px-6 text-[15px] font-semibold text-[var(--mk-ink)] shadow-none hover:bg-white/40">
+              </Link></Button>
+            <Button size="lg" variant="outline" className="h-12 gap-2 rounded-[8px] border-[#1D1D1D]/30 bg-white/20 px-6 text-[15px] font-semibold text-[var(--mk-ink)] shadow-none hover:bg-white/40" asChild><Link href="/book-demo">
                 {isAr ? "حجز عرض Google Meet" : "Book Google Meet Demo"}
-              </Button>
-            </Link>
+              </Link></Button>
           </div>
         </div>
       </section>
@@ -1316,11 +1300,14 @@ function ProductDetail({
 }
 
 function Pricing({
+  plansError, onRetry,
   plans,
   annual,
   setAnnual,
   isAr,
 }: {
+  plansError: boolean
+  onRetry: () => void
   plans: PublicPlan[]
   annual: boolean
   setAnnual: (value: boolean) => void
@@ -1501,11 +1488,9 @@ function Pricing({
                   </ul>
                 </div>
                 <div className="pt-7">
-                  <Link href={`/signup?plan=${plan.slug}`}>
-                    <Button className="w-full bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] h-10 border border-[#00B96A]/20">
+                  <Button className="w-full bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] h-10 border border-[#00B96A]/20" asChild><Link href={`/signup?plan=${plan.slug}`}>
                       {isAr ? "ابدأ التجربة المجانية" : "Start 14-Day Free Trial"}
-                    </Button>
-                  </Link>
+                    </Link></Button>
                 </div>
               </div>
             )
@@ -1513,7 +1498,8 @@ function Pricing({
         ) : (
           <div className="rounded-[16px] border border-dashed border-[var(--mk-line)] bg-[#FAFAFA] p-10 text-center text-[13px] text-[#717680] lg:col-span-3">
             <Sparkles className="mx-auto h-6 w-6 text-[#00B96A] mb-2" />
-            <p>Loading plans catalogue...</p>
+            <p role="status">{plansError ? (isAr ? "تعذر تحميل الباقات. يرجى المحاولة مرة أخرى." : "Plans could not be loaded. Please try again.") : (isAr ? "جاري تحميل الباقات..." : "Loading plans catalogue...")}</p>
+            {plansError && <Button type="button" variant="outline" onClick={onRetry} className="mt-4">{isAr ? "إعادة المحاولة" : "Retry"}</Button>}
           </div>
         )}
       </div>
@@ -1534,11 +1520,9 @@ function Pricing({
               : "Schedule a dedicated 20-minute Google Meet walkthrough with our solutions team to explore custom automations."}
           </p>
         </div>
-        <Link href="/book-demo" className="shrink-0">
-          <Button className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] font-bold text-[13px] rounded-[8px] h-10 px-5 border border-[#00B96A]/20">
+        <Button className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] font-bold text-[13px] rounded-[8px] h-10 px-5 border border-[#00B96A]/20" asChild><Link href="/book-demo" className="shrink-0">
             {isAr ? "حجز موعد عبر Google Meet" : "Book Google Meet Demo"}
-          </Button>
-        </Link>
+          </Link></Button>
       </div>
     </section>
   )

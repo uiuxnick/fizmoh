@@ -3,16 +3,23 @@ import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { canReadPatient } from "@/lib/hospital-patient-access"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 export const POST = withErrors(async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const { mrn, mobile } = await req.json()
+  const rate = await checkRateLimit(`patient-identify:${requestIp(req.headers)}`, 10, 60_000)
+  if (!rate.allowed) return NextResponse.json({ error: "Please try again later" }, { status: 429 })
+  if (typeof mobile !== "string" || !await canReadPatient(req, tenantId, mobile)) {
+    return NextResponse.json({ error: "Verify your registered mobile number first" }, { status: 401 })
+  }
 
   let patient: any = null
   if (mrn) {
-    patient = await db.hospPatient.findFirst({ where: { tenantId, mrn } })
+    patient = await db.hospPatient.findFirst({ where: { tenantId, mrn: String(mrn), mobile } })
   }
-  if (!patient && mobile) {
+  if (!mrn && mobile) {
     patient = await db.hospPatient.findFirst({ where: { tenantId, mobile } })
   }
 

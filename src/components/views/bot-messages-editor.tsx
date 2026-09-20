@@ -116,6 +116,7 @@ export function BotMessagesEditor() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <textarea
+                    aria-label={`${r.label} — English`}
                     value={r.en}
                     onChange={e => update(r.key, "en", e.target.value)}
                     placeholder={r.defaultEn}
@@ -123,6 +124,7 @@ export function BotMessagesEditor() {
                     className="w-full rounded-lg border border-stone-200 bg-white p-2 text-xs text-stone-800 placeholder:text-stone-400"
                   />
                   <textarea
+                    aria-label={`${r.label} — Arabic`}
                     value={r.ar}
                     onChange={e => update(r.key, "ar", e.target.value)}
                     placeholder={r.defaultAr}

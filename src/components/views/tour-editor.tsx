@@ -113,7 +113,7 @@ export function TourEditor({ tour, onClose, onSaved }: { tour: TourRecord | null
   const [form, setForm] = useState<TourRecord>(() => ({
     name: "", description: "", category: "Desert", city: "Muscat",
     basePrice: 0, childPrice: null, durationHours: 4, difficulty: "EASY",
-    capacityPerSlot: 10, status: "DRAFT", featured: false,
+    capacityPerSlot: 8, status: "DRAFT", featured: false,
     meetingPoint: "", cancellationPolicy: "", location: "", nameAr: "",
     seoTitle: "", seoDescription: "",
     ...(tour ?? {}),

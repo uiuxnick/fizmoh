@@ -67,9 +67,29 @@ export default async function SegmentPage({ params }: { params: Promise<{ view: 
     where: {
       OR: [{ slug: clean }, { customDomain: clean }],
     },
-    select: { slug: true },
+    select: { id: true, slug: true },
   })
   if (!tenant) notFound()
 
-  return <CustomerSiteView slug={tenant.slug} />
+  // Pre-determine on the server if this workspace is a restaurant
+  const subscription = await raw.subscription.findFirst({
+    where: { tenantId: tenant.id, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "PENDING_PAYMENT"] } },
+    include: { plan: true },
+    orderBy: { createdAt: "desc" },
+  })
+  const planSlug = (subscription?.plan?.slug || "").toLowerCase()
+  const planName = (subscription?.plan?.name || "").toLowerCase()
+  const planModules: string[] = Array.isArray(subscription?.moduleSnapshot)
+    ? (subscription.moduleSnapshot as string[])
+    : (Array.isArray(subscription?.plan?.modules) ? (subscription.plan.modules as string[]) : [])
+
+  const hasRestModule = planModules.includes("RESTAURANT") || planSlug.includes("rest") || planName.includes("rest")
+  const branchesCount = await raw.restaurantBranch.count({ where: { tenantId: tenant.id } })
+  const categoriesCount = await raw.menuCategory.count({ where: { tenantId: tenant.id } })
+  const setting = await raw.systemSetting.findFirst({
+    where: { tenantId: tenant.id, key: "business_type" }
+  })
+  const isRestaurant = hasRestModule || branchesCount > 0 || categoriesCount > 0 || setting?.value === "RESTAURANT"
+
+  return <CustomerSiteView slug={tenant.slug} initialIsRestaurant={isRestaurant} />
 }

@@ -39,6 +39,7 @@ import {
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
+import RestaurantSiteView from "@/components/restaurant/restaurant-site-view"
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CONSTANTS
@@ -1695,7 +1696,7 @@ function TourDetailPage({
   const inclusions = parseJsonArray<string>(tour.inclusions)
   const exclusions = parseJsonArray<string>(tour.exclusions)
   const whatToBring = parseJsonArray<string>(tour.whatToBring)
-  const addOns = tour.addOns || []
+  const addOns: Array<{ id: string; type: string; price: number; name: string }> = tour.addOns || []
 
   const today = new Date()
   const availableDates = new Set(slots.filter((s) => s.available).map((s) => new Date(s.date).toDateString()))
@@ -1773,7 +1774,7 @@ function TourDetailPage({
             {[
               { icon: Clock, label: t("duration"), value: `${tour.durationHours} hours` },
               { icon: Mountain, label: t("difficulty"), value: tour.difficulty || "Easy" },
-              { icon: Users, label: "Group Size", value: `Up to ${tour.capacityPerSlot || 10}` },
+              { icon: Users, label: "Group Size", value: `Up to ${tour.capacityPerSlot || 8}` },
               { icon: MapPin, label: t("cityOf"), value: tour.city },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3">
@@ -4301,7 +4302,9 @@ function CartSheet({ open, onOpenChange, cart, setCart, onNav, lang, t }: {
  * public at /shop/their-address. Absent inside the dashboard, where the
  * signed-in session already says which workspace is being looked at.
  */
-export default function CustomerSiteView({ slug }: { slug?: string } = {}) {
+export default function CustomerSiteView({ slug, initialIsRestaurant = false }: { slug?: string; initialIsRestaurant?: boolean } = {}) {
+  const [isRestaurant, setIsRestaurant] = useState(initialIsRestaurant)
+  const [restaurantData, setRestaurantData] = useState<any>(null)
   const [brand, setBrand] = useState<Brand>(FALLBACK_BRAND)
   const setView = useApp((s) => s.setView)
   const setAuthMode = useApp((s) => s.setAuthMode)
@@ -4380,8 +4383,38 @@ export default function CustomerSiteView({ slug }: { slug?: string } = {}) {
     const url = slug ? `/api/shop/${encodeURIComponent(slug)}` : "/api/settings"
     fetch(url)
       .then(r => r.json())
-      .then(d => setBrand(brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? "")))
+      .then(d => {
+        setBrand(brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? ""))
+        const isRest = !!(
+          d.isRestaurant ||
+          d.shop?.isRestaurant ||
+          (d.restaurant?.categories && d.restaurant.categories.length > 0) ||
+          (d.restaurant?.branches && d.restaurant.branches.length > 0) ||
+          d.settings?.business_type === "RESTAURANT" ||
+          d.settings?.site_type === "RESTAURANT" ||
+          d.branding?.business_type === "RESTAURANT" ||
+          d.branding?.site_type === "RESTAURANT"
+        )
+        if (isRest) {
+          setIsRestaurant(true)
+          setRestaurantData(d)
+        }
+      })
       .catch(() => {})
+  }, [slug])
+
+  // If in dashboard and no slug passed, check if restaurant module is primary
+  useEffect(() => {
+    if (!slug) {
+      fetch("/api/features")
+        .then(r => r.json())
+        .then(f => {
+          if (f.restaurant) {
+            setIsRestaurant(true)
+          }
+        })
+        .catch(() => {})
+    }
   }, [slug])
 
   /** Every call carries the workspace when nobody is signed in to imply it. */
@@ -4390,14 +4423,18 @@ export default function CustomerSiteView({ slug }: { slug?: string } = {}) {
     [slug],
   )
 
-  // Load tours
+  // Load tours ONLY if NOT a restaurant
   useEffect(() => {
+    if (isRestaurant) {
+      setLoadingTours(false)
+      return
+    }
     fetch(api("/api/tours"))
       .then((r) => r.json())
       .then((d) => setTours(d.tours || []))
       .catch(() => setTours([]))
       .finally(() => setLoadingTours(false))
-  }, [])
+  }, [isRestaurant, api])
 
   // Reset tour loading state when selectedTourId changes (adjust-during-render pattern)
   const [prevTourId, setPrevTourId] = useState<string | null>(selectedTourId)
@@ -4494,7 +4531,12 @@ export default function CustomerSiteView({ slug }: { slug?: string } = {}) {
 
   const handleTryWhatsapp = useCallback(() => navigate(10), [navigate])
 
-  // Render
+  // If workspace is a restaurant or has restaurant menu, render complete Restaurant Website & Digital Menu
+  if (isRestaurant) {
+    return <RestaurantSiteView slug={slug} initialData={restaurantData} />
+  }
+
+  // Render Tour Website
   return (
     <BrandContext.Provider value={brand}>
     <TooltipProvider delayDuration={200}>

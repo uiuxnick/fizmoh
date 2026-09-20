@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import { sendWhatsApp as whatsappText } from "./notifications"
-import { sendInteractiveMessage as whatsappChoices, sendMediaMessage as whatsappMedia } from "./whatsapp"
+import { sendInteractiveMessage as whatsappChoices, sendMediaMessage as whatsappMedia, sendCtaUrlMessage as whatsappCta } from "./whatsapp"
 import type { SocialChannelAdapter } from "./social/types"
 
 const transport = new AsyncLocalStorage<{ adapter: SocialChannelAdapter; token: string; recipient: string; beforeSend?: () => Promise<void> }>()
@@ -19,6 +19,14 @@ export async function sendInteractiveMessage(params: Parameters<typeof whatsappC
   if (!social) return whatsappChoices(params)
   const options = params.buttons?.map(b => b.title) || params.list?.sections.flatMap(s => s.rows.map(r => r.title)) || []
   const body = [params.body, ...options.map((label, i) => `${i + 1}. ${label}`), "Reply with the number or choice."].join("\n")
+  await social.beforeSend?.()
+  const result = await social.adapter.sendText(social.token, social.recipient, body)
+  return { success: result.ok, error: result.error }
+}
+export async function sendCtaUrlMessage(params: Parameters<typeof whatsappCta>[0]): Promise<Awaited<ReturnType<typeof whatsappCta>>> {
+  const social = transport.getStore()
+  if (!social) return whatsappCta(params)
+  const body = `${params.body}\n\n👉 ${params.buttonText}: ${params.url}`
   await social.beforeSend?.()
   const result = await social.adapter.sendText(social.token, social.recipient, body)
   return { success: result.ok, error: result.error }

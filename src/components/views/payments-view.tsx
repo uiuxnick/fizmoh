@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
-import { CreditCard, ShieldCheck, ShieldAlert, Check, X, FileImage, Clock, Banknote, AlertTriangle, Upload } from "lucide-react"
+import { CreditCard, ShieldCheck, ShieldAlert, Check, X, FileImage, Clock, Banknote, AlertTriangle, Upload, ScanText } from "lucide-react"
 import { formatCurrency, formatDateTime, timeAgo, prettifyStatus } from "@/lib/helpers"
 
 interface Payment {
@@ -80,7 +80,7 @@ export default function PaymentsView() {
       ) : payments.length === 0 ? (
         <Card className="border-dashed"><CardContent className="py-16 text-center"><Check className="h-10 w-10 text-emerald-300 mx-auto mb-3" /><p className="text-stone-500">All caught up! No payments pending verification 🎉</p></CardContent></Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div data-tour="payments-queue" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {payments.map(p => {
             const fraudScore = p.fraudScore || 0
             const flags = p.fraudFlags ? JSON.parse(p.fraudFlags) : []
@@ -118,10 +118,11 @@ export default function PaymentsView() {
 
                   {ocr && (
                     <div className="p-3 rounded-lg bg-stone-50 border space-y-2">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-stone-700"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />AI Fraud Analysis</div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>Detected: <span className={`font-bold ${ocr.matchesExpected ? "text-emerald-600" : "text-rose-600"}`}>{ocr.detectedAmount ? formatCurrency(ocr.detectedAmount) : "—"}</span></div>
-                        <div>Confidence: <span className="font-bold text-stone-700">{((ocr.confidence || 0) * 100).toFixed(0)}%</span></div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-stone-700 flex items-center gap-1"><ScanText className="h-3.5 w-3.5 text-teal-600" />OCR Analysis</span>
+                        {ocr.matchScore !== undefined && (
+                          <Badge variant="outline" className={ocr.matchScore > 0.8 ? "text-emerald-700 border-emerald-300 bg-emerald-50" : "text-amber-700 border-amber-300 bg-amber-50"}>{Math.round(ocr.matchScore * 100)}% Match</Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-stone-500">Risk:</span>
@@ -135,7 +136,7 @@ export default function PaymentsView() {
                   )}
 
                   {p.status === "SUBMITTED" && (
-                    <div className="flex gap-2 pt-2">
+                    <div data-tour="payments-approval" className="flex gap-2 pt-2">
                       <Button onClick={() => setAction({ payment: p, type: "APPROVE" })} className="flex-1 bg-emerald-600 hover:bg-emerald-700"><Check className="h-4 w-4 mr-1.5" />Approve</Button>
                       <Button onClick={() => setAction({ payment: p, type: "REJECT" })} variant="destructive" className="flex-1"><X className="h-4 w-4 mr-1.5" />Reject</Button>
                     </div>

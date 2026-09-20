@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/data-deletion" },
   title: "Data Deletion | Fizmoh",
   description: "How to have your data deleted from Fizmoh, whichever side of it you are on.",
 }

@@ -55,7 +55,7 @@ export const GET = withErrors(async (
     return NextResponse.json({ shop: { name: tenant.name, slug: tenant.slug, closed: true }, products: [] })
   }
 
-  const { products, branding } = await withTenant({ tenantId: tenant.id, slug: tenant.slug }, async () => {
+  const { products, branding, restaurantData } = await withTenant({ tenantId: tenant.id, slug: tenant.slug }, async () => {
     const tourList = await db.tour.findMany({
       where: { status: "ACTIVE" },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
@@ -69,6 +69,48 @@ export const GET = withErrors(async (
     const settings = await db.systemSetting.findMany({
       where: { tenantId: tenant.id },
     })
+
+    // Fetch restaurant categories if any
+    const rawCategories = await raw.menuCategory.findMany({
+      where: { tenantId: tenant.id, isActive: true },
+      include: {
+        items: {
+          where: { isAvailable: true, isSoldOut: false },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        },
+      },
+      orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+    })
+
+    const branches = await raw.restaurantBranch.findMany({
+      where: { tenantId: tenant.id, isActive: true },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    })
+
+    const discounts = await raw.restaurantDiscount.findMany({
+      where: {
+        tenantId: tenant.id,
+        isActive: true,
+        OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }],
+      },
+      select: { code: true, name: true, kind: true, value: true },
+    })
+
+    const tables = await raw.restaurantTable.findMany({
+      where: { tenantId: tenant.id },
+      select: {
+        id: true,
+        number: true,
+        name: true,
+        capacity: true,
+        section: true,
+        area: true,
+        status: true,
+        token: true,
+      },
+      orderBy: { number: "asc" },
+    })
+
     /*
      * Settings are encrypted at rest, and this read was taking the stored
      * value as-is.
@@ -81,25 +123,73 @@ export const GET = withErrors(async (
      */
     const brandMap: Record<string, string> = {}
     for (const s of settings) brandMap[s.key] = decryptSecret(s.value)
-    return { products: tourList, branding: brandMap }
+    return {
+      products: tourList,
+      branding: brandMap,
+      restaurantData: {
+        categories: rawCategories,
+        branches,
+        discounts,
+        tables,
+      },
+    }
   })
 
+  // Detect whether this workspace is on the restaurant plan or has restaurant addon
+  const subscription = await raw.subscription.findFirst({
+    where: { tenantId: tenant.id, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "PENDING_PAYMENT"] } },
+    include: { plan: true },
+    orderBy: { createdAt: "desc" },
+  })
+  const planSlug = (subscription?.plan?.slug || "").toLowerCase()
+  const planName = (subscription?.plan?.name || "").toLowerCase()
+  const planModules: string[] = Array.isArray(subscription?.moduleSnapshot)
+    ? (subscription.moduleSnapshot as string[])
+    : (Array.isArray(subscription?.plan?.modules) ? (subscription.plan.modules as string[]) : [])
+
+  const hasRestaurantModule = planModules.includes("RESTAURANT")
+  const isRestaurantPlan = planSlug.includes("rest") || planName.includes("rest")
+  const hasRestaurantAddon = await raw.tenantAddon.findFirst({
+    where: {
+      tenantId: tenant.id,
+      status: { in: ["ACTIVE", "PAST_DUE"] },
+      addon: { slug: { in: ["restaurant", "smart-menu", "smart-menu-ordering"] } },
+    },
+  })
+
+  const isRestaurant = Boolean(
+    branding.business_type === "RESTAURANT" ||
+    branding.site_type === "RESTAURANT" ||
+    branding.industry === "restaurant" ||
+    hasRestaurantModule ||
+    isRestaurantPlan ||
+    hasRestaurantAddon ||
+    (restaurantData.categories && restaurantData.categories.length > 0) ||
+    (restaurantData.branches && restaurantData.branches.length > 0)
+  )
+
   return NextResponse.json({
+    isRestaurant,
+    branding,
+    restaurant: restaurantData,
     shop: {
       name: branding.business_name || tenant.name,
       slug: tenant.slug,
       customDomain: tenant.customDomain,
       logoUrl: branding.website_logo_url || branding.business_logo || tenant.logoUrl,
       faviconUrl: branding.website_favicon_url,
-      primaryColor: branding.website_primary_color || "#0d9488",
-      accentColor: branding.website_accent_color || "#f59e0b",
+      primaryColor: branding.website_primary_color || (isRestaurant ? "#D9A441" : "#0d9488"),
+      accentColor: branding.website_accent_color || (isRestaurant ? "#F59E0B" : "#f59e0b"),
       title: branding.website_title,
       description: branding.website_description,
       currency: tenant.currency,
       email: branding.business_email,
-      phone: branding.business_phone,
+      phone: branding.restaurant_whatsapp_phone || branding.business_phone,
       address: branding.business_address,
       website: branding.business_website,
+      isRestaurant,
+      branding,
+      restaurant: restaurantData,
       /*
        * What the business chose to say on its own site.
        *
@@ -108,15 +198,15 @@ export const GET = withErrors(async (
        * did until now, is showing one business's founding year, traveller
        * count and star rating to every other business that signs up.
        */
-      tagline: branding.site_tagline || null,
+      tagline: branding.restaurant_tagline || branding.site_tagline || null,
       hero: {
-        title: branding.site_hero_title || null,
+        title: branding.restaurant_headline || branding.site_hero_title || null,
         accent: branding.site_hero_accent || null,
-        subtitle: branding.site_hero_subtitle || null,
+        subtitle: branding.restaurant_subheadline || branding.site_hero_subtitle || null,
         badge: branding.site_hero_badge || null,
-        image: branding.site_hero_image || null,
+        image: branding.restaurant_hero_banner_url || branding.site_hero_image || null,
       },
-      story: branding.site_story || null,
+      story: branding.restaurant_story_text || branding.site_story || null,
       mission: branding.site_mission || null,
       about: branding.business_about || null,
       stats: parseStats(branding.site_stats),
@@ -140,6 +230,6 @@ export const GET = withErrors(async (
       },
       closed: false,
     },
-    products,
+    products: isRestaurant ? [] : products,
   })
 })

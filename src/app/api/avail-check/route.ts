@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db, raw } from "@/lib/db"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { holdSlotSeats } from "@/lib/slots-server"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, tenantOf, withTenant } from "@/lib/tenant"
@@ -48,7 +48,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 // Hold seats during checkout
 export const POST = withErrors(async (request: NextRequest) => {
   // POST holds seats, so an unlimited caller could hold out a whole departure.
-  const rate = checkRateLimit(`avail:${requestIp(request.headers)}`, 30, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`avail:${requestIp(request.headers)}`, 30, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 })
 
   const body = await request.json()

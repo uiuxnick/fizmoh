@@ -7,7 +7,7 @@ import { notifyStaff } from "@/lib/realtime"
 import { syncAppointmentToCalendar } from "@/lib/google-calendar"
 import { createAuditLog } from "@/lib/slots-server"
 import { appointmentReference, appointmentsEnabled, appointmentServices, appointmentSlots, defaultDurationMins, slotIsFree } from "@/lib/appointments"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const createSchema = z.object({
@@ -74,7 +74,7 @@ export const POST = withErrors(withModule("APPOINTMENTS", async (request: NextRe
   // A booking form open to the public needs a limit; a signed-in member of
   // staff entering a morning's calls does not.
   if (session?.kind !== "staff") {
-    const rate = checkRateLimit(`appointments:${requestIp(request.headers)}`, 10, 60 * 60 * 1000)
+    const rate = await checkRateLimit(`appointments:${requestIp(request.headers)}`, 10, 60 * 60 * 1000)
     if (!rate.allowed) return NextResponse.json({ error: "Too many attempts" }, { status: 429 })
   }
 

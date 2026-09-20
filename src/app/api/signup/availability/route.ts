@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 /**
  * Whether a workspace address is free, for the sign-up form to check as it is
@@ -13,7 +13,7 @@ import { checkRateLimit, requestIp } from "@/lib/rate-limit"
  * accident.
  */
 export const GET = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`slug:${requestIp(request.headers)}`, 60, 60 * 1000)
+  const rate = await checkRateLimit(`slug:${requestIp(request.headers)}`, 60, 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Slow down" }, { status: 429 })
 
   const wanted = (new URL(request.url).searchParams.get("slug") || "")

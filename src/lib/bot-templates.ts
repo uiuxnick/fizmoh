@@ -618,6 +618,72 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
   // 5. DINING, RESTAURANT & HOSPITALITY
   // ════════════════════════════════════════════════════════════════════════════
   {
+    id: "smart_menu_full_ordering",
+    name: "Smart Menu, Real-Time Tables & Food Ordering",
+    description: "Dynamic Menu → Live Table Visibility (Indoor/Terrace/VIP) → Place Order → Live Status & AmwalPay Online Card Payment",
+    emoji: "🍽️",
+    category: "Dining & Hospitality",
+    trigger: "KEYWORD",
+    triggerConfig: {
+      keywords: ["menu", "order", "food", "table", "dine", "kitchen", "lunch", "dinner", "قائمة", "طلب", "وجبة", "طعام"],
+      matchType: "contains",
+    },
+    nodes: [
+      n("trigger", "TRIGGER", {}, 300, 40),
+      n("n1", "BUTTONS", {
+        text: "🍽️ *Welcome to our Restaurant!*\n\nHow can we serve you today? Browse dishes, check live table availability, place an order, or track your food:",
+        buttons: [
+          { id: "btn_menu", title: "📖 Smart Menu" },
+          { id: "btn_tables", title: "🪑 Live Tables" },
+          { id: "btn_status", title: "🧾 Track Order" },
+        ],
+      }, 300, 180),
+      n("n_menu", "RESTAURANT_MENU", { text: "🍽️ *Chef Specials & Fresh Seasonal Menu*\n\nTap dishes below to explore, or open our full digital ordering portal:" }, 100, 360),
+      n("n_tables", "RESTAURANT_TABLES", {}, 320, 360),
+      n("n_status", "RESTAURANT_ORDER_STATUS", {}, 540, 360),
+      n("n_site", "RESTAURANT_SITE", { text: "🌐 Tap below to open our full Smart Menu & Ordering website with photos, modifiers & online checkout:" }, 100, 520),
+    ],
+    edges: [
+      e("e1", "trigger", "n1"),
+      e("e2", "n1", "n_menu"),
+      e("e3", "n1", "n_tables"),
+      e("e4", "n1", "n_status"),
+      e("e5", "n_menu", "n_site"),
+    ],
+  },
+  {
+    id: "restaurant_dinein_waiter_bill",
+    name: "Dine-In Table QR, Call Waiter & Instant Card Pay",
+    description: "Scan Table QR → Call Waiter / Water Refill → Request Bill → Instant AmwalPay Card Payment",
+    emoji: "🔔",
+    category: "Dining & Hospitality",
+    trigger: "KEYWORD",
+    triggerConfig: {
+      keywords: ["waiter", "bill", "water", "service", "pay", "فاتورة", "نادل", "حساب", "دفع", "ماء", "خدمة"],
+      matchType: "contains",
+    },
+    nodes: [
+      n("trigger", "TRIGGER", {}, 300, 40),
+      n("n1", "BUTTONS", {
+        text: "🛎️ *Dine-In Service & Assistance*\n\nHow can our floor staff assist you at your table right now?",
+        buttons: [
+          { id: "btn_call", title: "🔔 Call Waiter" },
+          { id: "btn_bill", title: "🧾 Request Bill" },
+          { id: "btn_pay", title: "💳 Pay by Card" },
+        ],
+      }, 300, 180),
+      n("n_call", "RESTAURANT_CALL_WAITER", { requestType: "ASSISTANCE" }, 120, 360),
+      n("n_bill", "RESTAURANT_CALL_WAITER", { requestType: "BILL" }, 320, 360),
+      n("n_pay", "RESTAURANT_PAY", {}, 520, 360),
+    ],
+    edges: [
+      e("e1", "trigger", "n1"),
+      e("e2", "n1", "n_call"),
+      e("e3", "n1", "n_bill"),
+      e("e4", "n1", "n_pay"),
+    ],
+  },
+  {
     id: "restaurant_table_menu",
     name: "Fine Dining Table Reservation & Menu",
     description: "Party size → Seating area (Indoor / Sea Terrace / Private Dining) → Date & Time → Instant reservation",

@@ -9,6 +9,8 @@ export async function POST(req: NextRequest) {
       tenantSlug,
       branchSlug,
       tableToken,
+      tableId: reqTableId,
+      tableNumber: reqTableNumber,
       roomNumber,
       orderType,
       customerName,
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
       if (branch) branchId = branch.id
     }
 
-    // Resolve table if tableToken given
+    // Resolve table if tableToken, reqTableId, or reqTableNumber given
     let tableId: string | null = null
     let tableNumber: string | null = null
     let resolvedRoom = roomNumber || null
@@ -62,6 +64,39 @@ export async function POST(req: NextRequest) {
           resolvedRoom = table.roomNumber
         }
       }
+    } else if (reqTableId) {
+      const table = await raw.restaurantTable.findFirst({
+        where: { id: reqTableId, tenantId },
+      })
+      if (table) {
+        tableId = table.id
+        tableNumber = table.number
+        if (!branchId && table.branchId) branchId = table.branchId
+        if (table.type === "ROOM" && table.roomNumber) {
+          resolvedRoom = table.roomNumber
+        }
+      }
+    } else if (reqTableNumber) {
+      const table = await raw.restaurantTable.findFirst({
+        where: { number: String(reqTableNumber).trim(), tenantId },
+      })
+      if (table) {
+        tableId = table.id
+        tableNumber = table.number
+        if (!branchId && table.branchId) branchId = table.branchId
+        if (table.type === "ROOM" && table.roomNumber) {
+          resolvedRoom = table.roomNumber
+        }
+      } else {
+        tableNumber = String(reqTableNumber).trim()
+      }
+    }
+
+    if (orderType === "DINE_IN" && !tableNumber && !tableId) {
+      return NextResponse.json(
+        { error: "Please select or enter your table number for Dine-In" },
+        { status: 400 }
+      )
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {

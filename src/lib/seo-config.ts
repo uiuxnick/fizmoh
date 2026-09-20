@@ -149,11 +149,10 @@ export async function pageSeo(
   const fullTitle = alreadyBranded ? title : `${title} | ${site.siteName}`
 
   const canonicalUrl = options?.canonical || url
-  const languageAlternates = options?.languages || {
-    en: url,
-    ar: `${url}${url.includes("?") ? "&" : "?"}lang=ar`,
-    "x-default": url,
-  }
+  // Declare language pairs only when the route supplies real translated URLs.
+  // A client-side language toggle alone does not establish an alternate page.
+  const languageAlternates = options?.languages
+
 
   return {
     // `absolute` stops the root layout's "%s | Fizmoh" template being applied

@@ -443,6 +443,25 @@ class ChatStore extends ChangeNotifier {
     }
   }
 
+  /// Sends the business's official digital business card to the customer.
+  Future<void> sendDigitalVCard() async {
+    final id = openConversationId;
+    if (id == null || sending) return;
+    sending = true;
+    notifyListeners();
+    try {
+      await api.sendDigitalVCard(id);
+      final detail = await api.conversationDetail(id);
+      messages = detail.messages;
+    } catch (e) {
+      error = 'The digital business card could not be sent';
+      rethrow;
+    } finally {
+      sending = false;
+      notifyListeners();
+    }
+  }
+
   /// Which messages are currently showing a translation.
   final Set<String> translating = {};
 

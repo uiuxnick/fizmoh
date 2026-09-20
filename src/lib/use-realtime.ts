@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 export type RealtimeEvent =
   | { type: "message"; conversationId: string; direction: string; preview: string }
@@ -18,6 +18,7 @@ export type RealtimeEvent =
  * connection on every render — reopening would drop events in the gap.
  */
 export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = true) {
+  const [connectionState, setConnectionState] = useState<"connecting" | "live" | "retrying" | "offline">("connecting")
   const handler = useRef(onEvent)
   useEffect(() => {
     handler.current = onEvent
@@ -27,6 +28,11 @@ export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = t
     if (!enabled || typeof window === "undefined") return
 
     const source = new EventSource("/api/realtime/stream")
+    const opened = () => setConnectionState("live")
+    const failed = () => setConnectionState(source.readyState === EventSource.CLOSED ? "offline" : "retrying")
+    source.addEventListener("open", opened)
+    source.addEventListener("ready", opened)
+    source.addEventListener("error", failed)
     const forward = (raw: MessageEvent) => {
       try {
         handler.current(JSON.parse(raw.data) as RealtimeEvent)
@@ -41,4 +47,5 @@ export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = t
 
     return () => source.close()
   }, [enabled])
+  return enabled ? connectionState : "offline"
 }

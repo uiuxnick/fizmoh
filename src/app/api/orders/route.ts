@@ -5,7 +5,7 @@ import { generateOrderNumber, calculateOrderPrice } from "@/lib/helpers"
 import { confirmSlotSeats, createAuditLog } from "@/lib/slots-server"
 import { VAT_RATE } from "@/lib/constants"
 import { z } from "zod"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { sessionFromRequest } from "@/lib/auth"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, tenantOf, withTenant } from "@/lib/tenant"
@@ -77,7 +77,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`orders:${requestIp(request.headers)}`, 20, 60 * 60 * 1000)
+  const rate = await checkRateLimit(`orders:${requestIp(request.headers)}`, 20, 60 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many booking attempts" }, { status: 429 })
 
   const parsed = createOrderSchema.safeParse(await request.json().catch(() => null))
@@ -124,7 +124,7 @@ async function createBooking(
 
   const pricePerAdult = slot.priceOverride ?? tour.basePrice
   const pricePerChild = tour.childPrice ?? 0
-  const selectedAddOns = (body.addOns || []).map(requested => tour.addOns.find(a =>
+  const selectedAddOns = (body.addOns || []).map(requested => tour.addOns.find((a: import("@prisma/client").AddOn) =>
     a.isActive && (requested.id ? a.id === requested.id : a.name === requested.name)
   )).filter((item): item is NonNullable<typeof item> => Boolean(item))
   const addOnsTotal = selectedAddOns.reduce((sum, addOn) => sum + (addOn.type === "PER_PAX" ? addOn.price * totalPax : addOn.price), 0)
@@ -224,6 +224,16 @@ async function createBooking(
       status: "PENDING",
     },
   })
+
+  // Decrement available capacity immediately so the slot cannot be oversold
+  if (order.paymentStatus === "PAID" || order.paymentStatus === "APPROVED" || order.orderStatus === "CONFIRMED") {
+    await confirmSlotSeats(slot.id, totalPax).catch(() => {})
+  } else {
+    await db.slot.update({
+      where: { id: slot.id },
+      data: { seatsHeld: { increment: totalPax } },
+    }).catch(() => {})
+  }
 
   // A new booking produced no notification at all, so nothing in the panel
   // reacted until someone opened the bookings list.

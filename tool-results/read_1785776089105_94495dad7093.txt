@@ -1,0 +1,2002 @@
+     1→"use client"
+     2→
+     3→import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+     4→import { cn } from "@/lib/utils"
+     5→import { formatCurrency, formatDate } from "@/lib/helpers"
+     6→import { toast } from "sonner"
+     7→
+     8→import { Card, CardContent } from "@/components/ui/card"
+     9→import { Badge } from "@/components/ui/badge"
+    10→import { Button } from "@/components/ui/button"
+    11→import { Input } from "@/components/ui/input"
+    12→import { Textarea } from "@/components/ui/textarea"
+    13→import { Label } from "@/components/ui/label"
+    14→import { Separator } from "@/components/ui/separator"
+    15→import { Skeleton } from "@/components/ui/skeleton"
+    16→import { ScrollArea } from "@/components/ui/scroll-area"
+    17→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+    18→import { Switch } from "@/components/ui/switch"
+    19→import { Checkbox } from "@/components/ui/checkbox"
+    20→import { Progress } from "@/components/ui/progress"
+    21→import {
+    22→  Dialog,
+    23→  DialogContent,
+    24→  DialogDescription,
+    25→  DialogFooter,
+    26→  DialogHeader,
+    27→  DialogTitle,
+    28→} from "@/components/ui/dialog"
+    29→import {
+    30→  Sheet,
+    31→  SheetContent,
+    32→  SheetDescription,
+    33→  SheetHeader,
+    34→  SheetTitle,
+    35→} from "@/components/ui/sheet"
+    36→import {
+    37→  Select,
+    38→  SelectContent,
+    39→  SelectItem,
+    40→  SelectTrigger,
+    41→  SelectValue,
+    42→} from "@/components/ui/select"
+    43→import {
+    44→  Popover,
+    45→  PopoverContent,
+    46→  PopoverTrigger,
+    47→} from "@/components/ui/popover"
+    48→import {
+    49→  DropdownMenu,
+    50→  DropdownMenuContent,
+    51→  DropdownMenuItem,
+    52→  DropdownMenuSeparator,
+    53→  DropdownMenuTrigger,
+    54→} from "@/components/ui/dropdown-menu"
+    55→import {
+    56→  Tooltip,
+    57→  TooltipContent,
+    58→  TooltipProvider,
+    59→  TooltipTrigger,
+    60→} from "@/components/ui/tooltip"
+    61→import { Calendar } from "@/components/ui/calendar"
+    62→
+    63→import {
+    64→  MapPin,
+    65→  Clock,
+    66→  Mountain,
+    67→  Waves,
+    68→  Sun,
+    69→  Camera,
+    70→  Plus,
+    71→  Pencil,
+    72→  Trash2,
+    73→  Calendar as CalendarIcon,
+    74→  Users,
+    75→  Star,
+    76→  Search,
+    77→  Filter,
+    78→  ImageIcon,
+    79→  Settings,
+    80→  Eye,
+    81→  Sparkles,
+    82→  Compass,
+    83→  Building2,
+    84→  Fish,
+    85→  Baby,
+    86→  Crown,
+    87→  Footprints,
+    88→  ShieldCheck,
+    89→  ShieldOff,
+    90→  Ban,
+    91→  PlayCircle,
+    92→  CheckCircle2,
+    93→  X,
+    94→  ChevronRight,
+    95→  ChevronLeft,
+    96→  ChevronDown,
+    97→  Loader2,
+    98→  Globe,
+    99→  Phone,
+   100→  Mail,
+   101→  Quote,
+   102→  RefreshCw,
+   103→  Save,
+   104→  Trash,
+   105→  CalendarPlus,
+   106→  Layers,
+   107→  TrendingUp,
+   108→  AlertTriangle,
+   109→  Info,
+   110→  CalendarDays,
+   111→  CheckCheck,
+   112→  Lock,
+   113→  Unlock,
+   114→  Copy,
+   115→} from "lucide-react"
+   116→
+   117→// ============================================================
+   118→// TYPES
+   119→// ============================================================
+   120→interface MediaItem {
+   121→  type?: string
+   122→  url: string
+   123→  alt?: string
+   124→}
+   125→
+   126→interface ItineraryItem {
+   127→  time: string
+   128→  title: string
+   129→  description?: string
+   130→}
+   131→
+   132→interface AddOn {
+   133→  id?: string
+   134→  name: string
+   135→  price: number
+   136→  type: string // FLAT | PER_PAX
+   137→  isActive?: boolean
+   138→}
+   139→
+   140→interface Review {
+   141→  id: string
+   142→  rating: number
+   143→  title?: string | null
+   144→  comment?: string | null
+   145→  createdAt: string
+   146→  customer?: { name: string | null; phone: string } | null
+   147→}
+   148→
+   149→interface Tour {
+   150→  id: string
+   151→  slug: string
+   152→  name: string
+   153→  nameAr?: string | null
+   154→  description: string
+   155→  category: string
+   156→  city: string
+   157→  location?: string | null
+   158→  basePrice: number
+   159→  childPrice?: number | null
+   160→  groupPrice?: number | null
+   161→  currency: string
+   162→  durationHours: number
+   163→  difficulty: string
+   164→  capacityPerSlot: number
+   165→  media?: any
+   166→  itinerary?: any
+   167→  inclusions?: any
+   168→  exclusions?: any
+   169→  whatToBring?: any
+   170→  pricingTiers?: any
+   171→  meetingPoint?: string | null
+   172→  cancellationPolicy?: string | null
+   173→  status: string
+   174→  featured: boolean
+   175→  rating: number
+   176→  reviewCount: number
+   177→  createdAt: string
+   178→  updatedAt: string
+   179→  addOns: AddOn[]
+   180→  reviews?: Review[]
+   181→}
+   182→
+   183→interface Slot {
+   184→  id: string
+   185→  tourId: string
+   186→  date: string
+   187→  startTime: string
+   188→  endTime?: string | null
+   189→  capacity: number
+   190→  seatsBooked: number
+   191→  seatsHeld: number
+   192→  status: string
+   193→  priceOverride?: number | null
+   194→  tour?: { name: string; basePrice: number } | null
+   195→}
+   196→
+   197→// ============================================================
+   198→// CONSTANTS — emerald/teal primary, amber/rose accents, NO blue/indigo
+   199→// ============================================================
+   200→const CATEGORIES = [
+   201→  "Adventure",
+   202→  "Cultural",
+   203→  "Water Sports",
+   204→  "Desert",
+   205→  "Mountain",
+   206→  "City Tour",
+   207→  "Diving",
+   208→  "Fishing",
+   209→  "Family",
+   210→  "Luxury",
+   211→] as const
+   212→
+   213→const CITIES = [
+   214→  "Muscat",
+   215→  "Salalah",
+   216→  "Nizwa",
+   217→  "Sohar",
+   218→  "Sur",
+   219→  "Musandam",
+   220→  "Ras Al Jinz",
+   221→  "Wahiba Sands",
+   222→  "Jebel Shams",
+   223→  "Duqm",
+   224→] as const
+   225→
+   226→interface CatMeta {
+   227→  gradient: string // tailwind gradient classes for image placeholder
+   228→  soft: string // soft bg for badges
+   229→  badge: string // badge text/border colors
+   230→  ring: string // ring color
+   231→  text: string // text color
+   232→  Icon: React.ComponentType<{ className?: string }>
+   233→  emoji: string
+   234→}
+   235→
+   236→const CATEGORY_META: Record<string, CatMeta> = {
+   237→  Adventure: {
+   238→    gradient: "from-orange-500 via-amber-600 to-red-600",
+   239→    soft: "bg-orange-50",
+   240→    badge: "bg-orange-100 text-orange-800 border-orange-200",
+   241→    ring: "ring-orange-200",
+   242→    text: "text-orange-700",
+   243→    Icon: Compass,
+   244→    emoji: "🧗",
+   245→  },
+   246→  Cultural: {
+   247→    gradient: "from-amber-500 via-orange-600 to-rose-700",
+   248→    soft: "bg-amber-50",
+   249→    badge: "bg-amber-100 text-amber-800 border-amber-200",
+   250→    ring: "ring-amber-200",
+   251→    text: "text-amber-700",
+   252→    Icon: Building2,
+   253→    emoji: "🏛️",
+   254→  },
+   255→  "Water Sports": {
+   256→    gradient: "from-teal-500 via-cyan-600 to-emerald-700",
+   257→    soft: "bg-teal-50",
+   258→    badge: "bg-teal-100 text-teal-800 border-teal-200",
+   259→    ring: "ring-teal-200",
+   260→    text: "text-teal-700",
+   261→    Icon: Waves,
+   262→    emoji: "🌊",
+   263→  },
+   264→  Desert: {
+   265→    gradient: "from-amber-400 via-orange-500 to-yellow-600",
+   266→    soft: "bg-amber-50",
+   267→    badge: "bg-amber-100 text-amber-800 border-amber-200",
+   268→    ring: "ring-amber-200",
+   269→    text: "text-amber-700",
+   270→    Icon: Sun,
+   271→    emoji: "🏜️",
+   272→  },
+   273→  Mountain: {
+   274→    gradient: "from-stone-500 via-stone-600 to-stone-800",
+   275→    soft: "bg-stone-50",
+   276→    badge: "bg-stone-100 text-stone-800 border-stone-300",
+   277→    ring: "ring-stone-300",
+   278→    text: "text-stone-700",
+   279→    Icon: Mountain,
+   280→    emoji: "⛰️",
+   281→  },
+   282→  "City Tour": {
+   283→    gradient: "from-emerald-500 via-teal-600 to-emerald-700",
+   284→    soft: "bg-emerald-50",
+   285→    badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   286→    ring: "ring-emerald-200",
+   287→    text: "text-emerald-700",
+   288→    Icon: Building2,
+   289→    emoji: "🏙️",
+   290→  },
+   291→  Diving: {
+   292→    gradient: "from-cyan-500 via-teal-600 to-emerald-700",
+   293→    soft: "bg-cyan-50",
+   294→    badge: "bg-cyan-100 text-cyan-800 border-cyan-200",
+   295→    ring: "ring-cyan-200",
+   296→    text: "text-cyan-700",
+   297→    Icon: Waves,
+   298→    emoji: "🤿",
+   299→  },
+   300→  Fishing: {
+   301→    gradient: "from-teal-400 via-cyan-500 to-teal-600",
+   302→    soft: "bg-teal-50",
+   303→    badge: "bg-teal-100 text-teal-800 border-teal-200",
+   304→    ring: "ring-teal-200",
+   305→    text: "text-teal-700",
+   306→    Icon: Fish,
+   307→    emoji: "🎣",
+   308→  },
+   309→  Family: {
+   310→    gradient: "from-rose-400 via-pink-500 to-rose-600",
+   311→    soft: "bg-rose-50",
+   312→    badge: "bg-rose-100 text-rose-800 border-rose-200",
+   313→    ring: "ring-rose-200",
+   314→    text: "text-rose-700",
+   315→    Icon: Baby,
+   316→    emoji: "👨‍👩‍👧",
+   317→  },
+   318→  Luxury: {
+   319→    gradient: "from-yellow-400 via-amber-500 to-orange-500",
+   320→    soft: "bg-yellow-50",
+   321→    badge: "bg-yellow-100 text-yellow-800 border-yellow-200",
+   322→    ring: "ring-yellow-200",
+   323→    text: "text-yellow-700",
+   324→    Icon: Crown,
+   325→    emoji: "👑",
+   326→  },
+   327→}
+   328→
+   329→function getCatMeta(category: string): CatMeta {
+   330→  return CATEGORY_META[category] || {
+   331→    gradient: "from-emerald-500 via-teal-600 to-emerald-700",
+   332→    soft: "bg-emerald-50",
+   333→    badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+   334→    ring: "ring-emerald-200",
+   335→    text: "text-emerald-700",
+   336→    Icon: Compass,
+   337→    emoji: "✨",
+   338→  }
+   339→}
+   340→
+   341→const DIFFICULTY_META: Record<string, { label: string; classes: string; Icon: React.ComponentType<{ className?: string }> }> = {
+   342→  EASY: { label: "Easy", classes: "bg-emerald-100 text-emerald-700 border-emerald-200", Icon: Footprints },
+   343→  MODERATE: { label: "Moderate", classes: "bg-amber-100 text-amber-700 border-amber-200", Icon: Footprints },
+   344→  HARD: { label: "Hard", classes: "bg-rose-100 text-rose-700 border-rose-200", Icon: Mountain },
+   345→}
+   346→
+   347→const STATUS_META: Record<string, { label: string; classes: string; dot: string }> = {
+   348→  ACTIVE: { label: "Active", classes: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+   349→  PAUSED: { label: "Paused", classes: "bg-amber-100 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+   350→  DRAFT: { label: "Draft", classes: "bg-stone-100 text-stone-600 border-stone-300", dot: "bg-stone-400" },
+   351→  ARCHIVED: { label: "Archived", classes: "bg-stone-100 text-stone-500 border-stone-300", dot: "bg-stone-300" },
+   352→}
+   353→
+   354→const SLOT_STATUS_META: Record<string, { label: string; classes: string; dot: string; Icon: React.ComponentType<{ className?: string }> }> = {
+   355→  OPEN: { label: "Open", classes: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", Icon: Unlock },
+   356→  FULL: { label: "Full", classes: "bg-amber-100 text-amber-700 border-amber-200", dot: "bg-amber-500", Icon: Users },
+   357→  CLOSED: { label: "Closed", classes: "bg-stone-200 text-stone-700 border-stone-300", dot: "bg-stone-500", Icon: Lock },
+   358→  BLACKOUT: { label: "Blackout", classes: "bg-rose-100 text-rose-700 border-rose-200", dot: "bg-rose-500", Icon: Ban },
+   359→}
+   360→
+   361→// ============================================================
+   362→// HELPERS
+   363→// ============================================================
+   364→function parseJsonArray<T>(raw: any, fallback: T[] = []): T[] {
+   365→  if (!raw) return fallback
+   366→  if (Array.isArray(raw)) return raw as T[]
+   367→  if (typeof raw === "string") {
+   368→    try {
+   369→      const parsed = JSON.parse(raw)
+   370→      return Array.isArray(parsed) ? parsed : fallback
+   371→    } catch {
+   372→      return fallback
+   373→    }
+   374→  }
+   375→  return fallback
+   376→}
+   377→
+   378→function slugify(s: string): string {
+   379→  return s
+   380→    .toLowerCase()
+   381→    .trim()
+   382→    .replace(/[^a-z0-9\s-]/g, "")
+   383→    .replace(/\s+/g, "-")
+   384→    .replace(/-+/g, "-")
+   385→    .replace(/^-|-$/g, "")
+   386→}
+   387→
+   388→function isoDate(d: Date): string {
+   389→  // YYYY-MM-DD in local timezone
+   390→  const y = d.getFullYear()
+   391→  const m = String(d.getMonth() + 1).padStart(2, "0")
+   392→  const day = String(d.getDate()).padStart(2, "0")
+   393→  return `${y}-${m}-${day}`
+   394→}
+   395→
+   396→function dateKey(d: Date | string): string {
+   397→  const date = typeof d === "string" ? new Date(d) : d
+   398→  return isoDate(date)
+   399→}
+   400→
+   401→function isSameDay(a: Date, b: Date): boolean {
+   402→  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+   403→}
+   404→
+   405→function isWeekend(d: Date): boolean {
+   406→  // Oman weekend: Friday (5) + Saturday (6)
+   407→  return d.getDay() === 5 || d.getDay() === 6
+   408→}
+   409→
+   410→function getInitials(name?: string | null): string {
+   411→  if (!name) return "?"
+   412→  const parts = name.trim().split(/\s+/).slice(0, 2)
+   413→  return parts.map(p => p[0]?.toUpperCase() || "").join("") || "?"
+   414→}
+   415→
+   416→function ratingStars(rating: number): { full: number; half: number; empty: number } {
+   417→  const full = Math.floor(rating)
+   418→  const decimal = rating - full
+   419→  const half = decimal >= 0.25 && decimal < 0.75 ? 1 : 0
+   420→  const extra = decimal >= 0.75 ? 1 : 0
+   421→  return { full: full + extra, half, empty: 5 - full - extra - half }
+   422→}
+   423→
+   424→// ============================================================
+   425→// MAIN COMPONENT
+   426→// ============================================================
+   427→export default function ToursView() {
+   428→  const [tours, setTours] = useState<Tour[]>([])
+   429→  const [loading, setLoading] = useState(true)
+   430→  const [error, setError] = useState<string | null>(null)
+   431→  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+   432→
+   433→  // Filters
+   434→  const [search, setSearch] = useState("")
+   435→  const [debouncedSearch, setDebouncedSearch] = useState("")
+   436→  const [categoryFilter, setCategoryFilter] = useState("all")
+   437→  const [cityFilter, setCityFilter] = useState("all")
+   438→  const [statusFilter, setStatusFilter] = useState("all")
+   439→
+   440→  // Dialog state
+   441→  const [detailTarget, setDetailTarget] = useState<Tour | null>(null)
+   442→  const [formOpen, setFormOpen] = useState(false)
+   443→  const [formInitial, setFormInitial] = useState<Tour | null>(null)
+   444→  const [slotTarget, setSlotTarget] = useState<Tour | null>(null)
+   445→  const [deleteTarget, setDeleteTarget] = useState<Tour | null>(null)
+   446→  const [deleting, setDeleting] = useState(false)
+   447→
+   448→  // ---- debounce search ----
+   449→  useEffect(() => {
+   450→    const t = setTimeout(() => setDebouncedSearch(search.trim()), 280)
+   451→    return () => clearTimeout(t)
+   452→  }, [search])
+   453→
+   454→  // ---- fetch ----
+   455→  const fetchTours = useCallback(async () => {
+   456→    try {
+   457→      const params = new URLSearchParams()
+   458→      if (categoryFilter !== "all") params.set("category", categoryFilter)
+   459→      if (cityFilter !== "all") params.set("city", cityFilter)
+   460→      if (debouncedSearch) params.set("search", debouncedSearch)
+   461→      if (statusFilter !== "all") params.set("status", statusFilter)
+   462→      else params.set("status", "all") // admin mode: include all statuses
+   463→
+   464→      const res = await fetch(`/api/tours?${params.toString()}`, { cache: "no-store" })
+   465→      if (!res.ok) throw new Error("Failed to load tours")
+   466→      const json = await res.json()
+   467→      setTours(json.tours || [])
+   468→      setError(null)
+   469→      setLastRefresh(new Date())
+   470→    } catch (e: any) {
+   471→      setError(e?.message || "Unable to load tours")
+   472→    } finally {
+   473→      setLoading(false)
+   474→    }
+   475→  }, [categoryFilter, cityFilter, debouncedSearch, statusFilter])
+   476→
+   477→  useEffect(() => {
+   478→    setLoading(true)
+   479→    fetchTours()
+   480→  }, [fetchTours])
+   481→
+   482→  // ---- handlers ----
+   483→  const handleSaved = useCallback((tour: Tour) => {
+   484→    setTours(prev => {
+   485→      const idx = prev.findIndex(t => t.id === tour.id)
+   486→      if (idx >= 0) {
+   487→        const next = [...prev]
+   488→        next[idx] = tour
+   489→        return next
+   490→      }
+   491→      return [tour, ...prev]
+   492→    })
+   493→    setDetailTarget(tour)
+   494→    setFormOpen(false)
+   495→    setFormInitial(null)
+   496→    toast.success(tour.id ? "Tour updated" : "Tour created", {
+   497→      description: tour.name,
+   498→    })
+   499→  }, [])
+   500→
+   501→  const handleDelete = useCallback(async () => {
+   502→    if (!deleteTarget) return
+   503→    setDeleting(true)
+   504→    try {
+   505→      const res = await fetch(`/api/tours/${deleteTarget.id}`, { method: "DELETE" })
+   506→      if (!res.ok) throw new Error("Failed to delete tour")
+   507→      setTours(prev => prev.filter(t => t.id !== deleteTarget.id))
+   508→      toast.success("Tour deleted", { description: deleteTarget.name })
+   509→      setDeleteTarget(null)
+   510→    } catch (e: any) {
+   511→      toast.error("Failed to delete tour", { description: e?.message })
+   512→    } finally {
+   513→      setDeleting(false)
+   514→    }
+   515→  }, [deleteTarget])
+   516→
+   517→  // ---- stats for header ----
+   518→  const stats = useMemo(() => {
+   519→    const active = tours.filter(t => t.status === "ACTIVE").length
+   520→    const featured = tours.filter(t => t.featured).length
+   521→    const avgRating = tours.length > 0 ? tours.reduce((s, t) => s + (t.rating || 0), 0) / tours.length : 0
+   522→    return { total: tours.length, active, featured, avgRating }
+   523→  }, [tours])
+   524→
+   525→  // ============================================================
+   526→  // RENDER
+   527→  // ============================================================
+   528→  return (
+   529→    <div className="min-h-screen bg-stone-50">
+   530→      {/* ===== Header ===== */}
+   531→      <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/85 backdrop-blur-md">
+   532→        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
+   533→          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+   534→            <div className="flex items-center gap-3">
+   535→              <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25">
+   536→                <Compass className="size-6" />
+   537→              </div>
+   538→              <div>
+   539→                <h1 className="text-xl font-bold tracking-tight text-stone-900 sm:text-2xl">
+   540→                  Tours &amp; Services
+   541→                </h1>
+   542→                <p className="text-xs text-stone-500 sm:text-sm">
+   543→                  Manage your Oman Adventures catalogue
+   544→                </p>
+   545→              </div>
+   546→            </div>
+   547→
+   548→            <div className="flex flex-wrap items-center gap-2">
+   549→              <TooltipProvider delayDuration={250}>
+   550→                <Tooltip>
+   551→                  <TooltipTrigger asChild>
+   552→                    <Button
+   553→                      variant="outline"
+   554→                      size="sm"
+   555→                      onClick={() => {
+   556→                        setLoading(true)
+   557→                        fetchTours()
+   558→                      }}
+   559→                      className="border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+   560→                    >
+   561→                      <RefreshCw className="size-4" />
+   562→                      <span className="hidden sm:inline">Refresh</span>
+   563→                    </Button>
+   564→                  </TooltipTrigger>
+   565→                  <TooltipContent>Last refreshed {lastRefresh.toLocaleTimeString()}</TooltipContent>
+   566→                </Tooltip>
+   567→              </TooltipProvider>
+   568→
+   569→              <Button
+   570→                size="sm"
+   571→                onClick={() => {
+   572→                  setFormInitial(null)
+   573→                  setFormOpen(true)
+   574→                }}
+   575→                className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700"
+   576→              >
+   577→                <Plus className="size-4" />
+   578→                <span>Add New Tour</span>
+   579→              </Button>
+   580→            </div>
+   581→          </div>
+   582→
+   583→          {/* Stats strip */}
+   584→          {!loading && tours.length > 0 && (
+   585→            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+   586→              <div className="rounded-lg border border-stone-200 bg-white px-4 py-2.5">
+   587→                <div className="text-xs font-medium uppercase tracking-wide text-stone-500">Total Tours</div>
+   588→                <div className="mt-0.5 text-lg font-bold text-stone-900">{stats.total}</div>
+   589→              </div>
+   590→              <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-2.5">
+   591→                <div className="text-xs font-medium uppercase tracking-wide text-emerald-700">Active</div>
+   592→                <div className="mt-0.5 text-lg font-bold text-emerald-900">{stats.active}</div>
+   593→              </div>
+   594→              <div className="rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-2.5">
+   595→                <div className="text-xs font-medium uppercase tracking-wide text-amber-700">Featured</div>
+   596→                <div className="mt-0.5 text-lg font-bold text-amber-900">{stats.featured}</div>
+   597→              </div>
+   598→              <div className="rounded-lg border border-teal-200 bg-teal-50/50 px-4 py-2.5">
+   599→                <div className="text-xs font-medium uppercase tracking-wide text-teal-700">Avg Rating</div>
+   600→                <div className="mt-0.5 flex items-center gap-1 text-lg font-bold text-teal-900">
+   601→                  <Star className="size-4 fill-teal-500 text-teal-500" />
+   602→                  {stats.avgRating.toFixed(1)}
+   603→                </div>
+   604→              </div>
+   605→            </div>
+   606→          )}
+   607→
+   608→          {/* Filters */}
+   609→          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+   610→            <div className="relative flex-1">
+   611→              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+   612→              <Input
+   613→                value={search}
+   614→                onChange={(e) => setSearch(e.target.value)}
+   615→                placeholder="Search by name, description, or city..."
+   616→                className="h-10 border-stone-200 bg-white pl-10 pr-10 text-sm shadow-sm focus-visible:ring-emerald-500/40"
+   617→              />
+   618→              {search && (
+   619→                <button
+   620→                  onClick={() => setSearch("")}
+   621→                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+   622→                  aria-label="Clear search"
+   623→                >
+   624→                  <X className="size-4" />
+   625→                </button>
+   626→              )}
+   627→            </div>
+   628→
+   629→            <div className="flex flex-wrap items-center gap-2">
+   630→              <div className="flex items-center gap-1.5">
+   631→                <Filter className="size-4 text-stone-400" />
+   632→                <span className="text-xs font-medium text-stone-500">Filter:</span>
+   633→              </div>
+   634→
+   635→              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   636→                <SelectTrigger className="h-9 w-[140px] border-stone-200 bg-white text-xs">
+   637→                  <SelectValue placeholder="Category" />
+   638→                </SelectTrigger>
+   639→                <SelectContent>
+   640→                  <SelectItem value="all">All Categories</SelectItem>
+   641→                  {CATEGORIES.map(c => (
+   642→                    <SelectItem key={c} value={c}>{c}</SelectItem>
+   643→                  ))}
+   644→                </SelectContent>
+   645→              </Select>
+   646→
+   647→              <Select value={cityFilter} onValueChange={setCityFilter}>
+   648→                <SelectTrigger className="h-9 w-[140px] border-stone-200 bg-white text-xs">
+   649→                  <SelectValue placeholder="City" />
+   650→                </SelectTrigger>
+   651→                <SelectContent>
+   652→                  <SelectItem value="all">All Cities</SelectItem>
+   653→                  {CITIES.map(c => (
+   654→                    <SelectItem key={c} value={c}>{c}</SelectItem>
+   655→                  ))}
+   656→                </SelectContent>
+   657→              </Select>
+   658→
+   659→              <Select value={statusFilter} onValueChange={setStatusFilter}>
+   660→                <SelectTrigger className="h-9 w-[120px] border-stone-200 bg-white text-xs">
+   661→                  <SelectValue placeholder="Status" />
+   662→                </SelectTrigger>
+   663→                <SelectContent>
+   664→                  <SelectItem value="all">All Status</SelectItem>
+   665→                  <SelectItem value="ACTIVE">Active</SelectItem>
+   666→                  <SelectItem value="PAUSED">Paused</SelectItem>
+   667→                  <SelectItem value="DRAFT">Draft</SelectItem>
+   668→                  <SelectItem value="ARCHIVED">Archived</SelectItem>
+   669→                </SelectContent>
+   670→              </Select>
+   671→            </div>
+   672→          </div>
+   673→        </div>
+   674→      </header>
+   675→
+   676→      {/* ===== Main Content ===== */}
+   677→      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+   678→        {error ? (
+   679→          <ErrorState message={error} onRetry={() => { setLoading(true); fetchTours() }} />
+   680→        ) : loading ? (
+   681→          <ToursGridSkeleton />
+   682→        ) : tours.length === 0 ? (
+   683→          <EmptyState
+   684→            hasFilters={!!(debouncedSearch || categoryFilter !== "all" || cityFilter !== "all" || statusFilter !== "all")}
+   685→            onClear={() => {
+   686→              setSearch("")
+   687→              setCategoryFilter("all")
+   688→              setCityFilter("all")
+   689→              setStatusFilter("all")
+   690→            }}
+   691→            onAdd={() => {
+   692→              setFormInitial(null)
+   693→              setFormOpen(true)
+   694→            }}
+   695→          />
+   696→        ) : (
+   697→          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+   698→            {tours.map(tour => (
+   699→              <TourCard
+   700→                key={tour.id}
+   701→                tour={tour}
+   702→                onView={() => setDetailTarget(tour)}
+   703→                onEdit={() => {
+   704→                  setFormInitial(tour)
+   705→                  setFormOpen(true)
+   706→                }}
+   707→                onDelete={() => setDeleteTarget(tour)}
+   708→                onManageSlots={() => setSlotTarget(tour)}
+   709→              />
+   710→            ))}
+   711→          </div>
+   712→        )}
+   713→      </main>
+   714→
+   715→      {/* ===== Detail Sheet ===== */}
+   716→      <TourDetailSheet
+   717→        tour={detailTarget}
+   718→        open={!!detailTarget}
+   719→        onOpenChange={(o) => !o && setDetailTarget(null)}
+   720→        onEdit={(t) => {
+   721→          setDetailTarget(null)
+   722→          setFormInitial(t)
+   723→          setFormOpen(true)
+   724→        }}
+   725→        onManageSlots={(t) => {
+   726→          setDetailTarget(null)
+   727→          setSlotTarget(t)
+   728→        }}
+   729→        onRefresh={fetchTours}
+   730→      />
+   731→
+   732→      {/* ===== Add/Edit Form Dialog ===== */}
+   733→      <TourFormDialog
+   734→        open={formOpen}
+   735→        onOpenChange={setFormOpen}
+   736→        initialTour={formInitial}
+   737→        onSaved={handleSaved}
+   738→      />
+   739→
+   740→      {/* ===== Slot Management Dialog ===== */}
+   741→      <SlotManagementDialog
+   742→        tour={slotTarget}
+   743→        open={!!slotTarget}
+   744→        onOpenChange={(o) => !o && setSlotTarget(null)}
+   745→      />
+   746→
+   747→      {/* ===== Delete Confirm Dialog ===== */}
+   748→      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+   749→        <DialogContent className="max-w-md">
+   750→          <DialogHeader>
+   751→            <DialogTitle className="flex items-center gap-2 text-rose-700">
+   752→              <Trash2 className="size-5" />
+   753→              Delete Tour
+   754→            </DialogTitle>
+   755→            <DialogDescription>
+   756→              This action cannot be undone. The tour and all related slots, reviews, and add-ons will be permanently removed.
+   757→            </DialogDescription>
+   758→          </DialogHeader>
+   759→          {deleteTarget && (
+   760→            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+   761→              <div className="text-xs font-medium uppercase tracking-wide text-rose-600">You are deleting</div>
+   762→              <div className="mt-1 font-semibold text-rose-900">{deleteTarget.name}</div>
+   763→              <div className="text-xs text-rose-700">{deleteTarget.category} • {deleteTarget.city}</div>
+   764→            </div>
+   765→          )}
+   766→          <DialogFooter>
+   767→            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+   768→              Cancel
+   769→            </Button>
+   770→            <Button
+   771→              onClick={handleDelete}
+   772→              disabled={deleting}
+   773→              className="bg-rose-600 text-white hover:bg-rose-700"
+   774→            >
+   775→              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+   776→              Delete Tour
+   777→            </Button>
+   778→          </DialogFooter>
+   779→        </DialogContent>
+   780→      </Dialog>
+   781→    </div>
+   782→  )
+   783→}
+   784→
+   785→// ============================================================
+   786→// ERROR STATE
+   787→// ============================================================
+   788→function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+   789→  return (
+   790→    <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-6 py-16 text-center">
+   791→      <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-rose-100">
+   792→        <AlertTriangle className="size-7 text-rose-600" />
+   793→      </div>
+   794→      <h3 className="text-lg font-semibold text-rose-900">Failed to load tours</h3>
+   795→      <p className="mt-1 max-w-md text-sm text-rose-700">{message}</p>
+   796→      <Button onClick={onRetry} className="mt-5 bg-rose-600 text-white hover:bg-rose-700">
+   797→        <RefreshCw className="size-4" />
+   798→        Try Again
+   799→      </Button>
+   800→    </div>
+   801→  )
+   802→}
+   803→
+   804→// ============================================================
+   805→// EMPTY STATE
+   806→// ============================================================
+   807→function EmptyState({
+   808→  hasFilters,
+   809→  onClear,
+   810→  onAdd,
+   811→}: {
+   812→  hasFilters: boolean
+   813→  onClear: () => void
+   814→  onAdd: () => void
+   815→}) {
+   816→  return (
+   817→    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-white px-6 py-16 text-center">
+   818→      <div className="mb-5 flex size-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/25">
+   819→        <Compass className="size-10" />
+   820→      </div>
+   821→      {hasFilters ? (
+   822→        <>
+   823→          <h3 className="text-xl font-bold text-stone-800">No tours match your filters</h3>
+   824→          <p className="mt-1 max-w-md text-sm text-stone-500">
+   825→            Try adjusting your search or filters to find what you&apos;re looking for.
+   826→          </p>
+   827→          <Button onClick={onClear} variant="outline" className="mt-5 border-stone-300">
+   828→            <X className="size-4" />
+   829→            Clear Filters
+   830→          </Button>
+   831→        </>
+   832→      ) : (
+   833→        <>
+   834→          <h3 className="text-xl font-bold text-stone-800">No tours yet. Add your first tour!</h3>
+   835→          <p className="mt-1 max-w-md text-sm text-stone-500">
+   836→            Start building your Oman Adventures catalogue. Add a desert safari, dhow cruise, mountain trek, or any experience you offer.
+   837→          </p>
+   838→          <Button onClick={onAdd} className="mt-5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700">
+   839→            <Plus className="size-4" />
+   840→            Add New Tour
+   841→          </Button>
+   842→        </>
+   843→      )}
+   844→    </div>
+   845→  )
+   846→}
+   847→
+   848→// ============================================================
+   849→// TOUR CARD
+   850→// ============================================================
+   851→function TourCard({
+   852→  tour,
+   853→  onView,
+   854→  onEdit,
+   855→  onDelete,
+   856→  onManageSlots,
+   857→}: {
+   858→  tour: Tour
+   859→  onView: () => void
+   860→  onEdit: () => void
+   861→  onDelete: () => void
+   862→  onManageSlots: () => void
+   863→}) {
+   864→  const meta = getCatMeta(tour.category)
+   865→  const media = parseJsonArray<MediaItem>(tour.media, [])
+   866→  const cover = media[0]?.url
+   867→  const status = STATUS_META[tour.status] || STATUS_META.DRAFT
+   868→  const difficulty = DIFFICULTY_META[tour.difficulty] || DIFFICULTY_META.EASY
+   869→  const stars = ratingStars(tour.rating || 0)
+   870→  const [imgFailed, setImgFailed] = useState(false)
+   871→
+   872→  return (
+   873→    <Card
+   874→      className={cn(
+   875→        "group relative overflow-hidden border-stone-200 bg-white py-0 transition-all duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-xl hover:shadow-stone-300/50",
+   876→        tour.featured && "ring-2 ring-amber-300/60"
+   877→      )}
+   878→    >
+   879→      {/* Featured ribbon */}
+   880→      {tour.featured && (
+   881→        <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
+   882→          <Star className="size-3 fill-white" />
+   883→          Featured
+   884→        </div>
+   885→      )}
+   886→
+   887→      {/* Image */}
+   888→      <button
+   889→        onClick={onView}
+   890→        className="relative block aspect-[16/10] w-full overflow-hidden text-left"
+   891→        aria-label={`View ${tour.name}`}
+   892→      >
+   893→        <div className={cn("absolute inset-0 bg-gradient-to-br", meta.gradient)} />
+   894→        {/* Pattern overlay */}
+   895→        <div
+   896→          className="absolute inset-0 opacity-25"
+   897→          style={{
+   898→            backgroundImage:
+   899→              "radial-gradient(circle at 25% 25%, white 1px, transparent 1.5px), radial-gradient(circle at 75% 75%, white 1px, transparent 1.5px)",
+   900→            backgroundSize: "32px 32px",
+   901→          }}
+   902→        />
+   903→        {/* Cover image if available */}
+   904→        {cover && !imgFailed && (
+   905→          <img
+   906→            src={cover}
+   907→            alt={media[0]?.alt || tour.name}
+   908→            onError={() => setImgFailed(true)}
+   909→            className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
+   910→          />
+   911→        )}
+   912→        {/* Gradient overlay for legibility */}
+   913→        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+   914→
+   915→        {/* Category badge */}
+   916→        <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-stone-700 shadow-md backdrop-blur-sm">
+   917→          <meta.Icon className={cn("size-3.5", meta.text)} />
+   918→          {tour.category}
+   919→        </div>
+   920→
+   921→        {/* Bottom: duration + difficulty */}
+   922→        <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between p-3 text-white">
+   923→          <div className="flex flex-col gap-1">
+   924→            <div className="flex items-center gap-1.5 text-xs font-medium">
+   925→              <Clock className="size-3.5" />
+   926→              {tour.durationHours < 1
+   927→                ? `${Math.round(tour.durationHours * 60)} min`
+   928→                : `${tour.durationHours} hr`}
+   929→            </div>
+   930→            <div className="flex items-center gap-1.5 text-xs font-medium">
+   931→              <MapPin className="size-3.5" />
+   932→              {tour.city}
+   933→            </div>
+   934→          </div>
+   935→          <Badge variant="outline" className={cn("border-white/40 bg-white/15 text-white backdrop-blur-sm", difficulty.classes)}>
+   936→            <difficulty.Icon className="size-3" />
+   937→            {difficulty.label}
+   938→          </Badge>
+   939→        </div>
+   940→      </button>
+   941→
+   942→      {/* Content */}
+   943→      <CardContent className="flex flex-col gap-3 p-4">
+   944→        {/* Title */}
+   945→        <div>
+   946→          <button onClick={onView} className="text-left">
+   947→            <h3 className="line-clamp-1 font-bold text-stone-900 transition-colors group-hover:text-emerald-700">
+   948→              {tour.name}
+   949→            </h3>
+   950→          </button>
+   951→          {tour.nameAr && (
+   952→            <p className="mt-0.5 line-clamp-1 text-xs text-stone-500" dir="rtl">
+   953→              {tour.nameAr}
+   954→            </p>
+   955→          )}
+   956→        </div>
+   957→
+   958→        {/* Description */}
+   959→        <p className="line-clamp-2 text-sm leading-relaxed text-stone-600">
+   960→          {tour.description}
+   961→        </p>
+   962→
+   963→        {/* Rating + Reviews */}
+   964→        <div className="flex items-center gap-2">
+   965→          <div className="flex items-center gap-0.5">
+   966→            {[...Array(stars.full)].map((_, i) => (
+   967→              <Star key={`f${i}`} className="size-3.5 fill-amber-400 text-amber-400" />
+   968→            ))}
+   969→            {stars.half === 1 && (
+   970→              <Star className="size-3.5 fill-amber-200 text-amber-400" />
+   971→            )}
+   972→            {[...Array(stars.empty)].map((_, i) => (
+   973→              <Star key={`e${i}`} className="size-3.5 text-stone-300" />
+   974→            ))}
+   975→          </div>
+   976→          <span className="text-sm font-semibold text-stone-800">{(tour.rating || 0).toFixed(1)}</span>
+   977→          <span className="text-xs text-stone-400">({tour.reviewCount || 0} reviews)</span>
+   978→        </div>
+   979→
+   980→        {/* Pricing + Status */}
+   981→        <div className="mt-1 flex items-end justify-between border-t border-stone-100 pt-3">
+   982→          <div>
+   983→            <div className="text-[10px] font-medium uppercase tracking-wide text-stone-400">From</div>
+   984→            <div className="text-lg font-bold text-stone-900">
+   985→              {formatCurrency(tour.basePrice, tour.currency)}
+   986→            </div>
+   987→          </div>
+   988→          <div className="flex flex-col items-end gap-1">
+   989→            <Badge variant="outline" className={cn("gap-1 font-medium", status.classes)}>
+   990→              <span className={cn("size-1.5 rounded-full", status.dot)} />
+   991→              {status.label}
+   992→            </Badge>
+   993→            <div className="flex items-center gap-1 text-[10px] text-stone-400">
+   994→              <Users className="size-3" />
+   995→              {tour.capacityPerSlot} / slot
+   996→            </div>
+   997→          </div>
+   998→        </div>
+   999→
+  1000→        {/* Hover quick actions */}
+  1001→        <div className="mt-2 grid grid-cols-4 gap-1.5 opacity-100 transition-opacity">
+  1002→          <TooltipActionButton onClick={onView} icon={Eye} label="View" className="text-emerald-700 hover:bg-emerald-50" />
+  1003→          <TooltipActionButton onClick={onEdit} icon={Pencil} label="Edit" className="text-stone-700 hover:bg-stone-100" />
+  1004→          <TooltipActionButton onClick={onManageSlots} icon={CalendarIcon} label="Slots" className="text-teal-700 hover:bg-teal-50" />
+  1005→          <TooltipActionButton onClick={onDelete} icon={Trash2} label="Delete" className="text-rose-700 hover:bg-rose-50" />
+  1006→        </div>
+  1007→      </CardContent>
+  1008→    </Card>
+  1009→  )
+  1010→}
+  1011→
+  1012→function TooltipActionButton({
+  1013→  onClick,
+  1014→  icon: Icon,
+  1015→  label,
+  1016→  className,
+  1017→}: {
+  1018→  onClick: () => void
+  1019→  icon: React.ComponentType<{ className?: string }>
+  1020→  label: string
+  1021→  className?: string
+  1022→}) {
+  1023→  return (
+  1024→    <TooltipProvider delayDuration={150}>
+  1025→      <Tooltip>
+  1026→        <TooltipTrigger asChild>
+  1027→          <button
+  1028→            onClick={onClick}
+  1029→            className={cn(
+  1030→              "flex h-9 items-center justify-center rounded-lg border border-stone-200 bg-white transition-all hover:shadow-sm",
+  1031→              className
+  1032→            )}
+  1033→            aria-label={label}
+  1034→          >
+  1035→            <Icon className="size-4" />
+  1036→          </button>
+  1037→        </TooltipTrigger>
+  1038→        <TooltipContent>{label}</TooltipContent>
+  1039→      </Tooltip>
+  1040→    </TooltipProvider>
+  1041→  )
+  1042→}
+  1043→
+  1044→// ============================================================
+  1045→// TOUR GRID SKELETON
+  1046→// ============================================================
+  1047→function ToursGridSkeleton() {
+  1048→  return (
+  1049→    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+  1050→      {[...Array(6)].map((_, i) => (
+  1051→        <Card key={i} className="overflow-hidden border-stone-200 py-0">
+  1052→          <Skeleton className="aspect-[16/10] w-full rounded-none" />
+  1053→          <div className="space-y-3 p-4">
+  1054→            <Skeleton className="h-5 w-3/4" />
+  1055→            <Skeleton className="h-3 w-1/2" />
+  1056→            <Skeleton className="h-12 w-full" />
+  1057→            <div className="flex justify-between border-t border-stone-100 pt-3">
+  1058→              <Skeleton className="h-8 w-20" />
+  1059→              <Skeleton className="h-8 w-16" />
+  1060→            </div>
+  1061→            <div className="grid grid-cols-4 gap-1.5">
+  1062→              <Skeleton className="h-9" />
+  1063→              <Skeleton className="h-9" />
+  1064→              <Skeleton className="h-9" />
+  1065→              <Skeleton className="h-9" />
+  1066→            </div>
+  1067→          </div>
+  1068→        </Card>
+  1069→      ))}
+  1070→    </div>
+  1071→  )
+  1072→}
+  1073→
+  1074→// ============================================================
+  1075→// TOUR DETAIL SHEET
+  1076→// ============================================================
+  1077→function TourDetailSheet({
+  1078→  tour,
+  1079→  open,
+  1080→  onOpenChange,
+  1081→  onEdit,
+  1082→  onManageSlots,
+  1083→  onRefresh,
+  1084→}: {
+  1085→  tour: Tour | null
+  1086→  open: boolean
+  1087→  onOpenChange: (o: boolean) => void
+  1088→  onEdit: (t: Tour) => void
+  1089→  onManageSlots: (t: Tour) => void
+  1090→  onRefresh: () => void
+  1091→}) {
+  1092→  return (
+  1093→    <Sheet open={open} onOpenChange={onOpenChange}>
+  1094→      <SheetContent
+  1095→        side="right"
+  1096→        className="w-full gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl"
+  1097→      >
+  1098→        {tour && (
+  1099→          <TourDetailContent
+  1100→            key={tour.id}
+  1101→            tour={tour}
+  1102→            onEdit={onEdit}
+  1103→            onManageSlots={onManageSlots}
+  1104→            onRefresh={onRefresh}
+  1105→          />
+  1106→        )}
+  1107→      </SheetContent>
+  1108→    </Sheet>
+  1109→  )
+  1110→}
+  1111→
+  1112→function TourDetailContent({
+  1113→  tour,
+  1114→  onEdit,
+  1115→  onManageSlots,
+  1116→  onRefresh,
+  1117→}: {
+  1118→  tour: Tour
+  1119→  onEdit: (t: Tour) => void
+  1120→  onManageSlots: (t: Tour) => void
+  1121→  onRefresh: () => void
+  1122→}) {
+  1123→  const [fullTour, setFullTour] = useState<Tour>(tour)
+  1124→  const [loading, setLoading] = useState(true)
+  1125→  const [activeImg, setActiveImg] = useState(0)
+  1126→
+  1127→  // Mount: fetch full detail (with reviews + add-ons)
+  1128→  useEffect(() => {
+  1129→    let cancelled = false
+  1130→    fetch(`/api/tours/${tour.id}`, { cache: "no-store" })
+  1131→      .then(r => r.json())
+  1132→      .then(json => {
+  1133→        if (!cancelled && json.tour) setFullTour(json.tour)
+  1134→      })
+  1135→      .catch(() => {})
+  1136→      .finally(() => {
+  1137→        if (!cancelled) setLoading(false)
+  1138→      })
+  1139→    return () => {
+  1140→      cancelled = true
+  1141→    }
+  1142→  }, [tour.id])
+  1143→
+  1144→  const meta = getCatMeta(fullTour.category)
+  1145→  const media = parseJsonArray<MediaItem>(fullTour.media, [])
+  1146→  const itinerary = parseJsonArray<ItineraryItem>(fullTour.itinerary, [])
+  1147→  const inclusions = parseJsonArray<string>(fullTour.inclusions, [])
+  1148→  const exclusions = parseJsonArray<string>(fullTour.exclusions, [])
+  1149→  const whatToBring = parseJsonArray<string>(fullTour.whatToBring, [])
+  1150→  const addOns = fullTour.addOns || []
+  1151→  const reviews = fullTour.reviews || []
+  1152→  const status = STATUS_META[fullTour.status] || STATUS_META.DRAFT
+  1153→  const difficulty = DIFFICULTY_META[fullTour.difficulty] || DIFFICULTY_META.EASY
+  1154→  const stars = ratingStars(fullTour.rating || 0)
+  1155→
+  1156→  return (
+  1157→    <>
+  1158→      {/* Header image */}
+  1159→      <div className="relative aspect-[16/9] w-full overflow-hidden">
+  1160→          <div className={cn("absolute inset-0 bg-gradient-to-br", meta.gradient)} />
+  1161→          <div
+  1162→            className="absolute inset-0 opacity-25"
+  1163→            style={{
+  1164→              backgroundImage:
+  1165→                "radial-gradient(circle at 25% 25%, white 1px, transparent 1.5px), radial-gradient(circle at 75% 75%, white 1px, transparent 1.5px)",
+  1166→              backgroundSize: "32px 32px",
+  1167→            }}
+  1168→          />
+  1169→          {media[activeImg]?.url && (
+  1170→            <img
+  1171→              src={media[activeImg].url}
+  1172→              alt={media[activeImg]?.alt || fullTour.name}
+  1173→              className="absolute inset-0 size-full object-cover"
+  1174→              onError={(e) => {
+  1175→                (e.target as HTMLImageElement).style.display = "none"
+  1176→              }}
+  1177→            />
+  1178→          )}
+  1179→          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+  1180→
+  1181→          {/* Header actions */}
+  1182→          <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+  1183→            <Button
+  1184→              size="sm"
+  1185→              variant="secondary"
+  1186→              onClick={() => onEdit(fullTour)}
+  1187→              className="bg-white/95 text-stone-800 shadow-md hover:bg-white"
+  1188→            >
+  1189→              <Pencil className="size-3.5" />
+  1190→              Edit
+  1191→            </Button>
+  1192→            <Button
+  1193→              size="sm"
+  1194→              onClick={() => onManageSlots(fullTour)}
+  1195→              className="bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
+  1196→            >
+  1197→              <CalendarIcon className="size-3.5" />
+  1198→              Manage Slots
+  1199→            </Button>
+  1200→          </div>
+  1201→
+  1202→          {/* Title block */}
+  1203→          <div className="absolute inset-x-0 bottom-0 z-10 p-5 text-white">
+  1204→            <div className="mb-2 flex flex-wrap items-center gap-2">
+  1205→              <Badge variant="outline" className="border-white/40 bg-white/15 text-white backdrop-blur-sm">
+  1206→                <meta.Icon className="size-3" />
+  1207→                {fullTour.category}
+  1208→              </Badge>
+  1209→              <Badge variant="outline" className="border-white/40 bg-white/15 text-white backdrop-blur-sm">
+  1210→                <MapPin className="size-3" />
+  1211→                {fullTour.city}
+  1212→              </Badge>
+  1213→              <Badge variant="outline" className={cn("border-white/40 backdrop-blur-sm", difficulty.classes)}>
+  1214→                <difficulty.Icon className="size-3" />
+  1215→                {difficulty.label}
+  1216→              </Badge>
+  1217→              <Badge variant="outline" className="border-white/40 bg-white/15 text-white backdrop-blur-sm">
+  1218→                <Clock className="size-3" />
+  1219→                {fullTour.durationHours} hr
+  1220→              </Badge>
+  1221→              <Badge variant="outline" className={cn("border-white/40 backdrop-blur-sm", status.classes)}>
+  1222→                <span className={cn("size-1.5 rounded-full", status.dot)} />
+  1223→                {status.label}
+  1224→              </Badge>
+  1225→              {fullTour.featured && (
+  1226→                <Badge variant="outline" className="border-amber-300 bg-amber-400 text-amber-900 backdrop-blur-sm">
+  1227→                  <Star className="size-3 fill-amber-900" />
+  1228→                  Featured
+  1229→                </Badge>
+  1230→              )}
+  1231→            </div>
+  1232→            <h2 className="text-2xl font-bold leading-tight">{fullTour.name}</h2>
+  1233→            {fullTour.nameAr && (
+  1234→              <p className="mt-1 text-sm text-white/80" dir="rtl">{fullTour.nameAr}</p>
+  1235→            )}
+  1236→          </div>
+  1237→        </div>
+  1238→
+  1239→        {/* Gallery thumbnails */}
+  1240→        {media.length > 1 && (
+  1241→          <div className="flex gap-2 overflow-x-auto border-b border-stone-200 bg-stone-50 px-4 py-2">
+  1242→            {media.map((m, i) => (
+  1243→              <button
+  1244→                key={i}
+  1245→                onClick={() => setActiveImg(i)}
+  1246→                className={cn(
+  1247→                  "relative size-16 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
+  1248→                  i === activeImg ? "border-emerald-500 ring-2 ring-emerald-200" : "border-stone-200 hover:border-stone-300"
+  1249→                )}
+  1250→              >
+  1251→                <div className={cn("absolute inset-0 bg-gradient-to-br", meta.gradient)} />
+  1252→                {m.url && (
+  1253→                  <img
+  1254→                    src={m.url}
+  1255→                    alt={m.alt || `image ${i + 1}`}
+  1256→                    className="absolute inset-0 size-full object-cover"
+  1257→                    onError={(e) => {
+  1258→                      (e.target as HTMLImageElement).style.display = "none"
+  1259→                    }}
+  1260→                  />
+  1261→                )}
+  1262→              </button>
+  1263→            ))}
+  1264→          </div>
+  1265→        )}
+  1266→
+  1267→        {/* Body with tabs */}
+  1268→        <SheetHeader className="sr-only">
+  1269→          <SheetTitle>{fullTour.name}</SheetTitle>
+  1270→          <SheetDescription>Tour details</SheetDescription>
+  1271→        </SheetHeader>
+  1272→
+  1273→        <ScrollArea className="flex-1">
+  1274→          <div className="p-5">
+  1275→            {/* Rating + Price row */}
+  1276→            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+  1277→              <div className="rounded-lg border border-stone-200 bg-white p-3">
+  1278→                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Rating</div>
+  1279→                <div className="mt-1 flex items-center gap-1.5">
+  1280→                  <Star className="size-4 fill-amber-400 text-amber-400" />
+  1281→                  <span className="text-lg font-bold text-stone-900">{(fullTour.rating || 0).toFixed(1)}</span>
+  1282→                </div>
+  1283→                <div className="text-xs text-stone-400">{fullTour.reviewCount} reviews</div>
+  1284→              </div>
+  1285→              <div className="rounded-lg border border-stone-200 bg-white p-3">
+  1286→                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Adult Price</div>
+  1287→                <div className="mt-1 text-lg font-bold text-emerald-700">{formatCurrency(fullTour.basePrice, fullTour.currency)}</div>
+  1288→                <div className="text-xs text-stone-400">per person</div>
+  1289→              </div>
+  1290→              <div className="rounded-lg border border-stone-200 bg-white p-3">
+  1291→                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Child Price</div>
+  1292→                <div className="mt-1 text-lg font-bold text-teal-700">
+  1293→                  {fullTour.childPrice != null ? formatCurrency(fullTour.childPrice, fullTour.currency) : "—"}
+  1294→                </div>
+  1295→                <div className="text-xs text-stone-400">per child</div>
+  1296→              </div>
+  1297→              <div className="rounded-lg border border-stone-200 bg-white p-3">
+  1298→                <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Capacity</div>
+  1299→                <div className="mt-1 text-lg font-bold text-stone-900">{fullTour.capacityPerSlot}</div>
+  1300→                <div className="text-xs text-stone-400">per slot</div>
+  1301→              </div>
+  1302→            </div>
+  1303→
+  1304→            <Tabs defaultValue="overview" className="w-full">
+  1305→              <TabsList className="grid w-full grid-cols-5 bg-stone-100">
+  1306→                <TabsTrigger value="overview">Overview</TabsTrigger>
+  1307→                <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
+  1308→                <TabsTrigger value="includes">Includes</TabsTrigger>
+  1309→                <TabsTrigger value="addons">Add-ons</TabsTrigger>
+  1310→                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+  1311→              </TabsList>
+  1312→
+  1313→              {/* Overview */}
+  1314→              <TabsContent value="overview" className="mt-4 space-y-5">
+  1315→                <section>
+  1316→                  <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-700">Description</h4>
+  1317→                  <p className="whitespace-pre-line text-sm leading-relaxed text-stone-700">
+  1318→                    {fullTour.description}
+  1319→                  </p>
+  1320→                </section>
+  1321→
+  1322→                <section>
+  1323→                  <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-700">
+  1324→                    <MapPin className="size-4 text-emerald-600" />
+  1325→                    Meeting Point
+  1326→                  </h4>
+  1327→                  <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
+  1328→                    {fullTour.meetingPoint || "Not specified"}
+  1329→                  </div>
+  1330→                </section>
+  1331→
+  1332→                <section>
+  1333→                  <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-700">
+  1334→                    <ShieldCheck className="size-4 text-emerald-600" />
+  1335→                    Cancellation Policy
+  1336→                  </h4>
+  1337→                  <div className="rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
+  1338→                    {fullTour.cancellationPolicy || "Standard policy: Free cancellation up to 24 hours before departure."}
+  1339→                  </div>
+  1340→                </section>
+  1341→
+  1342→                {whatToBring.length > 0 && (
+  1343→                  <section>
+  1344→                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-700">
+  1345→                      <Footprints className="size-4 text-amber-600" />
+  1346→                      What to Bring
+  1347→                    </h4>
+  1348→                    <div className="flex flex-wrap gap-2">
+  1349→                      {whatToBring.map((item, i) => (
+  1350→                        <span
+  1351→                          key={i}
+  1352→                          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800"
+  1353→                        >
+  1354→                          {item}
+  1355→                        </span>
+  1356→                      ))}
+  1357→                    </div>
+  1358→                  </section>
+  1359→                )}
+  1360→              </TabsContent>
+  1361→
+  1362→              {/* Itinerary */}
+  1363→              <TabsContent value="itinerary" className="mt-4">
+  1364→                {itinerary.length > 0 ? (
+  1365→                  <ol className="relative space-y-4 border-l-2 border-stone-200 pl-6">
+  1366→                    {itinerary.map((item, i) => (
+  1367→                      <li key={i} className="relative">
+  1368→                        <span className="absolute -left-[31px] flex size-6 items-center justify-center rounded-full border-2 border-stone-200 bg-white text-[10px] font-bold text-stone-700">
+  1369→                          {i + 1}
+  1370→                        </span>
+  1371→                        <div className="rounded-lg border border-stone-200 bg-white p-3">
+  1372→                          <div className="flex items-center gap-2">
+  1373→                            <Clock className="size-3.5 text-emerald-600" />
+  1374→                            <span className="font-mono text-xs font-bold text-emerald-700">{item.time}</span>
+  1375→                          </div>
+  1376→                          <h5 className="mt-1 text-sm font-semibold text-stone-900">{item.title}</h5>
+  1377→                          {item.description && (
+  1378→                            <p className="mt-0.5 text-xs text-stone-600">{item.description}</p>
+  1379→                          )}
+  1380→                        </div>
+  1381→                      </li>
+  1382→                    ))}
+  1383→                  </ol>
+  1384→                ) : (
+  1385→                  <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-sm text-stone-500">
+  1386→                    No itinerary added yet.
+  1387→                  </div>
+  1388→                )}
+  1389→              </TabsContent>
+  1390→
+  1391→              {/* Includes */}
+  1392→              <TabsContent value="includes" className="mt-4 grid gap-4 sm:grid-cols-2">
+  1393→                <div>
+  1394→                  <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700">
+  1395→                    <CheckCircle2 className="size-4" />
+  1396→                    Inclusions
+  1397→                  </h4>
+  1398→                  {inclusions.length > 0 ? (
+  1399→                    <ul className="space-y-1.5">
+  1400→                      {inclusions.map((item, i) => (
+  1401→                        <li key={i} className="flex items-start gap-2 text-sm text-stone-700">
+  1402→                          <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
+  1403→                          <span>{item}</span>
+  1404→                        </li>
+  1405→                      ))}
+  1406→                    </ul>
+  1407→                  ) : (
+  1408→                    <p className="text-sm text-stone-500">Not specified</p>
+  1409→                  )}
+  1410→                </div>
+  1411→                <div>
+  1412→                  <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-rose-700">
+  1413→                    <ShieldOff className="size-4" />
+  1414→                    Exclusions
+  1415→                  </h4>
+  1416→                  {exclusions.length > 0 ? (
+  1417→                    <ul className="space-y-1.5">
+  1418→                      {exclusions.map((item, i) => (
+  1419→                        <li key={i} className="flex items-start gap-2 text-sm text-stone-700">
+  1420→                          <X className="mt-0.5 size-3.5 shrink-0 text-rose-500" />
+  1421→                          <span>{item}</span>
+  1422→                        </li>
+  1423→                      ))}
+  1424→                    </ul>
+  1425→                  ) : (
+  1426→                    <p className="text-sm text-stone-500">Not specified</p>
+  1427→                  )}
+  1428→                </div>
+  1429→              </TabsContent>
+  1430→
+  1431→              {/* Add-ons */}
+  1432→              <TabsContent value="addons" className="mt-4">
+  1433→                {addOns.length > 0 ? (
+  1434→                  <div className="space-y-2">
+  1435→                    {addOns.map((a) => (
+  1436→                      <div
+  1437→                        key={a.id || a.name}
+  1438→                        className="flex items-center justify-between rounded-lg border border-stone-200 bg-white p-3"
+  1439→                      >
+  1440→                        <div className="flex items-center gap-2">
+  1441→                          <div className="flex size-9 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+  1442→                            <Plus className="size-4" />
+  1443→                          </div>
+  1444→                          <div>
+  1445→                            <div className="text-sm font-semibold text-stone-900">{a.name}</div>
+  1446→                            <div className="text-xs text-stone-500">
+  1447→                              {a.type === "PER_PAX" ? "Per person" : "Flat rate"}
+  1448→                              {a.isActive === false && " • Inactive"}
+  1449→                            </div>
+  1450→                          </div>
+  1451→                        </div>
+  1452→                        <div className="text-right">
+  1453→                          <div className="font-bold text-stone-900">{formatCurrency(a.price, fullTour.currency)}</div>
+  1454→                        </div>
+  1455→                      </div>
+  1456→                    ))}
+  1457→                  </div>
+  1458→                ) : (
+  1459→                  <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-sm text-stone-500">
+  1460→                    No add-ons configured for this tour.
+  1461→                  </div>
+  1462→                )}
+  1463→              </TabsContent>
+  1464→
+  1465→              {/* Reviews */}
+  1466→              <TabsContent value="reviews" className="mt-4">
+  1467→                <div className="mb-4 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+  1468→                  <div>
+  1469→                    <div className="text-xs font-medium uppercase tracking-wide text-amber-700">Overall Rating</div>
+  1470→                    <div className="flex items-center gap-2">
+  1471→                      <span className="text-2xl font-bold text-amber-900">{(fullTour.rating || 0).toFixed(1)}</span>
+  1472→                      <div className="flex">
+  1473→                        {[...Array(stars.full)].map((_, i) => (
+  1474→                          <Star key={`f${i}`} className="size-4 fill-amber-400 text-amber-400" />
+  1475→                        ))}
+  1476→                        {stars.half === 1 && <Star className="size-4 fill-amber-200 text-amber-400" />}
+  1477→                        {[...Array(stars.empty)].map((_, i) => (
+  1478→                          <Star key={`e${i}`} className="size-4 text-stone-300" />
+  1479→                        ))}
+  1480→                      </div>
+  1481→                      <span className="text-xs text-amber-700">{fullTour.reviewCount} reviews</span>
+  1482→                    </div>
+  1483→                  </div>
+  1484→                </div>
+  1485→                {reviews.length > 0 ? (
+  1486→                  <div className="space-y-3">
+  1487→                    {reviews.map((r) => (
+  1488→                      <div key={r.id} className="rounded-lg border border-stone-200 bg-white p-3">
+  1489→                        <div className="flex items-start justify-between">
+  1490→                          <div className="flex items-center gap-2">
+  1491→                            <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-xs font-bold text-white">
+  1492→                              {getInitials(r.customer?.name)}
+  1493→                            </div>
+  1494→                            <div>
+  1495→                              <div className="text-sm font-semibold text-stone-900">
+  1496→                                {r.customer?.name || "Anonymous"}
+  1497→                              </div>
+  1498→                              <div className="flex items-center gap-0.5">
+  1499→                                {[...Array(5)].map((_, i) => (
+  1500→                                  <Star
+  1501→                                    key={i}
+  1502→                                    className={cn(
+  1503→                                      "size-3",
+  1504→                                      i < r.rating ? "fill-amber-400 text-amber-400" : "text-stone-300"
+  1505→                                    )}
+  1506→                                  />
+  1507→                                ))}
+  1508→                                <span className="ml-1 text-xs text-stone-400">
+  1509→                                  {new Date(r.createdAt).toLocaleDateString()}
+  1510→                                </span>
+  1511→                              </div>
+  1512→                            </div>
+  1513→                          </div>
+  1514→                          <Quote className="size-5 text-stone-200" />
+  1515→                        </div>
+  1516→                        {r.title && <h5 className="mt-2 text-sm font-semibold text-stone-800">{r.title}</h5>}
+  1517→                        {r.comment && <p className="mt-1 text-sm text-stone-600">{r.comment}</p>}
+  1518→                      </div>
+  1519→                    ))}
+  1520→                  </div>
+  1521→                ) : (
+  1522→                  <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-sm text-stone-500">
+  1523→                    No reviews yet.
+  1524→                  </div>
+  1525→                )}
+  1526→              </TabsContent>
+  1527→            </Tabs>
+  1528→          </div>
+  1529→        </ScrollArea>
+  1530→
+  1531→        {/* Footer actions */}
+  1532→        <div className="flex items-center justify-between gap-2 border-t border-stone-200 bg-white p-3">
+  1533→          <Button
+  1534→            variant="outline"
+  1535→            size="sm"
+  1536→            onClick={() => onRefresh()}
+  1537→            disabled={loading}
+  1538→            className="text-xs"
+  1539→          >
+  1540→            {loading ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+  1541→            Refresh
+  1542→          </Button>
+  1543→          <div className="flex items-center gap-2">
+  1544→            <Button
+  1545→              variant="outline"
+  1546→              size="sm"
+  1547→              onClick={() => onEdit(fullTour)}
+  1548→              className="border-stone-300 text-stone-700"
+  1549→            >
+  1550→              <Pencil className="size-3.5" />
+  1551→              Edit Tour
+  1552→            </Button>
+  1553→            <Button
+  1554→              size="sm"
+  1555→              onClick={() => onManageSlots(fullTour)}
+  1556→              className="bg-emerald-600 text-white hover:bg-emerald-700"
+  1557→            >
+  1558→              <CalendarIcon className="size-3.5" />
+  1559→              Manage Slots
+  1560→            </Button>
+  1561→          </div>
+  1562→        </div>
+  1563→    </>
+  1564→  )
+  1565→}
+  1566→
+  1567→// ============================================================
+  1568→// TOUR FORM DIALOG
+  1569→// ============================================================
+  1570→interface FormState {
+  1571→  slug: string
+  1572→  name: string
+  1573→  nameAr: string
+  1574→  description: string
+  1575→  category: string
+  1576→  city: string
+  1577→  basePrice: number | string
+  1578→  childPrice: number | string
+  1579→  groupPrice: number | string
+  1580→  durationHours: number | string
+  1581→  difficulty: string
+  1582→  capacityPerSlot: number | string
+  1583→  meetingPoint: string
+  1584→  cancellationPolicy: string
+  1585→  featured: boolean
+  1586→  status: string
+  1587→  media: MediaItem[]
+  1588→  itinerary: ItineraryItem[]
+  1589→  inclusions: string[]
+  1590→  exclusions: string[]
+  1591→  whatToBring: string[]
+  1592→  addOns: AddOn[]
+  1593→}
+  1594→
+  1595→function emptyFormState(): FormState {
+  1596→  return {
+  1597→    slug: "",
+  1598→    name: "",
+  1599→    nameAr: "",
+  1600→    description: "",
+  1601→    category: "Adventure",
+  1602→    city: "Muscat",
+  1603→    basePrice: "",
+  1604→    childPrice: "",
+  1605→    groupPrice: "",
+  1606→    durationHours: "",
+  1607→    difficulty: "EASY",
+  1608→    capacityPerSlot: 10,
+  1609→    meetingPoint: "",
+  1610→    cancellationPolicy: "",
+  1611→    featured: false,
+  1612→    status: "DRAFT",
+  1613→    media: [],
+  1614→    itinerary: [],
+  1615→    inclusions: [],
+  1616→    exclusions: [],
+  1617→    whatToBring: [],
+  1618→    addOns: [],
+  1619→  }
+  1620→}
+  1621→
+  1622→function formFromTour(t: Tour): FormState {
+  1623→  return {
+  1624→    slug: t.slug,
+  1625→    name: t.name,
+  1626→    nameAr: t.nameAr || "",
+  1627→    description: t.description,
+  1628→    category: t.category,
+  1629→    city: t.city,
+  1630→    basePrice: t.basePrice,
+  1631→    childPrice: t.childPrice ?? "",
+  1632→    groupPrice: t.groupPrice ?? "",
+  1633→    durationHours: t.durationHours,
+  1634→    difficulty: t.difficulty,
+  1635→    capacityPerSlot: t.capacityPerSlot,
+  1636→    meetingPoint: t.meetingPoint || "",
+  1637→    cancellationPolicy: t.cancellationPolicy || "",
+  1638→    featured: t.featured,
+  1639→    status: t.status,
+  1640→    media: parseJsonArray<MediaItem>(t.media, []),
+  1641→    itinerary: parseJsonArray<ItineraryItem>(t.itinerary, []),
+  1642→    inclusions: parseJsonArray<string>(t.inclusions, []),
+  1643→    exclusions: parseJsonArray<string>(t.exclusions, []),
+  1644→    whatToBring: parseJsonArray<string>(t.whatToBring, []),
+  1645→    addOns: t.addOns || [],
+  1646→  }
+  1647→}
+  1648→
+  1649→function TourFormDialog({
+  1650→  open,
+  1651→  onOpenChange,
+  1652→  initialTour,
+  1653→  onSaved,
+  1654→}: {
+  1655→  open: boolean
+  1656→  onOpenChange: (o: boolean) => void
+  1657→  initialTour: Tour | null
+  1658→  onSaved: (t: Tour) => void
+  1659→}) {
+  1660→  const [form, setForm] = useState<FormState>(emptyFormState())
+  1661→  const [saving, setSaving] = useState(false)
+  1662→  const [autoSlug, setAutoSlug] = useState(true)
+  1663→
+  1664→  // Reset form when target changes (use key on parent for full reset)
+  1665→  useEffect(() => {
+  1666→    if (open) {
+  1667→      setForm(initialTour ? formFromTour(initialTour) : emptyFormState())
+  1668→      setAutoSlug(!initialTour)
+  1669→    }
+  1670→  }, [open, initialTour])
+  1671→
+  1672→  const isEdit = !!initialTour
+  1673→
+  1674→  // Auto-slug from name
+  1675→  useEffect(() => {
+  1676→    if (autoSlug && form.name) {
+  1677→      setForm(prev => ({ ...prev, slug: slugify(prev.name) }))
+  1678→    }
+  1679→  }, [form.name, autoSlug])
+  1680→
+  1681→  const update = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+  1682→    setForm(prev => ({ ...prev, [key]: value }))
+  1683→  }, [])
+  1684→
+  1685→  const handleSubmit = async () => {
+  1686→    if (!form.name.trim()) {
+  1687→      toast.error("Tour name is required")
+  1688→      return
+  1689→    }
+  1690→    if (!form.slug.trim()) {
+  1691→      toast.error("Slug is required")
+  1692→      return
+  1693→    }
+  1694→    if (!form.description.trim()) {
+  1695→      toast.error("Description is required")
+  1696→      return
+  1697→    }
+  1698→
+  1699→    const payload: any = {
+  1700→      slug: form.slug,
+  1701→      name: form.name,
+  1702→      nameAr: form.nameAr || null,
+  1703→      description: form.description,
+  1704→      category: form.category,
+  1705→      city: form.city,
+  1706→      basePrice: Number(form.basePrice) || 0,
+  1707→      childPrice: form.childPrice === "" ? null : Number(form.childPrice),
+  1708→      groupPrice: form.groupPrice === "" ? null : Number(form.groupPrice),
+  1709→      durationHours: Number(form.durationHours) || 0,
+  1710→      difficulty: form.difficulty,
+  1711→      capacityPerSlot: Number(form.capacityPerSlot) || 1,
+  1712→      meetingPoint: form.meetingPoint || null,
+  1713→      cancellationPolicy: form.cancellationPolicy || null,
+  1714→      featured: form.featured,
+  1715→      status: form.status,
+  1716→      media: form.media,
+  1717→      itinerary: form.itinerary,
+  1718→      inclusions: form.inclusions,
+  1719→      exclusions: form.exclusions,
+  1720→      whatToBring: form.whatToBring,
+  1721→      addOns: form.addOns.map(a => ({ name: a.name, price: Number(a.price) || 0, type: a.type, isActive: a.isActive !== false })),
+  1722→    }
+  1723→
+  1724→    setSaving(true)
+  1725→    try {
+  1726→      const url = isEdit ? `/api/tours/${initialTour!.id}` : "/api/tours"
+  1727→      const method = isEdit ? "PUT" : "POST"
+  1728→      const res = await fetch(url, {
+  1729→        method,
+  1730→        headers: { "Content-Type": "application/json" },
+  1731→        body: JSON.stringify(payload),
+  1732→      })
+  1733→      if (!res.ok) {
+  1734→        const err = await res.json().catch(() => ({}))
+  1735→        throw new Error(err.error || `Failed to ${isEdit ? "update" : "create"} tour`)
+  1736→      }
+  1737→      const json = await res.json()
+  1738→      onSaved(json.tour)
+  1739→    } catch (e: any) {
+  1740→      toast.error(`Failed to ${isEdit ? "update" : "create"} tour`, { description: e?.message })
+  1741→    } finally {
+  1742→      setSaving(false)
+  1743→    }
+  1744→  }
+  1745→
+  1746→  return (
+  1747→    <Dialog open={open} onOpenChange={onOpenChange}>
+  1748→      <DialogContent className="max-h-[92vh] w-full max-w-4xl overflow-hidden p-0 sm:max-w-4xl">
+  1749→        <DialogHeader className="border-b border-stone-200 bg-white px-6 py-4">
+  1750→          <DialogTitle className="flex items-center gap-2 text-lg">
+  1751→            {isEdit ? <Pencil className="size-5 text-emerald-600" /> : <Plus className="size-5 text-emerald-600" />}
+  1752→            {isEdit ? "Edit Tour" : "Add New Tour"}
+  1753→          </DialogTitle>
+  1754→          <DialogDescription>
+  1755→            {isEdit
+  1756→              ? "Update the tour details below."
+  1757→              : "Fill in the tour details below to add it to your catalogue."}
+  1758→          </DialogDescription>
+  1759→        </DialogHeader>
+  1760→
+  1761→        <FormTabs form={form} update={update} autoSlug={autoSlug} setAutoSlug={setAutoSlug} />
+  1762→
+  1763→        <DialogFooter className="border-t border-stone-200 bg-stone-50 px-6 py-3">
+  1764→          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+  1765→            Cancel
+  1766→          </Button>
+  1767→          <Button
+  1768→            onClick={handleSubmit}
+  1769→            disabled={saving}
+  1770→            className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700"
+  1771→          >
+  1772→            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+  1773→            {isEdit ? "Save Changes" : "Create Tour"}
+  1774→          </Button>
+  1775→        </DialogFooter>
+  1776→      </DialogContent>
+  1777→    </Dialog>
+  1778→  )
+  1779→}
+  1780→
+  1781→// ============================================================
+  1782→// FORM TABS
+  1783→// ============================================================
+  1784→function FormTabs({
+  1785→  form,
+  1786→  update,
+  1787→  autoSlug,
+  1788→  setAutoSlug,
+  1789→}: {
+  1790→  form: FormState
+  1791→  update: <K extends keyof FormState>(key: K, value: FormState[K]) => void
+  1792→  autoSlug: boolean
+  1793→  setAutoSlug: (b: boolean) => void
+  1794→}) {
+  1795→  return (
+  1796→    <div className="flex-1 overflow-hidden">
+  1797→      <Tabs defaultValue="basic" className="flex h-full flex-col">
+  1798→        <div className="border-b border-stone-200 bg-stone-50 px-4 pt-3">
+  1799→          <TabsList className="bg-white">
+  1800→            <TabsTrigger value="basic">Basics</TabsTrigger>
+  1801→            <TabsTrigger value="media">Media</TabsTrigger>
+  1802→            <TabsTrigger value="itinerary">Itinerary</TabsTrigger>
+  1803→            <TabsTrigger value="includes">Inclusions</TabsTrigger>
+  1804→            <TabsTrigger value="pricing">Pricing &amp; Add-ons</TabsTrigger>
+  1805→          </TabsList>
+  1806→        </div>
+  1807→
+  1808→        <ScrollArea className="flex-1">
+  1809→          <div className="p-5">
+  1810→            {/* BASIC TAB */}
+  1811→            <TabsContent value="basic" className="mt-0 space-y-4">
+  1812→              <div className="grid gap-4 sm:grid-cols-2">
+  1813→                <Field label="Tour Name (English) *" htmlFor="name">
+  1814→                  <Input
+  1815→                    id="name"
+  1816→                    value={form.name}
+  1817→                    onChange={(e) => update("name", e.target.value)}
+  1818→                    placeholder="e.g., Wahiba Sands Desert Safari"
+  1819→                  />
+  1820→                </Field>
+  1821→                <Field label="Tour Name (Arabic)" htmlFor="nameAr">
+  1822→                  <Input
+  1823→                    id="nameAr"
+  1824→                    value={form.nameAr}
+  1825→                    onChange={(e) => update("nameAr", e.target.value)}
+  1826→                    placeholder="سفاري رمال الشرقية"
+  1827→                    dir="rtl"
+  1828→                  />
+  1829→                </Field>
+  1830→              </div>
+  1831→
+  1832→              <Field label="URL Slug *" htmlFor="slug">
+  1833→                <div className="flex items-center gap-2">
+  1834→                  <Input
+  1835→                    id="slug"
+  1836→                    value={form.slug}
+  1837→                    onChange={(e) => {
+  1838→                      setAutoSlug(false)
+  1839→                      update("slug", e.target.value)
+  1840→                    }}
+  1841→                    placeholder="wahiba-sands-desert-safari"
+  1842→                    className="font-mono"
+  1843→                  />
+  1844→                  <Button
+  1845→                    type="button"
+  1846→                    variant="outline"
+  1847→                    size="sm"
+  1848→                    onClick={() => {
+  1849→                      setAutoSlug(true)
+  1850→                      update("slug", slugify(form.name))
+  1851→                    }}
+  1852→                    className="shrink-0"
+  1853→                  >
+  1854→                    <Sparkles className="size-3.5" />
+  1855→                    Auto
+  1856→                  </Button>
+  1857→                </div>
+  1858→                <p className="text-xs text-stone-500">Used in URLs like /tours/&lt;slug&gt;</p>
+  1859→              </Field>
+  1860→
+  1861→              <Field label="Description *" htmlFor="description">
+  1862→                <Textarea
+  1863→                  id="description"
+  1864→                  value={form.description}
+  1865→                  onChange={(e) => update("description", e.target.value)}
+  1866→                  placeholder="Describe the tour experience, what's included, what to expect..."
+  1867→                  rows={5}
+  1868→                />
+  1869→              </Field>
+  1870→
+  1871→              <div className="grid gap-4 sm:grid-cols-2">
+  1872→                <Field label="Category" htmlFor="category">
+  1873→                  <Select value={form.category} onValueChange={(v) => update("category", v)}>
+  1874→                    <SelectTrigger id="category" className="w-full">
+  1875→                      <SelectValue />
+  1876→                    </SelectTrigger>
+  1877→                    <SelectContent>
+  1878→                      {CATEGORIES.map(c => {
+  1879→                        const m = getCatMeta(c)
+  1880→                        return (
+  1881→                          <SelectItem key={c} value={c}>
+  1882→                            <span className="flex items-center gap-2">
+  1883→                              <span>{m.emoji}</span>
+  1884→                              {c}
+  1885→                            </span>
+  1886→                          </SelectItem>
+  1887→                        )
+  1888→                      })}
+  1889→                    </SelectContent>
+  1890→                  </Select>
+  1891→                </Field>
+  1892→                <Field label="City" htmlFor="city">
+  1893→                  <Select value={form.city} onValueChange={(v) => update("city", v)}>
+  1894→                    <SelectTrigger id="city" className="w-full">
+  1895→                      <SelectValue />
+  1896→                    </SelectTrigger>
+  1897→                    <SelectContent>
+  1898→                      {CITIES.map(c => (
+  1899→                        <SelectItem key={c} value={c}>
+  1900→                          <span className="flex items-center gap-2">
+  1901→                            <MapPin className="size-3 text-stone-400" />
+  1902→                            {c}
+  1903→                          </span>
+  1904→                        </SelectItem>
+  1905→                      ))}
+  1906→                    </SelectContent>
+  1907→                  </Select>
+  1908→                </Field>
+  1909→              </div>
+  1910→
+  1911→              <div className="grid gap-4 sm:grid-cols-3">
+  1912→                <Field label="Duration (hours)" htmlFor="durationHours">
+  1913→                  <Input
+  1914→                    id="durationHours"
+  1915→                    type="number"
+  1916→                    step="0.5"
+  1917→                    min="0"
+  1918→                    value={form.durationHours}
+  1919→                    onChange={(e) => update("durationHours", e.target.value)}
+  1920→                    placeholder="6"
+  1921→                  />
+  1922→                </Field>
+  1923→                <Field label="Difficulty" htmlFor="difficulty">
+  1924→                  <Select value={form.difficulty} onValueChange={(v) => update("difficulty", v)}>
+  1925→                    <SelectTrigger id="difficulty" className="w-full">
+  1926→                      <SelectValue />
+  1927→                    </SelectTrigger>
+  1928→                    <SelectContent>
+  1929→                      <SelectItem value="EASY">Easy</SelectItem>
+  1930→                      <SelectItem value="MODERATE">Moderate</SelectItem>
+  1931→                      <SelectItem value="HARD">Hard</SelectItem>
+  1932→                    </SelectContent>
+  1933→                  </Select>
+  1934→                </Field>
+  1935→                <Field label="Capacity / Slot" htmlFor="capacityPerSlot">
+  1936→                  <Input
+  1937→                    id="capacityPerSlot"
+  1938→                    type="number"
+  1939→                    min="1"
+  1940→                    value={form.capacityPerSlot}
+  1941→                    onChange={(e) => update("capacityPerSlot", e.target.value)}
+  1942→                    placeholder="10"
+  1943→                  />
+  1944→                </Field>
+  1945→              </div>
+  1946→
+  1947→              <Field label="Meeting Point" htmlFor="meetingPoint">
+  1948→                <Input
+  1949→                  id="meetingPoint"
+  1950→                  value={form.meetingPoint}
+  1951→                  onChange={(e) => update("meetingPoint", e.target.value)}
+  1952→                  placeholder="e.g., Hotel lobby - Muscat city hotels"
+  1953→                />
+  1954→              </Field>
+  1955→
+  1956→              <Field label="Cancellation Policy" htmlFor="cancellationPolicy">
+  1957→                <Textarea
+  1958→                  id="cancellationPolicy"
+  1959→                  value={form.cancellationPolicy}
+  1960→                  onChange={(e) => update("cancellationPolicy", e.target.value)}
+  1961→                  placeholder="e.g., Free cancellation up to 24 hours before. 50% refund within 24 hours."
+  1962→                  rows={3}
+  1963→                />
+  1964→              </Field>
+  1965→
+  1966→              <div className="flex items-center gap-6 rounded-lg border border-stone-200 bg-stone-50 p-4">
+  1967→                <div className="flex items-center gap-3">
+  1968→                  <Switch
+  1969→                    checked={form.featured}
+  1970→                    onCheckedChange={(c) => update("featured", c)}
+  1971→                  />
+  1972→                  <div>
+  1973→                    <Label className="text-sm font-medium">Featured Tour</Label>
+  1974→                    <p className="text-xs text-stone-500">Show on homepage</p>
+  1975→                  </div>
+  1976→                </div>
+  1977→                <Separator orientation="vertical" className="hidden h-10 sm:block" />
+  1978→                <div className="flex items-center gap-3">
+  1979→                  <Select value={form.status} onValueChange={(v) => update("status", v)}>
+  1980→                    <SelectTrigger className="w-[140px]">
+  1981→                      <SelectValue />
+  1982→                    </SelectTrigger>
+  1983→                    <SelectContent>
+  1984→                      <SelectItem value="DRAFT">Draft</SelectItem>
+  1985→                      <SelectItem value="ACTIVE">Active</SelectItem>
+  1986→                      <SelectItem value="PAUSED">Paused</SelectItem>
+  1987→                      <SelectItem value="ARCHIVED">Archived</SelectItem>
+  1988→                    </SelectContent>
+  1989→                  </Select>
+  1990→                  <div>
+  1991→                    <Label className="text-sm font-medium">Status</Label>
+  1992→                    <p className="text-xs text-stone-500">Visibility &amp; booking</p>
+  1993→                  </div>
+  1994→                </div>
+  1995→              </div>
+  1996→            </TabsContent>
+  1997→
+  1998→            {/* MEDIA TAB */}
+  1999→            <TabsContent value="media" className="mt-0 space-y-3">
+  2000→              <div className="flex items-center justify-between">
+
+[showing lines 1-2000 of 3306; use offset=2001 with limit to continue reading]

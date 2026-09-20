@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { createPaymobIntention } from "@/lib/paymob"
 import { withErrors } from "@/lib/api-handler"
 import { tenantOf, withTenant } from "@/lib/tenant"
@@ -196,7 +196,7 @@ function errorPage(message: string, status = 400) {
  * GET - WhatsApp chat click redirect to Paymob checkout
  */
 export const GET = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`paymobsession:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`paymobsession:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many payment attempts, please wait" }, { status: 429 })
 
   const orderId = new URL(request.url).searchParams.get("orderId")
@@ -214,7 +214,7 @@ export const GET = withErrors(async (request: NextRequest) => {
  * POST - Programmatic session creation
  */
 export const POST = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`paymobsession:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`paymobsession:${requestIp(request.headers)}`, 20, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many payment attempts, please wait" }, { status: 429 })
 
   try {

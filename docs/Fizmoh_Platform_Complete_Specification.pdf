@@ -1,0 +1,671 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 16 0 R] /Count 6 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Length 8459 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 1 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (1. Executive Summary & Architecture Topology) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (Fizmoh is an enterprise multi-tenant WhatsApp Commerce, Operational Automation, and Conversational) Tj ET
+BT /F1 9.50 Tf 40.00 702.00 Td (AI SaaS platform. It enables specialized vertical businesses to operate end-to-end customer commerce) Tj ET
+BT /F1 9.50 Tf 40.00 689.00 Td (and support over WhatsApp, while providing platform administrators with a centralized control plane.) Tj ET
+0.950 0.980 0.960 rg 0.950 0.980 0.960 RG
+1.00 w
+46.00 545.00 m 279.00 545.00 l 282.31 545.00 285.00 547.69 285.00 551.00 c 285.00 669.00 l 285.00 672.31 282.31 675.00 279.00 675.00 c 46.00 675.00 l 42.69 675.00 40.00 672.31 40.00 669.00 c 40.00 551.00 l 40.00 547.69 42.69 545.00 46.00 545.00 c h f
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+46.00 545.00 m 279.00 545.00 l 282.31 545.00 285.00 547.69 285.00 551.00 c 285.00 669.00 l 285.00 672.31 282.31 675.00 279.00 675.00 c 46.00 675.00 l 42.69 675.00 40.00 672.31 40.00 669.00 c 40.00 551.00 l 40.00 547.69 42.69 545.00 46.00 545.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 52.00 655.00 Td (Platform Operator Console) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F2 9.00 Tf 52.00 640.00 Td (Endpoint: /platform/*) Tj ET
+0.250 0.300 0.350 rg 0.250 0.300 0.350 RG
+BT /F1 8.50 Tf 52.00 622.00 Td (- Command Center & Global KPI Analytics) Tj ET
+BT /F1 8.50 Tf 52.00 608.00 Td (- Multi-Tenant Lifecycle & Impersonation) Tj ET
+BT /F1 8.50 Tf 52.00 594.00 Td (- SaaS Subscriptions, Invoicing & Dunning) Tj ET
+BT /F1 8.50 Tf 52.00 580.00 Td (- Meta WhatsApp Number Fleet Management) Tj ET
+BT /F1 8.50 Tf 52.00 566.00 Td (- Resource Quotas, Support & Audit Logs) Tj ET
+0.960 0.970 0.990 rg 0.960 0.970 0.990 RG
+1.00 w
+316.00 545.00 m 549.00 545.00 l 552.31 545.00 555.00 547.69 555.00 551.00 c 555.00 669.00 l 555.00 672.31 552.31 675.00 549.00 675.00 c 316.00 675.00 l 312.69 675.00 310.00 672.31 310.00 669.00 c 310.00 551.00 l 310.00 547.69 312.69 545.00 316.00 545.00 c h f
+0.250 0.400 0.700 rg 0.250 0.400 0.700 RG
+1.00 w
+316.00 545.00 m 549.00 545.00 l 552.31 545.00 555.00 547.69 555.00 551.00 c 555.00 669.00 l 555.00 672.31 552.31 675.00 549.00 675.00 c 316.00 675.00 l 312.69 675.00 310.00 672.31 310.00 669.00 c 310.00 551.00 l 310.00 547.69 312.69 545.00 316.00 545.00 c h S
+0.200 0.350 0.650 rg 0.200 0.350 0.650 RG
+BT /F2 11.00 Tf 322.00 655.00 Td (Tenant Workspace SaaS Surface) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F2 9.00 Tf 322.00 640.00 Td (Endpoint: /:tenant-slug/*) Tj ET
+0.250 0.300 0.350 rg 0.250 0.300 0.350 RG
+BT /F1 8.50 Tf 322.00 622.00 Td (- 2-Way Omnichannel WhatsApp Live Inbox) Tj ET
+BT /F1 8.50 Tf 322.00 608.00 Td (- AI Assistant Grounded in Knowledge Base) Tj ET
+BT /F1 8.50 Tf 322.00 594.00 Td (- Tour Bookings, Hospital & Restaurant POS) Tj ET
+BT /F1 8.50 Tf 322.00 580.00 Td (- Broadcast Campaigns & Meta Templates) Tj ET
+BT /F1 8.50 Tf 322.00 566.00 Td (- AmwalPay Gateway & WooCommerce Sync) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 40.00 515.00 Td (Core Technical Specifications) Tj ET
+0.850 0.880 0.900 rg 0.850 0.880 0.900 RG
+1.00 w 40.00 508.00 m 555.00 508.00 l S
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+44.00 330.00 m 551.00 330.00 l 553.21 330.00 555.00 331.79 555.00 334.00 c 555.00 491.00 l 555.00 493.21 553.21 495.00 551.00 495.00 c 44.00 495.00 l 41.79 495.00 40.00 493.21 40.00 491.00 c 40.00 334.00 l 40.00 331.79 41.79 330.00 44.00 330.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+44.00 330.00 m 551.00 330.00 l 553.21 330.00 555.00 331.79 555.00 334.00 c 555.00 491.00 l 555.00 493.21 553.21 495.00 551.00 495.00 c 44.00 495.00 l 41.79 495.00 40.00 493.21 40.00 491.00 c 40.00 334.00 l 40.00 331.79 41.79 330.00 44.00 330.00 c h S
+0.920 0.940 0.960 rg 0.920 0.940 0.960 RG
+1.00 w
+44.00 465.00 m 551.00 465.00 l 553.21 465.00 555.00 466.79 555.00 469.00 c 555.00 491.00 l 555.00 493.21 553.21 495.00 551.00 495.00 c 44.00 495.00 l 41.79 495.00 40.00 493.21 40.00 491.00 c 40.00 469.00 l 40.00 466.79 41.79 465.00 44.00 465.00 c h f
+0.150 0.200 0.250 rg 0.150 0.200 0.250 RG
+BT /F2 9.50 Tf 55.00 476.00 Td (Architecture Layer) Tj ET
+BT /F2 9.50 Tf 200.00 476.00 Td (Technology / Library) Tj ET
+BT /F2 9.50 Tf 370.00 476.00 Td (Architectural Role & Function) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 448.00 Td (Frontend Framework) Tj ET
+BT /F1 8.50 Tf 200.00 448.00 Td (Next.js 16 \(Turbopack\)) Tj ET
+BT /F1 8.50 Tf 370.00 448.00 Td (App Router, React 19, Server Components) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 423.00 Td (Backend & APIs) Tj ET
+BT /F1 8.50 Tf 200.00 423.00 Td (Next.js Edge / Node APIs) Tj ET
+BT /F1 8.50 Tf 370.00 423.00 Td (Dynamic Route Handlers & Middlewares) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 398.00 Td (Database & ORM) Tj ET
+BT /F1 8.50 Tf 200.00 398.00 Td (PostgreSQL + Prisma 6.x) Tj ET
+BT /F1 8.50 Tf 370.00 398.00 Td (Multi-tenant relational persistence & indexes) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 373.00 Td (UI & Visualization) Tj ET
+BT /F1 8.50 Tf 200.00 373.00 Td (Tailwind CSS + Recharts) Tj ET
+BT /F1 8.50 Tf 370.00 373.00 Td (Radix UI / shadcn, Lucide, Interactive Charts) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 348.00 Td (Integrations) Tj ET
+BT /F1 8.50 Tf 200.00 348.00 Td (Meta Cloud API, AmwalPay) Tj ET
+BT /F1 8.50 Tf 370.00 348.00 Td (WABA Webhooks, Google Meet, WooCommerce) Tj ET
+0.950 0.980 0.960 rg 0.950 0.980 0.960 RG
+1.00 w
+46.00 205.00 m 549.00 205.00 l 552.31 205.00 555.00 207.69 555.00 211.00 c 555.00 304.00 l 555.00 307.31 552.31 310.00 549.00 310.00 c 46.00 310.00 l 42.69 310.00 40.00 307.31 40.00 304.00 c 40.00 211.00 l 40.00 207.69 42.69 205.00 46.00 205.00 c h f
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+46.00 205.00 m 549.00 205.00 l 552.31 205.00 555.00 207.69 555.00 211.00 c 555.00 304.00 l 555.00 307.31 552.31 310.00 549.00 310.00 c 46.00 310.00 l 42.69 310.00 40.00 307.31 40.00 304.00 c 40.00 211.00 l 40.00 207.69 42.69 205.00 46.00 205.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 10.00 Tf 55.00 292.00 Td (Security & Isolation Highlights) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F1 8.50 Tf 55.00 275.00 Td (- Complete Multi-Tenant Data Isolation enforced at database query & API middleware levels.) Tj ET
+BT /F1 8.50 Tf 55.00 260.00 Td (- Zero-Knowledge Operator Impersonation with mandatory audit logging and reason capture.) Tj ET
+BT /F1 8.50 Tf 55.00 245.00 Td (- Type-Safe Endpoints & Dynamic Routing without legacy URL hash fragments.) Tj ET
+BT /F1 8.50 Tf 55.00 230.00 Td (- Automated Dunning Engine with payment gateway webhook reconciliation.) Tj ET
+BT /F1 8.50 Tf 55.00 215.00 Td (- Immutable Audit Trail logging all administrative actions with 1-click CSV export.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Length 7216 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 2 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (2. Platform Operator Console Features \(/platform/*\)) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (The Platform Operator Console is a standalone command surface built for Fizmoh global administrators.) Tj ET
+BT /F1 9.50 Tf 40.00 702.00 Td (Every section is accessible via clean, direct URL paths with full-width responsive layouts and CRUD controls.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 550.00 m 549.00 550.00 l 552.31 550.00 555.00 552.69 555.00 556.00 c 555.00 679.00 l 555.00 682.31 552.31 685.00 549.00 685.00 c 46.00 685.00 l 42.69 685.00 40.00 682.31 40.00 679.00 c 40.00 556.00 l 40.00 552.69 42.69 550.00 46.00 550.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 550.00 m 549.00 550.00 l 552.31 550.00 555.00 552.69 555.00 556.00 c 555.00 679.00 l 555.00 682.31 552.31 685.00 549.00 685.00 c 46.00 685.00 l 42.69 685.00 40.00 682.31 40.00 679.00 c 40.00 556.00 l 40.00 552.69 42.69 550.00 46.00 550.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 665.00 Td (Command Center & Tenant Workspace Governance) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 650.00 Td (Routes: /platform/command-center, /platform/tenants) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 632.00 Td (- Real-time Platform KPIs: Active business counts, platform MRR, WhatsApp messages, orders & leads.) Tj ET
+BT /F1 8.50 Tf 55.00 618.00 Td (- Interactive Trend Visualizations: Recharts area & bar charts illustrating message & revenue velocity.) Tj ET
+BT /F1 8.50 Tf 55.00 604.00 Td (- Tenant Lifecycle Management: Provision new workspaces, suspend delinquent accounts, resume services.) Tj ET
+BT /F1 8.50 Tf 55.00 590.00 Td (- Impersonation Gateway: Open and inspect tenant workspace sessions with audit trail tracking.) Tj ET
+BT /F1 8.50 Tf 55.00 576.00 Td (- Unrouted Number Detector: Captures inbound messages from unregistered WhatsApp numbers.) Tj ET
+BT /F1 8.50 Tf 55.00 562.00 Td (- Custom Domain Configuration: Bind dedicated domains \(e.g., booking.agency.com\) to workspaces.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 395.00 m 549.00 395.00 l 552.31 395.00 555.00 397.69 555.00 401.00 c 555.00 529.00 l 555.00 532.31 552.31 535.00 549.00 535.00 c 46.00 535.00 l 42.69 535.00 40.00 532.31 40.00 529.00 c 40.00 401.00 l 40.00 397.69 42.69 395.00 46.00 395.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 395.00 m 549.00 395.00 l 552.31 395.00 555.00 397.69 555.00 401.00 c 555.00 529.00 l 555.00 532.31 552.31 535.00 549.00 535.00 c 46.00 535.00 l 42.69 535.00 40.00 532.31 40.00 529.00 c 40.00 401.00 l 40.00 397.69 42.69 395.00 46.00 395.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 515.00 Td (Subscriptions, Invoicing & Automated Dunning Engine) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 500.00 Td (Routes: /platform/billing, /platform/invoices, /platform/revenue) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 482.00 Td (- Plan Assignment & Modification: Switch tenant plans \(Starter, Growth, Enterprise\) with instant quota adjustments.) Tj ET
+BT /F1 8.50 Tf 55.00 468.00 Td (- 1-Click Trial Extensions: Extend trial periods by configurable day increments with automatic date recalculation.) Tj ET
+BT /F1 8.50 Tf 55.00 454.00 Td (- Automated Dunning Escalation: Multi-step dunning reminders \(1st Reminder -> 2nd Notice -> Final Warning\).) Tj ET
+BT /F1 8.50 Tf 55.00 440.00 Td (- Invoice Lifecycle: Track OMR amounts, issue dates, payment gateway IDs, and 1-click 'Mark as Paid' actions.) Tj ET
+BT /F1 8.50 Tf 55.00 426.00 Td (- Financial Intelligence: Live calculation of MRR, ARPU \(Average Revenue Per User\), and 30-day collections.) Tj ET
+BT /F1 8.50 Tf 55.00 412.00 Td (- Status Badges: Clear visual indicators for ACTIVE, TRIALING, PAST_DUE, CANCELLED subscriptions.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 240.00 m 549.00 240.00 l 552.31 240.00 555.00 242.69 555.00 246.00 c 555.00 374.00 l 555.00 377.31 552.31 380.00 549.00 380.00 c 46.00 380.00 l 42.69 380.00 40.00 377.31 40.00 374.00 c 40.00 246.00 l 40.00 242.69 42.69 240.00 46.00 240.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 240.00 m 549.00 240.00 l 552.31 240.00 555.00 242.69 555.00 246.00 c 555.00 374.00 l 555.00 377.31 552.31 380.00 549.00 380.00 c 46.00 380.00 l 42.69 380.00 40.00 377.31 40.00 374.00 c 40.00 246.00 l 40.00 242.69 42.69 240.00 46.00 240.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 360.00 Td (WhatsApp Number Pool & Resource Quotas) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 345.00 Td (Routes: /platform/whatsapp-numbers, /platform/usage) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 327.00 Td (- Meta Cloud API Health Monitor: Real-time quality rating indicators \(Green Normal, Yellow Warning, Red Restricted\).) Tj ET
+BT /F1 8.50 Tf 55.00 313.00 Td (- Messaging Tier Allocation: Displays tier throughput limits \(Tier 1K, Tier 10K, Tier 100K, Unlimited/day\).) Tj ET
+BT /F1 8.50 Tf 55.00 299.00 Td (- Number Pool Allocation: Assign phone numbers to dedicated workspaces or hold in unassigned pool.) Tj ET
+BT /F1 8.50 Tf 55.00 285.00 Td (- Resource Quota Matrix: Visual progress bar monitoring per workspace for messages, campaigns, AI tokens & staff.) Tj ET
+BT /F1 8.50 Tf 55.00 271.00 Td (- High-Usage Detection: Workspaces exceeding 90% quota are automatically highlighted with alert badges.) Tj ET
+BT /F1 8.50 Tf 55.00 257.00 Td (- Manual Re-Sync & Diagnostics: Trigger instant health checks against Meta Graph API endpoints.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Length 6895 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 3 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (3. Platform Operations, Helpdesk & Governance) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (Advanced operational tools ensuring high customer satisfaction, compliance, and growth automation.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 560.00 m 549.00 560.00 l 552.31 560.00 555.00 562.69 555.00 566.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 566.00 l 40.00 562.69 42.69 560.00 46.00 560.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 560.00 m 549.00 560.00 l 552.31 560.00 555.00 562.69 555.00 566.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 566.00 l 40.00 562.69 42.69 560.00 46.00 560.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 675.00 Td (Global Multi-Tenant Support Tickets Helpdesk) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 660.00 Td (Route: /platform/support-tickets) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 642.00 Td (- Dual Ticket Ingestion: Tickets created by tenant workspace staff or initiated by platform operators.) Tj ET
+BT /F1 8.50 Tf 55.00 628.00 Td (- Threaded Communication View: Complete chronological timeline of customer inquiries and responses.) Tj ET
+BT /F1 8.50 Tf 55.00 614.00 Td (- Private Operator Internal Notes: Internal team notes highlighted in yellow, hidden from tenant view.) Tj ET
+BT /F1 8.50 Tf 55.00 600.00 Td (- Priority & Status Management: Filter and update priority \(Low, Medium, High, Urgent\) and status.) Tj ET
+BT /F1 8.50 Tf 55.00 586.00 Td (- Staff Assignment: Route tickets to specialized support staff members for rapid SLA resolution.) Tj ET
+BT /F1 8.50 Tf 55.00 572.00 Td (- SLA Metrics: Live count of open, in-progress, waiting, and resolved tickets.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 405.00 m 549.00 405.00 l 552.31 405.00 555.00 407.69 555.00 411.00 c 555.00 539.00 l 555.00 542.31 552.31 545.00 549.00 545.00 c 46.00 545.00 l 42.69 545.00 40.00 542.31 40.00 539.00 c 40.00 411.00 l 40.00 407.69 42.69 405.00 46.00 405.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 405.00 m 549.00 405.00 l 552.31 405.00 555.00 407.69 555.00 411.00 c 555.00 539.00 l 555.00 542.31 552.31 545.00 549.00 545.00 c 46.00 545.00 l 42.69 545.00 40.00 542.31 40.00 539.00 c 40.00 411.00 l 40.00 407.69 42.69 405.00 46.00 405.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 525.00 Td (Platform Announcements & In-App Broadcast Banners) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 510.00 Td (Route: /platform/announcements) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 492.00 Td (- In-App Announcement Banners: Displays top banner alerts across tenant workspace dashboards.) Tj ET
+BT /F1 8.50 Tf 55.00 478.00 Td (- Audience Targeting: Broadcast globally to ALL workspaces or target specific plan tiers \(Enterprise/Growth\).) Tj ET
+BT /F1 8.50 Tf 55.00 464.00 Td (- Type Classification: Information \(Blue\), New Feature \(Green\), Alert \(Amber\), Maintenance \(Dark\).) Tj ET
+BT /F1 8.50 Tf 55.00 450.00 Td (- Scheduled Expiry: Automatically schedule start dates and expiry dates for notices.) Tj ET
+BT /F1 8.50 Tf 55.00 436.00 Td (- Full CRUD Suite: Create, edit message text, delete, and 1-click toggle between Published and Draft.) Tj ET
+BT /F1 8.50 Tf 55.00 422.00 Td (- Dynamic Tenant Polling: Tenant workspaces poll /api/announcements/active to render active banners.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 250.00 m 549.00 250.00 l 552.31 250.00 555.00 252.69 555.00 256.00 c 555.00 384.00 l 555.00 387.31 552.31 390.00 549.00 390.00 c 46.00 390.00 l 42.69 390.00 40.00 387.31 40.00 384.00 c 40.00 256.00 l 40.00 252.69 42.69 250.00 46.00 250.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 250.00 m 549.00 250.00 l 552.31 250.00 555.00 252.69 555.00 256.00 c 555.00 384.00 l 555.00 387.31 552.31 390.00 549.00 390.00 c 46.00 390.00 l 42.69 390.00 40.00 387.31 40.00 384.00 c 40.00 256.00 l 40.00 252.69 42.69 250.00 46.00 250.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 370.00 Td (Immutable Audit Log & Website Demo Lead Engine) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F2 8.50 Tf 55.00 355.00 Td (Routes: /platform/audit, /platform/leads) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 337.00 Td (- Full Audit Trail: Immutable logging of staff actions, impersonations, plan edits, suspensions, and logins.) Tj ET
+BT /F1 8.50 Tf 55.00 323.00 Td (- Multi-Filter & Search: Filter audit history by action type, target entity, or full-text reason search.) Tj ET
+BT /F1 8.50 Tf 55.00 309.00 Td (- Inspect Record Modal: Detailed modal revealing full actor metadata, target scope, and justification.) Tj ET
+BT /F1 8.50 Tf 55.00 295.00 Td (- 1-Click CSV Export: Export filtered audit logs for compliance reviews and SOC2/ISO readiness.) Tj ET
+BT /F1 8.50 Tf 55.00 281.00 Td (- Website Demo & Lead Capture: Ingests inbound leads from /book-demo and /contact pages.) Tj ET
+BT /F1 8.50 Tf 55.00 267.00 Td (- Google Meet Scheduling: Automatically captures scheduled demo dates, company size, and meeting links.) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Length 8075 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 4 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (4. Tenant Workspace Capabilities & Industry Verticals) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (Each business workspace runs on an isolated SaaS boundary with specialized tools for WhatsApp Commerce.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 450.00 m 279.00 450.00 l 282.31 450.00 285.00 452.69 285.00 456.00 c 285.00 689.00 l 285.00 692.31 282.31 695.00 279.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 456.00 l 40.00 452.69 42.69 450.00 46.00 450.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 450.00 m 279.00 450.00 l 282.31 450.00 285.00 452.69 285.00 456.00 c 285.00 689.00 l 285.00 692.31 282.31 695.00 279.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 456.00 l 40.00 452.69 42.69 450.00 46.00 450.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 10.50 Tf 52.00 675.00 Td (WhatsApp Inbox & AI Engine) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 52.00 655.00 Td (- 2-Way Omnichannel Live Chat) Tj ET
+BT /F1 8.50 Tf 52.00 641.00 Td (- Real-time message streaming) Tj ET
+BT /F1 8.50 Tf 52.00 627.00 Td (- Media support: PDF, Images, Audio) Tj ET
+BT /F1 8.50 Tf 52.00 613.00 Td (- Canned replies & fast responses) Tj ET
+BT /F1 8.50 Tf 52.00 599.00 Td (- Staff conversation assignment) Tj ET
+BT /F1 8.50 Tf 52.00 585.00 Td (- AI Conversational Responder) Tj ET
+BT /F1 8.50 Tf 52.00 571.00 Td (- Grounded in Knowledge Base docs) Tj ET
+BT /F1 8.50 Tf 52.00 557.00 Td (- Automated FAQs & intent routing) Tj ET
+BT /F1 8.50 Tf 52.00 543.00 Td (- Human-agent handoff trigger) Tj ET
+BT /F1 8.50 Tf 52.00 529.00 Td (- Multi-language translation) Tj ET
+BT /F1 8.50 Tf 52.00 515.00 Td (- Contact tagging & VIP profiling) Tj ET
+BT /F1 8.50 Tf 52.00 501.00 Td (- WhatsApp Catalog product cards) Tj ET
+BT /F1 8.50 Tf 52.00 487.00 Td (- Interactive buttons & list menus) Tj ET
+BT /F1 8.50 Tf 52.00 473.00 Td (- Meta Cloud Webhook delivery) Tj ET
+BT /F1 8.50 Tf 52.00 459.00 Td (- Audit trail of customer interactions) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+316.00 450.00 m 549.00 450.00 l 552.31 450.00 555.00 452.69 555.00 456.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 316.00 695.00 l 312.69 695.00 310.00 692.31 310.00 689.00 c 310.00 456.00 l 310.00 452.69 312.69 450.00 316.00 450.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+316.00 450.00 m 549.00 450.00 l 552.31 450.00 555.00 452.69 555.00 456.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 316.00 695.00 l 312.69 695.00 310.00 692.31 310.00 689.00 c 310.00 456.00 l 310.00 452.69 312.69 450.00 316.00 450.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 10.50 Tf 322.00 675.00 Td (Broadcast Campaigns & CRM) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 322.00 655.00 Td (- Meta Approved Template Broadcasts) Tj ET
+BT /F1 8.50 Tf 322.00 641.00 Td (- Dynamic audience segmentation) Tj ET
+BT /F1 8.50 Tf 322.00 627.00 Td (- Variable placeholders \({1}, {2}\)) Tj ET
+BT /F1 8.50 Tf 322.00 613.00 Td (- Delivery & read rate analytics) Tj ET
+BT /F1 8.50 Tf 322.00 599.00 Td (- Link click conversion tracking) Tj ET
+BT /F1 8.50 Tf 322.00 585.00 Td (- Rate-limited burst dispatching) Tj ET
+BT /F1 8.50 Tf 322.00 571.00 Td (- Automated opt-out compliance) Tj ET
+BT /F1 8.50 Tf 322.00 557.00 Td (- Subscriber list CSV import/export) Tj ET
+BT /F1 8.50 Tf 322.00 543.00 Td (- Customer CRM lifecycle profiles) Tj ET
+BT /F1 8.50 Tf 322.00 529.00 Td (- Full order and booking history) Tj ET
+BT /F1 8.50 Tf 322.00 515.00 Td (- Coupons & promotional discount codes) Tj ET
+BT /F1 8.50 Tf 322.00 501.00 Td (- Automated birthday/anniversary triggers) Tj ET
+BT /F1 8.50 Tf 322.00 487.00 Td (- WhatsApp signup diagnostic tool) Tj ET
+BT /F1 8.50 Tf 322.00 473.00 Td (- Consent management records) Tj ET
+BT /F1 8.50 Tf 322.00 459.00 Td (- Staff role permissions & RBAC) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 40.00 420.00 Td (Specialized Vertical Modules) Tj ET
+0.850 0.880 0.900 rg 0.850 0.880 0.900 RG
+1.00 w 40.00 412.00 m 555.00 412.00 l S
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+44.00 220.00 m 551.00 220.00 l 553.21 220.00 555.00 221.79 555.00 224.00 c 555.00 396.00 l 555.00 398.21 553.21 400.00 551.00 400.00 c 44.00 400.00 l 41.79 400.00 40.00 398.21 40.00 396.00 c 40.00 224.00 l 40.00 221.79 41.79 220.00 44.00 220.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+44.00 220.00 m 551.00 220.00 l 553.21 220.00 555.00 221.79 555.00 224.00 c 555.00 396.00 l 555.00 398.21 553.21 400.00 551.00 400.00 c 44.00 400.00 l 41.79 400.00 40.00 398.21 40.00 396.00 c 40.00 224.00 l 40.00 221.79 41.79 220.00 44.00 220.00 c h S
+0.920 0.940 0.960 rg 0.920 0.940 0.960 RG
+1.00 w
+44.00 370.00 m 551.00 370.00 l 553.21 370.00 555.00 371.79 555.00 374.00 c 555.00 396.00 l 555.00 398.21 553.21 400.00 551.00 400.00 c 44.00 400.00 l 41.79 400.00 40.00 398.21 40.00 396.00 c 40.00 374.00 l 40.00 371.79 41.79 370.00 44.00 370.00 c h f
+0.150 0.200 0.250 rg 0.150 0.200 0.250 RG
+BT /F2 9.50 Tf 55.00 381.00 Td (Vertical Industry) Tj ET
+BT /F2 9.50 Tf 170.00 381.00 Td (Dedicated Module Features) Tj ET
+BT /F2 9.50 Tf 390.00 381.00 Td (Customer Outcome) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 352.00 Td (Tours & Adventures) Tj ET
+BT /F1 8.50 Tf 170.00 352.00 Td (Slot inventory, capacity locks, e-vouchers) Tj ET
+BT /F1 8.50 Tf 390.00 352.00 Td (Zero overbooking, instant PDF tickets) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 324.00 Td (Clinics & Healthcare) Tj ET
+BT /F1 8.50 Tf 170.00 324.00 Td (Doctor slots, chemo sessions, bed maps) Tj ET
+BT /F1 8.50 Tf 390.00 324.00 Td (Reduced no-shows, automated reminders) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 296.00 Td (Restaurants & POS) Tj ET
+BT /F1 8.50 Tf 170.00 296.00 Td (QR menu, table bookings, POS kitchen feed) Tj ET
+BT /F1 8.50 Tf 390.00 296.00 Td (Direct WhatsApp ordering, table turnover) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 268.00 Td (Retail & E-Commerce) Tj ET
+BT /F1 8.50 Tf 170.00 268.00 Td (2-Way WooCommerce sync, product catalog) Tj ET
+BT /F1 8.50 Tf 390.00 268.00 Td (Automated order tracking on WhatsApp) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F2 8.50 Tf 55.00 240.00 Td (Payments & Billing) Tj ET
+BT /F1 8.50 Tf 170.00 240.00 Td (AmwalPay gateway, bank receipt verify) Tj ET
+BT /F1 8.50 Tf 390.00 240.00 Td (Instant verified payment confirmations) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Length 8451 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 5 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (5. Database Models & REST API Matrix) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (Overview of core relational models in PostgreSQL \(via Prisma\) and Platform API endpoints.) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 40.00 685.00 Td (Primary Prisma Database Models) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+44.00 450.00 m 551.00 450.00 l 553.21 450.00 555.00 451.79 555.00 454.00 c 555.00 671.00 l 555.00 673.21 553.21 675.00 551.00 675.00 c 44.00 675.00 l 41.79 675.00 40.00 673.21 40.00 671.00 c 40.00 454.00 l 40.00 451.79 41.79 450.00 44.00 450.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+44.00 450.00 m 551.00 450.00 l 553.21 450.00 555.00 451.79 555.00 454.00 c 555.00 671.00 l 555.00 673.21 553.21 675.00 551.00 675.00 c 44.00 675.00 l 41.79 675.00 40.00 673.21 40.00 671.00 c 40.00 454.00 l 40.00 451.79 41.79 450.00 44.00 450.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 9.00 Tf 55.00 655.00 Td (Model: Tenant) Tj ET
+BT /F2 9.00 Tf 160.00 655.00 Td (Model: SubscriptionInvoice) Tj ET
+BT /F2 9.00 Tf 340.00 655.00 Td (Model: SupportTicket & Reply) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F1 8.00 Tf 55.00 640.00 Td (id, slug, name, status) Tj ET
+BT /F1 8.00 Tf 55.00 628.00 Td (plan, subscriptionStatus) Tj ET
+BT /F1 8.00 Tf 55.00 616.00 Td (trialEndsAt, currentPeriodEnd) Tj ET
+BT /F1 8.00 Tf 55.00 604.00 Td (customDomain, timezone) Tj ET
+BT /F1 8.00 Tf 160.00 640.00 Td (id, reference, tenantId) Tj ET
+BT /F1 8.00 Tf 160.00 628.00 Td (amount, currency, status) Tj ET
+BT /F1 8.00 Tf 160.00 616.00 Td (dunningStep, lastDunnedAt) Tj ET
+BT /F1 8.00 Tf 160.00 604.00 Td (gatewayReference, paidAt) Tj ET
+BT /F1 8.00 Tf 340.00 640.00 Td (id, reference, subject, priority) Tj ET
+BT /F1 8.00 Tf 340.00 628.00 Td (status, channel, tenantId) Tj ET
+BT /F1 8.00 Tf 340.00 616.00 Td (assignedStaffId, replies[]) Tj ET
+BT /F1 8.00 Tf 340.00 604.00 Td (isInternal, staffId, body) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 9.00 Tf 55.00 575.00 Td (Model: PlatformAnnouncement) Tj ET
+BT /F2 9.00 Tf 200.00 575.00 Td (Model: PlatformAuditEvent) Tj ET
+BT /F2 9.00 Tf 370.00 575.00 Td (Model: WebsiteLead) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F1 8.00 Tf 55.00 560.00 Td (id, title, body, type) Tj ET
+BT /F1 8.00 Tf 55.00 548.00 Td (targetAudience, publishedAt) Tj ET
+BT /F1 8.00 Tf 55.00 536.00 Td (expiresAt, createdById) Tj ET
+BT /F1 8.00 Tf 200.00 560.00 Td (id, tenantId, actorStaffId) Tj ET
+BT /F1 8.00 Tf 200.00 548.00 Td (action, entity, entityId) Tj ET
+BT /F1 8.00 Tf 200.00 536.00 Td (reason, metadata, createdAt) Tj ET
+BT /F1 8.00 Tf 370.00 560.00 Td (id, name, email, phone) Tj ET
+BT /F1 8.00 Tf 370.00 548.00 Td (company, source, status) Tj ET
+BT /F1 8.00 Tf 370.00 536.00 Td (demoScheduledAt, meetUrl) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 9.00 Tf 55.00 505.00 Td (Model: WhatsAppAccount) Tj ET
+BT /F2 9.00 Tf 200.00 505.00 Td (Model: Order & Voucher) Tj ET
+BT /F2 9.00 Tf 370.00 505.00 Td (Model: HospitalAppointment) Tj ET
+0.200 0.250 0.300 rg 0.200 0.250 0.300 RG
+BT /F1 8.00 Tf 55.00 490.00 Td (id, phoneNumberId, wabaId) Tj ET
+BT /F1 8.00 Tf 55.00 478.00 Td (displayPhone, qualityRating) Tj ET
+BT /F1 8.00 Tf 55.00 466.00 Td (messagingLimit, tenantId) Tj ET
+BT /F1 8.00 Tf 200.00 490.00 Td (id, orderNumber, totalAmount) Tj ET
+BT /F1 8.00 Tf 200.00 478.00 Td (status, tourId, slotId) Tj ET
+BT /F1 8.00 Tf 200.00 466.00 Td (vouchers[], customerId) Tj ET
+BT /F1 8.00 Tf 370.00 490.00 Td (id, patientId, doctorId) Tj ET
+BT /F1 8.00 Tf 370.00 478.00 Td (serviceId, appointmentDate) Tj ET
+BT /F1 8.00 Tf 370.00 466.00 Td (status, notes, holdExpiresAt) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 40.00 425.00 Td (Core Platform API Route Matrix) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+44.00 215.00 m 551.00 215.00 l 553.21 215.00 555.00 216.79 555.00 219.00 c 555.00 411.00 l 555.00 413.21 553.21 415.00 551.00 415.00 c 44.00 415.00 l 41.79 415.00 40.00 413.21 40.00 411.00 c 40.00 219.00 l 40.00 216.79 41.79 215.00 44.00 215.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+44.00 215.00 m 551.00 215.00 l 553.21 215.00 555.00 216.79 555.00 219.00 c 555.00 411.00 l 555.00 413.21 553.21 415.00 551.00 415.00 c 44.00 415.00 l 41.79 415.00 40.00 413.21 40.00 411.00 c 40.00 219.00 l 40.00 216.79 41.79 215.00 44.00 215.00 c h S
+0.920 0.940 0.960 rg 0.920 0.940 0.960 RG
+1.00 w
+44.00 385.00 m 551.00 385.00 l 553.21 385.00 555.00 386.79 555.00 389.00 c 555.00 411.00 l 555.00 413.21 553.21 415.00 551.00 415.00 c 44.00 415.00 l 41.79 415.00 40.00 413.21 40.00 411.00 c 40.00 389.00 l 40.00 386.79 41.79 385.00 44.00 385.00 c h f
+0.150 0.200 0.250 rg 0.150 0.200 0.250 RG
+BT /F2 9.50 Tf 55.00 396.00 Td (HTTP Method & Endpoint) Tj ET
+BT /F2 9.50 Tf 230.00 396.00 Td (Auth Guard) Tj ET
+BT /F2 9.50 Tf 340.00 396.00 Td (Functionality) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 368.00 Td (GET  /api/platform/analytics) Tj ET
+BT /F1 8.50 Tf 230.00 368.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 368.00 Td (Aggregated KPIs, MRR & charts) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 348.00 Td (GET/PATCH /api/platform/tenants/:id) Tj ET
+BT /F1 8.50 Tf 230.00 348.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 348.00 Td (Workspace plan, status, trial extend) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 328.00 Td (GET/PATCH /api/platform/invoices/:id) Tj ET
+BT /F1 8.50 Tf 230.00 328.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 328.00 Td (Invoice status, dunning step increment) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 308.00 Td (GET/POST /api/platform/support/tickets) Tj ET
+BT /F1 8.50 Tf 230.00 308.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 308.00 Td (Global ticket helpdesk & operator notes) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 288.00 Td (GET/POST /api/platform/announcements) Tj ET
+BT /F1 8.50 Tf 230.00 288.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 288.00 Td (Global in-app broadcast alerts CRUD) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 268.00 Td (GET  /api/platform/usage) Tj ET
+BT /F1 8.50 Tf 230.00 268.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 268.00 Td (Live resource consumption matrix) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 248.00 Td (GET  /api/platform/audit) Tj ET
+BT /F1 8.50 Tf 230.00 248.00 Td (Platform Super Admin) Tj ET
+BT /F1 8.50 Tf 340.00 248.00 Td (Filterable immutable audit trail) Tj ET
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 8.50 Tf 55.00 228.00 Td (POST /api/demo/book, /api/contact) Tj ET
+BT /F1 8.50 Tf 230.00 228.00 Td (Public \(Rate Limited\)) Tj ET
+BT /F1 8.50 Tf 340.00 228.00 Td (Lead ingestion into Platform Leads) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Length 6764 >>
+stream
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+0.00 836.00 595.28 6.00 re f
+0.960 0.970 0.980 rg 0.960 0.970 0.980 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 770.00 m 549.00 770.00 l 552.31 770.00 555.00 772.69 555.00 776.00 c 555.00 816.00 l 555.00 819.31 552.31 822.00 549.00 822.00 c 46.00 822.00 l 42.69 822.00 40.00 819.31 40.00 816.00 c 40.00 776.00 l 40.00 772.69 42.69 770.00 46.00 770.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 18.00 Tf 55.00 800.00 Td (FIZMOH) Tj ET
+0.120 0.150 0.200 rg 0.120 0.150 0.200 RG
+BT /F2 11.00 Tf 140.00 800.00 Td (Enterprise Cloud SaaS Platform Specification) Tj ET
+0.450 0.500 0.550 rg 0.450 0.500 0.550 RG
+BT /F1 9.00 Tf 55.00 782.00 Td (Multi-Tenant WhatsApp Commerce, Operations & Conversational AI Engine) Tj ET
+BT /F1 9.00 Tf 395.00 782.00 Td (Version 3.0 | Production Release) Tj ET
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w 40.00 45.00 m 555.00 45.00 l S
+0.500 0.550 0.600 rg 0.500 0.550 0.600 RG
+BT /F1 8.00 Tf 40.00 32.00 Td (Confidential - Fizmoh Cloud Platform Architecture Documentation) Tj ET
+BT /F2 8.00 Tf 495.00 32.00 Td (Page 6 of 6) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 13.00 Tf 40.00 740.00 Td (6. Security, Compliance & Production Readiness) Tj ET
+1.50 w 40.00 732.00 m 555.00 732.00 l S
+0.150 0.180 0.220 rg 0.150 0.180 0.220 RG
+BT /F1 9.50 Tf 40.00 715.00 Td (Enterprise-grade security controls, automated testing, and production deployment standards.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 540.00 m 549.00 540.00 l 552.31 540.00 555.00 542.69 555.00 546.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 546.00 l 40.00 542.69 42.69 540.00 46.00 540.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 540.00 m 549.00 540.00 l 552.31 540.00 555.00 542.69 555.00 546.00 c 555.00 689.00 l 555.00 692.31 552.31 695.00 549.00 695.00 c 46.00 695.00 l 42.69 695.00 40.00 692.31 40.00 689.00 c 40.00 546.00 l 40.00 542.69 42.69 540.00 46.00 540.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 675.00 Td (Security Controls & Compliance Architecture) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 655.00 Td (- Role-Based Access Control \(RBAC\): Strict segregation between Global Platform Super Admin and) Tj ET
+BT /F1 8.50 Tf 55.00 641.00 Td (  Tenant Staff \(Admin, Manager, Agent\) enforced via server-side session tokens.) Tj ET
+BT /F1 8.50 Tf 55.00 627.00 Td (- Zero-Knowledge Tenant Impersonation: All operator tenant inspections require explicit reasons) Tj ET
+BT /F1 8.50 Tf 55.00 613.00 Td (  and are immutably logged to the PlatformAuditEvent table.) Tj ET
+BT /F1 8.50 Tf 55.00 599.00 Td (- Webhook Signature Verification: Meta Cloud API and AmwalPay webhooks validated with HMAC-SHA256.) Tj ET
+BT /F1 8.50 Tf 55.00 585.00 Td (- Edge Security & Rate Limiting: Public lead and booking endpoints protected against automated abuse.) Tj ET
+BT /F1 8.50 Tf 55.00 571.00 Td (- Clean Path URL Routing: Modern Next.js dynamic routing \(/platform/[section]\) replacing legacy hash states.) Tj ET
+BT /F1 8.50 Tf 55.00 557.00 Td (- Defensive Runtime Parsing: Strict Array.isArray guards across all client panels preventing UI crashes.) Tj ET
+0.980 0.980 0.980 rg 0.980 0.980 0.980 RG
+1.00 w
+46.00 360.00 m 549.00 360.00 l 552.31 360.00 555.00 362.69 555.00 366.00 c 555.00 519.00 l 555.00 522.31 552.31 525.00 549.00 525.00 c 46.00 525.00 l 42.69 525.00 40.00 522.31 40.00 519.00 c 40.00 366.00 l 40.00 362.69 42.69 360.00 46.00 360.00 c h f
+0.880 0.900 0.920 rg 0.880 0.900 0.920 RG
+1.00 w
+46.00 360.00 m 549.00 360.00 l 552.31 360.00 555.00 362.69 555.00 366.00 c 555.00 519.00 l 555.00 522.31 552.31 525.00 549.00 525.00 c 46.00 525.00 l 42.69 525.00 40.00 522.31 40.00 519.00 c 40.00 366.00 l 40.00 362.69 42.69 360.00 46.00 360.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 505.00 Td (Automated Verification & Release Quality Assurance) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 8.50 Tf 55.00 485.00 Td (- Comprehensive Unit Test Suite: 74 / 74 unit tests passing \(222 test expectations\) across 9 test suites.) Tj ET
+BT /F1 8.50 Tf 55.00 471.00 Td (- Full Route Coverage: 185 Next.js application routes compiled and optimized via Turbopack engine.) Tj ET
+BT /F1 8.50 Tf 55.00 457.00 Td (- Automated Service Health Checks: /admin \(200 OK\), /api/health \(200 OK\), /api/tours \(200 OK\).) Tj ET
+BT /F1 8.50 Tf 55.00 443.00 Td (- Live PostgreSQL Migration: Prisma schema synchronized with automated column migrations.) Tj ET
+BT /F1 8.50 Tf 55.00 429.00 Td (- Continuous Deployment Workflow: Production-grade zero-downtime releases with instant rollback support.) Tj ET
+BT /F1 8.50 Tf 55.00 415.00 Td (- Observability: Error boundary monitoring, live delivery webhook retry queues, and latency tracking.) Tj ET
+BT /F1 8.50 Tf 55.00 401.00 Td (- Client-Side State: Zustand persistence store synchronizing theme, active workspace, and staff context.) Tj ET
+BT /F1 8.50 Tf 55.00 387.00 Td (- Cross-Platform Compatibility: Optimized for desktop ultra-wide displays down to mobile viewports.) Tj ET
+0.950 0.980 0.960 rg 0.950 0.980 0.960 RG
+1.00 w
+46.00 200.00 m 549.00 200.00 l 552.31 200.00 555.00 202.69 555.00 206.00 c 555.00 334.00 l 555.00 337.31 552.31 340.00 549.00 340.00 c 46.00 340.00 l 42.69 340.00 40.00 337.31 40.00 334.00 c 40.00 206.00 l 40.00 202.69 42.69 200.00 46.00 200.00 c h f
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+1.00 w
+46.00 200.00 m 549.00 200.00 l 552.31 200.00 555.00 202.69 555.00 206.00 c 555.00 334.00 l 555.00 337.31 552.31 340.00 549.00 340.00 c 46.00 340.00 l 42.69 340.00 40.00 337.31 40.00 334.00 c 40.00 206.00 l 40.00 202.69 42.69 200.00 46.00 200.00 c h S
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 11.00 Tf 55.00 320.00 Td (Platform Engineering Summary) Tj ET
+0.180 0.220 0.280 rg 0.180 0.220 0.280 RG
+BT /F1 9.00 Tf 55.00 300.00 Td (Fizmoh is fully deployed and operational at app.fizmoh.cloud.) Tj ET
+BT /F1 9.00 Tf 55.00 285.00 Td (Every requested platform capability-from the unified Operator Console and clean /platform/[section] paths) Tj ET
+BT /F1 9.00 Tf 55.00 270.00 Td (to Support Tickets, Invoicing, Announcements, and Google Meet Demo booking-is live in production.) Tj ET
+0.059 0.463 0.431 rg 0.059 0.463 0.431 RG
+BT /F2 9.00 Tf 55.00 240.00 Td (Document Ref: FIZMOH-SPEC-2026-V3 | Status: Production Active | Fizmoh Engineering) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 5 0 R >>
+endobj
+14 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 6 0 R >>
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 7 0 R >>
+endobj
+16 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 8 0 R >>
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 9 0 R >>
+endobj
+18 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 1 0 R /F2 2 0 R /F3 3 0 R /F4 4 0 R >> >> /Contents 10 0 R >>
+endobj
+xref
+0 19
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000157 00000 n 
+0000000254 00000 n 
+0000000356 00000 n 
+0000000451 00000 n 
+0000000556 00000 n 
+0000009067 00000 n 
+0000016335 00000 n 
+0000023282 00000 n 
+0000031410 00000 n 
+0000039914 00000 n 
+0000046731 00000 n 
+0000046894 00000 n 
+0000047057 00000 n 
+0000047220 00000 n 
+0000047383 00000 n 
+0000047546 00000 n 
+trailer
+<< /Size 19 /Root 1 0 R >>
+startxref
+47710
+%%EOF

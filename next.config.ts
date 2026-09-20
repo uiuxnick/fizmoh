@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { ADMIN_SLUGS } from "./src/lib/admin-routes";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -46,6 +47,37 @@ const nextConfig: NextConfig = {
           { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         ],
+      },
+      {
+        source: "/order/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Cross-Origin-Opener-Policy", value: "unsafe-none" },
+        ],
+      },
+      {
+        source: "/menu/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Cross-Origin-Opener-Policy", value: "unsafe-none" },
+        ],
+      },
+      {
+        source: "/kitchen",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Cross-Origin-Opener-Policy", value: "unsafe-none" },
+        ],
+      },
+      {
+        // The shell navigates without reloading the document, so every shell
+        // entry point needs the same first-party device policy as the inbox.
+        source: `/:view(${[...ADMIN_SLUGS, "admin"].join("|")})`,
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" }],
+      },
+      {
+        source: "/",
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" }],
       },
     ]
   },

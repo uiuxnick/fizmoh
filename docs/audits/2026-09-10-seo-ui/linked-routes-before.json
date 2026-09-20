@@ -1,0 +1,57 @@
+[
+  {
+    "path": "/admin",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/admin"
+  },
+  {
+    "path": "/downloads/",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/downloads/"
+  },
+  {
+    "path": "/downloads/Fizmoh-Windows.zip",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/downloads/Fizmoh-Windows.zip"
+  },
+  {
+    "path": "/downloads/Fizmoh-macOS.zip",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/downloads/Fizmoh-macOS.zip"
+  },
+  {
+    "path": "/downloads/Fizmoh.apk",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/downloads/Fizmoh.apk"
+  },
+  {
+    "path": "/hospital/book",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/hospital/book"
+  },
+  {
+    "path": "/product/appointments",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/solutions/clinics-hospitals-health"
+  },
+  {
+    "path": "/product/crm",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/product/team-inbox"
+  },
+  {
+    "path": "/product/templates",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/product/botflow-studio"
+  },
+  {
+    "path": "/product/tours",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/solutions/tours-safari-musandam"
+  },
+  {
+    "path": "/product/woocommerce",
+    "status": 200,
+    "final": "https://app.fizmoh.cloud/solutions/ecommerce-online-stores"
+  }
+]

@@ -1,0 +1,1290 @@
+     1→"use client"
+     2→
+     3→import { useEffect, useState, useCallback, useMemo } from "react"
+     4→import { useApp } from "@/lib/store"
+     5→import { cn } from "@/lib/utils"
+     6→import { formatCurrency, timeAgo, prettifyStatus } from "@/lib/helpers"
+     7→import { toast } from "sonner"
+     8→
+     9→import {
+    10→  Card,
+    11→  CardContent,
+    12→  CardDescription,
+    13→  CardHeader,
+    14→  CardTitle,
+    15→  CardAction,
+    16→} from "@/components/ui/card"
+    17→import { Badge } from "@/components/ui/badge"
+    18→import { Button } from "@/components/ui/button"
+    19→import { ScrollArea } from "@/components/ui/scroll-area"
+    20→import { Separator } from "@/components/ui/separator"
+    21→import { Skeleton } from "@/components/ui/skeleton"
+    22→import {
+    23→  Tooltip,
+    24→  TooltipContent,
+    25→  TooltipProvider,
+    26→  TooltipTrigger,
+    27→} from "@/components/ui/tooltip"
+    28→import { Progress } from "@/components/ui/progress"
+    29→import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+    30→
+    31→import {
+    32→  Wallet,
+    33→  ShoppingBag,
+    34→  Clock,
+    35→  MessageCircle,
+    36→  Calendar,
+    37→  TrendingUp,
+    38→  TrendingDown,
+    39→  Users,
+    40→  Bell,
+    41→  AlertCircle,
+    42→  CheckCircle2,
+    43→  ArrowRight,
+    44→  Plus,
+    45→  ShieldCheck,
+    46→  Megaphone,
+    47→  Inbox,
+    48→  Sparkles,
+    49→  Gift,
+    50→  CalendarClock,
+    51→  CreditCard,
+    52→  Landmark,
+    53→  Activity,
+    54→  MapPin,
+    55→  Star,
+    56→  ChevronRight,
+    57→  CircleDot,
+    58→} from "lucide-react"
+    59→
+    60→import {
+    61→  ResponsiveContainer,
+    62→  AreaChart,
+    63→  Area,
+    64→  XAxis,
+    65→  YAxis,
+    66→  CartesianGrid,
+    67→  Tooltip as RTooltip,
+    68→  PieChart,
+    69→  Pie,
+    70→  Cell,
+    71→  Legend,
+    72→} from "recharts"
+    73→
+    74→// ============================================================
+    75→// TYPES
+    76→// ============================================================
+    77→interface Kpis {
+    78→  totalOrders: number
+    79→  totalRevenue: number
+    80→  pendingVerifications: number
+    81→  openConversations: number
+    82→  upcomingTours: number
+    83→  activeTours: number
+    84→  totalCustomers: number
+    85→  confirmedOrders: number
+    86→  completedOrders: number
+    87→}
+    88→
+    89→interface ChannelStat {
+    90→  channel: "WEB" | "WHATSAPP" | "ADMIN" | "API"
+    91→  _count: number
+    92→  _sum: { totalAmount: number }
+    93→}
+    94→
+    95→interface StatusStat {
+    96→  orderStatus: string
+    97→  _count: number
+    98→}
+    99→
+   100→interface PaymentMethodStat {
+   101→  method: "AMWALPAY" | "BANK_TRANSFER"
+   102→  _count: number
+   103→  _sum: { amount: number }
+   104→}
+   105→
+   106→interface TopTour {
+   107→  tourId: string
+   108→  _count: number
+   109→  _sum: { totalAmount: number }
+   110→  tour: {
+   111→    id: string
+   112→    name: string
+   113→    city: string
+   114→    category: string
+   115→    basePrice: number
+   116→    rating: number
+   117→    featured: boolean
+   118→    media?: any
+   119→  } | null
+   120→}
+   121→
+   122→interface RevenueByDay {
+   123→  date: string
+   124→  label: string
+   125→  revenue: number
+   126→  orders: number
+   127→}
+   128→
+   129→interface DashboardData {
+   130→  kpis: Kpis
+   131→  channelStats: ChannelStat[]
+   132→  statusStats: StatusStat[]
+   133→  paymentMethodStats: PaymentMethodStat[]
+   134→  topTours: TopTour[]
+   135→  revenueByDay: RevenueByDay[]
+   136→}
+   137→
+   138→interface Notification {
+   139→  id: string
+   140→  type: string
+   141→  title: string
+   142→  message: string
+   143→  data?: any
+   144→  isRead: boolean
+   145→  forRole?: string | null
+   146→  forStaffId?: string | null
+   147→  createdAt: string
+   148→}
+   149→
+   150→// ============================================================
+   151→// CONSTANTS — color palette (emerald/teal/amber/rose — NO blue/indigo)
+   152→// ============================================================
+   153→const CHANNEL_COLORS: Record<string, string> = {
+   154→  WEB: "#10b981", // emerald-500
+   155→  WHATSAPP: "#14b8a6", // teal-500
+   156→  ADMIN: "#f59e0b", // amber-500
+   157→  API: "#f43f5e", // rose-500
+   158→}
+   159→
+   160→const CHANNEL_LABELS: Record<string, string> = {
+   161→  WEB: "Web",
+   162→  WHATSAPP: "WhatsApp",
+   163→  ADMIN: "Admin",
+   164→  API: "API",
+   165→}
+   166→
+   167→const STATUS_COLORS: Record<string, string> = {
+   168→  PENDING_PAYMENT: "#f59e0b",
+   169→  PAYMENT_SUBMITTED: "#14b8a6",
+   170→  CONFIRMED: "#10b981",
+   171→  COMPLETED: "#059669",
+   172→  CANCELLED: "#f43f5e",
+   173→  REFUNDED: "#a8a29e",
+   174→  NO_SHOW: "#78716c",
+   175→}
+   176→
+   177→const PAYMENT_METHOD_COLORS: Record<string, string> = {
+   178→  AMWALPAY: "#10b981",
+   179→  BANK_TRANSFER: "#14b8a6",
+   180→}
+   181→
+   182→// ============================================================
+   183→// MAIN COMPONENT
+   184→// ============================================================
+   185→export default function DashboardView() {
+   186→  const setView = useApp((s) => s.setView)
+   187→
+   188→  const [data, setData] = useState<DashboardData | null>(null)
+   189→  const [notifications, setNotifications] = useState<Notification[]>([])
+   190→  const [loading, setLoading] = useState(true)
+   191→  const [error, setError] = useState<string | null>(null)
+   192→  const [now, setNow] = useState(new Date())
+   193→
+   194→  // ----- live clock -----
+   195→  useEffect(() => {
+   196→    const t = setInterval(() => setNow(new Date()), 1000)
+   197→    return () => clearInterval(t)
+   198→  }, [])
+   199→
+   200→  // ----- data fetcher -----
+   201→  const fetchData = useCallback(async () => {
+   202→    try {
+   203→      const [dashRes, notifRes] = await Promise.all([
+   204→        fetch("/api/dashboard", { cache: "no-store" }),
+   205→        fetch("/api/notifications", { cache: "no-store" }),
+   206→      ])
+   207→      if (!dashRes.ok) throw new Error("Failed to load dashboard")
+   208→      const dash: DashboardData = await dashRes.json()
+   209→      const notifJson = await notifRes.json()
+   210→      setData(dash)
+   211→      setNotifications(notifJson.notifications ?? [])
+   212→      setError(null)
+   213→    } catch (e: any) {
+   214→      setError(e?.message || "Unable to load dashboard")
+   215→    } finally {
+   216→      setLoading(false)
+   217→    }
+   218→  }, [])
+   219→
+   220→  useEffect(() => {
+   221→    fetchData()
+   222→    const t = setInterval(fetchData, 30_000) // refresh every 30s
+   223→    return () => clearInterval(t)
+   224→  }, [fetchData])
+   225→
+   226→  // ----- mark all notifications read -----
+   227→  const markAllRead = useCallback(async () => {
+   228→    try {
+   229→      await fetch("/api/notifications", {
+   230→        method: "PATCH",
+   231→        headers: { "Content-Type": "application/json" },
+   232→        body: JSON.stringify({ markAllRead: true }),
+   233→      })
+   234→      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+   235→      toast.success("All notifications marked as read")
+   236→    } catch {
+   237→      toast.error("Could not mark notifications as read")
+   238→    }
+   239→  }, [])
+   240→
+   241→  // ----- quick actions -----
+   242→  const quickActions = useMemo(
+   243→    () => [
+   244→      {
+   245→        label: "New Booking",
+   246→        icon: Plus,
+   247→        view: "bookings" as const,
+   248→        tint: "from-emerald-500 to-teal-600",
+   249→      },
+   250→      {
+   251→        label: "Verify Payments",
+   252→        icon: ShieldCheck,
+   253→        view: "payments" as const,
+   254→        tint: "from-amber-500 to-orange-600",
+   255→      },
+   256→      {
+   257→        label: "Send Broadcast",
+   258→        icon: Megaphone,
+   259→        view: "campaigns" as const,
+   260→        tint: "from-rose-500 to-pink-600",
+   261→      },
+   262→      {
+   263→        label: "Open Inbox",
+   264→        icon: Inbox,
+   265→        view: "inbox" as const,
+   266→        tint: "from-teal-500 to-cyan-600",
+   267→      },
+   268→    ],
+   269→    []
+   270→  )
+   271→
+   272→  // ----- KPI card defs -----
+   273→  const kpiCards = useMemo(() => {
+   274→    if (!data) return []
+   275→    const k = data.kpis
+   276→    const rev7d = data.revenueByDay.reduce((s, d) => s + d.revenue, 0)
+   277→    const orders7d = data.revenueByDay.reduce((s, d) => s + d.orders, 0)
+   278→    const avgOrder = k.totalOrders > 0 ? k.totalRevenue / k.totalOrders : 0
+   279→
+   280→    return [
+   281→      {
+   282→        key: "revenue",
+   283→        label: "Total Revenue",
+   284→        value: formatCurrency(k.totalRevenue),
+   285→        icon: Wallet,
+   286→        sub: `${formatCurrency(rev7d)} last 7 days`,
+   287→        gradient: "from-emerald-500 to-teal-600",
+   288→        ring: "ring-emerald-200/60",
+   289→        glow: "shadow-emerald-500/20",
+   290→        trend: { dir: "up" as const, text: `+${orders7d} orders` },
+   291→        onClick: () => setView("reports"),
+   292→      },
+   293→      {
+   294→        key: "orders",
+   295→        label: "Total Orders",
+   296→        value: k.totalOrders.toLocaleString(),
+   297→        icon: ShoppingBag,
+   298→        sub: `${k.confirmedOrders} confirmed · ${k.completedOrders} done`,
+   299→        gradient: "from-teal-500 to-cyan-600",
+   300→        ring: "ring-teal-200/60",
+   301→        glow: "shadow-teal-500/20",
+   302→        trend: { dir: "up" as const, text: `${orders7d} this week` },
+   303→        onClick: () => setView("bookings"),
+   304→      },
+   305→      {
+   306→        key: "pending",
+   307→        label: "Pending Verifications",
+   308→        value: k.pendingVerifications.toLocaleString(),
+   309→        icon: Clock,
+   310→        sub: k.pendingVerifications > 0 ? "Needs your attention" : "All clear",
+   311→        gradient: "from-amber-500 to-orange-600",
+   312→        ring: "ring-amber-200/60",
+   313→        glow: "shadow-amber-500/30",
+   314→        pulse: k.pendingVerifications > 0,
+   315→        trend:
+   316→          k.pendingVerifications > 0
+   317→            ? { dir: "down" as const, text: "Awaiting action" }
+   318→            : { dir: "up" as const, text: "On track" },
+   319→        onClick: () => setView("payments"),
+   320→      },
+   321→      {
+   322→        key: "chats",
+   323→        label: "Open Chats",
+   324→        value: k.openConversations.toLocaleString(),
+   325→        icon: MessageCircle,
+   326→        sub: "Conversations waiting",
+   327→        gradient: "from-rose-500 to-pink-600",
+   328→        ring: "ring-rose-200/60",
+   329→        glow: "shadow-rose-500/20",
+   330→        trend: { dir: "up" as const, text: "Live inbox" },
+   331→        onClick: () => setView("inbox"),
+   332→      },
+   333→      {
+   334→        key: "upcoming",
+   335→        label: "Upcoming Tours",
+   336→        value: k.upcomingTours.toLocaleString(),
+   337→        icon: Calendar,
+   338→        sub: `Next 24h · ${k.activeTours} active tours`,
+   339→        gradient: "from-emerald-600 to-green-700",
+   340→        ring: "ring-emerald-200/60",
+   341→        glow: "shadow-emerald-500/20",
+   342→        trend: { dir: "up" as const, text: "Scheduled" },
+   343→        onClick: () => setView("tours"),
+   344→      },
+   345→    ]
+   346→  }, [data, setView])
+   347→
+   348→  return (
+   349→    <div className="min-h-screen bg-stone-50/60">
+   350→      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+   351→        {/* ========================================================
+   352→            WELCOME HEADER + QUICK ACTIONS
+   353→        ======================================================== */}
+   354→        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+   355→          <div className="flex items-start gap-4">
+   356→            <Avatar className="h-12 w-12 border-2 border-emerald-200 shadow-sm sm:h-14 sm:w-14">
+   357→              <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-base font-bold text-white sm:text-lg">
+   358→                AH
+   359→              </AvatarFallback>
+   360→            </Avatar>
+   361→            <div>
+   362→              <h1 className="text-xl font-bold tracking-tight text-stone-900 sm:text-2xl">
+   363→                Welcome back, Ahmed{" "}
+   364→                <span className="inline-block animate-pulse">👋</span>
+   365→              </h1>
+   366→              <p className="mt-0.5 text-sm text-stone-500">
+   367→                {now.toLocaleDateString("en-US", {
+   368→                  weekday: "long",
+   369→                  year: "numeric",
+   370→                  month: "long",
+   371→                  day: "numeric",
+   372→                })}
+   373→                <span className="mx-2 text-stone-300">•</span>
+   374→                <span className="tabular-nums font-medium text-emerald-700">
+   375→                  {now.toLocaleTimeString("en-US", {
+   376→                    hour: "2-digit",
+   377→                    minute: "2-digit",
+   378→                    second: "2-digit",
+   379→                    hour12: true,
+   380→                  })}
+   381→                </span>
+   382→                <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+   383→                  <span className="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+   384→                  Live
+   385→                </span>
+   386→              </p>
+   387→            </div>
+   388→          </div>
+   389→
+   390→          {/* Quick actions */}
+   391→          <div className="flex flex-wrap items-center gap-2">
+   392→            {quickActions.map((qa) => {
+   393→              const Icon = qa.icon
+   394→              return (
+   395→                <Button
+   396→                  key={qa.label}
+   397→                  onClick={() => setView(qa.view)}
+   398→                  className={cn(
+   399→                    "group h-10 gap-2 rounded-xl bg-gradient-to-r text-white shadow-sm transition-all hover:shadow-md",
+   400→                    qa.tint
+   401→                  )}
+   402→                >
+   403→                  <Icon className="h-4 w-4" />
+   404→                  <span className="text-sm font-medium">{qa.label}</span>
+   405→                  <ArrowRight className="h-3.5 w-3.5 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+   406→                </Button>
+   407→              )
+   408→            })}
+   409→          </div>
+   410→        </header>
+   411→
+   412→        {/* Error banner */}
+   413→        {error && !loading && (
+   414→          <div className="mb-6 flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+   415→            <AlertCircle className="h-5 w-5 shrink-0" />
+   416→            <span className="font-medium">{error}</span>
+   417→            <Button
+   418→              size="sm"
+   419→              variant="outline"
+   420→              className="ml-auto border-rose-200 bg-white text-rose-700 hover:bg-rose-100"
+   421→              onClick={() => {
+   422→                setLoading(true)
+   423→                fetchData()
+   424→              }}
+   425→            >
+   426→              Retry
+   427→            </Button>
+   428→          </div>
+   429→        )}
+   430→
+   431→        {/* ========================================================
+   432→            ROW 1 — KPI CARDS
+   433→        ======================================================== */}
+   434→        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+   435→          {loading
+   436→            ? Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
+   437→            : kpiCards.map((card) => <KpiCard key={card.key} {...card} />)}
+   438→        </section>
+   439→
+   440→        {/* ========================================================
+   441→            ROW 2 — REVENUE CHART + CHANNEL DONUT
+   442→        ======================================================== */}
+   443→        <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+   444→          {/* Revenue chart — 2/3 */}
+   445→          <Card className="lg:col-span-2 overflow-hidden border-stone-200/80 py-0">
+   446→            <CardHeader className="flex flex-row items-start justify-between pb-2 pt-6">
+   447→              <div>
+   448→                <CardTitle className="flex items-center gap-2 text-base">
+   449→                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+   450→                  Revenue — Last 7 Days
+   451→                </CardTitle>
+   452→                <CardDescription className="mt-1">
+   453→                  Confirmed + completed order revenue by day
+   454→                </CardDescription>
+   455→              </div>
+   456→              {data && (
+   457→                <div className="text-right">
+   458→                  <div className="text-lg font-bold text-stone-900">
+   459→                    {formatCurrency(
+   460→                      data.revenueByDay.reduce((s, d) => s + d.revenue, 0)
+   461→                    )}
+   462→                  </div>
+   463→                  <div className="text-xs text-stone-500">
+   464→                    {data.revenueByDay.reduce((s, d) => s + d.orders, 0)} orders
+   465→                  </div>
+   466→                </div>
+   467→              )}
+   468→            </CardHeader>
+   469→            <CardContent className="px-2 pb-4 pt-2 sm:px-6">
+   470→              {loading ? (
+   471→                <Skeleton className="h-[260px] w-full rounded-lg" />
+   472→              ) : data && data.revenueByDay.length > 0 ? (
+   473→                <RevenueChart data={data.revenueByDay} />
+   474→              ) : (
+   475→                <EmptyChartState message="No revenue data yet" />
+   476→              )}
+   477→            </CardContent>
+   478→          </Card>
+   479→
+   480→          {/* Channel donut — 1/3 */}
+   481→          <Card className="overflow-hidden border-stone-200/80 py-0">
+   482→            <CardHeader className="pb-2 pt-6">
+   483→              <CardTitle className="flex items-center gap-2 text-base">
+   484→                <CircleDot className="h-4 w-4 text-teal-600" />
+   485→                Orders by Channel
+   486→              </CardTitle>
+   487→              <CardDescription>Distribution across platforms</CardDescription>
+   488→            </CardHeader>
+   489→            <CardContent className="px-2 pb-4 pt-2 sm:px-6">
+   490→              {loading ? (
+   491→                <Skeleton className="h-[260px] w-full rounded-lg" />
+   492→              ) : data && data.channelStats.length > 0 ? (
+   493→                <ChannelDonut data={data.channelStats} />
+   494→              ) : (
+   495→                <EmptyChartState message="No channel data yet" />
+   496→              )}
+   497→            </CardContent>
+   498→          </Card>
+   499→        </section>
+   500→
+   501→        {/* ========================================================
+   502→            ROW 3 — TOP TOURS + NOTIFICATIONS
+   503→        ======================================================== */}
+   504→        <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+   505→          {/* Top tours */}
+   506→          <Card className="overflow-hidden border-stone-200/80 py-0">
+   507→            <CardHeader className="flex flex-row items-center justify-between pb-3 pt-6">
+   508→              <div>
+   509→                <CardTitle className="flex items-center gap-2 text-base">
+   510→                  <Star className="h-4 w-4 text-amber-500" />
+   511→                  Top Performing Tours
+   512→                </CardTitle>
+   513→                <CardDescription>By booking count</CardDescription>
+   514→              </div>
+   515→              <Button
+   516→                variant="ghost"
+   517→                size="sm"
+   518→                className="text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+   519→                onClick={() => setView("tours")}
+   520→              >
+   521→                View all
+   522→                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+   523→              </Button>
+   524→            </CardHeader>
+   525→            <CardContent className="px-0 pb-3">
+   526→              {loading ? (
+   527→                <div className="space-y-2 px-6">
+   528→                  {Array.from({ length: 5 }).map((_, i) => (
+   529→                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   530→                  ))}
+   531→                </div>
+   532→              ) : data && data.topTours.length > 0 ? (
+   533→                <TopToursTable tours={data.topTours} />
+   534→              ) : (
+   535→                <div className="px-6 pb-6">
+   536→                  <EmptyChartState message="No tour bookings yet" />
+   537→                </div>
+   538→              )}
+   539→            </CardContent>
+   540→          </Card>
+   541→
+   542→          {/* Notifications */}
+   543→          <Card className="overflow-hidden border-stone-200/80 py-0">
+   544→            <CardHeader className="flex flex-row items-center justify-between pb-3 pt-6">
+   545→              <div>
+   546→                <CardTitle className="flex items-center gap-2 text-base">
+   547→                  <Bell className="h-4 w-4 text-rose-500" />
+   548→                  Recent Activity
+   549→                </CardTitle>
+   550→                <CardDescription>
+   551→                  Latest notifications & alerts
+   552→                </CardDescription>
+   553→              </div>
+   554→              {notifications.some((n) => !n.isRead) && (
+   555→                <Button
+   556→                  variant="ghost"
+   557→                  size="sm"
+   558→                  className="text-stone-600 hover:bg-stone-100"
+   559→                  onClick={markAllRead}
+   560→                >
+   561→                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+   562→                  Mark all read
+   563→                </Button>
+   564→              )}
+   565→            </CardHeader>
+   566→            <CardContent className="px-0 pb-3">
+   567→              {loading ? (
+   568→                <div className="space-y-2 px-6">
+   569→                  {Array.from({ length: 5 }).map((_, i) => (
+   570→                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
+   571→                  ))}
+   572→                </div>
+   573→              ) : notifications.length > 0 ? (
+   574→                <NotificationsFeed notifications={notifications} />
+   575→              ) : (
+   576→                <div className="px-6 pb-6">
+   577→                  <EmptyChartState
+   578→                    message="No notifications"
+   579→                    icon={<CheckCircle2 className="h-8 w-8 text-emerald-500" />}
+   580→                  />
+   581→                </div>
+   582→              )}
+   583→            </CardContent>
+   584→          </Card>
+   585→        </section>
+   586→
+   587→        {/* ========================================================
+   588→            ROW 4 — ORDER STATUS + PAYMENT METHODS
+   589→        ======================================================== */}
+   590→        <section className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+   591→          {/* Order status breakdown */}
+   592→          <Card className="overflow-hidden border-stone-200/80 py-0">
+   593→            <CardHeader className="pb-3 pt-6">
+   594→              <CardTitle className="flex items-center gap-2 text-base">
+   595→                <Activity className="h-4 w-4 text-emerald-600" />
+   596→                Order Status Breakdown
+   597→              </CardTitle>
+   598→              <CardDescription>
+   599→                Where orders stand in the funnel
+   600→              </CardDescription>
+   601→            </CardHeader>
+   602→            <CardContent className="px-6 pb-6 pt-2">
+   603→              {loading ? (
+   604→                <div className="space-y-3">
+   605→                  {Array.from({ length: 5 }).map((_, i) => (
+   606→                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+   607→                  ))}
+   608→                </div>
+   609→              ) : data && data.statusStats.length > 0 ? (
+   610→                <StatusBreakdown stats={data.statusStats} />
+   611→              ) : (
+   612→                <EmptyChartState message="No order data" />
+   613→              )}
+   614→            </CardContent>
+   615→          </Card>
+   616→
+   617→          {/* Payment method split */}
+   618→          <Card className="overflow-hidden border-stone-200/80 py-0">
+   619→            <CardHeader className="pb-3 pt-6">
+   620→              <CardTitle className="flex items-center gap-2 text-base">
+   621→                <CreditCard className="h-4 w-4 text-teal-600" />
+   622→                Payment Methods
+   623→              </CardTitle>
+   624→              <CardDescription>
+   625→                AmwalPay vs Bank Transfer distribution
+   626→              </CardDescription>
+   627→            </CardHeader>
+   628→            <CardContent className="px-6 pb-6 pt-2">
+   629→              {loading ? (
+   630→                <div className="grid grid-cols-2 gap-4">
+   631→                  {Array.from({ length: 2 }).map((_, i) => (
+   632→                    <Skeleton key={i} className="h-32 w-full rounded-lg" />
+   633→                  ))}
+   634→                </div>
+   635→              ) : data && data.paymentMethodStats.length > 0 ? (
+   636→                <PaymentMethodSplit stats={data.paymentMethodStats} />
+   637→              ) : (
+   638→                <EmptyChartState message="No payment data" />
+   639→              )}
+   640→            </CardContent>
+   641→          </Card>
+   642→        </section>
+   643→
+   644→        {/* Footer note */}
+   645→        <footer className="pb-6 pt-2 text-center text-xs text-stone-400">
+   646→          <span className="inline-flex items-center gap-1.5">
+   647→            <Sparkles className="h-3 w-3 text-emerald-500" />
+   648→            Oman Adventures Admin · Auto-refreshing every 30s
+   649→          </span>
+   650→        </footer>
+   651→      </div>
+   652→    </div>
+   653→  )
+   654→}
+   655→
+   656→// ============================================================
+   657→// KPI CARD
+   658→// ============================================================
+   659→interface KpiCardProps {
+   660→  label: string
+   661→  value: string
+   662→  sub: string
+   663→  icon: React.ComponentType<{ className?: string }>
+   664→  gradient: string
+   665→  ring: string
+   666→  glow: string
+   667→  trend: { dir: "up" | "down"; text: string }
+   668→  pulse?: boolean
+   669→  onClick: () => void
+   670→}
+   671→
+   672→function KpiCard({
+   673→  label,
+   674→  value,
+   675→  sub,
+   676→  icon: Icon,
+   677→  gradient,
+   678→  ring,
+   679→  glow,
+   680→  trend,
+   681→  pulse,
+   682→  onClick,
+   683→}: KpiCardProps) {
+   684→  const TrendIcon = trend.dir === "up" ? TrendingUp : TrendingDown
+   685→  const trendColor =
+   686→    trend.dir === "up" ? "text-emerald-600" : "text-amber-600"
+   687→  return (
+   688→    <button
+   689→      onClick={onClick}
+   690→      className={cn(
+   691→        "group relative w-full text-left",
+   692→        "transition-all duration-200 hover:-translate-y-0.5"
+   693→      )}
+   694→    >
+   695→      <Card
+   696→        className={cn(
+   697→          "h-full gap-0 border-stone-200/80 py-0 transition-all duration-200",
+   698→          "ring-1 ring-transparent hover:ring-2",
+   699→          ring,
+   700→          "hover:shadow-lg",
+   701→          glow,
+   702→          pulse && "border-amber-300"
+   703→        )}
+   704→      >
+   705→        <CardContent className="relative p-5">
+   706→          {/* Pulsing dot for pending verifications */}
+   707→          {pulse && (
+   708→            <span className="absolute right-4 top-4 flex h-3 w-3">
+   709→              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+   710→              <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500" />
+   711→            </span>
+   712→          )}
+   713→
+   714→          <div className="flex items-center gap-3">
+   715→            <div
+   716→              className={cn(
+   717→                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm",
+   718→                gradient
+   719→              )}
+   720→            >
+   721→              <Icon className="h-5 w-5" />
+   722→            </div>
+   723→            <div className="min-w-0 flex-1">
+   724→              <p className="truncate text-xs font-medium uppercase tracking-wide text-stone-500">
+   725→                {label}
+   726→              </p>
+   727→            </div>
+   728→          </div>
+   729→
+   730→          <div className="mt-4">
+   731→            <p className="text-2xl font-bold tracking-tight text-stone-900 sm:text-[1.75rem]">
+   732→              {value}
+   733→            </p>
+   734→            <div className="mt-1 flex items-center gap-1.5">
+   735→              <span
+   736→                className={cn(
+   737→                  "inline-flex items-center gap-0.5 text-xs font-medium",
+   738→                  trendColor
+   739→                )}
+   740→              >
+   741→                <TrendIcon className="h-3 w-3" />
+   742→                {trend.text}
+   743→              </span>
+   744→            </div>
+   745→            <p className="mt-1 truncate text-xs text-stone-500">{sub}</p>
+   746→          </div>
+   747→
+   748→          {/* Hover affordance */}
+   749→          <div className="mt-3 flex items-center gap-1 text-xs font-medium text-stone-400 opacity-0 transition-all group-hover:opacity-100">
+   750→            View details
+   751→            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+   752→          </div>
+   753→        </CardContent>
+   754→      </Card>
+   755→    </button>
+   756→  )
+   757→}
+   758→
+   759→function KpiCardSkeleton() {
+   760→  return (
+   761→    <Card className="h-full gap-0 border-stone-200/80 py-0">
+   762→      <CardContent className="p-5">
+   763→        <div className="flex items-center gap-3">
+   764→          <Skeleton className="h-11 w-11 rounded-xl" />
+   765→          <Skeleton className="h-3 w-20" />
+   766→        </div>
+   767→        <div className="mt-4">
+   768→          <Skeleton className="h-8 w-28" />
+   769→          <Skeleton className="mt-2 h-3 w-24" />
+   770→          <Skeleton className="mt-2 h-3 w-32" />
+   771→        </div>
+   772→      </CardContent>
+   773→    </Card>
+   774→  )
+   775→}
+   776→
+   777→// ============================================================
+   778→// REVENUE AREA CHART
+   779→// ============================================================
+   780→function RevenueChart({ data }: { data: RevenueByDay[] }) {
+   781→  const formatted = data.map((d) => ({
+   782→    ...d,
+   783→    revenueK: Number((d.revenue / 1000).toFixed(2)),
+   784→  }))
+   785→
+   786→  return (
+   787→    <div className="h-[260px] w-full">
+   788→      <ResponsiveContainer width="100%" height="100%">
+   789→        <AreaChart
+   790→          data={formatted}
+   791→          margin={{ top: 10, right: 12, left: -8, bottom: 0 }}
+   792→        >
+   793→          <defs>
+   794→            <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+   795→              <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+   796→              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+   797→            </linearGradient>
+   798→            <linearGradient id="revLine" x1="0" y1="0" x2="1" y2="0">
+   799→              <stop offset="0%" stopColor="#10b981" />
+   800→              <stop offset="100%" stopColor="#14b8a6" />
+   801→            </linearGradient>
+   802→          </defs>
+   803→          <CartesianGrid
+   804→            strokeDasharray="3 3"
+   805→            stroke="#e7e5e4"
+   806→            vertical={false}
+   807→          />
+   808→          <XAxis
+   809→            dataKey="label"
+   810→            tick={{ fill: "#78716c", fontSize: 12 }}
+   811→            axisLine={false}
+   812→            tickLine={false}
+   813→            dy={6}
+   814→          />
+   815→          <YAxis
+   816→            tick={{ fill: "#78716c", fontSize: 12 }}
+   817→            axisLine={false}
+   818→            tickLine={false}
+   819→            tickFormatter={(v) => `${v}k`}
+   820→            width={40}
+   821→          />
+   822→          <RTooltip
+   823→            cursor={{ stroke: "#10b981", strokeWidth: 1, strokeDasharray: "4 4" }}
+   824→            content={({ active, payload, label }) => {
+   825→              if (!active || !payload || !payload.length) return null
+   826→              const p = payload[0].payload as RevenueByDay
+   827→              return (
+   828→                <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-lg">
+   829→                  <div className="text-xs font-medium text-stone-500">
+   830→                    {label} · {p.date}
+   831→                  </div>
+   832→                  <div className="mt-1 text-sm font-bold text-emerald-700">
+   833→                    {formatCurrency(p.revenue)}
+   834→                  </div>
+   835→                  <div className="text-xs text-stone-500">
+   836→                    {p.orders} order{p.orders !== 1 ? "s" : ""}
+   837→                  </div>
+   838→                </div>
+   839→              )
+   840→            }}
+   841→          />
+   842→          <Area
+   843→            type="monotone"
+   844→            dataKey="revenueK"
+   845→            stroke="url(#revLine)"
+   846→            strokeWidth={2.5}
+   847→            fill="url(#revGrad)"
+   848→            dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
+   849→            activeDot={{ r: 5, fill: "#10b981", stroke: "#fff", strokeWidth: 2 }}
+   850→          />
+   851→        </AreaChart>
+   852→      </ResponsiveContainer>
+   853→    </div>
+   854→  )
+   855→}
+   856→
+   857→// ============================================================
+   858→// CHANNEL DONUT
+   859→// ============================================================
+   860→function ChannelDonut({ data }: { data: ChannelStat[] }) {
+   861→  const total = data.reduce((s, d) => s + d._count, 0)
+   862→  const chartData = data.map((d) => ({
+   863→    name: CHANNEL_LABELS[d.channel] || d.channel,
+   864→    value: d._count,
+   865→    revenue: d._sum.totalAmount || 0,
+   866→    channel: d.channel,
+   867→  }))
+   868→
+   869→  return (
+   870→    <div className="flex flex-col items-center">
+   871→      <div className="relative h-[180px] w-full">
+   872→        <ResponsiveContainer width="100%" height="100%">
+   873→          <PieChart>
+   874→            <Pie
+   875→              data={chartData}
+   876→              dataKey="value"
+   877→              nameKey="name"
+   878→              cx="50%"
+   879→              cy="50%"
+   880→              innerRadius={56}
+   881→              outerRadius={80}
+   882→              paddingAngle={2}
+   883→              stroke="none"
+   884→            >
+   885→              {chartData.map((entry, idx) => (
+   886→                <Cell
+   887→                  key={idx}
+   888→                  fill={CHANNEL_COLORS[entry.channel] || "#a8a29e"}
+   889→                />
+   890→              ))}
+   891→            </Pie>
+   892→            <RTooltip
+   893→              content={({ active, payload }) => {
+   894→                if (!active || !payload || !payload.length) return null
+   895→                const p = payload[0].payload as any
+   896→                const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0"
+   897→                return (
+   898→                  <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-lg">
+   899→                    <div className="text-sm font-semibold text-stone-900">
+   900→                      {p.name}
+   901→                    </div>
+   902→                    <div className="text-xs text-stone-500">
+   903→                      {p.value} orders · {pct}%
+   904→                    </div>
+   905→                    <div className="mt-0.5 text-xs font-medium text-emerald-700">
+   906→                      {formatCurrency(p.revenue)}
+   907→                    </div>
+   908→                  </div>
+   909→                )
+   910→              }}
+   911→            />
+   912→          </PieChart>
+   913→        </ResponsiveContainer>
+   914→        {/* Center label */}
+   915→        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+   916→          <span className="text-2xl font-bold text-stone-900">{total}</span>
+   917→          <span className="text-xs text-stone-500">Total orders</span>
+   918→        </div>
+   919→      </div>
+   920→
+   921→      {/* Legend */}
+   922→      <div className="mt-4 grid w-full grid-cols-2 gap-2">
+   923→        {chartData.map((entry) => {
+   924→          const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0"
+   925→          return (
+   926→            <div
+   927→              key={entry.channel}
+   928→              className="flex items-center gap-2 rounded-lg border border-stone-100 bg-stone-50/50 px-2.5 py-2"
+   929→            >
+   930→              <span
+   931→                className="h-2.5 w-2.5 shrink-0 rounded-full"
+   932→                style={{ backgroundColor: CHANNEL_COLORS[entry.channel] }}
+   933→              />
+   934→              <div className="min-w-0 flex-1">
+   935→                <div className="truncate text-xs font-medium text-stone-700">
+   936→                  {entry.name}
+   937→                </div>
+   938→                <div className="text-[11px] text-stone-500">
+   939→                  {entry.value} · {pct}%
+   940→                </div>
+   941→              </div>
+   942→            </div>
+   943→          )
+   944→        })}
+   945→      </div>
+   946→    </div>
+   947→  )
+   948→}
+   949→
+   950→// ============================================================
+   951→// TOP TOURS TABLE
+   952→// ============================================================
+   953→function TopToursTable({ tours }: { tours: TopTour[] }) {
+   954→  const maxCount = Math.max(...tours.map((t) => t._count), 1)
+   955→
+   956→  return (
+   957→    <ScrollArea className="max-h-[420px]">
+   958→      <div className="px-4 sm:px-6">
+   959→        {tours.map((t, idx) => {
+   960→          const tour = t.tour
+   961→          const initials = tour?.name
+   962→            ?.split(" ")
+   963→            .slice(0, 2)
+   964→            .map((w) => w[0])
+   965→            .join("")
+   966→            .toUpperCase()
+   967→          const pct = Math.round((t._count / maxCount) * 100)
+   968→          return (
+   969→            <div
+   970→              key={t.tourId}
+   971→              className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-stone-50"
+   972→            >
+   973→              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-xs font-bold text-white">
+   974→                {idx + 1}
+   975→              </div>
+   976→              <Avatar className="h-10 w-10 shrink-0 border border-stone-200">
+   977→                <AvatarFallback className="bg-stone-100 text-xs font-bold text-stone-700">
+   978→                  {initials || "T"}
+   979→                </AvatarFallback>
+   980→              </Avatar>
+   981→              <div className="min-w-0 flex-1">
+   982→                <div className="flex items-center gap-1.5">
+   983→                  <p className="truncate text-sm font-semibold text-stone-900">
+   984→                    {tour?.name || "Unknown tour"}
+   985→                  </p>
+   986→                  {tour?.featured && (
+   987→                    <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+   988→                  )}
+   989→                </div>
+   990→                <div className="mt-0.5 flex items-center gap-2 text-xs text-stone-500">
+   991→                  <span className="inline-flex items-center gap-0.5">
+   992→                    <MapPin className="h-3 w-3" />
+   993→                    {tour?.city || "—"}
+   994→                  </span>
+   995→                  {tour?.rating ? (
+   996→                    <span className="inline-flex items-center gap-0.5">
+   997→                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+   998→                      {tour.rating.toFixed(1)}
+   999→                    </span>
+  1000→                  ) : null}
+  1001→                </div>
+  1002→                {/* Progress bar */}
+  1003→                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
+  1004→                  <div
+  1005→                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+  1006→                    style={{ width: `${pct}%` }}
+  1007→                  />
+  1008→                </div>
+  1009→              </div>
+  1010→              <div className="shrink-0 text-right">
+  1011→                <div className="text-sm font-bold text-stone-900">
+  1012→                  {t._count}
+  1013→                </div>
+  1014→                <div className="text-[11px] text-stone-500">
+  1015→                  {t._sum.totalAmount ? formatCurrency(t._sum.totalAmount) : "—"}
+  1016→                </div>
+  1017→              </div>
+  1018→            </div>
+  1019→          )
+  1020→        })}
+  1021→      </div>
+  1022→    </ScrollArea>
+  1023→  )
+  1024→}
+  1025→
+  1026→// ============================================================
+  1027→// NOTIFICATIONS FEED
+  1028→// ============================================================
+  1029→const NOTIF_META: Record<
+  1030→  string,
+  1031→  { icon: React.ComponentType<{ className?: string }>; tint: string }
+  1032→> = {
+  1033→  PAYMENT_SUBMITTED: { icon: AlertCircle, tint: "bg-amber-100 text-amber-700" },
+  1034→  PAYMENT_APPROVED: { icon: CheckCircle2, tint: "bg-emerald-100 text-emerald-700" },
+  1035→  PAYMENT_REJECTED: { icon: AlertCircle, tint: "bg-rose-100 text-rose-700" },
+  1036→  NEW_BOOKING: { icon: Gift, tint: "bg-teal-100 text-teal-700" },
+  1037→  LOW_CAPACITY: { icon: Activity, tint: "bg-amber-100 text-amber-700" },
+  1038→  SLA_BREACH: { icon: Clock, tint: "bg-rose-100 text-rose-700" },
+  1039→  NEW_CONVERSATION: { icon: MessageCircle, tint: "bg-teal-100 text-teal-700" },
+  1040→  NEW_CUSTOMER: { icon: Users, tint: "bg-emerald-100 text-emerald-700" },
+  1041→  NEW_REVIEW: { icon: Star, tint: "bg-amber-100 text-amber-700" },
+  1042→  CAMPAIGN_SENT: { icon: Megaphone, tint: "bg-rose-100 text-rose-700" },
+  1043→  TOUR_TOMORROW: { icon: CalendarClock, tint: "bg-emerald-100 text-emerald-700" },
+  1044→  DEFAULT: { icon: Bell, tint: "bg-stone-100 text-stone-700" },
+  1045→}
+  1046→
+  1047→function NotificationsFeed({ notifications }: { notifications: Notification[] }) {
+  1048→  return (
+  1049→    <ScrollArea className="max-h-[420px]">
+  1050→      <div className="space-y-1 px-4 sm:px-6">
+  1051→        {notifications.slice(0, 20).map((n) => {
+  1052→          const meta = NOTIF_META[n.type] || NOTIF_META.DEFAULT
+  1053→          const Icon = meta.icon
+  1054→          return (
+  1055→            <div
+  1056→              key={n.id}
+  1057→              className={cn(
+  1058→                "group flex items-start gap-3 rounded-lg border-l-2 px-3 py-2.5 transition-colors hover:bg-stone-50",
+  1059→                n.isRead
+  1060→                  ? "border-transparent"
+  1061→                  : "border-emerald-400 bg-emerald-50/40"
+  1062→              )}
+  1063→            >
+  1064→              <div
+  1065→                className={cn(
+  1066→                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+  1067→                  meta.tint
+  1068→                )}
+  1069→              >
+  1070→                <Icon className="h-4 w-4" />
+  1071→              </div>
+  1072→              <div className="min-w-0 flex-1">
+  1073→                <div className="flex items-start justify-between gap-2">
+  1074→                  <p
+  1075→                    className={cn(
+  1076→                      "truncate text-sm",
+  1077→                      n.isRead
+  1078→                        ? "font-medium text-stone-700"
+  1079→                        : "font-semibold text-stone-900"
+  1080→                    )}
+  1081→                  >
+  1082→                    {n.title}
+  1083→                  </p>
+  1084→                  <span className="shrink-0 text-[11px] tabular-nums text-stone-400">
+  1085→                    {timeAgo(n.createdAt)}
+  1086→                  </span>
+  1087→                </div>
+  1088→                <p className="mt-0.5 line-clamp-2 text-xs text-stone-500">
+  1089→                  {n.message}
+  1090→                </p>
+  1091→              </div>
+  1092→              {!n.isRead && (
+  1093→                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+  1094→              )}
+  1095→            </div>
+  1096→          )
+  1097→        })}
+  1098→      </div>
+  1099→    </ScrollArea>
+  1100→  )
+  1101→}
+  1102→
+  1103→// ============================================================
+  1104→// ORDER STATUS BREAKDOWN
+  1105→// ============================================================
+  1106→function StatusBreakdown({ stats }: { stats: StatusStat[] }) {
+  1107→  const total = stats.reduce((s, x) => s + x._count, 0)
+  1108→  // Sort by count desc
+  1109→  const sorted = [...stats].sort((a, b) => b._count - a._count)
+  1110→
+  1111→  return (
+  1112→    <div className="space-y-3">
+  1113→      {sorted.map((s) => {
+  1114→        const pct = total > 0 ? Math.round((s._count / total) * 100) : 0
+  1115→        const color = STATUS_COLORS[s.orderStatus] || "#a8a29e"
+  1116→        return (
+  1117→          <div key={s.orderStatus}>
+  1118→            <div className="mb-1 flex items-center justify-between text-sm">
+  1119→              <div className="flex items-center gap-2">
+  1120→                <span
+  1121→                  className="h-2.5 w-2.5 rounded-full"
+  1122→                  style={{ backgroundColor: color }}
+  1123→                />
+  1124→                <span className="font-medium text-stone-700">
+  1125→                  {prettifyStatus(s.orderStatus)}
+  1126→                </span>
+  1127→              </div>
+  1128→              <div className="flex items-center gap-2">
+  1129→                <span className="font-semibold text-stone-900">{s._count}</span>
+  1130→                <span className="text-xs text-stone-400">({pct}%)</span>
+  1131→              </div>
+  1132→            </div>
+  1133→            <div className="h-2.5 w-full overflow-hidden rounded-full bg-stone-100">
+  1134→              <div
+  1135→                className="h-full rounded-full transition-all duration-500"
+  1136→                style={{
+  1137→                  width: `${pct}%`,
+  1138→                  backgroundColor: color,
+  1139→                }}
+  1140→              />
+  1141→            </div>
+  1142→          </div>
+  1143→        )
+  1144→      })}
+  1145→      <Separator className="my-2" />
+  1146→      <div className="flex items-center justify-between text-xs text-stone-500">
+  1147→        <span>Total orders</span>
+  1148→        <span className="font-semibold text-stone-900">{total}</span>
+  1149→      </div>
+  1150→    </div>
+  1151→  )
+  1152→}
+  1153→
+  1154→// ============================================================
+  1155→// PAYMENT METHOD SPLIT
+  1156→// ============================================================
+  1157→function PaymentMethodSplit({ stats }: { stats: PaymentMethodStat[] }) {
+  1158→  const total = stats.reduce((s, x) => s + x._count, 0)
+  1159→  const totalAmount = stats.reduce((s, x) => s + (x._sum.amount || 0), 0)
+  1160→
+  1161→  const methodMeta: Record<
+  1162→    string,
+  1163→    { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string }
+  1164→  > = {
+  1165→    AMWALPAY: {
+  1166→      label: "AmwalPay",
+  1167→      icon: CreditCard,
+  1168→      color: "#10b981",
+  1169→      bg: "from-emerald-500 to-teal-600",
+  1170→    },
+  1171→    BANK_TRANSFER: {
+  1172→      label: "Bank Transfer",
+  1173→      icon: Landmark,
+  1174→      color: "#14b8a6",
+  1175→      bg: "from-teal-500 to-cyan-600",
+  1176→    },
+  1177→  }
+  1178→
+  1179→  return (
+  1180→    <div>
+  1181→      <div className="grid grid-cols-2 gap-4">
+  1182→        {stats.map((s) => {
+  1183→          const meta = methodMeta[s.method] || {
+  1184→            label: prettifyStatus(s.method),
+  1185→            icon: CreditCard,
+  1186→            color: "#a8a29e",
+  1187→            bg: "from-stone-500 to-stone-700",
+  1188→          }
+  1189→          const Icon = meta.icon
+  1190→          const pct = total > 0 ? Math.round((s._count / total) * 100) : 0
+  1191→          return (
+  1192→            <div
+  1193→              key={s.method}
+  1194→              className="relative overflow-hidden rounded-xl border border-stone-200/80 bg-white p-4"
+  1195→            >
+  1196→              <div className="flex items-center justify-between">
+  1197→                <div
+  1198→                  className={cn(
+  1199→                    "flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm",
+  1200→                    meta.bg
+  1201→                  )}
+  1202→                >
+  1203→                  <Icon className="h-5 w-5" />
+  1204→                </div>
+  1205→                <span
+  1206→                  className="rounded-full px-2 py-0.5 text-xs font-bold"
+  1207→                  style={{
+  1208→                    backgroundColor: `${meta.color}20`,
+  1209→                    color: meta.color,
+  1210→                  }}
+  1211→                >
+  1212→                  {pct}%
+  1213→                </span>
+  1214→              </div>
+  1215→              <div className="mt-3">
+  1216→                <div className="text-xs font-medium uppercase tracking-wide text-stone-500">
+  1217→                  {meta.label}
+  1218→                </div>
+  1219→                <div className="mt-0.5 text-xl font-bold text-stone-900">
+  1220→                  {s._count}
+  1221→                </div>
+  1222→                <div className="text-xs text-stone-500">
+  1223→                  {formatCurrency(s._sum.amount || 0)}
+  1224→                </div>
+  1225→              </div>
+  1226→            </div>
+  1227→          )
+  1228→        })}
+  1229→      </div>
+  1230→
+  1231→      {/* Combined bar */}
+  1232→      <div className="mt-4">
+  1233→        <div className="mb-1.5 flex items-center justify-between text-xs text-stone-500">
+  1234→          <span>Distribution</span>
+  1235→          <span>
+  1236→            {total} payments · {formatCurrency(totalAmount)}
+  1237→          </span>
+  1238→        </div>
+  1239→        <div className="flex h-3 w-full overflow-hidden rounded-full bg-stone-100">
+  1240→          {stats.map((s) => {
+  1241→            const meta = methodMeta[s.method] || { color: "#a8a29e" }
+  1242→            const pct = total > 0 ? (s._count / total) * 100 : 0
+  1243→            return (
+  1244→              <TooltipProvider key={s.method}>
+  1245→                <Tooltip>
+  1246→                  <TooltipTrigger asChild>
+  1247→                    <div
+  1248→                      style={{
+  1249→                        width: `${pct}%`,
+  1250→                        backgroundColor: meta.color,
+  1251→                      }}
+  1252→                      className="h-full transition-all duration-500"
+  1253→                    />
+  1254→                  </TooltipTrigger>
+  1255→                  <TooltipContent>
+  1256→                    <div className="text-xs">
+  1257→                      <div className="font-semibold">{meta.label}</div>
+  1258→                      <div className="text-stone-400">
+  1259→                        {s._count} payments · {pct.toFixed(1)}%
+  1260→                      </div>
+  1261→                    </div>
+  1262→                  </TooltipContent>
+  1263→                </Tooltip>
+  1264→              </TooltipProvider>
+  1265→            )
+  1266→          })}
+  1267→        </div>
+  1268→      </div>
+  1269→    </div>
+  1270→  )
+  1271→}
+  1272→
+  1273→// ============================================================
+  1274→// EMPTY CHART STATE
+  1275→// ============================================================
+  1276→function EmptyChartState({
+  1277→  message,
+  1278→  icon,
+  1279→}: {
+  1280→  message: string
+  1281→  icon?: React.ReactNode
+  1282→}) {
+  1283→  return (
+  1284→    <div className="flex h-[200px] w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-stone-200 bg-stone-50/50">
+  1285→      {icon || <Activity className="h-8 w-8 text-stone-300" />}
+  1286→      <p className="text-sm text-stone-400">{message}</p>
+  1287→    </div>
+  1288→  )
+  1289→}
+  1290→

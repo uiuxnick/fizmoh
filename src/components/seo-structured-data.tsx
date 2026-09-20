@@ -1,3 +1,4 @@
+import { SUPPORT_PHONE } from "@/lib/platform-support"
 import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 
 export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: boolean } = {}) {
@@ -23,7 +24,7 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
         contactPoint: [
           {
             "@type": "ContactPoint",
-            telephone: "+968-78836104",
+            telephone: SUPPORT_PHONE,
             contactType: "customer service",
             areaServed: ["OM", "AE", "SA", "QA", "KW", "BH"],
             availableLanguage: ["English", "Arabic"],
@@ -42,11 +43,6 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
         url: SITE_URL,
         name: SITE_NAME,
         publisher: { "@id": `${SITE_URL}/#organization` },
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${SITE_URL}/blog?q={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
         inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
       },
     ]

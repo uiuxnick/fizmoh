@@ -6,6 +6,7 @@ import { currentTenant } from "@/lib/tenant"
 import { startOfDay, endOfDay, format } from "date-fns"
 import { nanoid } from "nanoid"
 import { sendHospitalBookingUpdate } from "@/lib/vertical-whatsapp"
+import { canReadPatient } from "@/lib/hospital-patient-access"
 
 export const GET = withErrors(async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
@@ -40,6 +41,7 @@ export const POST = withErrors(async (req: NextRequest) => {
     db.hospDoctor.findFirst({ where: { id: doctorId, tenantId, isActive: true } }),
   ])
   if (!patient || !doctor) return NextResponse.json({ error: "Patient or doctor not found" }, { status: 404 })
+  if (!await canReadPatient(req, tenantId, patient.mobile)) return NextResponse.json({ error: "Verify the patient's registered mobile number first" }, { status: 401 })
 
   const date = new Date(appointmentDate)
   if (Number.isNaN(date.getTime())) return NextResponse.json({ error: "Invalid appointment date" }, { status: 400 })

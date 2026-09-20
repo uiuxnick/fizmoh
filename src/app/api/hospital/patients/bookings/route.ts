@@ -2,6 +2,8 @@ import { withErrors } from "@/lib/api-handler"
 import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { canReadPatient } from "@/lib/hospital-patient-access"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 /** Public patient lookup for the booking portal. Only exact MRN + mobile
  * matches are accepted, and the response contains booking details rather than
@@ -12,6 +14,9 @@ export const POST = withErrors(async (req: NextRequest) => {
   const mrn = String(body.mrn || "").trim()
   const mobile = String(body.mobile || "").trim()
   if (!mrn || !mobile) return NextResponse.json({ error: "MRN and mobile are required" }, { status: 400 })
+  const rate = await checkRateLimit(`patient-bookings:${requestIp(req.headers)}`, 10, 60_000)
+  if (!rate.allowed) return NextResponse.json({ error: "Please try again later" }, { status: 429 })
+  if (!await canReadPatient(req, tenantId, mobile)) return NextResponse.json({ error: "Verify your registered mobile number first" }, { status: 401 })
 
   const patient = await db.hospPatient.findFirst({ where: { tenantId, mrn, mobile }, select: { id: true } })
   if (!patient) return NextResponse.json({ found: false, bookings: [] })

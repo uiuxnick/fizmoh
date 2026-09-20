@@ -1,0 +1,26 @@
+- generic [ref=f5e1]:
+  - heading "Local support verification" [level=1] [ref=f5e2]
+  - generic [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - generic [ref=f5e5]: F
+      - generic [ref=f5e8]:
+        - generic [ref=f5e9]: Fizmoh Support
+        - generic [ref=f5e10]: AI & platform support team
+        - generic [ref=f5e12]: AI help · Human support on request
+      - button "✕" [ref=f5e14] [cursor=pointer]
+    - generic [ref=f5e15]:
+      - button "💬 Web Live Chat" [ref=f5e16] [cursor=pointer]
+      - button "WhatsApp" [ref=f5e17] [cursor=pointer]
+    - generic [ref=f5e21]:
+      - generic [ref=f5e22]: Welcome to Live Support 👋
+      - generic [ref=f5e23]: Please introduce yourself to start chatting
+      - textbox "Your name" [ref=f5e24]:
+        - /placeholder: Your Name
+        - text: Local Support Test
+      - textbox "Phone number with country code" [ref=f5e25]:
+        - /placeholder: Phone with country code, e.g. +96898314456
+        - text: "+96898314456"
+      - alert
+      - button "Start AI chat" [ref=f5e26] [cursor=pointer]
+      - button "Create a support ticket" [ref=f5e27] [cursor=pointer]
+      - generic [ref=f5e28]: Your name and number are shared with the platform support team. Do not send passwords or verification codes.

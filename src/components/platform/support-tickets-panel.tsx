@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { toast } from "sonner"
 import {
   Loader2, Search, Headphones, AlertTriangle, Send, Plus,
@@ -43,7 +43,9 @@ interface Ticket {
   replies?: Reply[]
 }
 
-export function SupportTicketsPanel() {
+export function SupportTicketsPanel({ liveOnly = false }: { liveOnly?: boolean }) {
+  const listSequence = useRef(0)
+  const [total, setTotal] = useState(0)
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [tenants, setTenants] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,31 +69,37 @@ export function SupportTicketsPanel() {
   const [newTenantId, setNewTenantId] = useState("")
   const [newChannel, setNewChannel] = useState("PLATFORM")
 
-  const loadTickets = async () => {
-    setLoading(true)
+  const loadTickets = async (silent = false) => {
+    const sequence = ++listSequence.current
+    if (!silent) setLoading(true)
     try {
-      const res = await fetch(`/api/platform/support/tickets?page=${page}&limit=50`)
+      const query = new URLSearchParams({ page: String(page), limit: "50", status: statusFilter, priority: priorityFilter, search, ...(liveOnly ? { mode: "live" } : {}) })
+      const res = await fetch(`/api/platform/support/tickets?${query}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       const list = Array.isArray(data.tickets) ? data.tickets : Array.isArray(data) ? data : []
-      setTickets(list)
+      if (sequence === listSequence.current) { setTickets(list); setTotal(data.total || 0) }
     } catch {
-      setTickets([])
-      toast.error("Failed to load tickets")
+      if (!silent && sequence === listSequence.current) toast.error("Failed to load tickets")
     } finally {
-      setLoading(false)
+      if (sequence === listSequence.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadTickets()
+    const timer = setTimeout(() => loadTickets(), 250)
+    const poll = setInterval(() => { if (!document.hidden) loadTickets(true) }, 10000)
+    return () => { clearTimeout(timer); clearInterval(poll); listSequence.current++ }
+  }, [page, search, statusFilter, priorityFilter, liveOnly])
+
+  useEffect(() => {
     fetch("/api/platform/tenants")
       .then(r => r.json())
       .then(d => {
         if (Array.isArray(d.tenants)) setTenants(d.tenants.map((t: any) => ({ id: t.id, name: t.name })))
       })
       .catch(() => {})
-  }, [page])
+  }, [])
 
   const openTicketDetail = async (ticket: Ticket) => {
     setSelectedTicket(ticket)
@@ -101,7 +109,7 @@ export function SupportTicketsPanel() {
       if (res.ok) {
         const data = await res.json()
         if (data.ticket) {
-          setSelectedTicket(data.ticket)
+          setSelectedTicket(previous => previous?.id === ticket.id ? data.ticket : previous)
         }
       }
     } catch {
@@ -110,6 +118,22 @@ export function SupportTicketsPanel() {
       setFetchingDetail(false)
     }
   }
+
+  useEffect(() => {
+    const id = selectedTicket?.id
+    if (!id) return
+    let active = true
+    const timer = setInterval(async () => {
+      if (document.hidden || sendingReply || updatingStatus) return
+      try {
+        const res = await fetch(`/api/platform/support/tickets/${id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (active && data.ticket) setSelectedTicket(previous => previous?.id === id ? data.ticket : previous)
+      } catch { /* A transient disconnect keeps the transcript and reply draft. */ }
+    }, 4000)
+    return () => { active = false; clearInterval(timer) }
+  }, [selectedTicket?.id, sendingReply, updatingStatus])
 
   const handleSendReply = async () => {
     if (!selectedTicket || !replyText.trim()) return
@@ -135,7 +159,7 @@ export function SupportTicketsPanel() {
     }
   }
 
-  const handleUpdateTicket = async (updates: Partial<Ticket>) => {
+  const handleUpdateTicket = async (updates: Partial<Ticket> & { claim?: boolean }) => {
     if (!selectedTicket) return
     setUpdatingStatus(true)
     try {
@@ -146,7 +170,8 @@ export function SupportTicketsPanel() {
       })
       if (!res.ok) throw new Error()
       toast.success("Ticket updated")
-      setSelectedTicket(prev => prev ? { ...prev, ...updates } : null)
+      const data = await res.json()
+      setSelectedTicket(prev => prev?.id === selectedTicket.id ? { ...prev, ...data.ticket } : prev)
       await loadTickets()
     } catch {
       toast.error("Failed to update ticket")
@@ -220,16 +245,16 @@ export function SupportTicketsPanel() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-stone-900">Support Tickets</h2>
+          <h2 className="text-xl font-black text-stone-900">{liveOnly ? "Website Live Support" : "Support Tickets"}</h2>
           <p className="text-xs text-stone-500 mt-0.5">
-            Manage customer support inquiries, assign tickets, and communicate with tenants.
+            Manage tickets and website chats. Replies refresh automatically; a public reply takes over from AI.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
-            onClick={loadTickets}
+            onClick={() => loadTickets()}
             disabled={loading}
             className="text-xs rounded-xl h-9 gap-1.5"
           >
@@ -260,7 +285,7 @@ export function SupportTicketsPanel() {
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
-          <div className="text-xs font-bold text-stone-500">Waiting for Tenant</div>
+          <div className="text-xs font-bold text-stone-500">{liveOnly ? "Waiting for Support" : "Waiting"}</div>
           <div className="text-xl font-black text-amber-700 mt-1">
             {safeTickets.filter(t => t.status === "WAITING").length}
           </div>
@@ -282,13 +307,13 @@ export function SupportTicketsPanel() {
             <Input
               placeholder="Search by ticket reference (e.g. FZ-0001) or subject..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1) }}
               className="pl-8 h-9 text-xs rounded-xl bg-white border-stone-200"
             />
           </div>
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
+            onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
             className="h-9 px-3 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-700 w-full sm:w-auto"
           >
             <option value="ALL">All Statuses</option>
@@ -300,7 +325,7 @@ export function SupportTicketsPanel() {
           </select>
           <select
             value={priorityFilter}
-            onChange={e => setPriorityFilter(e.target.value)}
+            onChange={e => { setPriorityFilter(e.target.value); setPage(1) }}
             className="h-9 px-3 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-700 w-full sm:w-auto"
           >
             <option value="ALL">All Priorities</option>
@@ -378,6 +403,14 @@ export function SupportTicketsPanel() {
         )}
       </div>
 
+      <div className="flex items-center justify-between text-xs text-stone-600">
+        <span>{total} requests · Page {page}</span>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled={loading || page === 1} onClick={() => setPage(page - 1)}>Previous</Button>
+          <Button variant="outline" disabled={loading || page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+      </div>
+
       {/* Ticket View & Edit Dialog */}
       {selectedTicket && (
         <Dialog open={!!selectedTicket} onOpenChange={open => !open && setSelectedTicket(null)}>
@@ -393,6 +426,9 @@ export function SupportTicketsPanel() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {selectedTicket.tenantId === null && ["LIVE_CHAT", "WEBSITE"].includes(selectedTicket.channel) && !["RESOLVED", "CLOSED"].includes(selectedTicket.status) && (
+                    <Button size="sm" disabled={updatingStatus} onClick={() => handleUpdateTicket({ status: "IN_PROGRESS", claim: true })}>Take over chat</Button>
+                  )}
                   <select
                     value={selectedTicket.status}
                     onChange={e => handleUpdateTicket({ status: e.target.value })}
@@ -486,12 +522,12 @@ export function SupportTicketsPanel() {
                     onChange={e => setIsInternalReply(e.target.checked)}
                     className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
                   />
-                  <span className="text-[11px] font-semibold text-amber-800">Internal operator note (hidden from tenant)</span>
+                  <span className="text-[11px] font-semibold text-amber-800">Internal note (hidden from visitor and tenant)</span>
                 </label>
               </div>
               <div className="flex gap-2">
                 <Input
-                  placeholder={isInternalReply ? "Write an internal note..." : "Write a response to the tenant..."}
+                  placeholder={isInternalReply ? "Write an internal note..." : "Write a response..."}
                   value={replyText}
                   onChange={e => setReplyText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply() } }}

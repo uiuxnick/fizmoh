@@ -1,0 +1,123 @@
+- generic:
+  - generic [aria-hidden]:
+    - generic:
+      - generic:
+        - generic:
+          - heading [level=2]: Website Live Support
+          - paragraph: Manage tickets and website chats. Replies refresh automatically; a public reply takes over from AI.
+        - generic:
+          - button: Refresh
+          - button: Create Ticket
+      - generic:
+        - generic:
+          - generic: Open Tickets
+          - generic: "1"
+        - generic:
+          - generic: In Progress
+          - generic: "0"
+        - generic:
+          - generic: Waiting for Tenant
+          - generic: "0"
+        - generic:
+          - generic: Resolved
+          - generic: "0"
+      - generic:
+        - generic:
+          - generic:
+            - textbox:
+              - /placeholder: Search by ticket reference (e.g. FZ-0001) or subject...
+          - combobox
+          - combobox
+        - generic:
+          - table:
+            - rowgroup:
+              - row:
+                - columnheader: Reference
+                - columnheader: Subject
+                - columnheader: Workspace / Tenant
+                - columnheader: Priority
+                - columnheader: Status
+                - columnheader: Channel
+                - columnheader: Created
+                - columnheader: Actions
+            - rowgroup:
+              - row:
+                - cell: FZ-LOCAL-TEST
+                - cell: Website chat — Local Support Test
+                - cell: Platform Global
+                - cell:
+                  - generic: MEDIUM
+                - cell:
+                  - generic: OPEN
+                - cell: LIVE_CHAT
+                - cell: 10 Sept, 12:54
+                - cell:
+                  - button: View & Reply
+      - generic:
+        - generic: 1 requests Â· Page 1
+        - generic:
+          - button [disabled]: Previous
+          - button [disabled]: Next
+  - dialog [active] [ref=e65]:
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: FZ-LOCAL-TEST
+          - generic [ref=e70]: MEDIUM
+        - generic [ref=e71]:
+          - button "Take over chat" [ref=e72]
+          - combobox [ref=e73]:
+            - 'option "Status: OPEN"'
+            - 'option "Status: IN PROGRESS" [selected]'
+            - 'option "Status: WAITING"'
+            - 'option "Status: RESOLVED"'
+            - 'option "Status: CLOSED"'
+          - combobox [ref=e74]:
+            - 'option "Priority: LOW"'
+            - 'option "Priority: MEDIUM" [selected]'
+            - 'option "Priority: HIGH"'
+            - 'option "Priority: URGENT"'
+      - heading "Website chat — Local Support Test" [level=2] [ref=e75]
+      - paragraph [ref=e76]:
+        - generic [ref=e77]:
+          - text: "Workspace:"
+          - strong [ref=e78]: Global Platform
+        - generic [ref=e79]: "Created: 9/10/2026, 12:54:05 PM"
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - generic [ref=e83]: Initial Request
+          - generic [ref=e87]: 9/10/2026, 12:54:05 PM
+        - paragraph [ref=e88]: "Name: Local Support Test Phone: +96898314456"
+      - generic [ref=e89]:
+        - heading "Communication Thread (4)" [level=4] [ref=e122]
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]: AI assistant
+            - generic [ref=e128]: 9/10/2026, 12:54:05 PM
+          - paragraph [ref=e129]: Hi! I am the Fizmoh AI support assistant.
+        - generic [ref=e130]:
+          - generic [ref=e131]:
+            - generic [ref=e132]: Website visitor
+            - generic [ref=e135]: 9/10/2026, 12:54:16 PM
+          - paragraph [ref=e136]: How can I use the team inbox?
+        - generic [ref=e137]:
+          - generic [ref=e138]:
+            - generic [ref=e139]: AI assistant
+            - generic [ref=e142]: 9/10/2026, 12:54:16 PM
+          - paragraph [ref=e143]: I can help with the Fizmoh inbox and bot builder.
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - generic [ref=e146]: Platform owner
+            - generic [ref=e149]: 9/10/2026, 12:54:32 PM
+          - paragraph [ref=e150]: Local owner test reply — I can help you set up the inbox.
+    - generic [ref=e112]:
+      - generic [ref=e113]:
+        - generic [ref=e114]: Add Reply or Internal Note
+        - generic [ref=e115] [cursor=pointer]:
+          - checkbox "Internal note (hidden from visitor and tenant)" [ref=e116]
+          - generic [ref=e117]: Internal note (hidden from visitor and tenant)
+      - generic [ref=e118]:
+        - textbox "Write a response..." [ref=e119]
+        - button "Send Reply" [disabled]
+    - button "Close" [ref=e120]

@@ -1,0 +1,65 @@
+{
+  "count": 116,
+  "errors": [
+    {
+      "url": "https://app.fizmoh.cloud/not-a-real-fizmoh-page-audit",
+      "error": "HTTP Error 404: Not Found"
+    }
+  ],
+  "missingH1": [
+    "https://app.fizmoh.cloud/robots.txt",
+    "https://app.fizmoh.cloud/llms.txt",
+    "https://app.fizmoh.cloud/billing"
+  ],
+  "canonicalMismatch": [
+    {
+      "url": "https://app.fizmoh.cloud/",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/privacy",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/terms",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/acceptable-use",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/cookies",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/data-deletion",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/resources/support?lang=ar",
+      "canonical": [
+        "https://app.fizmoh.cloud/resources/support"
+      ]
+    },
+    {
+      "url": "https://app.fizmoh.cloud/billing",
+      "canonical": [
+        "https://app.fizmoh.cloud"
+      ]
+    }
+  ],
+  "missingAlt": 0
+}

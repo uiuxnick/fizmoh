@@ -1,0 +1,28 @@
+- generic [active] [ref=f3e1]:
+  - heading "Local support verification" [level=1] [ref=f3e2]
+  - generic [ref=f3e3]:
+    - generic [ref=f3e33]:
+      - generic [ref=f3e34]:
+        - generic [ref=f3e35]: F
+        - generic [ref=f3e38]:
+          - generic [ref=f3e39]: Fizmoh Support
+          - generic [ref=f3e40]: AI & platform support team
+          - generic [ref=f3e42]: AI help · Human support on request
+        - button "âœ•" [ref=f3e44] [cursor=pointer]
+      - generic [ref=f3e45]:
+        - button "ðŸ’¬ Web Live Chat" [ref=f3e46] [cursor=pointer]
+        - button "WhatsApp" [ref=f3e47] [cursor=pointer]
+      - generic [ref=f3e50]:
+        - generic [ref=f3e51]:
+          - generic [ref=f3e52]: FZ-LOCAL-TEST Â· AI assistant
+          - button "Chat with Human" [ref=f3e53] [cursor=pointer]
+        - generic [ref=f3e55]:
+          - generic [ref=f3e56]: AI Assistant
+          - generic [ref=f3e57]: Hi! I am the Fizmoh AI support assistant.
+          - generic [ref=f3e58]: 12:54 PM
+        - alert
+        - generic [ref=f3e59]:
+          - textbox "Support message" [ref=f3e60]:
+            - /placeholder: Type a message...
+          - button "Send message" [ref=f3e61] [cursor=pointer]
+    - button "Open support chat" [ref=f3e64] [cursor=pointer]

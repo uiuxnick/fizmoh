@@ -13,14 +13,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import {
   BookOpen, Search, Plus, Trash2, Globe, FileText, MessageCircleQuestion,
-  Upload, Loader2, AlertTriangle, CheckCircle2, Link2,
+  Upload, Loader2, AlertTriangle, CheckCircle2, Link2, Eye, Pencil, Copy, ExternalLink,
 } from "lucide-react"
 import { toast } from "sonner"
+
+interface KnowledgeChunk {
+  id: string
+  content: string
+  ordinal: number
+}
 
 interface Source {
   id: string; title: string; type: string; url: string | null
   status: string; error: string | null
   charCount: number; chunkCount: number; lastIndexedAt: string | null; createdAt: string
+  chunks?: KnowledgeChunk[]
 }
 
 interface Passage {
@@ -54,6 +61,17 @@ export default function KnowledgeView() {
   const [query, setQuery] = useState("")
   const [passages, setPassages] = useState<Passage[]>([])
   const [searching, setSearching] = useState(false)
+
+  // View modal state
+  const [viewSource, setViewSource] = useState<Source | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [copiedChunkId, setCopiedChunkId] = useState<string | null>(null)
+
+  // Edit modal state
+  const [editSource, setEditSource] = useState<Source | null>(null)
+  const [editForm, setEditForm] = useState({ title: "", text: "" })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
 
   const load = useCallback(() =>
     fetch("/api/knowledge")
@@ -111,6 +129,73 @@ export default function KnowledgeView() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const openView = async (source: Source) => {
+    setViewLoading(true)
+    setViewSource(source)
+    try {
+      const res = await fetch(`/api/knowledge/${source.id}`)
+      const data = await res.json()
+      if (data.source) {
+        setViewSource(data.source)
+      }
+    } catch {
+      toast.error("Could not load knowledge details")
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  const openEdit = async (source: Source) => {
+    setEditLoading(true)
+    setEditSource(source)
+    setEditForm({ title: source.title, text: "" })
+    try {
+      const res = await fetch(`/api/knowledge/${source.id}`)
+      const data = await res.json()
+      if (data.source) {
+        setEditSource(data.source)
+        const combinedText = (data.source.chunks || []).map((c: KnowledgeChunk) => c.content).join("\n\n")
+        setEditForm({ title: data.source.title, text: combinedText })
+      }
+    } catch {
+      toast.error("Could not load content for editing")
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const saveEdit = async () => {
+    if (!editSource) return
+    if (!editForm.title.trim()) { toast.error("Title cannot be empty"); return }
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/knowledge/${editSource.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editForm.title.trim(),
+          text: editForm.text.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not update knowledge source")
+      toast.success(data.chunks !== undefined ? `Updated & re-indexed into ${data.chunks} passages` : "Knowledge source updated")
+      setEditSource(null)
+      load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update")
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const copyChunk = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedChunkId(id)
+    toast.success("Passage copied to clipboard")
+    setTimeout(() => setCopiedChunkId(null), 2000)
   }
 
   const remove = async (source: Source) => {
@@ -198,9 +283,35 @@ export default function KnowledgeView() {
                         </div>
                         {source.error && <div className="mt-0.5 text-xs text-rose-600">{source.error}</div>}
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => remove(source)}>
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="View content and passages"
+                          onClick={() => openView(source)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Edit title or content"
+                          onClick={() => openEdit(source)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-rose-600"
+                          title="Delete source"
+                          onClick={() => remove(source)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   )
                 })}
@@ -337,6 +448,176 @@ export default function KnowledgeView() {
               </div>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Knowledge Source Dialog */}
+      <Dialog open={Boolean(viewSource)} onOpenChange={(open) => !open && setViewSource(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center gap-2">
+              <DialogTitle className="text-lg font-semibold">{viewSource?.title || "Knowledge Source"}</DialogTitle>
+              {viewSource?.status === "INDEXING" && (
+                <Badge variant="outline" className="gap-1 bg-sky-50 text-sky-700">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Indexing
+                </Badge>
+              )}
+              {viewSource?.status === "ERROR" && (
+                <Badge variant="outline" className="bg-rose-50 text-rose-700">Failed</Badge>
+              )}
+              <Badge variant="secondary">{viewSource?.type}</Badge>
+              <Badge variant="outline">{viewSource?.chunkCount || 0} passages</Badge>
+            </div>
+          </DialogHeader>
+
+          {viewLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p className="text-xs">Loading source passages...</p>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              {viewSource?.url && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-stone-50 rounded p-2">
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span className="shrink-0 font-medium">Source URL:</span>
+                  <a href={viewSource.url} target="_blank" rel="noopener noreferrer" className="truncate text-primary hover:underline">
+                    {viewSource.url}
+                  </a>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  {viewSource?.charCount ? `${viewSource.charCount.toLocaleString()} total characters` : ""}
+                  {viewSource?.lastIndexedAt ? ` · Indexed ${new Date(viewSource.lastIndexedAt).toLocaleString()}` : ""}
+                </span>
+                {viewSource?.chunks && viewSource.chunks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      const allText = viewSource.chunks!.map(c => c.content).join("\n\n")
+                      copyChunk(allText, "all")
+                    }}
+                  >
+                    <Copy className="mr-1 h-3 w-3" />
+                    {copiedChunkId === "all" ? "Copied!" : "Copy all text"}
+                  </Button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold text-stone-900">
+                  Indexed Passages ({viewSource?.chunks?.length || 0})
+                </Label>
+                {(!viewSource?.chunks || viewSource.chunks.length === 0) ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
+                    No passages found for this source.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {viewSource.chunks.map((chunk, idx) => (
+                      <div key={chunk.id || idx} className="rounded-lg border border-stone-200 bg-stone-50/50 p-3 text-xs leading-relaxed space-y-2">
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-stone-200/60 pb-1.5">
+                          <span className="font-semibold text-stone-700">Passage #{idx + 1}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{chunk.content.length} chars</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => copyChunk(chunk.content, chunk.id || String(idx))}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="whitespace-pre-wrap text-stone-800 font-sans">{chunk.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex sm:justify-between items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (viewSource) {
+                  const s = viewSource
+                  setViewSource(null)
+                  openEdit(s)
+                }
+              }}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit Source
+            </Button>
+            <Button size="sm" onClick={() => setViewSource(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Knowledge Source Dialog */}
+      <Dialog open={Boolean(editSource)} onOpenChange={(open) => !open && setEditSource(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Edit Knowledge Source</DialogTitle>
+          </DialogHeader>
+
+          {editLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p className="text-xs">Loading content...</p>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Title</Label>
+                <Input
+                  placeholder="Source title or topic"
+                  value={editForm.title}
+                  onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Content / Passages</Label>
+                  <span className="text-[11px] text-muted-foreground">
+                    {editForm.text.length.toLocaleString()} characters · ~{Math.max(1, Math.ceil(editForm.text.length / 550))} passages
+                  </span>
+                </div>
+                <Textarea
+                  rows={12}
+                  className="font-mono text-xs leading-relaxed"
+                  placeholder="Paste or write the document text..."
+                  value={editForm.text}
+                  onChange={e => setEditForm(prev => ({ ...prev, text: e.target.value }))}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Saving will automatically re-chunk the text into passages and update search vectors for the AI assistant.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" size="sm" disabled={editSaving} onClick={() => setEditSource(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={editSaving || !editForm.title.trim()} onClick={saveEdit}>
+              {editSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Save & Re-Index
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

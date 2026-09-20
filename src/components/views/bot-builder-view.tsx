@@ -142,7 +142,7 @@ export default function BotBuilderView() {
           </h2>
           <p className="text-sm text-stone-500 mt-0.5">Visual conversation flows &amp; AI automation rules</p>
         </div>
-        <div className="flex gap-2">
+        <div data-tour="bot-create-btn" className="flex gap-2">
           <AIDraftButton kind="flow" channel={channel} onCreated={load} />
           <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditing(null); setCreating(true) }}>
             <Plus className="h-4 w-4 mr-1.5" /> New Flow
@@ -158,7 +158,17 @@ export default function BotBuilderView() {
 
       <Card className="border-stone-200">
         <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4 text-teal-600" />Recent flow runs <span className="text-xs font-normal text-stone-500">{visibleRuns.length} latest</span></CardTitle></CardHeader>
-        <CardContent className="pt-0">{visibleRuns.length === 0 ? <p className="text-sm text-stone-500">No flow runs recorded yet.</p> : <div className="space-y-2">{visibleRuns.slice(0, 8).map(run => <div key={run.id} className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2"><div><p className="text-sm font-medium text-stone-800">{run.flow?.name || "Automation flow"}</p><p className="text-[11px] text-stone-500">{new Date(run.startedAt).toLocaleString()}</p></div><Badge className={run.status === "FAILED" ? "bg-rose-100 text-rose-700" : run.status === "DONE" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}>{run.status}</Badge></div>)}</div>}</CardContent>
+        <CardContent className="pt-0">{visibleRuns.length === 0 ? <p className="text-sm text-stone-500">No flow runs recorded yet.</p> : <div className="space-y-2">{visibleRuns.slice(0, 8).map(run => <div key={run.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2"><div><p className="text-sm font-medium text-stone-800">{run.flow?.name || "Automation flow"}</p><p className="text-[11px] text-stone-500">{new Date(run.startedAt).toLocaleString()}</p></div><Badge className={run.status === "FAILED" ? "bg-rose-100 text-rose-700" : run.status === "DONE" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}>{run.status}</Badge><details className="text-xs text-stone-600 max-w-full">
+                    <summary className="cursor-pointer">Run details</summary>
+                    <dl className="mt-2 space-y-1 break-words">
+                      <div><dt className="font-medium">Run ID</dt><dd>{run.id}</dd></div>
+                      <div><dt className="font-medium">Channel</dt><dd>{run.channel || "Not recorded"}</dd></div>
+                      <div><dt className="font-medium">Current node</dt><dd>{run.currentNodeId || "Not recorded"}</dd></div>
+                      <div><dt className="font-medium">Finished</dt><dd>{run.endedAt ? new Date(run.endedAt).toLocaleString() : "Not finished"}</dd></div>
+                      {run.resumeAt && <div><dt className="font-medium">Scheduled resume</dt><dd>{new Date(run.resumeAt).toLocaleString()}</dd></div>}
+                      <div><dt className="font-medium">Diagnosis</dt><dd>{run.failureSummary || (run.status === "EXPIRED" ? "The reply or resume window expired." : run.status === "FAILED" ? "Execution failed at the recorded node. Use the run ID to locate the server error; private message content and credentials are omitted here." : run.status === "WAITING" ? "Waiting for a reply or scheduled continuation." : "No failure reported.")}</dd></div>
+                    </dl>
+                  </details></div>)}</div>}</CardContent>
       </Card>
 
       {/* AI Assistant banner */}
@@ -176,7 +186,7 @@ export default function BotBuilderView() {
                     {aiOn ? "Active" : "Off"}
                   </Badge>
                 </h3>
-                <Switch checked={aiOn} disabled={aiSaving} onCheckedChange={toggleAi} />
+                <Switch aria-label="Enable AI assistant" checked={aiOn} disabled={aiSaving} onCheckedChange={toggleAi} />
               </div>
               <p className="text-sm text-stone-600 mt-1">
                 {aiOn
@@ -196,10 +206,14 @@ export default function BotBuilderView() {
       </Card>}
 
       {/* What the built-in bot says, editable by the workspace */}
-      {channel === "WHATSAPP" && <BotMessagesEditor />}
+      {channel === "WHATSAPP" && (
+        <div data-tour="bot-messages-editor">
+          <BotMessagesEditor />
+        </div>
+      )}
 
       {/* Flows */}
-      <div>
+      <div data-tour="bot-flows-list">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-stone-900">Automation Flows</h3>
           <span className="text-xs text-stone-500">{visibleFlows.filter(f => f.isActive).length} active · {visibleFlows.length} total</span>
@@ -215,7 +229,7 @@ export default function BotBuilderView() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div data-tour="bot-trigger-config" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {visibleFlows.map(f => {
               const cfg = TRIGGER_CONFIG[f.trigger] || TRIGGER_CONFIG.KEYWORD
               const keywords = safeJson<{ keywords?: string[] }>(f.triggerConfig, {}).keywords || []
@@ -233,7 +247,7 @@ export default function BotBuilderView() {
                           <p className="text-xs text-stone-500">{f.description || "No description"}</p>
                         </div>
                       </div>
-                      <Switch checked={f.isActive} onCheckedChange={(v) => toggleFlow(f.id, v)} />
+                      <Switch aria-label={`Activate ${f.name}`} checked={f.isActive} onCheckedChange={(v) => toggleFlow(f.id, v)} />
                     </div>
 
                     <div className="flex items-center gap-2 mb-3">
@@ -290,6 +304,14 @@ export default function BotBuilderView() {
                                   : n.type === "HOSP_BED_MAP" ? "🛏️ Live Bed Vacancy Map"
                                   : n.type === "VISA" ? "🛂 Visa Assistance"
                                   : n.type === "RESTAURANT" ? "🍽️ Table Reservation & Menu"
+                                  : n.type === "RESTAURANT_SITE" ? "🌐 Smart Menu Website"
+                                  : n.type === "RESTAURANT_TABLES" ? "🪑 Live Table Visibility"
+                                  : n.type === "RESTAURANT_MENU" ? "📖 Dynamic Menu Picker"
+                                  : n.type === "RESTAURANT_ORDER" ? "🛍️ Place Food Order"
+                                  : n.type === "RESTAURANT_ORDER_STATUS" ? "🧾 Live Order Status"
+                                  : n.type === "RESTAURANT_PAY" ? "💳 Pay Restaurant Order"
+                                  : n.type === "RESTAURANT_CALL_WAITER" ? `🔔 Call Waiter (${n.data?.requestType || "Help"})`
+                                  : n.type === "RESTAURANT_SCAN" ? "📱 Table QR Scan & Menu"
                                   : n.type === "APT_RESCHEDULE" ? "🔄 Reschedule / Cancel Apt"
                                   : n.type === "TAG" ? `🏷️ Tag: ${n.data?.value}`
                                   : n.type === "HTTP" ? `🌐 API: ${n.data?.method} ${n.data?.url?.slice(0, 30)}`
@@ -315,7 +337,7 @@ export default function BotBuilderView() {
                           <Pencil className="h-3 w-3 mr-1" />Edit
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 text-xs text-rose-600 hover:text-rose-700" onClick={() => removeFlow(f)}>
-                          <Trash2 className="h-3 w-3" />
+                          <span className="sr-only">Delete {f.name}</span><Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>

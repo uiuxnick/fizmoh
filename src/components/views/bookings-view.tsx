@@ -168,8 +168,8 @@ export default function BookingsView() {
         <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1.5" />New Booking</Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" /><Input placeholder="Search order #, customer, phone, email, tour..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} className="pl-9 bg-white" /></div>
+      <div data-tour="bookings-status-tabs" className="flex flex-col md:flex-row gap-3">
+        <div data-tour="bookings-search" className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" /><Input placeholder="Search order #, customer, phone, email, tour..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} className="pl-9 bg-white" /></div>
         <div className="grid grid-cols-3 gap-2">
           <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700">
             <option value="all">All Statuses</option>
@@ -196,7 +196,7 @@ export default function BookingsView() {
       ) : filtered.length === 0 ? (
         <Card className="border-dashed"><CardContent className="py-16 text-center"><ShoppingBag className="h-10 w-10 text-stone-300 mx-auto mb-3" /><p className="text-stone-500">No orders found matching your search and filter criteria</p></CardContent></Card>
       ) : (
-        <Card>
+        <Card data-tour="bookings-actions">
           <ScrollArea className="h-[550px]">
             <div className="divide-y divide-stone-100">
               {paginated.map(o => (

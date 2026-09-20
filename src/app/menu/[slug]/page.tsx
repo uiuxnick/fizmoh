@@ -4,12 +4,12 @@ import CustomerMenu from "@/components/restaurant/customer-menu"
 
 interface PageProps {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ tableToken?: string; branch?: string }>
+  searchParams: Promise<{ tableToken?: string; branch?: string; q?: string; item?: string }>
 }
 
 export default async function TenantMenuPage({ params, searchParams }: PageProps) {
   const { slug } = await params
-  const { tableToken, branch: branchSlug } = await searchParams
+  const { tableToken, branch: branchSlug, q, item } = await searchParams
 
   const tenant = await raw.tenant.findUnique({
     where: { slug },
@@ -167,6 +167,8 @@ export default async function TenantMenuPage({ params, searchParams }: PageProps
       categories={categories}
       discounts={discounts.filter((d) => d.code !== null) as any}
       tableToken={tableToken}
+      initialSearchQuery={q}
+      initialItemId={item}
     />
   )
 }

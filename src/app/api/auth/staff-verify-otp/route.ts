@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { setSessionCookie, signSession } from "@/lib/auth"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { verifyOtp } from "@/lib/otp"
 import { z } from "zod"
 
@@ -13,7 +13,7 @@ const schema = z.object({
 
 /** Exchanges a valid code for a session, exactly as a password would. */
 export const POST = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`staff-verify:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`staff-verify:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many attempts" }, { status: 429 })
 
   const parsed = schema.safeParse(await request.json().catch(() => null))

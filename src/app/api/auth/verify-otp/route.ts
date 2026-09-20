@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { setSessionCookie, signSession } from "@/lib/auth"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
 import { PLATFORM } from "@/lib/tenant"
 import { currentTenant } from "@/lib/tenant-context"
@@ -15,7 +15,7 @@ function hashOtp(phone: string, otp: string) {
 
 export const POST = withErrors(async (request: NextRequest) => {
   const ip = requestIp(request.headers)
-  const rate = checkRateLimit(`otp-verify:${ip}`, 10, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`otp-verify:${ip}`, 10, 15 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many verification attempts" }, { status: 429 })
 
   let body: { phone?: unknown; otp?: unknown }

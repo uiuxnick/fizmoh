@@ -5,7 +5,7 @@ import { generateVoucherCode } from "@/lib/helpers"
 import { confirmSlotSeats, createAuditLog } from "@/lib/slots-server"
 import { analyzePaymentScreenshot } from "@/lib/ai"
 import { z } from "zod"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
 import { currentTenant } from "@/lib/tenant"
@@ -43,7 +43,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 export const POST = withErrors(async (request: NextRequest) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  const rate = checkRateLimit(`payments:${requestIp(request.headers)}`, 20, 60 * 60 * 1000)
+  const rate = await checkRateLimit(`payments:${requestIp(request.headers)}`, 20, 60 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many payment submissions" }, { status: 429 })
   const parsed = paymentSubmissionSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment submission" }, { status: 400 })

@@ -326,17 +326,17 @@ export default function SettingsView() {
             </>
           ) : (
             <>
-              <TabsTrigger value="business" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
+              <TabsTrigger data-tour="settings-business-profile" value="business" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
               <TabsTrigger value="google" className="gap-1.5"><Video className="h-3.5 w-3.5" />Google Calendar & Meet</TabsTrigger>
               <TabsTrigger value="website" className="gap-1.5"><Globe className="h-3.5 w-3.5" />Website & Domain</TabsTrigger>
               <TabsTrigger value="seo" className="gap-1.5"><Code2 className="h-3.5 w-3.5" />SEO & Integrations</TabsTrigger>
               <TabsTrigger value="payment" className="gap-1.5"><Banknote className="h-3.5 w-3.5" />Payment</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-1.5"><KeyRound className="h-3.5 w-3.5" />API Keys & Docs</TabsTrigger>
-              <TabsTrigger value="whatsapp" className="gap-1.5"><WhatsAppIcon className="h-3.5 w-3.5" />WhatsApp</TabsTrigger>
+              <TabsTrigger data-tour="settings-whatsapp-api" value="whatsapp" className="gap-1.5"><WhatsAppIcon className="h-3.5 w-3.5" />WhatsApp</TabsTrigger>
               <TabsTrigger value="social" className="gap-1.5"><Facebook className="h-3.5 w-3.5" />Facebook &amp; Instagram</TabsTrigger>
               <TabsTrigger value="ai" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />AI</TabsTrigger>
               <TabsTrigger value="email" className="gap-1.5"><Mail className="h-3.5 w-3.5" />Email</TabsTrigger>
-              <TabsTrigger value="notifications" className="gap-1.5"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
+              <TabsTrigger data-tour="settings-notifications" value="notifications" className="gap-1.5"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
               <TabsTrigger value="compliance" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Compliance</TabsTrigger>
             </>
           )}
@@ -1007,6 +1007,7 @@ export default function SettingsView() {
             <CardContent className="space-y-3">
               {([
                 { key: "wa_bot_enabled", label: "AI Assistant Enabled", desc: "Najwa handles conversations automatically", def: true },
+                { key: "ai_reschedule_enabled", label: "AI Booking Reschedule & Changes", desc: "Allow customers to reschedule tours directly via AI", def: true },
                 { key: "wa_flows_enabled", label: "Bot Flows", desc: "Keyword and intent flows answer before the AI", def: true },
                 { key: "wa_hours_enabled", label: "Auto-Reply Outside Hours", desc: "Send an away message when the business is closed", def: false },
                 { key: "wa_ai_always_on", label: "AI 24/7 Booking", desc: "Let the AI keep booking outside working hours", def: true },
@@ -1731,7 +1732,7 @@ function BookingAlertNumbersSection() {
             <div className="sm:col-span-4 space-y-1">
               <Label className="text-xs text-stone-600">WhatsApp Mobile Number</Label>
               <Input
-                placeholder="+968 9200 9161"
+                placeholder="+968 9831 4456 (staff mobile)"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 className="bg-white text-xs h-9 font-mono"

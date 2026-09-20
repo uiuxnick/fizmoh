@@ -122,7 +122,17 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
     const message = await db.message.findFirst({
       where: { conversationId: id, direction: "BOT" }, orderBy: { createdAt: "desc" },
     })
-    publish({ type: "message", conversationId: id, direction: "OUTBOUND", preview: String(content).slice(0, 120) })
+    await db.conversation.update({
+      where: { id },
+      data: {
+        lastMessageAt: new Date(),
+        lastMessageText: content,
+        botActive: false,
+        automationPaused: true,
+      },
+    }).catch(() => {})
+    publish({ type: "message", conversationId: id, direction: "OUTBOUND", preview: String(content).slice(0, 120), tenantId: conversation.tenantId || undefined })
+    publish({ type: "conversation", conversationId: id, tenantId: conversation.tenantId || undefined })
     if (!result.ok) return NextResponse.json({ message, delivered: false, error: result.error }, { status: 200 })
     return NextResponse.json({ message, delivered: true }, { status: 201 })
   }
@@ -143,11 +153,13 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
       },
     })
 
+    const isManualOutbound = (direction || "OUTBOUND") !== "INBOUND"
     await db.conversation.update({
       where: { id },
       data: {
         lastMessageAt: new Date(),
         lastMessageText: content || "Sent an attachment",
+        ...(isManualOutbound ? { botActive: false, automationPaused: true } : {}),
       },
     })
 
@@ -158,6 +170,13 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
       preview: String(content || "Attachment").slice(0, 120),
       tenantId: conversation.tenantId || undefined,
     })
+    if (isManualOutbound) {
+      publish({
+        type: "conversation",
+        conversationId: id,
+        tenantId: conversation.tenantId || undefined,
+      })
+    }
 
     return NextResponse.json({ message, delivered: true }, { status: 201 })
   }
@@ -372,12 +391,24 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
     },
   })
 
+  const isManualOutbound = (direction || "OUTBOUND") !== "INBOUND"
   await db.conversation.update({
     where: { id },
-    data: { lastMessageAt: new Date(), lastMessageText: content },
+    data: {
+      lastMessageAt: new Date(),
+      lastMessageText: content,
+      ...(isManualOutbound ? { botActive: false, automationPaused: true } : {}),
+    },
   })
 
-  publish({ type: "message", conversationId: id, direction: "OUTBOUND", preview: String(content).slice(0, 120) })
+  publish({ type: "message", conversationId: id, direction: "OUTBOUND", preview: String(content).slice(0, 120), tenantId: conversation.tenantId || undefined })
+  if (isManualOutbound) {
+    publish({
+      type: "conversation",
+      conversationId: id,
+      tenantId: conversation.tenantId || undefined,
+    })
+  }
 
   if (!sendResult.success) {
     // 200 with the stored message so the agent sees their text in the thread,

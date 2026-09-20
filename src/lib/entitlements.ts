@@ -186,7 +186,6 @@ export async function hasAddon(tenantId: string, slug: string): Promise<boolean>
 export async function currentModules(): Promise<Module[] | null> {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return null
-  if (tenant.role === "PLATFORM") return null
   return modulesFor(tenant.tenantId)
 }
 
@@ -208,6 +207,8 @@ type Handler<C> = (request: NextRequest, context: C) => Promise<Response> | Resp
  */
 export function withModule<C>(module: Module, handler: Handler<C>): Handler<C> {
   return async (request: NextRequest, context: C) => {
+    const tenant = currentTenant()
+    if (tenant?.role === "PLATFORM") return handler(request, context)
     const suspended = await suspensionOf(request)
     if (suspended) return suspended
     if (await hasModule(module)) return handler(request, context)

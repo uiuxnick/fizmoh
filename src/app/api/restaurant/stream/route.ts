@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { subscribe } from "@/lib/realtime"
 import { withErrors } from "@/lib/api-handler"
+import { canReceiveRestaurantOrder } from "@/lib/restaurant-stream-scope"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 3600
@@ -14,6 +15,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 
   let targetOrderId: string | null = null
   let targetTenantId: string | null = null
+  let targetTableId: string | null = null
 
   if (orderToken) {
     const order = await raw.kitchenOrder.findFirst({
@@ -31,9 +33,15 @@ export const GET = withErrors(async (request: NextRequest) => {
     })
     if (table) {
       targetTenantId = table.tenantId
+      targetTableId = table.id
     }
   }
 
+  if (!targetTenantId || (!targetOrderId && !targetTableId)) {
+    return NextResponse.json({ error: "Valid tracking token required" }, { status: 401 })
+  }
+
+  let cleanup = () => {}
   const stream = new ReadableStream({
     start(controller) {
       let closed = false
@@ -42,7 +50,7 @@ export const GET = withErrors(async (request: NextRequest) => {
         try {
           controller.enqueue(encoder.encode(data))
         } catch {
-          closed = true
+          cleanup()
         }
       }
 
@@ -51,13 +59,13 @@ export const GET = withErrors(async (request: NextRequest) => {
 
       const unsubscribe = subscribe((event) => {
         // Multi-tenant check
-        if (targetTenantId && event.tenantId && event.tenantId !== targetTenantId) {
+        if (event.tenantId !== targetTenantId) {
           return
         }
 
         if (event.type === "restaurant_order") {
           // If customer is tracking specific order
-          if (targetOrderId && event.orderId !== targetOrderId) {
+          if (!canReceiveRestaurantOrder({ tenantId: targetTenantId, orderId: targetOrderId, tableId: targetTableId }, event)) {
             return
           }
           send(`event: restaurant_order\ndata: ${JSON.stringify(event)}\n\n`)
@@ -66,9 +74,10 @@ export const GET = withErrors(async (request: NextRequest) => {
 
       const heartbeat = setInterval(() => send(`: ping\n\n`), 25_000)
 
-      const cleanup = () => {
+      cleanup = () => {
         if (closed) return
         closed = true
+        request.signal.removeEventListener("abort", cleanup)
         clearInterval(heartbeat)
         unsubscribe()
         try {
@@ -76,8 +85,10 @@ export const GET = withErrors(async (request: NextRequest) => {
         } catch {}
       }
 
-      request.signal.addEventListener("abort", cleanup)
+      request.signal.addEventListener("abort", cleanup, { once: true })
+      if (request.signal.aborted) cleanup()
     },
+    cancel() { cleanup() },
   })
 
   return new Response(stream, {

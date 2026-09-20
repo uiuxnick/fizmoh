@@ -11,7 +11,7 @@ import { createHash } from "node:crypto"
 import { NextResponse } from "next/server"
 import { db, raw } from "@/lib/db"
 import { tenantOf, withTenant, type TenantContext } from "@/lib/tenant"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 export const REVIEW_SESSION_STATUSES = [
   "STARTED", "RATED", "INPUT_GIVEN", "AI_GENERATED",
@@ -73,10 +73,10 @@ const LIMITS: Record<string, { limit: number; windowMs: number }> = {
   write: { limit: 40, windowMs: 60_000 },
 }
 
-export function qrRateLimited(headers: Headers, bucket: keyof typeof LIMITS): NextResponse | null {
+export async function qrRateLimited(headers: Headers, bucket: keyof typeof LIMITS): Promise<NextResponse | null> {
   const ip = requestIp(headers)
   const { limit, windowMs } = LIMITS[bucket]
-  const result = checkRateLimit(`qr:${bucket}:${ip}`, limit, windowMs)
+  const result = await checkRateLimit(`qr:${bucket}:${ip}`, limit, windowMs)
   if (result.allowed) return null
   return NextResponse.json(
     { error: "Too many requests — please wait a moment and try again." },

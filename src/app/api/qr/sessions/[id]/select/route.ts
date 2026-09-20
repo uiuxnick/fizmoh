@@ -6,7 +6,7 @@ import { withSessionTenant, isRouteError, qrRateLimited } from "@/lib/qr-review"
 export const PATCH = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
 
-  const limited = qrRateLimited(request.headers, "write")
+  const limited = await qrRateLimited(request.headers, "write")
   if (limited) return limited
   const body = await request.json().catch(() => null)
   const suggestionId = String(body?.suggestionId || "")

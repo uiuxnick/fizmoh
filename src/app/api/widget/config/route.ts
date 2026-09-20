@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { SUPPORT_PHONE, SUPPORT_WELCOME, supportOrigin } from "@/lib/platform-support"
 
 function corsHeaders(origin: string | null = "*") {
   return {
@@ -20,6 +21,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const widgetId = searchParams.get("widgetId")
   const tenantSlug = searchParams.get("tenant") || searchParams.get("tenantSlug")
+
+  // Fizmoh's own support belongs to the platform owner, never a fallback tenant.
+  if (!widgetId && tenantSlug === "fizmoh-support") {
+    return NextResponse.json({
+      id: "platform-support", platformSupport: true, enabled: true,
+      headerTitle: "Fizmoh Support", agentName: "Fizmoh Support", agentRole: "AI & platform support team",
+      headerSubtitle: "AI help · Human support on request", primaryColor: "#059669",
+      welcomeMessage: SUPPORT_WELCOME, proactivePrompt: "Need help? Chat or create a support ticket.", proactiveDelay: 5,
+      whatsappEnabled: true, whatsappNumber: SUPPORT_PHONE, whatsappMessage: "Hello Fizmoh Support, I need assistance.",
+      webChatEnabled: true, requireLeadForm: true, requirePhone: true, enableAiAgent: true,
+    }, { headers: { ...corsHeaders(supportOrigin(request.headers.get("origin"))), "Cache-Control": "no-store" } })
+  }
 
   try {
     let widget: any = null

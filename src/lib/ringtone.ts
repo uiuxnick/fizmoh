@@ -13,7 +13,7 @@
  * page, which is expected and handled quietly.
  */
 
-export type AlertSound = "message" | "call" | "notification"
+export type AlertSound = "message" | "call" | "notification" | "order"
 
 const STORAGE_KEY = "wptour.sound"
 
@@ -59,7 +59,7 @@ function audioContext(): AudioContext | null {
   }
 }
 
-/** Two-note chime for a new message; a longer warble for a call. */
+/** Two-note chime for a new message; a longer warble for a call; bright double-ding service bell for kitchen orders. */
 const TONES: Record<AlertSound, { freq: number; at: number; length: number }[]> = {
   message: [
     { freq: 880, at: 0, length: 0.18 },
@@ -68,6 +68,11 @@ const TONES: Record<AlertSound, { freq: number; at: number; length: number }[]> 
   notification: [
     { freq: 660, at: 0, length: 0.16 },
     { freq: 990, at: 0.1, length: 0.2 },
+  ],
+  order: [
+    { freq: 1760, at: 0, length: 0.14 },
+    { freq: 2093, at: 0.12, length: 0.18 },
+    { freq: 2637, at: 0.28, length: 0.4 },
   ],
   call: [
     { freq: 620, at: 0, length: 0.3 },

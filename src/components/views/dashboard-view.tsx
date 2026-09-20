@@ -15,7 +15,7 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import {
   Wallet, ShoppingBag, Clock, Calendar, TrendingUp,
   Users, Bell, ArrowRight, CheckCircle, AlertCircle, Sparkles, Map,
-  CreditCard, Megaphone, Bot,
+  CreditCard, Megaphone, Bot, Utensils,
 } from "lucide-react"
 
 interface DashboardData {
@@ -85,10 +85,16 @@ export default function DashboardView() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [features, setFeatures] = useState<any>(null)
   const { setView, staffUser } = useApp()
   const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
+    fetch("/api/features")
+      .then(r => r.ok ? r.json() : null)
+      .then(f => setFeatures(f))
+      .catch(() => {})
+
     const loadData = async () => {
       try {
         const [dashRes, notifRes] = await Promise.all([
@@ -128,6 +134,7 @@ export default function DashboardView() {
     )
   }
 
+  const isRestaurant = Boolean(features?.restaurant && !features?.tours) || Boolean(features?.restaurant)
   const k = data.kpis
   const maxRevenue = Math.max(...data.revenueByDay.map(d => d.revenue), 1)
   const totalChannel = data.channelStats.reduce((s, c) => s + c._count, 0) || 1
@@ -135,7 +142,9 @@ export default function DashboardView() {
   const greetingName = staffUser?.name ? staffUser.name.split(" ")[0] : "Admin"
 
   const quickActions = [
-    { label: "New Booking", icon: ShoppingBag, view: "bookings" as const, color: "from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600" },
+    isRestaurant
+      ? { label: "Live Orders", icon: ShoppingBag, view: "restaurant" as const, color: "from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600" }
+      : { label: "New Booking", icon: ShoppingBag, view: "bookings" as const, color: "from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600" },
     { label: "Verify Payments", icon: CreditCard, view: "payments" as const, color: "from-amber-600 to-orange-700 hover:from-amber-500 hover:to-orange-600" },
     { label: "Send Broadcast", icon: Megaphone, view: "campaigns" as const, color: "from-rose-600 to-pink-700 hover:from-rose-500 hover:to-pink-600" },
     { label: "Open Inbox", icon: WhatsAppIcon, view: "inbox" as const, color: "from-teal-600 to-cyan-700 hover:from-teal-500 hover:to-cyan-600" },
@@ -143,10 +152,12 @@ export default function DashboardView() {
 
   const kpiCards = [
     { label: "Total Revenue", value: formatCurrency(k.totalRevenue), icon: Wallet, iconColor: "text-emerald-700", iconBg: "bg-emerald-100/80 border border-emerald-200/60", sub: `${k.confirmedOrders} confirmed`, badge: "Sales", badgeColor: "bg-emerald-100 text-emerald-800", view: "reports" as const },
-    { label: "Total Orders", value: k.totalOrders.toString(), icon: ShoppingBag, iconColor: "text-teal-700", iconBg: "bg-teal-100/80 border border-teal-200/60", sub: `${k.completedOrders} completed`, badge: "Volume", badgeColor: "bg-teal-100 text-teal-800", view: "bookings" as const },
+    { label: "Total Orders", value: k.totalOrders.toString(), icon: ShoppingBag, iconColor: "text-teal-700", iconBg: "bg-teal-100/80 border border-teal-200/60", sub: `${k.completedOrders} completed`, badge: "Volume", badgeColor: "bg-teal-100 text-teal-800", view: isRestaurant ? ("restaurant" as const) : ("bookings" as const) },
     { label: "Pending Verifications", value: k.pendingVerifications.toString(), icon: Clock, iconColor: "text-amber-700", iconBg: "bg-amber-100/80 border border-amber-200/60", sub: k.pendingVerifications > 0 ? "Action required" : "All caught up", pulse: k.pendingVerifications > 0, badge: k.pendingVerifications > 0 ? "Review" : "Clear", badgeColor: k.pendingVerifications > 0 ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-stone-100 text-stone-600", view: "payments" as const },
     { label: "Open Chats", value: k.openConversations.toString(), icon: WhatsAppIcon, iconColor: "text-emerald-700", iconBg: "bg-emerald-100/80 border border-emerald-200/60", sub: "WhatsApp inbox", badge: "Live", badgeColor: "bg-emerald-100 text-emerald-800", view: "inbox" as const },
-    { label: "Upcoming Tours", value: k.upcomingTours.toString(), icon: Calendar, iconColor: "text-rose-700", iconBg: "bg-rose-100/80 border border-rose-200/60", sub: "Next 24 hours", badge: "Scheduled", badgeColor: "bg-rose-100 text-rose-800", view: "tours" as const },
+    isRestaurant
+      ? { label: "Smart Menu", value: (k.completedOrders || 0).toString(), icon: Utensils, iconColor: "text-amber-700", iconBg: "bg-amber-100/80 border border-amber-200/60", sub: "Digital menu & KDS", badge: "Dining", badgeColor: "bg-amber-100 text-amber-800", view: "restaurant" as const }
+      : { label: "Upcoming Tours", value: k.upcomingTours.toString(), icon: Calendar, iconColor: "text-rose-700", iconBg: "bg-rose-100/80 border border-rose-200/60", sub: "Next 24 hours", badge: "Scheduled", badgeColor: "bg-rose-100 text-rose-800", view: "tours" as const },
   ]
 
   return (
@@ -192,7 +203,7 @@ export default function DashboardView() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div data-tour="dashboard-kpis" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {kpiCards.map((card, i) => (
           <button
             key={i}
@@ -229,7 +240,7 @@ export default function DashboardView() {
 
       {/* Revenue Chart + Channel Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
+        <Card data-tour="dashboard-chart" className="lg:col-span-2 rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-3 border-b border-stone-100/80 bg-stone-50/40">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900">
@@ -274,7 +285,7 @@ export default function DashboardView() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
+        <Card data-tour="dashboard-channels" className="rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-3 border-b border-stone-100/80 bg-stone-50/40">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900">
               <div className="h-7 w-7 rounded-lg flex items-center justify-center">
@@ -312,7 +323,7 @@ export default function DashboardView() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <div className="text-2xl font-black text-stone-900 tracking-tight">{totalChannel}</div>
-                <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Bookings</div>
+                <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{isRestaurant ? "Orders" : "Bookings"}</div>
               </div>
             </div>
             <div className="space-y-2 pt-2">
@@ -341,49 +352,57 @@ export default function DashboardView() {
         <Card className="rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-3 border-b border-stone-100/80 bg-stone-50/40">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900">
-              <div className="h-7 w-7 rounded-lg bg-emerald-100/80 flex items-center justify-center text-emerald-700">
-                <Map className="h-4 w-4" />
+              <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${isRestaurant ? "bg-amber-100/80 text-amber-700" : "bg-emerald-100/80 text-emerald-700"}`}>
+                {isRestaurant ? <Utensils className="h-4 w-4" /> : <Map className="h-4 w-4" />}
               </div>
-              <span>Top Performing Tours</span>
+              <span>{isRestaurant ? "Popular Dishes & Menu Performance" : "Top Performing Tours"}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="space-y-3.5">
-              {data.topTours.slice(0, 5).map((t, i) => {
-                const maxCount = Math.max(...data.topTours.map(tt => tt._count), 1)
-                return (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-50 transition-colors">
-                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                      i === 0 ? "bg-amber-100 text-amber-800 border border-amber-300/80" :
-                      i === 1 ? "bg-slate-100 text-slate-700 border border-slate-300/80" :
-                      i === 2 ? "bg-orange-100 text-orange-800 border border-orange-300/80" :
-                      "bg-stone-100 text-stone-500"
-                    }`}>
-                      #{i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold text-stone-900 truncate">{t.tour?.name || "Tour"}</span>
-                        <span className="text-xs font-bold text-stone-700">{t._count} bookings</span>
+            {isRestaurant && data.topTours.length === 0 ? (
+              <div className="text-center py-8 text-xs text-stone-500">
+                <Utensils className="h-8 w-8 mx-auto mb-2 text-amber-500/70" />
+                <p className="font-semibold text-stone-800">Live Menu Orders Tracking</p>
+                <p className="mt-1 text-stone-500">Popular dishes and customer orders will appear here automatically.</p>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {data.topTours.slice(0, 5).map((t, i) => {
+                  const maxCount = Math.max(...data.topTours.map(tt => tt._count), 1)
+                  return (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-50 transition-colors">
+                      <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                        i === 0 ? "bg-amber-100 text-amber-800 border border-amber-300/80" :
+                        i === 1 ? "bg-slate-100 text-slate-700 border border-slate-300/80" :
+                        i === 2 ? "bg-orange-100 text-orange-800 border border-orange-300/80" :
+                        "bg-stone-100 text-stone-500"
+                      }`}>
+                        #{i + 1}
                       </div>
-                      <div className="flex items-center gap-2.5 mt-1.5">
-                        <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
-                            style={{ width: `${(t._count / maxCount) * 100}%` }}
-                          />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-bold text-stone-900 truncate">{t.tour?.name || (isRestaurant ? "Dish Item" : "Tour")}</span>
+                          <span className="text-xs font-bold text-stone-700">{t._count} {isRestaurant ? "orders" : "bookings"}</span>
                         </div>
-                        <span className="text-[11px] font-bold text-emerald-700 font-mono">{formatCurrency(t._sum.totalAmount || 0)}</span>
+                        <div className="flex items-center gap-2.5 mt-1.5">
+                          <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${isRestaurant ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-gradient-to-r from-emerald-500 to-teal-500"}`}
+                              style={{ width: `${(t._count / maxCount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className={`text-[11px] font-bold font-mono ${isRestaurant ? "text-amber-800" : "text-emerald-700"}`}>{formatCurrency(t._sum.totalAmount || 0)}</span>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
+        <Card data-tour="dashboard-recent" className="rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-3 border-b border-stone-100/80 bg-stone-50/40">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900">

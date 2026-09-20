@@ -2,7 +2,8 @@ import type { Metadata } from "next"
 import { LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Fizmoh",
+  alternates: { canonical: "/privacy" },
+  title: "Privacy Policy",
   description: "What Fizmoh collects, why, and what you can ask us to do with it.",
 }
 

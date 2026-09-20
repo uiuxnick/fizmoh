@@ -184,11 +184,6 @@ export function pageMetadata(
     keywords: [...KEYWORDS_EN, ...KEYWORDS_AR],
     alternates: {
       canonical: url,
-      languages: {
-        en: url,
-        ar: url,
-        "x-default": url,
-      },
     },
     openGraph: {
       type: "website",

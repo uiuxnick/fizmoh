@@ -34,6 +34,168 @@ export type SolutionPage = {
 
 export const SOLUTION_PAGES: SolutionPage[] = [
   {
+    "slug": "saas-tech",
+    "kind": "industry",
+    "primaryKeyword": "SaaS & technology messaging automation",
+    "keywords": [
+      "SaaS & technology",
+      "WhatsApp automation"
+    ],
+    "title": "SaaS & technology",
+    "metaTitle": "SaaS & technology conversation workflows | Fizmoh",
+    "metaDescription": "Software buyers need clear answers before a demo, while existing customers need a route to a human. Keep those conversations separate and visible to the team.",
+    "h1": "Turn product enquiries into qualified conversations",
+    "intro": "Software buyers need clear answers before a demo, while existing customers need a route to a human. Keep those conversations separate and visible to the team.",
+    "problems": [
+      {
+        "title": "Reduce repeated questions",
+        "body": "Collect the context your team needs before a human picks up the conversation."
+      },
+      {
+        "title": "Keep ownership visible",
+        "body": "Use a shared inbox so colleagues can see the conversation and its assigned owner."
+      }
+    ],
+    "workflow": [
+      {
+        "step": "Qualify the request",
+        "body": "Ask whether the visitor is evaluating the product or needs help with an existing account."
+      },
+      {
+        "step": "Collect useful context",
+        "body": "Capture the use case, team size and preferred contact time without asking for credentials."
+      },
+      {
+        "step": "Route to a person",
+        "body": "Assign the conversation to sales or support and preserve the answers in the transcript."
+      }
+    ],
+    "modules": [
+      "Shared inbox",
+      "Visual conversation flows",
+      "Contact records",
+      "Human handoff"
+    ],
+    "faqs": [
+      {
+        "q": "Can an operator take over?",
+        "a": "Yes. Include a human handoff in the flow and use the shared inbox to continue the conversation."
+      },
+      {
+        "q": "Does this automatically connect our existing systems?",
+        "a": "External data requires a configured integration. Confirm the supported API and workflow with the team before deployment."
+      }
+    ]
+  },
+  {
+    "slug": "logistics",
+    "kind": "industry",
+    "primaryKeyword": "Logistics messaging automation",
+    "keywords": [
+      "Logistics",
+      "WhatsApp automation"
+    ],
+    "title": "Logistics",
+    "metaTitle": "Logistics conversation workflows | Fizmoh",
+    "metaDescription": "Tracking questions, address clarifications and delivery exceptions compete for attention. Collect the reference and route the enquiry so the team can investigate.",
+    "h1": "Keep delivery enquiries organised",
+    "intro": "Tracking questions, address clarifications and delivery exceptions compete for attention. Collect the reference and route the enquiry so the team can investigate.",
+    "problems": [
+      {
+        "title": "Reduce repeated questions",
+        "body": "Collect the context your team needs before a human picks up the conversation."
+      },
+      {
+        "title": "Keep ownership visible",
+        "body": "Use a shared inbox so colleagues can see the conversation and its assigned owner."
+      }
+    ],
+    "workflow": [
+      {
+        "step": "Ask for a reference",
+        "body": "Collect the order or shipment reference before handing the request to an operator."
+      },
+      {
+        "step": "Review the source",
+        "body": "The operator checks the delivery system. Tracking data requires a connected source; a chatbot should not invent a delivery status."
+      },
+      {
+        "step": "Follow up clearly",
+        "body": "Reply in the conversation with the confirmed result and keep the handoff visible to colleagues."
+      }
+    ],
+    "modules": [
+      "Shared inbox",
+      "Question nodes",
+      "Conversation assignment",
+      "Integration APIs"
+    ],
+    "faqs": [
+      {
+        "q": "Can an operator take over?",
+        "a": "Yes. Include a human handoff in the flow and use the shared inbox to continue the conversation."
+      },
+      {
+        "q": "Does this automatically connect our existing systems?",
+        "a": "External data requires a configured integration. Confirm the supported API and workflow with the team before deployment."
+      }
+    ]
+  },
+  {
+    "slug": "agencies",
+    "kind": "industry",
+    "primaryKeyword": "Agencies messaging automation",
+    "keywords": [
+      "Agencies",
+      "WhatsApp automation"
+    ],
+    "title": "Agencies",
+    "metaTitle": "Agencies conversation workflows | Fizmoh",
+    "metaDescription": "Agency teams need repeatable onboarding and a shared view of enquiries while keeping each client’s contacts and channel settings separate.",
+    "h1": "Manage client conversations with clear workspace boundaries",
+    "intro": "Agency teams need repeatable onboarding and a shared view of enquiries while keeping each client’s contacts and channel settings separate.",
+    "problems": [
+      {
+        "title": "Reduce repeated questions",
+        "body": "Collect the context your team needs before a human picks up the conversation."
+      },
+      {
+        "title": "Keep ownership visible",
+        "body": "Use a shared inbox so colleagues can see the conversation and its assigned owner."
+      }
+    ],
+    "workflow": [
+      {
+        "step": "Prepare the client workspace",
+        "body": "Connect the intended business account and invite the staff who need access."
+      },
+      {
+        "step": "Build a client-specific flow",
+        "body": "Collect service interest and campaign context, then test every branch before publishing."
+      },
+      {
+        "step": "Review and hand over",
+        "body": "Assign enquiries to the responsible team and use private notes for internal context."
+      }
+    ],
+    "modules": [
+      "Tenant workspaces",
+      "Team permissions",
+      "Flow builder",
+      "Shared inbox"
+    ],
+    "faqs": [
+      {
+        "q": "Can an operator take over?",
+        "a": "Yes. Include a human handoff in the flow and use the shared inbox to continue the conversation."
+      },
+      {
+        "q": "Does this automatically connect our existing systems?",
+        "a": "External data requires a configured integration. Confirm the supported API and workflow with the team before deployment."
+      }
+    ]
+  },
+  {
     slug: "real-estate",
     kind: "industry",
     primaryKeyword: "WhatsApp marketing for real estate",

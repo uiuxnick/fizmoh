@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { sendWhatsApp } from "@/lib/notifications"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
@@ -33,7 +33,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 
 export const POST = withErrors(async (request: NextRequest) => {
   // Public and unauthenticated: cap it so the waitlist cannot be flooded.
-  const rate = checkRateLimit(`waitlist:${requestIp(request.headers)}`, 10, 60 * 60 * 1000)
+  const rate = await checkRateLimit(`waitlist:${requestIp(request.headers)}`, 10, 60 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many requests" }, { status: 429 })
 
   const body = await request.json()

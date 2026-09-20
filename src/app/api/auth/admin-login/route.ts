@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { compare } from "bcryptjs"
 import { db } from "@/lib/db"
 import { setSessionCookie, signSession } from "@/lib/auth"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
 
 export const POST = withErrors(async (request: NextRequest) => {
   const ip = requestIp(request.headers)
-  const rate = checkRateLimit(`admin-login:${ip}`, 8, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`admin-login:${ip}`, 8, 15 * 60 * 1000)
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many login attempts. Try again later." },

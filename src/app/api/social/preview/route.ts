@@ -9,7 +9,7 @@ import { generateSocialReply, detectSocialEscalation, type Tone } from "@/lib/so
 export const POST = withErrors(withModule("SOCIAL_INBOX", async (request: NextRequest) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId || !tenant.staffId) return NextResponse.json({ error: "Workspace sign-in required" }, { status: 401 })
-  if (!checkRateLimit(`social-preview:${tenant.tenantId}`, 20, 60_000).allowed) return NextResponse.json({ error: "Please wait a minute before testing more replies" }, { status: 429 })
+  if (!(await checkRateLimit(`social-preview:${tenant.tenantId}`, 20, 60_000)).allowed) return NextResponse.json({ error: "Please wait a minute before testing more replies" }, { status: 429 })
   const body = await request.json()
   if (!["FACEBOOK", "INSTAGRAM"].includes(body.channel) || typeof body.message !== "string" || !body.message.trim() || body.message.length > 1000) return NextResponse.json({ error: "Choose a channel and enter up to 1000 characters" }, { status: 400 })
   const settings = await db.socialAutomationSettings.findUnique({ where: { tenantId_channel: { tenantId: tenant.tenantId, channel: body.channel } } })

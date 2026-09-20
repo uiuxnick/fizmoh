@@ -186,7 +186,7 @@ export default function SignupPage() {
                   ? isAr ? "بيانات المسؤول الرئيسي" : "Admin details"
                   : isAr ? "تعيين كلمة المرور" : "Set your password"}
               </h1>
-              <p className="mt-1 text-[13px] text-[#717680]">
+              <p className="mt-1 text-base text-[#717680]">
                 {step === 1
                   ? isAr ? "هذا الاسم سيظهر لعملائك ورابط مساحة العمل." : "This name will appear on your workspace link."
                   : step === 2
@@ -198,8 +198,8 @@ export default function SignupPage() {
             <div className="space-y-4">
               {step === 1 && (
                 <>
-                  <Field label={isAr ? "اسم الشركة / النشاط" : "Business name"}>
-                    <Input
+                  <Field id="signup-business" label={isAr ? "اسم الشركة / النشاط" : "Business name"}>
+                    <Input id="signup-business" name="business" autoComplete="organization"
                       autoFocus
                       value={business}
                       onChange={(e) => {
@@ -216,23 +216,23 @@ export default function SignupPage() {
                         setAvailability(null)
                       }}
                       placeholder={isAr ? "مغامرات عمان" : "Oman Adventures"}
-                      className="h-10 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-[13px] focus:ring-[#00E785]"
+                      className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-base focus:ring-[#00E785]"
                     />
                   </Field>
-                  <Field
+                  <Field id="signup-slug"
                     label={isAr ? "عنوان المتجر / مساحة العمل" : "Workspace link address"}
                     hint={isAr ? "الرابط المخصص لصفحة متجرك وحجوزاتك." : "Where your customers will browse and book."}
                   >
-                    <div className="flex items-center rounded-[8px] border border-[#E5E7EB] bg-white overflow-hidden h-10 ltr-force shadow-xs">
+                    <div className="flex items-center rounded-[8px] border border-[#E5E7EB] bg-white overflow-hidden h-11 ltr-force shadow-xs">
                       <span className="pl-3 text-[12px] text-[#717680] shrink-0 font-mono">app.fizmoh.cloud/</span>
-                      <input
+                      <input id="signup-slug" name="slug" aria-describedby="signup-slug-hint"
                         value={slug}
                         onChange={(e) => {
                           setTouchedSlug(true)
                           setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                         }}
                         placeholder="oman-adventures"
-                        className="flex-1 min-w-0 px-1 text-[13px] text-[#1D1D1D] outline-none bg-transparent"
+                        className="flex-1 min-w-0 px-1 text-base text-[#1D1D1D] outline-none bg-transparent"
                       />
                       {slug.length >= 2 && availability && (
                         <span
@@ -250,33 +250,33 @@ export default function SignupPage() {
 
               {step === 2 && (
                 <>
-                  <Field label={isAr ? "اسمك الكامل" : "Your name"}>
-                    <Input
+                  <Field id="signup-name" label={isAr ? "اسمك الكامل" : "Your name"}>
+                    <Input id="signup-name" name="name" autoComplete="name"
                       autoFocus
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={isAr ? "سالم" : "Salim"}
-                      className="h-10 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-[13px] focus:ring-[#00E785]"
+                      className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-base focus:ring-[#00E785]"
                     />
                   </Field>
-                  <Field label={isAr ? "البريد الإلكتروني" : "Work Email"}>
-                    <Input
+                  <Field id="signup-email" label={isAr ? "البريد الإلكتروني" : "Work Email"}>
+                    <Input id="signup-email" name="email" autoComplete="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@business.com"
-                      className="h-10 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-[13px] ltr-force focus:ring-[#00E785]"
+                      className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-base ltr-force focus:ring-[#00E785]"
                     />
                   </Field>
-                  <Field
+                  <Field id="signup-phone"
                     label={isAr ? "رقم هاتف واتساب" : "WhatsApp number"}
                     hint={isAr ? "اختياري. لتلقي رمز الدخول وإشعارات النظام." : "Optional. For verification and alerts."}
                   >
-                    <Input
+                    <Input id="signup-phone" name="phone" autoComplete="tel" type="tel" aria-describedby="signup-phone-hint"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+968 …"
-                      className="h-10 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-[13px] ltr-force focus:ring-[#00E785]"
+                      className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-base ltr-force focus:ring-[#00E785]"
                     />
                   </Field>
                 </>
@@ -284,11 +284,11 @@ export default function SignupPage() {
 
               {step === 3 && (
                 <>
-                  <Field
+                  <Field id="signup-password"
                     label={isAr ? "كلمة المرور" : "Password"}
                     hint={isAr ? "8 أحرف على الأقل." : "At least 8 characters."}
                   >
-                    <Input
+                    <Input id="signup-password" name="password" autoComplete="new-password"
                       autoFocus
                       type="password"
                       value={password}
@@ -296,10 +296,10 @@ export default function SignupPage() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && canContinue) submit()
                       }}
-                      className="h-10 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-[13px] ltr-force focus:ring-[#00E785]"
+                      className="h-11 rounded-[8px] bg-white border-[#E5E7EB] text-[#1D1D1D] text-base ltr-force focus:ring-[#00E785]"
                     />
                   </Field>
-                  <div className="rounded-[12px] bg-[#F2F2F2] border border-[#E5E7EB] p-4 text-[13px] space-y-1">
+                  <div className="rounded-[12px] bg-[#F2F2F2] border border-[#E5E7EB] p-4 text-base space-y-1">
                     <p className="font-bold text-[#1D1D1D]">{business || (isAr ? "مساحة عملك" : "Your workspace")}</p>
                     <p className="text-[#717680] text-[12px] font-mono ltr-force">app.fizmoh.cloud/{slug || "—"}</p>
                     <p className="text-[#717680] text-[12px]">{name} · {email}</p>
@@ -315,12 +315,12 @@ export default function SignupPage() {
 
             <div className="flex items-center gap-2.5 pt-2">
               {step > 1 && (
-                <Button variant="outline" className="h-10 rounded-[8px] border-[#1D1D1D] bg-white text-[#1D1D1D] px-3.5 hover:bg-[#F2F2F2]" onClick={() => setStep(step - 1)}>
+                <Button variant="outline" className="h-11 rounded-[8px] border-[#1D1D1D] bg-white text-[#1D1D1D] px-3.5 hover:bg-[#F2F2F2]" onClick={() => setStep(step - 1)}>
                   <ArrowLeft className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
                 </Button>
               )}
               <Button
-                className="flex-1 h-10 bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold text-[13px] rounded-[8px] border border-[#00B96A]/20"
+                className="flex-1 h-11 bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold text-base rounded-[8px] border border-[#00B96A]/20"
                 disabled={!canContinue || busy}
                 onClick={() => (step === 3 ? submit() : setStep(step + 1))}
               >
@@ -349,19 +349,21 @@ export default function SignupPage() {
 }
 
 function Field({
+  id,
   label,
   hint,
   children,
 }: {
+  id: string
   label: string
   hint?: string
   children: React.ReactNode
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[12px] font-bold text-[#1D1D1D]">{label}</Label>
+      <Label htmlFor={id} className="text-[12px] font-bold text-[#1D1D1D]">{label}</Label>
       {children}
-      {hint && <p className="text-[11px] text-[#717680]">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="text-[11px] text-[#717680]">{hint}</p>}
     </div>
   )
 }
@@ -377,7 +379,7 @@ function Finished({ name, slug, isAr }: { name: string; slug: string; isAr: bool
           <h1 className="text-2xl font-extrabold text-[#1D1D1D]">
             {isAr ? "مرحباً بك في Fizmoh!" : "Welcome to Fizmoh!"}
           </h1>
-          <p className="text-[13px] text-[#717680] leading-relaxed">
+          <p className="text-base text-[#717680] leading-relaxed">
             {isAr
               ? `تم إنشاء مساحة عمل "${name}" بنجاح وتفعيل 14 يوماً تجربة مجانية.`
               : `Workspace "${name}" is ready with your 14-day full feature trial.`}
@@ -386,7 +388,7 @@ function Finished({ name, slug, isAr }: { name: string; slug: string; isAr: bool
 
         <div className="pt-2">
           <Link href="/admin">
-            <Button className="w-full bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold rounded-[8px] h-10 text-[13px] border border-[#00B96A]/20">
+            <Button className="w-full bg-[#00E785] hover:bg-[#00B96A] text-[#1D1D1D] font-bold rounded-[8px] h-11 text-base border border-[#00B96A]/20">
               {isAr ? "الدخول إلى لوحة التحكم" : "Go to Dashboard"}
               <ArrowRight className={`ml-1.5 h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
             </Button>

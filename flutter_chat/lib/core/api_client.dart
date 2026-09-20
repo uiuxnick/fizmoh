@@ -381,6 +381,19 @@ class ApiClient {
     }
   }
 
+  /// Sends the workspace's Digital Business Card to a customer in the thread.
+  Future<void> sendDigitalVCard(String conversationId, {String format = 'both'}) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/conversations/$conversationId/send-vcard'),
+      headers: _headers,
+      body: jsonEncode({'format': format}),
+    );
+    if (response.statusCode >= 400) {
+      final body = _decode(response.body);
+      throw ApiException(body['error']?.toString() ?? 'The digital business card could not be sent');
+    }
+  }
+
   /// Sends an approved template.
   ///
   /// The only thing Meta will deliver once the 24-hour window has closed. The
@@ -672,6 +685,49 @@ class ApiClient {
 
   Future<void> setOrderStatus(String orderId, String action) =>
       _patch('/api/orders/$orderId', {'action': action});
+
+  // ─── Smart Restaurant & Table Ordering ───
+
+  Future<List<RestaurantOrder>> restaurantOrders({String? status, String? branchId}) async {
+    final query = <String, String>{
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
+    };
+    final uri = Uri.parse('$baseUrl/api/restaurant/orders').replace(queryParameters: query.isEmpty ? null : query);
+    final response = await _client.get(uri, headers: _headers);
+    if (response.statusCode != 200) return const [];
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (body['orders'] as List?) ?? const [];
+    return list.map((e) => RestaurantOrder.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> updateRestaurantOrderStatus(String orderId, String status) async {
+    await _client.put(
+      Uri.parse('$baseUrl/api/restaurant/orders'),
+      headers: _headers,
+      body: jsonEncode({'id': orderId, 'status': status}),
+    );
+  }
+
+  Future<List<WaiterRequest>> waiterRequests({String? status}) async {
+    final uri = Uri.parse('$baseUrl/api/restaurant/waiter-requests').replace(
+      queryParameters: status != null ? {'status': status} : null,
+    );
+    final response = await _client.get(uri, headers: _headers);
+    if (response.statusCode != 200) return const [];
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (body['requests'] as List?) ?? const [];
+    return list.map((e) => WaiterRequest.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> resolveWaiterRequest(String requestId) async {
+    await _client.put(
+      Uri.parse('$baseUrl/api/restaurant/waiter-requests'),
+      headers: _headers,
+      body: jsonEncode({'id': requestId, 'status': 'RESOLVED'}),
+    );
+  }
+
 
   Future<List<PendingPayment>> pendingPayments() async {
     final body = await _get('/api/payments?status=SUBMITTED');

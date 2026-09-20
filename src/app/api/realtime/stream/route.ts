@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { subscribe } from "@/lib/realtime"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant } from "@/lib/tenant"
@@ -15,7 +15,9 @@ export const maxDuration = 3600
 export const GET = withErrors(async (request: NextRequest) => {
   const encoder = new TextEncoder()
   const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace access required" }, { status: 403 })
 
+  let cleanup = () => {}
   const stream = new ReadableStream({
     start(controller) {
       let closed = false
@@ -24,7 +26,7 @@ export const GET = withErrors(async (request: NextRequest) => {
         try {
           controller.enqueue(encoder.encode(data))
         } catch {
-          closed = true
+          cleanup()
         }
       }
 
@@ -34,7 +36,7 @@ export const GET = withErrors(async (request: NextRequest) => {
       const unsubscribe = subscribe(event => {
         // Strict multi-tenant isolation: only forward events belonging to this exact workspace
         if (tenantId) {
-          if (event.tenantId && event.tenantId !== tenantId) {
+          if (event.tenantId !== tenantId) {
             return // Belongs to a different business workspace
           }
         } else {
@@ -50,9 +52,10 @@ export const GET = withErrors(async (request: NextRequest) => {
       // keeps the stream alive without emitting a client-visible event.
       const heartbeat = setInterval(() => send(`: ping\n\n`), 25_000)
 
-      const cleanup = () => {
+      cleanup = () => {
         if (closed) return
         closed = true
+        request.signal.removeEventListener("abort", cleanup)
         clearInterval(heartbeat)
         unsubscribe()
         try {
@@ -62,8 +65,10 @@ export const GET = withErrors(async (request: NextRequest) => {
         }
       }
 
-      request.signal.addEventListener("abort", cleanup)
+      request.signal.addEventListener("abort", cleanup, { once: true })
+      if (request.signal.aborted) cleanup()
     },
+    cancel() { cleanup() },
   })
 
   return new Response(stream, {

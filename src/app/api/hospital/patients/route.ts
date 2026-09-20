@@ -3,6 +3,7 @@ import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { canReadPatient } from "@/lib/hospital-patient-access"
 
 export const GET = withErrors(async (req: NextRequest) => {
   const actor = currentTenant()
@@ -50,6 +51,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   if (!data.fullName || !data.mobile) {
     return NextResponse.json({ error: "Full name and mobile are required" }, { status: 400 })
   }
+  if (!await canReadPatient(req, tenantId, data.mobile)) return NextResponse.json({ error: "Verify your mobile number before registration" }, { status: 401 })
 
   // Auto-generate MRN if not provided
   if (!data.mrn) {

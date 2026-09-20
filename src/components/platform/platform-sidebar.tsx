@@ -18,6 +18,7 @@ export type PlatformSection =
   | "whatsapp-numbers"
   | "whatsapp-quality"
   | "support-tickets"
+  | "live-support"
   | "announcements"
   | "plans"
   | "usage"
@@ -69,6 +70,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Support Tickets",
     icon: <Headphones className="h-4 w-4" />,
   },
+  { key: "live-support", label: "Website Live Support", icon: <Headphones className="h-4 w-4" /> },
   {
     key: "announcements",
     label: "Announcements",

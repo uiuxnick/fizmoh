@@ -80,7 +80,7 @@ export default function ContactPage() {
                       {isAr ? "دعم واتساب" : "WhatsApp Support"}
                     </h4>
                     <a
-                      href="https://wa.me/96878836104"
+                      href="https://wa.me/96898314456"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[13px] font-bold text-[#00B96A] hover:underline inline-block mt-0.5"

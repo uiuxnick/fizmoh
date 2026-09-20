@@ -75,20 +75,49 @@ class Staff {
   }
 
   // ── Role-Based Access Control (RBAC) ──
-  bool get isOwner => role.toUpperCase() == 'OWNER';
-  bool get isAdmin => role.toUpperCase() == 'ADMIN' || isOwner;
-  bool get isFinance => role.toUpperCase() == 'FINANCE' || isAdmin;
-  bool get isAgent => role.toUpperCase() == 'AGENT' || isAdmin;
-  bool get isViewer => role.toUpperCase() == 'VIEWER';
+  String get _normalizedRole =>
+      role.toUpperCase().replaceAll(RegExp(r'[\s\-_]+'), '');
 
-  bool get canManageTeam => isAdmin;
-  bool get canManageBilling => isOwner;
-  bool get canToggleBot => isAdmin;
-  bool get canGeneratePayments => isFinance || isAgent;
-  bool get canEditCustomerTags => isAgent || isAdmin;
-  bool get canMakeVoipCalls => !isViewer;
-  bool get canSendMessages => !isViewer;
-  bool get canAddPrivateNotes => !isViewer;
+  bool get isSuperAdmin =>
+      _normalizedRole.contains('SUPER') ||
+      _normalizedRole.contains('OPS') ||
+      _normalizedRole.contains('OWNER') ||
+      _normalizedRole == 'SUPERADMIN' ||
+      _normalizedRole == 'OPSADMIN';
+
+  bool get isOwner => isSuperAdmin || _normalizedRole == 'OWNER';
+
+  bool get isAdmin =>
+      isOwner ||
+      isSuperAdmin ||
+      _normalizedRole.contains('ADMIN') ||
+      _normalizedRole.contains('MANAGER') ||
+      _normalizedRole == 'MANAGER';
+
+  bool get isFinance =>
+      isAdmin ||
+      _normalizedRole.contains('FINANCE') ||
+      _normalizedRole.contains('ACCOUNTING');
+
+  bool get isAgent =>
+      isAdmin ||
+      isFinance ||
+      _normalizedRole.contains('AGENT') ||
+      _normalizedRole.contains('STAFF') ||
+      _normalizedRole.contains('SUPPORT') ||
+      _normalizedRole.contains('MARKETING') ||
+      _normalizedRole.contains('GUIDE');
+
+  bool get isViewer => _normalizedRole.contains('VIEWER') && !isAdmin;
+
+  bool get canManageTeam => isAdmin || isSuperAdmin;
+  bool get canManageBilling => isOwner || isAdmin || isSuperAdmin;
+  bool get canToggleBot => isAdmin || isAgent || isSuperAdmin;
+  bool get canGeneratePayments => isFinance || isAgent || isAdmin || isSuperAdmin;
+  bool get canEditCustomerTags => isAgent || isAdmin || isSuperAdmin;
+  bool get canMakeVoipCalls => !isViewer || isSuperAdmin;
+  bool get canSendMessages => !isViewer || isSuperAdmin;
+  bool get canAddPrivateNotes => !isViewer || isSuperAdmin;
 }
 
 class Conversation {
@@ -1249,6 +1278,7 @@ class Workspace {
   bool get supportsPayments => hasModule('PAYMENTS');
   bool get supportsBroadcast => hasModule('BROADCAST');
   bool get supportsTours => hasModule('TOURS');
+  bool get supportsRestaurant => hasModule('RESTAURANT');
 
   factory Workspace.fromJson(Map<String, dynamic> json) {
     final rawModules = (json['modules'] as List?)?.map((e) => e.toString()).toList() ??
@@ -1264,3 +1294,150 @@ class Workspace {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Restaurant & Ordering Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RestaurantOrderItem {
+  const RestaurantOrderItem({
+    required this.name,
+    required this.qty,
+    required this.price,
+    this.nameAr,
+    this.variant,
+    this.modifiers = const [],
+    this.notes,
+  });
+
+  final String name;
+  final String? nameAr;
+  final int qty;
+  final double price;
+  final String? variant;
+  final List<String> modifiers;
+  final String? notes;
+
+  factory RestaurantOrderItem.fromJson(Map<String, dynamic> json) {
+    String? variantName;
+    if (json['variant'] is Map) {
+      variantName = json['variant']['name']?.toString();
+    } else if (json['variant'] != null) {
+      variantName = json['variant'].toString();
+    }
+
+    List<String> mods = [];
+    if (json['modifiers'] is List) {
+      for (final m in json['modifiers']) {
+        if (m is Map && m['name'] != null) {
+          mods.add(m['name'].toString());
+        } else if (m != null) {
+          mods.add(m.toString());
+        }
+      }
+    }
+
+    return RestaurantOrderItem(
+      name: json['name']?.toString() ?? 'Item',
+      nameAr: json['nameAr']?.toString(),
+      qty: (json['qty'] as num?)?.toInt() ?? 1,
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      variant: variantName,
+      modifiers: mods,
+      notes: json['notes']?.toString(),
+    );
+  }
+}
+
+class RestaurantOrder {
+  const RestaurantOrder({
+    required this.id,
+    required this.orderNumber,
+    required this.status,
+    required this.orderType,
+    required this.totalAmount,
+    required this.currency,
+    required this.createdAt,
+    this.tableNumber,
+    this.roomNumber,
+    this.customerName,
+    this.customerPhone,
+    this.specialNotes,
+    this.items = const [],
+  });
+
+  final String id;
+  final String orderNumber;
+  final String status;
+  final String orderType;
+  final double totalAmount;
+  final String currency;
+  final DateTime? createdAt;
+  final String? tableNumber;
+  final String? roomNumber;
+  final String? customerName;
+  final String? customerPhone;
+  final String? specialNotes;
+  final List<RestaurantOrderItem> items;
+
+  factory RestaurantOrder.fromJson(Map<String, dynamic> json) {
+    List<RestaurantOrderItem> parsedItems = [];
+    if (json['itemsJson'] is String && (json['itemsJson'] as String).isNotEmpty) {
+      try {
+        final decoded = jsonDecode(json['itemsJson']) as List;
+        parsedItems = decoded.map((i) => RestaurantOrderItem.fromJson(i as Map<String, dynamic>)).toList();
+      } catch (_) {}
+    } else if (json['items'] is List) {
+      parsedItems = (json['items'] as List)
+          .map((i) => RestaurantOrderItem.fromJson(i as Map<String, dynamic>))
+          .toList();
+    }
+
+    return RestaurantOrder(
+      id: json['id']?.toString() ?? '',
+      orderNumber: json['orderNumber']?.toString() ?? '#${(json['id']?.toString() ?? '').substring(0, 4)}',
+      status: json['status']?.toString() ?? 'PENDING',
+      orderType: json['orderType']?.toString() ?? 'DINE_IN',
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      currency: json['currency']?.toString() ?? 'OMR',
+      createdAt: _date(json['createdAt']),
+      tableNumber: json['tableNumber']?.toString() ?? json['table']?['number']?.toString(),
+      roomNumber: json['roomNumber']?.toString() ?? json['table']?['roomNumber']?.toString(),
+      customerName: json['customerName']?.toString(),
+      customerPhone: json['customerPhone']?.toString(),
+      specialNotes: json['specialNotes']?.toString(),
+      items: parsedItems,
+    );
+  }
+}
+
+class WaiterRequest {
+  const WaiterRequest({
+    required this.id,
+    required this.requestType,
+    required this.status,
+    required this.createdAt,
+    this.tableNumber,
+    this.roomNumber,
+    this.message,
+  });
+
+  final String id;
+  final String requestType;
+  final String status;
+  final DateTime? createdAt;
+  final String? tableNumber;
+  final String? roomNumber;
+  final String? message;
+
+  factory WaiterRequest.fromJson(Map<String, dynamic> json) => WaiterRequest(
+        id: json['id']?.toString() ?? '',
+        requestType: json['requestType']?.toString() ?? 'ASSISTANCE',
+        status: json['status']?.toString() ?? 'PENDING',
+        createdAt: _date(json['createdAt']),
+        tableNumber: json['tableNumber']?.toString() ?? json['table']?['number']?.toString(),
+        roomNumber: json['roomNumber']?.toString() ?? json['table']?['roomNumber']?.toString(),
+        message: json['message']?.toString(),
+      );
+}
+

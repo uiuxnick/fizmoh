@@ -15,6 +15,8 @@
 
 import { EventEmitter } from "events"
 import { currentTenant } from "@/lib/tenant"
+import { randomUUID } from "crypto"
+import { sharedRedis, redisNamespace } from "@/lib/shared-redis"
 
 export type RealtimeEvent = (
   | { type: "message"; conversationId: string; direction: string; preview: string; channel?: string }
@@ -31,7 +33,7 @@ export type RealtimeEvent = (
     }
   | { type: "notification"; title: string; message: string; notificationType: string }
   | { type: "typing"; conversationId: string; who: "bot" | "customer" }
-  | { type: "restaurant_order"; orderId: string; status: string; tableNumber?: string; orderNumber?: string; branchId?: string; totalAmount?: number; currency?: string }
+  | { type: "restaurant_order"; orderId: string; status: string; paymentStatus?: string; tableId?: string; tableNumber?: string; orderNumber?: string; branchId?: string; totalAmount?: number; currency?: string }
   | { type: "restaurant_waiter_call"; requestId: string; tableNumber: string; requestType: string; branchId?: string; roomNumber?: string; message?: string }
   | { type: "restaurant_bill_request"; requestId: string; tableNumber: string; branchId?: string; roomNumber?: string }
 ) & { tenantId?: string }
@@ -39,7 +41,27 @@ export type RealtimeEvent = (
 const CHANNEL = "realtime"
 
 // Survives hot reload in development, where the module is re-evaluated.
-const globalForBus = globalThis as unknown as { __wptourBus?: EventEmitter }
+const globalForBus = globalThis as unknown as { __wptourBus?: EventEmitter; __fizmohBridge?: boolean; __fizmohOrigin?: string }
+
+function startBridge() {
+  const redis = sharedRedis()
+  if (!redis || globalForBus.__fizmohBridge) return
+  globalForBus.__fizmohBridge = true
+  globalForBus.__fizmohOrigin = randomUUID()
+  const subscriber = redis.duplicate({ commandTimeout: undefined })
+  const channel = `${redisNamespace()}:realtime`
+  subscriber.on("error", () => console.error("[realtime] Shared subscription unavailable"))
+  subscriber.on("ready", () => { void subscriber.subscribe(channel).catch(() => console.error("[realtime] Subscription failed")) })
+  subscriber.on("message", (name, payload) => {
+    if (name !== channel) return
+    try {
+      const message = JSON.parse(payload)
+      if (message.origin !== globalForBus.__fizmohOrigin && message.event && typeof message.event.type === "string") {
+        bus().emit(CHANNEL, message.event)
+      }
+    } catch { /* Ignore malformed broker frames without interrupting inboxes. */ }
+  })
+}
 
 function bus(): EventEmitter {
   if (!globalForBus.__wptourBus) {
@@ -51,11 +73,17 @@ function bus(): EventEmitter {
 }
 
 export function publish(event: RealtimeEvent) {
+  startBridge()
   const activeTenantId = event.tenantId || currentTenant()?.tenantId
-  bus().emit(CHANNEL, { ...event, tenantId: activeTenantId })
+  const scoped = { ...event, tenantId: activeTenantId }
+  bus().emit(CHANNEL, scoped)
+  const redis = sharedRedis()
+  if (redis) void redis.publish(`${redisNamespace()}:realtime`, JSON.stringify({ origin: globalForBus.__fizmohOrigin, event: scoped }))
+    .catch(() => console.error("[realtime] Shared publish failed; clients must refresh persisted data"))
 }
 
 export function subscribe(handler: (event: RealtimeEvent) => void): () => void {
+  startBridge()
   bus().on(CHANNEL, handler)
   return () => bus().off(CHANNEL, handler)
 }

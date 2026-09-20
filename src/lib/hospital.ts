@@ -23,8 +23,10 @@ export async function resolveHospTenantId(req?: Request): Promise<string> {
   const configured = process.env.HOSPITAL_PUBLIC_TENANT_ID?.trim()
   if (configured) return configured
 
-  const setting = await raw.hospSettings.findFirst({ select: { tenantId: true } })
-  if (setting?.tenantId) return setting.tenantId
+  // Preserve the existing single-hospital installation, but never choose an
+  // arbitrary row once a second hospital is configured.
+  const settings = await raw.hospSettings.findMany({ select: { tenantId: true }, take: 2 })
+  if (settings.length === 1 && settings[0].tenantId) return settings[0].tenantId
 
   throw new Error(
     "No hospital workspace could be resolved. Set HOSPITAL_PUBLIC_TENANT_ID, or configure hospital settings for the workspace.",

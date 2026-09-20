@@ -8,7 +8,7 @@ import { verifyWebhookSignature, downloadMedia, downloadMediaBytes, sendInteract
 import { aiChat, detectIntent, analyzePaymentScreenshot, transcribeAudio } from "@/lib/ai"
 import { sendWhatsApp } from "@/lib/notifications"
 import { formatCurrency, formatDate } from "@/lib/helpers"
-import { confirmOrderOnce } from "@/lib/confirm-order"
+import { confirmOrderOnce, sendOrderConfirmationWA } from "@/lib/confirm-order"
 import { sessionExpiryFrom } from "@/lib/whatsapp-session"
 import { runBotFlows, resumeFlow, flowWouldMatch, runNewConversationFlow } from "@/lib/botflow-engine"
 import { shouldSendAwayMessage } from "@/lib/business-hours"
@@ -26,6 +26,9 @@ import {
   getState,
   bookingAwaitingScreenshot,
   completeBooking,
+  isRescheduleIntent,
+  startRescheduleFlow,
+  detectLang,
 } from "@/lib/booking-flow"
 import {
   startMarketingFlow,
@@ -160,18 +163,61 @@ function parseMessage(msg: any): { content: string; mediaId: string | null; mess
   }
   return { content: `[${type}]`, mediaId: null, messageType: "TEXT" }
 }
-function isTestPhoneNumber(phone?: string | null): boolean {
+/**
+ * Phone number patterns always allowed through the bot gate, regardless of
+ * tenant-level bot_enabled / bot_whitelist_only settings.
+ *
+ * These are the platform development numbers. Per-tenant test numbers should
+ * be added through the dashboard (Settings → Bot → Whitelist), which writes
+ * them to the "bot_whitelist" systemSetting key and is read at runtime by
+ * isTestPhoneNumber() so no deploy is needed.
+ */
+const PLATFORM_WHITELIST_PATTERNS = [
+  "97684646",
+  "91711089",
+  "9545775",
+  "77174255",
+  "7717425",
+  "98314456",
+]
+
+async function getTenantWhitelistPatterns(): Promise<string[]> {
+  try {
+    const raw = (await getConfigValue("bot_whitelist").catch(() => "")).trim()
+    if (!raw) return []
+    // Stored as comma- or newline-separated phone fragments
+    return raw.split(/[,\n]+/).map(s => s.trim().replace(/\D/g, "")).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+async function isTestPhoneNumber(phone?: string | null): Promise<boolean> {
   if (!phone) return false
   const digits = phone.replace(/\D/g, "")
-  return digits.endsWith("98314456")
+  if (PLATFORM_WHITELIST_PATTERNS.some(p => digits.includes(p))) return true
+  const tenantPatterns = await getTenantWhitelistPatterns()
+  return tenantPatterns.some(p => p && digits.includes(p))
 }
 
 // ─── Conversation resolution ───
 
 async function resolveConversation(from: string, customerName: string, customerId: string) {
-  const isTestUser = isTestPhoneNumber(from)
+  const isWhitelisted = await isTestPhoneNumber(from)
+
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
-  const isBotActive = isTestUser || !(botOn === "false" || botOn === "off" || botOn === "0")
+  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
+  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
+  const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
+  const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
+
+  const isBotDisabledForTenant =
+    botOn === "false" || botOn === "off" || botOn === "0" ||
+    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
+    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+
+  // Whitelisted numbers always get the bot. Other numbers only if tenant hasn't disabled it and not whitelist-only.
+  const isBotActive = isWhitelisted || (!isBotDisabledForTenant && !isWhitelistOnly)
 
   // Prefer a live conversation. A CLOSED one is reopened rather than duplicated
   // so the agent keeps the full history on the thread.
@@ -181,10 +227,25 @@ async function resolveConversation(from: string, customerName: string, customerI
   })
 
   if (existing) {
+    if (isWhitelisted) {
+      if (!existing.botActive || existing.automationPaused) {
+        return db.conversation.update({
+          where: { id: existing.id },
+          data: { status: "OPEN", botActive: true, automationPaused: false },
+        })
+      }
+    } else if (!isBotActive) {
+      if (existing.botActive || !existing.automationPaused) {
+        return db.conversation.update({
+          where: { id: existing.id },
+          data: { botActive: false, automationPaused: true },
+        })
+      }
+    }
     if (existing.status === "CLOSED" || existing.status === "RESOLVED") {
       return db.conversation.update({
         where: { id: existing.id },
-        data: { status: "OPEN", botActive: isBotActive },
+        data: { status: "OPEN", botActive: isBotActive, automationPaused: !isBotActive },
       })
     }
     return existing
@@ -208,6 +269,7 @@ async function resolveConversation(from: string, customerName: string, customerI
       customerId,
       status: "OPEN",
       botActive: isBotActive,
+      automationPaused: !isBotActive,
       assignedStaffId,
       tenantId: currentTenant()?.tenantId || null,
     },
@@ -683,29 +745,42 @@ async function processMessage(msg: any, contact: any) {
    * an automated reply, and "the bot is off" has to mean off, not "off except
    * for the one message explaining that it's off."
    */
-  const isTestUser = isTestPhoneNumber(from)
-  if (isTestUser && !conversation.botActive) {
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: { botActive: true, automationPaused: false },
-    }).catch(() => {})
-    conversation.botActive = true
-  }
+  const isWhitelisted = await isTestPhoneNumber(from)
 
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
   const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  if (
-    !isTestUser &&
-    (botOn === "false" || botOn === "off" || botOn === "0" ||
-     waBotOn === "false" || waBotOn === "off" || waBotOn === "0")
-  ) {
-    return
+  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
+  const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
+  const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
+
+  const isBotDisabled =
+    botOn === "false" || botOn === "off" || botOn === "0" ||
+    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
+    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+
+  // Whitelisted numbers always receive bot replies.
+  // Non-whitelisted numbers are rejected if bot is disabled or if workspace is in whitelist-only mode.
+  if (!isWhitelisted) {
+    if (isBotDisabled) {
+      console.log(`[bot] Bot disabled for tenant ${currentTenant()?.tenantId || "default"} and sender ${from} is not whitelisted. Ignoring automated reply.`)
+      return
+    }
+    if (isWhitelistOnly) {
+      console.log(`[bot] Tenant ${currentTenant()?.tenantId || "default"} is in whitelist-only mode. Sender ${from} is not whitelisted. Ignoring.`)
+      return
+    }
+    // If the conversation's bot was paused or stopped (e.g. admin replied manually),
+    // do NOT auto-reply. Bot can ONLY be re-enabled manually by an admin.
+    if (!conversation.botActive || conversation.automationPaused) {
+      console.log(`[bot] Chat ${conversation.id} bot is paused/stopped (botActive=${conversation.botActive}, automationPaused=${conversation.automationPaused}). Awaiting manual re-enable by admin.`)
+      return
+    }
   }
 
   // Away message outside business hours (BRD §6.5.6). The AI keeps working
   // unless the operator explicitly turned that off — a booking assistant that
   // clocks off with the staff is not much of an assistant.
-  if (!isTestUser) {
+  {
     const away = await shouldSendAwayMessage(conversation.id)
     if (away.send) {
       await sendWhatsApp({ to: from, body: away.message, allowOutsideSession: true })
@@ -724,8 +799,6 @@ async function processMessage(msg: any, contact: any) {
     }
     if (away.blockBot) return
   }
-
-  if (!conversation.botActive && !isTestUser) return
 
   /*
    * Whether this is the very first thing this customer has ever sent.
@@ -803,7 +876,14 @@ async function processMessage(msg: any, contact: any) {
     }
 
     if (type === "text" || type === "interactive" || type === "button" || type === "sticker") {
-      const flowCtx = { tenantId: currentTenant()?.tenantId || "", conversationId: conversation.id, customerId: customer.id, phone: from }
+      const isArabicIncoming = (type === "text" && detectLang(content) === "ar") || customer.preferredLang === "ar"
+      const flowCtx = {
+        tenantId: currentTenant()?.tenantId || "",
+        conversationId: conversation.id,
+        customerId: customer.id,
+        phone: from,
+        lang: (isArabicIncoming ? "ar" : (customer.preferredLang as any) || undefined),
+      }
 
       // Guided booking flow takes precedence: the customer tapped a button we
       // sent, or is answering a question we asked. Handing either to the LLM
@@ -870,6 +950,241 @@ async function processMessage(msg: any, contact: any) {
         }
       }
 
+      // ─── Restaurant Module: Direct Dish Selection & Dish Search Handlers ───
+      {
+        const rTenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const isDishSelection = Boolean(replyId?.startsWith("item_") || replyId?.startsWith("menu_"))
+        const isSearchBtn = replyId === "opt_search" || replyId === "btn_search" || replyId === "search_menu"
+        const lowerText = content.trim().toLowerCase()
+        const isSearchKeyword = type === "text" && (
+          lowerText === "search" ||
+          lowerText === "بحث" ||
+          lowerText.startsWith("search ") ||
+          lowerText.startsWith("find ") ||
+          lowerText.startsWith("بحث ") ||
+          lowerText.startsWith("ابحث ")
+        )
+
+        let isWaitingForSearchQuery = false
+        if (type === "text" && !isDishSelection && !isSearchBtn && !isSearchKeyword) {
+          const lastBotMsg = await db.message.findFirst({
+            where: { conversationId: conversation.id, direction: "BOT" },
+            orderBy: { createdAt: "desc" },
+            select: { content: true },
+          })
+          if (lastBotMsg?.content && (
+            lastBotMsg.content.includes("Search Dishes & Menu") ||
+            lastBotMsg.content.includes("Search Dishes") ||
+            lastBotMsg.content.includes("Search Fizmoh Kitchen Menu") ||
+            lastBotMsg.content.includes("Type any dish, ingredient, or drink")
+          )) {
+            isWaitingForSearchQuery = true
+          }
+        }
+
+        // 1. Dish selection from menu or search list
+        if (isDishSelection) {
+          const itemId = (replyId || "").replace(/^(item_|menu_)/, "")
+          const item = await db.menuItem.findFirst({
+            where: { id: itemId, tenantId: rTenantId || undefined },
+            include: { category: true },
+          })
+
+          if (item) {
+            const tenant = await db.tenant.findUnique({
+              where: { id: item.tenantId },
+              select: { slug: true, name: true, currency: true },
+            })
+            const slug = tenant?.slug || "kitchen"
+            const _baseUrl999 = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
+            const itemUrl = `${_baseUrl999}/menu/${slug}?item=${item.id}`
+
+            const formattedPrice = `${(item.salePrice || item.price).toFixed(3)} ${item.currency}`
+            const tags: string[] = []
+            if (item.isVegetarian) tags.push("🌱 Vegetarian")
+            if (item.isVegan) tags.push("🌿 Vegan")
+            if (item.isGlutenFree) tags.push("🌾 Gluten-Free")
+            if (item.calories) tags.push(`🔥 ~${item.calories} kcal`)
+
+            const bodyLines = [
+              `🍽️ *${item.name}*${item.nameAr ? ` (${item.nameAr})` : ""}`,
+              `💵 *Price:* ${formattedPrice}`,
+              item.category?.name ? `📂 *Category:* ${item.category.name}` : "",
+              tags.length > 0 ? `✨ ${tags.join(" · ")}` : "",
+              "",
+              item.description || item.descriptionAr || "Freshly prepared to order with fine ingredients.",
+              item.allergens ? `\n⚠️ *Allergens:* ${item.allergens}` : "",
+              "",
+              `Tap below to customize and order online with kitchen delivery:`,
+            ].filter(line => line !== "")
+
+            const bodyText = bodyLines.join("\n")
+
+            const { sendCtaUrlMessage } = await import("@/lib/whatsapp")
+
+            // Send CTA button + link (both Web and Mobile compatible)
+            await sendCtaUrlMessage({
+              to: from,
+              body: bodyText,
+              buttonText: "Order This Dish",
+              url: itemUrl,
+            })
+
+            // Navigation quick buttons
+            await sendInteractiveMessage({
+              to: from,
+              body: `Would you like to explore more dishes or need assistance?`,
+              buttons: [
+                { id: "opt_menu", title: "📖 View Full Menu" },
+                { id: "opt_search", title: "🔍 Search Dishes" },
+                { id: "call_waiter", title: "🔔 Call Waiter" },
+              ],
+            })
+
+            // Record bot response in conversation
+            await db.message.create({
+              data: {
+                conversationId: conversation.id,
+                customerId: customer.id,
+                direction: "BOT",
+                type: "TEXT",
+                content: `${bodyText}\n${itemUrl}`,
+                isAiGenerated: false,
+                status: "SENT",
+              },
+            })
+
+            // Clear flow state so customer isn't trapped in node_welcome or old flow step
+            await db.conversation.update({
+              where: { id: conversation.id },
+              data: { flowState: Prisma.DbNull },
+            })
+            return
+          }
+        }
+
+        // 2. Search dishes
+        if (isSearchBtn || isSearchKeyword || isWaitingForSearchQuery) {
+          const tenant = await db.tenant.findUnique({
+            where: { id: rTenantId },
+            select: { slug: true, name: true },
+          })
+          const slug = tenant?.slug || "kitchen"
+          const { sendCtaUrlMessage, sendTextMessage } = await import("@/lib/whatsapp")
+
+          const isJustPrompt = isSearchBtn || lowerText === "search" || lowerText === "بحث" || lowerText === "find"
+
+          if (isJustPrompt) {
+            const promptText =
+              `🔍 *Search Dishes & Menu*\n\n` +
+              `Please type what you are looking for (e.g. *burger*, *pasta*, *pizza*, *fries*, *truffle*, *salad*, *coffee*):`
+
+            await sendTextMessage(from, promptText)
+
+            await db.message.create({
+              data: {
+                conversationId: conversation.id,
+                customerId: customer.id,
+                direction: "BOT",
+                type: "TEXT",
+                content: promptText,
+                isAiGenerated: false,
+                status: "SENT",
+              },
+            })
+            return
+          }
+
+          // Extract keyword
+          let query = content.trim()
+          if (lowerText.startsWith("search ")) query = query.slice(7).trim()
+          else if (lowerText.startsWith("find ")) query = query.slice(5).trim()
+          else if (lowerText.startsWith("بحث ")) query = query.slice(4).trim()
+          else if (lowerText.startsWith("ابحث ")) query = query.slice(5).trim()
+
+          if (query.length >= 2) {
+            const matches = await db.menuItem.findMany({
+              where: {
+                tenantId: rTenantId || undefined,
+                isAvailable: true,
+                isSoldOut: false,
+                OR: [
+                  { name: { contains: query, mode: "insensitive" } },
+                  { nameAr: { contains: query, mode: "insensitive" } },
+                  { description: { contains: query, mode: "insensitive" } },
+                  { category: { name: { contains: query, mode: "insensitive" } } },
+                ],
+              },
+              include: { category: true },
+              take: 8,
+              orderBy: { createdAt: "desc" },
+            })
+
+            const _baseUrl1122 = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
+            const searchMenuUrl = `${_baseUrl1122}/menu/${slug}?q=${encodeURIComponent(query)}`
+
+            if (matches.length > 0) {
+              const rows = matches.map(item => ({
+                id: `item_${item.id}`,
+                title: item.name.slice(0, 24),
+                description: `${(item.salePrice || item.price).toFixed(3)} ${item.currency} · ${item.category?.name || "Dish"}`.slice(0, 72),
+              }))
+
+              const bodyText =
+                `🔍 *Found ${matches.length} dish(es) matching "${query}":*\n\n` +
+                `Tap any dish below to view details and order, or browse all in our interactive menu:\n\n` +
+                `👉 *Open Search in Menu:*\n${searchMenuUrl}`
+
+              await sendInteractiveMessage({
+                to: from,
+                body: bodyText,
+                list: {
+                  title: "View Dishes",
+                  sections: [{ title: `Dishes for "${query.slice(0, 18)}"`, rows }],
+                },
+              })
+
+              await db.message.create({
+                data: {
+                  conversationId: conversation.id,
+                  customerId: customer.id,
+                  direction: "BOT",
+                  type: "TEXT",
+                  content: bodyText,
+                  isAiGenerated: false,
+                  status: "SENT",
+                },
+              })
+              return
+            } else {
+              const noMatchText =
+                `🔍 No dishes found matching *"${query}"*.\n\n` +
+                `Browse our complete digital menu to see everything we're serving today:`
+
+              await sendCtaUrlMessage({
+                to: from,
+                body: noMatchText,
+                buttonText: "Browse Full Menu",
+                url: `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/menu/${slug}`,
+              })
+
+              await db.message.create({
+                data: {
+                  conversationId: conversation.id,
+                  customerId: customer.id,
+                  direction: "BOT",
+                  type: "TEXT",
+                  content: `${noMatchText}\n${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/menu/${slug}`,
+                  isAiGenerated: false,
+                  status: "SENT",
+                },
+              })
+              return
+            }
+          }
+        }
+      }
+
       // ─── 1. Active flow session resumption (handles text, buttons, list choices) ───
       if (type === "text" || type === "interactive" || type === "button") {
         const midFlow = await resumeFlow({
@@ -885,6 +1200,107 @@ async function processMessage(msg: any, contact: any) {
             await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "FLOW" })
           }
           return
+        }
+      }
+
+      // ─── 2. Dashboard BotFlows (highest priority over all hardcoded fallbacks) ───
+      // Moved here so operator-authored flows win over restaurant/hospital/booking
+      // built-in handlers. A BotFlow with an ALWAYS trigger or matching keyword
+      // intercepts the message before any vertical-specific code runs.
+      {
+        const visualFlow = await runBotFlows({
+          tenantId: currentTenant()?.tenantId || "",
+          conversationId: conversation.id,
+          customerId: customer.id,
+          customerPhone: from,
+          message: content,
+          buttonId: replyId || undefined,
+        })
+        if (visualFlow.matched) {
+          if (visualFlow.handoff) {
+            await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
+          }
+          return
+        }
+      }
+
+      // ─── Restaurant Module Interactive & Keyword Handlers (Call Waiter / Bill / Pay) ───
+      {
+        const isWaiterBtn = replyId?.startsWith("call_waiter") || replyId?.startsWith("waiter_") || replyId === "call_waiter"
+        const isBillBtn = replyId?.startsWith("request_bill") || replyId?.startsWith("bill_") || replyId === "request_bill"
+        const isPayBtn = replyId?.startsWith("pay_order") || replyId === "pay_bill"
+        const isWaiterKeyword = type === "text" && [
+          "call waiter", "call_waiter", "waiter", "garcon", "نادل", "طلب نادل", "جرس", "من فضلك نادل", "ممكن نادل"
+        ].some(w => content.toLowerCase().includes(w))
+        const isBillKeyword = type === "text" && [
+          "request bill", "bill please", "check please", "فاتورة", "الحساب", "طلب الحساب", "الفاتورة"
+        ].some(w => content.toLowerCase().includes(w))
+
+        if (isWaiterBtn || isBillBtn || isPayBtn || isWaiterKeyword || isBillKeyword) {
+          const tenantId = currentTenant()?.tenantId || ""
+          const { callWaiter } = await import("@/lib/restaurant")
+          const { sendTextMessage, sendCtaUrlMessage } = await import("@/lib/whatsapp")
+
+          const btnOrderId = replyId?.replace(/^(call_waiter_|request_bill_|pay_order_)/, "") || null
+
+          const activeOrder = await db.kitchenOrder.findFirst({
+            where: {
+              tenantId,
+              ...(btnOrderId ? { id: btnOrderId } : { customerPhone: from }),
+              status: { notIn: ["CANCELLED", "COMPLETED"] },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+
+          const tableNumber = activeOrder?.tableNumber || null
+          const tableId = activeOrder?.tableId || null
+
+          if (isPayBtn && activeOrder) {
+            const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/api/amwalpay/create-session?orderId=KIT-${activeOrder.id}`
+            await sendCtaUrlMessage({
+              to: from,
+              body: `💳 *Pay Restaurant Order #${activeOrder.orderNumber || ""}*\n\nTotal: *${activeOrder.totalAmount.toFixed(3)} ${activeOrder.currency || "OMR"}*\n${tableNumber ? `Table: #${tableNumber}\n\n` : "\n"}Tap below to pay securely with Card:`,
+              buttonText: "Pay Online Now",
+              url: payUrl,
+            })
+            return
+          }
+
+          if (isBillBtn || isBillKeyword) {
+            await callWaiter({
+              tenantId,
+              tableId,
+              tableNumber,
+              requestType: "BILL",
+              message: `Customer requested bill via WhatsApp`,
+            })
+            const reply = `🧾 *Bill Requested!*\n\nOur staff has been alerted and will bring the bill to your table${tableNumber ? ` (Table #${tableNumber})` : ""}.`
+            if (activeOrder && activeOrder.paymentStatus !== "PAID") {
+              const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"}/api/amwalpay/create-session?orderId=KIT-${activeOrder.id}`
+              await sendCtaUrlMessage({
+                to: from,
+                body: `${reply}\n\nYou can also settle your bill immediately online via Card:`,
+                buttonText: "Pay Online Now",
+                url: payUrl,
+              })
+            } else {
+              await sendTextMessage(from, reply)
+            }
+            return
+          }
+
+          if (isWaiterBtn || isWaiterKeyword) {
+            await callWaiter({
+              tenantId,
+              tableId,
+              tableNumber,
+              requestType: "ASSISTANCE",
+              message: `Customer requested waiter via WhatsApp`,
+            })
+            const reply = `🔔 *Waiter Called!*\n\nA member of our team has been notified and is heading to your table${tableNumber ? ` (Table #${tableNumber})` : ""} right now. Thank you for your patience!`
+            await sendTextMessage(from, reply)
+            return
+          }
         }
       }
 
@@ -986,22 +1402,6 @@ async function processMessage(msg: any, contact: any) {
         return
       }
 
-      // ─── 3. Visual BotFlows created in the dashboard take priority over built-in fallbacks ───
-      const visualFlow = await runBotFlows({
-        tenantId: currentTenant()?.tenantId || "",
-        conversationId: conversation.id,
-        customerId: customer.id,
-        customerPhone: from,
-        message: content,
-        buttonId: replyId || undefined,
-      })
-      if (visualFlow.matched) {
-        if (visualFlow.handoff) {
-          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
-        }
-        return
-      }
-
       // Nothing claimed the message and it is this customer's first. The
       // workspace's own welcome flow gets its turn before the built-in menu.
       if (isFirstContact) {
@@ -1022,6 +1422,10 @@ async function processMessage(msg: any, contact: any) {
       }
 
       if (type === "text" || type === "sticker") {
+        if (isRescheduleIntent(content)) {
+          if (await startRescheduleFlow(flowCtx)) return
+        }
+
         if (await handleMarketingText(flowCtx, content)) return
         if (await handleAppointmentText(flowCtx, content)) return
         if (await handleVisaText(flowCtx, content)) return
@@ -1308,14 +1712,33 @@ async function handlePaymentScreenshot(params: {
         `\n${confirmed ? "Your booking is confirmed ✅ — our team is checking the transfer." : "Our team is verifying the transfer and will confirm your booking."} 🙏`,
   })
 
-  const { sendPostBookingChatChoice } = await import("@/lib/booking-flow")
-  await sendPostBookingChatChoice({
-    tenantId: currentTenant()?.tenantId || "",
-    conversationId,
-    customerId,
-    phone: from,
-    lang: ar ? "ar" : "en",
-  }).catch(() => null)
+  // Send the structured confirmation with Track Order + Contact buttons
+  if (confirmed) {
+    await sendOrderConfirmationWA({
+      phone: from,
+      orderRef: pendingOrder.orderNumber,
+      tourName: pendingOrder.tour.name,
+      slotDate: pendingOrder.slot?.date ? String(pendingOrder.slot.date) : null,
+      slotTime: pendingOrder.slot?.startTime ?? null,
+      paxAdult: pendingOrder.paxAdult ?? 1,
+      paxChild: pendingOrder.paxChild ?? 0,
+      totalAmount: pendingOrder.totalAmount,
+      voucherCode: confirmed.voucherCode,
+      lang: ar ? "ar" : "en",
+      conversationId,
+      customerId,
+      tenantId: currentTenant()?.tenantId || undefined,
+    }).catch(() => null)
+  } else {
+    const { sendPostBookingChatChoice } = await import("@/lib/booking-flow")
+    await sendPostBookingChatChoice({
+      tenantId: currentTenant()?.tenantId || "",
+      conversationId,
+      customerId,
+      phone: from,
+      lang: ar ? "ar" : "en",
+    }).catch(() => null)
+  }
 
   await notifyStaff({
     type: "PAYMENT_SUBMITTED",
@@ -1357,9 +1780,9 @@ async function handleTextMessage(params: {
    * human replies, or that is watching its AI spend, needs to be able to say so
    * without losing the booking flow with it.
    */
-  const isTestUser = isTestPhoneNumber(from)
+  const isWhitelisted = await isTestPhoneNumber(from)
   const aiOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  if (!isTestUser && (aiOn === "false" || aiOn === "off" || aiOn === "0")) {
+  if (!isWhitelisted && (aiOn === "false" || aiOn === "off" || aiOn === "0")) {
     await db.conversation.update({
       where: { id: conversationId },
       data: { botActive: false, automationPaused: true, status: "PENDING" },
@@ -1500,16 +1923,16 @@ async function handoffToAgent(params: {
   }
 
   // 2. Do NOT send automated message if bot is disabled or AI is disabled
-  const isTestUser = isTestPhoneNumber(from)
+  const isWhitelisted = await isTestPhoneNumber(from)
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
   const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  if (
-    (!isTestUser && (
-      botOn === "false" || botOn === "off" || botOn === "0" ||
-      waBotOn === "false" || waBotOn === "off" || waBotOn === "0"
-    )) ||
-    intent === "AI_DISABLED"
-  ) {
+  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
+  const isBotDisabled =
+    botOn === "false" || botOn === "off" || botOn === "0" ||
+    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
+    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+
+  if ((!isWhitelisted && isBotDisabled) || intent === "AI_DISABLED") {
     return
   }
 
@@ -1762,8 +2185,9 @@ async function handleWhatsAppCatalogOrder(params: {
   const tenantId = currentTenant()?.tenantId || null
   const orderNumber = `WA-${Date.now().toString().slice(-6)}`
 
+  let kitchenOrderId: string | null = null
   if (tenantId) {
-    await db.kitchenOrder.create({
+    const created = await db.kitchenOrder.create({
       data: {
         tenantId,
         orderType: "TAKEAWAY",
@@ -1775,27 +2199,30 @@ async function handleWhatsAppCatalogOrder(params: {
         status: "PENDING",
         specialNotes: `WhatsApp Catalog Order (${orderNumber})${notes ? `: ${notes}` : ""}`,
       },
-    }).catch((e) => console.error("Catalog order database insert error:", e))
+    }).catch((e) => { console.error("Catalog order database insert error:", e); return null })
+    kitchenOrderId = created?.id ?? null
   }
 
-  const itemsList = parsedItems.map((i) => `• ${i.quantity}x ${i.productId} (${i.price.toFixed(3)} OMR)`).join("\n")
+  const itemsList = parsedItems.map((i: { quantity: number; productId: string; price: number }) => `• ${i.quantity}x ${i.productId} (${i.price.toFixed(3)} OMR)`).join("\n")
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
-  const checkoutUrl = `${baseUrl}/shop`
+  const orderStatusUrl = kitchenOrderId
+    ? `${baseUrl}/track/KIT-${kitchenOrderId}`
+    : `${baseUrl}/shop`
 
-  const replyText = `🛍️ *WhatsApp Order Received!*
+  const replyText = `🛍️ *Order Received! #${orderNumber}*\n\n*Items:*\n${itemsList}\n\n💰 *Total:* ${totalAmount.toFixed(3)} OMR${notes ? `\n📝 *Notes:* ${notes}` : ""}\n\nYour order has been sent to our kitchen! Tap below to track your order status:`
 
-Order ID: *${orderNumber}*
-Name: ${customerName}
+  const { sendCtaUrlMessage } = await import("@/lib/whatsapp")
+  const sent = await sendCtaUrlMessage({
+    to: from,
+    body: replyText,
+    buttonText: "Track My Order",
+    url: orderStatusUrl,
+  })
 
-*Items Ordered:*
-${itemsList}
-
-💰 *Total Amount:* ${totalAmount.toFixed(3)} OMR
-${notes ? `📝 *Notes:* ${notes}\n` : ""}
-Your order has been sent to our team! Tap below to confirm details & complete payment:
-👉 ${checkoutUrl}`
-
-  await sendWhatsApp({ to: from, body: replyText, allowOutsideSession: true })
+  // Fallback to plain text if CTA failed
+  if (!sent.success) {
+    await sendWhatsApp({ to: from, body: `${replyText}\n\n👉 ${orderStatusUrl}`, allowOutsideSession: true })
+  }
 
   await db.message.create({
     data: {
@@ -1803,9 +2230,19 @@ Your order has been sent to our team! Tap below to confirm details & complete pa
       customerId,
       direction: "BOT",
       type: "TEXT",
-      content: replyText,
+      content: `${replyText}\n${orderStatusUrl}`,
       isAiGenerated: false,
       status: "SENT",
     },
   })
+
+  // Follow-up: Contact / Waiter button
+  await sendInteractiveMessage({
+    to: from,
+    body: "Need help with your order? 💬",
+    buttons: [
+      { id: `call_waiter_${kitchenOrderId || ""}`, title: "🔔 Call Waiter" },
+      { id: "bk_chat_ai", title: "🤖 AI Assistant" },
+    ],
+  }).catch(() => null)
 }

@@ -1,0 +1,37 @@
+- generic [active] [ref=f4e1]:
+  - heading "Local support verification" [level=1] [ref=f4e2]
+  - generic [ref=f4e11]:
+    - generic [ref=f4e12]:
+      - generic [ref=f4e13]: F
+      - generic [ref=f4e16]:
+        - generic [ref=f4e17]: Fizmoh Support
+        - generic [ref=f4e18]: AI & platform support team
+        - generic [ref=f4e20]: AI help · Human support on request
+      - button "✕" [ref=f4e22] [cursor=pointer]
+    - generic [ref=f4e23]:
+      - button "💬 Web Live Chat" [ref=f4e24] [cursor=pointer]
+      - button "WhatsApp" [ref=f4e25] [cursor=pointer]
+    - generic [ref=f4e28]:
+      - generic [ref=f4e29]:
+        - generic [ref=f4e30]: FZ-LOCAL-TEST · Platform support team
+        - button "Chat with Human" [disabled] [ref=f4e31] [cursor=pointer]
+      - generic [ref=f4e32]:
+        - generic [ref=f4e33]:
+          - generic [ref=f4e34]: AI Assistant
+          - generic [ref=f4e35]: Hi! I am the Fizmoh AI support assistant.
+          - generic [ref=f4e36]: 12:54 PM
+        - generic [ref=f4e37]:
+          - generic [ref=f4e38]: How can I use the team inbox?
+          - generic [ref=f4e39]: 12:54 PM
+        - generic [ref=f4e40]:
+          - generic [ref=f4e41]: AI Assistant
+          - generic [ref=f4e42]: I can help with the Fizmoh inbox and bot builder.
+          - generic [ref=f4e43]: 12:54 PM
+        - generic [ref=f4e44]:
+          - generic [ref=f4e45]: Local owner test reply — I can help you set up the inbox.
+          - generic [ref=f4e46]: 12:54 PM
+      - alert
+      - generic [ref=f4e47]:
+        - textbox "Support message" [ref=f4e48]:
+          - /placeholder: Type a message...
+        - button "Send message" [ref=f4e49] [cursor=pointer]

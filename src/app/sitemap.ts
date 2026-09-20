@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next"
 import { absoluteUrl } from "@/lib/seo"
 import { db } from "@/lib/db"
 import { BLOG_POSTS } from "@/lib/blog-data"
+import { RESOURCE_PAGES } from "@/lib/resource-pages"
 import { SOLUTION_PAGES } from "@/lib/solution-pages"
 import { PRODUCT_PAGES } from "@/lib/marketing/products"
 import { INDUSTRY_PAGES } from "@/lib/marketing/industries"
@@ -35,6 +36,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority,
     })
   )
+
+  for (const page of RESOURCE_PAGES) {
+    sitemapEntries.push({ url: absoluteUrl(`/resources/${page.slug}`), lastModified: now, changeFrequency: "monthly", priority: 0.7 })
+  }
 
   // Append all individual blog articles (English and Arabic)
   for (const post of BLOG_POSTS) {

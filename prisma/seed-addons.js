@@ -14,7 +14,9 @@ const addons = [
 ]
 
 async function main() {
-  for (const [sortOrder, [slug, name, description, module, priceMonthly, priceYearly, limits]] of addons.entries()) {
+  for (const [sortOrder, [slug, name, description, module, monthlyOmr, yearlyOmr, limits]] of addons.entries()) {
+    const priceMonthly = monthlyOmr * 1000
+    const priceYearly = yearlyOmr * 1000
     await db.planAddon.upsert({ where: { slug }, create: { slug, name, description, module, priceMonthly, priceYearly, limits, currency: "OMR", sortOrder, isPublic: true }, update: { name, description, module, priceMonthly, priceYearly, limits, sortOrder, isPublic: true } })
   }
 

@@ -1,0 +1,6 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - region "Notifications (F8)":
+      - list
+    - region "Notifications alt+T"
+  - alert [ref=f8e5]

@@ -34,7 +34,13 @@ export default function CustomersView() {
   const [draft, setDraft] = useState<Record<string, unknown>>({})
   const [saving, setSaving] = useState(false)
 
-  const load = () => fetch("/api/customers").then(r => r.json()).then(d => { setCustomers(d.customers || []); setLoading(false) }).catch(() => setLoading(false))
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [history, setHistory] = useState<Array<string | null>>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const [refresh, setRefresh] = useState(0)
+  const [loadError, setLoadError] = useState("")
+  const load = () => setRefresh(value => value + 1)
 
   const startEdit = (c: Customer) => {
     setDraft({
@@ -73,13 +79,25 @@ export default function CustomersView() {
   }
 
   useEffect(() => {
-    fetch("/api/customers").then(r => r.json()).then(d => { setCustomers(d.customers || []); setLoading(false) }).catch(() => setLoading(false))
-  }, [])
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setLoading(true); setLoadError("")
+      try {
+        const query = new URLSearchParams({ search, tier, limit: "50" })
+        if (cursor) query.set("cursor", cursor)
+        const response = await fetch(`/api/customers?${query}`, { signal: controller.signal })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Could not load customers")
+        if (controller.signal.aborted) return
+        setCustomers(data.customers || []); setTotal(data.total || 0); setNextCursor(data.nextCursor || null)
+      } catch (error) {
+        if (!controller.signal.aborted) { setCustomers([]); setNextCursor(null); setLoadError(error instanceof Error ? error.message : "Could not load customers") }
+      } finally { if (!controller.signal.aborted) setLoading(false) }
+    }, 250)
+    return () => { clearTimeout(timer); controller.abort() }
+  }, [search, tier, cursor, refresh])
 
-  const filtered = customers.filter(c =>
-    (tier === "all" || c.loyaltyTier === tier) &&
-    (!search || (c.name?.toLowerCase().includes(search.toLowerCase())) || c.phone.includes(search) || (c.email?.toLowerCase().includes(search.toLowerCase())))
-  )
+  const filtered = customers
 
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-none space-y-6">
@@ -89,7 +107,7 @@ export default function CustomersView() {
           <div className="h-9 w-9 rounded-lg bg-teal-50 flex items-center justify-center"><Users className="h-5 w-5 text-teal-600" /></div>
           Customers &amp; CRM
         </h2>
-        <p className="text-sm text-stone-500 mt-0.5">{customers.length} customers · {customers.filter(c => c.loyaltyTier === "GOLD").length} Gold · {customers.filter(c => c.loyaltyTier === "SILVER").length} Silver</p>
+        <p className="text-sm text-stone-500 mt-0.5">{total} matching customers · {customers.length} on this page</p>
         </div>
         {/* The CSV endpoint already existed with nothing calling it. */}
         <Button variant="outline" size="sm" asChild>
@@ -100,12 +118,13 @@ export default function CustomersView() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" /><Input placeholder="Search by name, phone, email..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-white" /></div>
-        <select value={tier} onChange={e => setTier(e.target.value)} className="px-3 py-2 rounded-lg border bg-white text-sm">
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" /><Input placeholder="Search by name, phone, email..." value={search} onChange={e => { setSearch(e.target.value); setCursor(null); setHistory([]); setLoading(true) }} aria-label="Search customers" className="pl-9 bg-white" /></div>
+        <select value={tier} onChange={e => { setTier(e.target.value); setCursor(null); setHistory([]); setLoading(true) }} aria-label="Customer tier" className="px-3 py-2 rounded-lg border bg-white text-sm">
           <option value="all">All Tiers</option><option value="GOLD">Gold</option><option value="SILVER">Silver</option><option value="BRONZE">Bronze</option>
         </select>
       </div>
 
+      {loadError && <p role="alert" className="text-rose-700">{loadError} <button onClick={load}>Retry</button></p>}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}</div>
       ) : filtered.length === 0 ? (
@@ -142,6 +161,11 @@ export default function CustomersView() {
         </div>
       )}
 
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="outline" disabled={loading || history.length === 0} onClick={() => { setCursor(history[history.length - 1]); setHistory(history.slice(0, -1)); setLoading(true) }}>Previous</Button>
+        <span className="text-sm text-stone-500">Page {history.length + 1}</span>
+        <Button variant="outline" disabled={loading || !nextCursor} onClick={() => { setHistory([...history, cursor]); setCursor(nextCursor); setLoading(true) }}>Next</Button>
+      </div>
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setSelected(null); setEditing(false) }}>
           <Card className="max-w-lg w-full max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>

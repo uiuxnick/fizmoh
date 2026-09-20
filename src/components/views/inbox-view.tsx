@@ -261,7 +261,7 @@ export default function InboxView() {
       {/* ── Left Conversation List (Fixed header, scrollable contact numbers) ── */}
       <div className="w-full md:w-84 lg:w-96 border-r border-stone-200/90 bg-white flex flex-col h-full overflow-hidden shrink-0">
         {/* Header & Search */}
-        <div className="p-3.5 border-b border-stone-200/80 bg-stone-50/50 space-y-2.5 shrink-0">
+        <div data-tour="inbox-filter-chips" className="p-3.5 border-b border-stone-200/80 bg-stone-50/50 space-y-2.5 shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-base text-stone-900 flex items-center gap-2">
               <div className="h-7 w-7 rounded-lg flex items-center justify-center">
@@ -331,7 +331,7 @@ export default function InboxView() {
         </div>
 
         {/* Scrollable Conversation List */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div data-tour="inbox-list" className="flex-1 min-h-0 overflow-y-auto">
           {loading ? (
             <div className="p-3 space-y-2.5">
               {[...Array(5)].map((_, i) => (
@@ -490,7 +490,7 @@ export default function InboxView() {
                 <LabelPicker conversationId={selected.id} labels={selected.labels} onChanged={loadConvos} />
                 <AssignPicker conversationId={selected.id} assignedStaffId={selected.assignedStaffId ?? null} onChanged={loadConvos} />
 
-                <div className="flex items-center gap-1.5 pl-2 border-l border-stone-200 ml-1">
+                <div data-tour="inbox-bot-toggle" className="flex items-center gap-1.5 pl-2 border-l border-stone-200 ml-1">
                   <span className="text-xs font-semibold text-stone-600">Bot</span>
                   <Switch
                     checked={selected.botActive}
@@ -749,7 +749,7 @@ export default function InboxView() {
                 )
               })()}
 
-              <div className="flex items-center gap-2">
+              <div data-tour="inbox-composer-tools" className="flex items-center gap-2">
                 <div className="flex items-center gap-1 bg-stone-100/80 p-1 rounded-xl border border-stone-200/60">
                   <CannedPicker onPick={value => setText(value)} />
                   <ComposerAttachments onAttach={setAttachment} />
@@ -792,7 +792,7 @@ export default function InboxView() {
 
       {/* ── Right Customer Details & CRM Panel (Details & notes scroll) ── */}
       {selected && (
-        <div className="hidden lg:flex w-80 lg:w-88 shrink-0 border-l border-stone-200/80 bg-white flex-col h-full overflow-hidden">
+        <div data-tour="inbox-customer-drawer" className="hidden lg:flex w-80 lg:w-88 shrink-0 border-l border-stone-200/80 bg-white flex-col h-full overflow-hidden">
           <ConversationDetails
             conversation={selected as never}
             session={session}

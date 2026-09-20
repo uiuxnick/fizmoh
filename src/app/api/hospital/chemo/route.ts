@@ -6,6 +6,7 @@ import { currentTenant } from "@/lib/tenant"
 import { startOfDay, endOfDay, format } from "date-fns"
 import { nanoid } from "nanoid"
 import { sendHospitalBookingUpdate } from "@/lib/vertical-whatsapp"
+import { canReadPatient } from "@/lib/hospital-patient-access"
 
 function makeRef(date: Date, suffix: string) {
   const d = format(date, "yyMMdd")
@@ -56,6 +57,7 @@ export const POST = withErrors(async (req: NextRequest) => {
   if (!patient || !doctor || !bed || (sessionId && !session)) {
     return NextResponse.json({ error: "Invalid patient, doctor, bed, or session" }, { status: 400 })
   }
+  if (!await canReadPatient(req, tenantId, patient.mobile)) return NextResponse.json({ error: "Verify the patient's registered mobile number first" }, { status: 401 })
 
   const date = new Date(bookingDate)
 

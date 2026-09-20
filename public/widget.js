@@ -30,6 +30,8 @@
   const widgetId = currentScript ? currentScript.getAttribute("data-widget-id") : null;
   const tenantSlug = currentScript ? (currentScript.getAttribute("data-tenant") || "fizmoh-support") : "fizmoh-support";
 
+  const platformSupport = !widgetId && tenantSlug === "fizmoh-support";
+
   // Generate or retrieve persistent visitor UUID
   let visitorId = "";
   try {
@@ -66,7 +68,7 @@
     primaryColor: "#00E785",
     position: "bottom-right",
     headerTitle: "Customer Support",
-    headerSubtitle: "Typically replies in under 5 minutes",
+    headerSubtitle: platformSupport ? "AI help · Human support on request" : "Typically replies in under 5 minutes",
     agentName: "Support Specialist",
     agentRole: "Customer Care",
     avatarUrl: null,
@@ -74,11 +76,11 @@
     proactivePrompt: "Need help? Chat with our team!",
     proactiveDelay: 5,
     whatsappEnabled: true,
-    whatsappNumber: "+96890000000",
+    whatsappNumber: platformSupport ? "+96898314456" : "+96890000000",
     whatsappMessage: "Hello! I have a question about your services.",
     webChatEnabled: true,
     requireLeadForm: true,
-    requirePhone: false,
+    requirePhone: platformSupport,
     enableAiAgent: true,
   };
 
@@ -86,6 +88,13 @@
     isOpen: false,
     activeTab: "chat", // "chat" | "whatsapp"
     sessionId: null,
+    supportToken: null,
+    reference: "",
+    botActive: true,
+    requestMode: "chat",
+    starting: false,
+    sending: false,
+    error: "",
     visitorName: "",
     visitorEmail: "",
     visitorPhone: "",
@@ -107,6 +116,11 @@
     if (savedPhone) state.visitorPhone = savedPhone;
     if (savedName || savedEmail) state.leadCaptured = true;
   } catch (e) {}
+
+  if (platformSupport) {
+    try { state.supportToken = localStorage.getItem("fizmoh_platform_support_token"); } catch (e) {}
+    state.leadCaptured = !!(state.supportToken && state.visitorName && state.visitorPhone);
+  }
 
   // Fetch remote widget configuration
   async function fetchConfig() {
@@ -159,8 +173,115 @@
     } catch (e) {}
   }
 
+  function supportHeaders() {
+    return { "Content-Type": "application/json", ...(state.supportToken ? { Authorization: `Bearer ${state.supportToken}` } : {}) };
+  }
+
+  function supportError(message) {
+    state.error = message;
+    const target = shadow.querySelector(".fzm-error");
+    if (target) { target.textContent = message; target.style.cssText = "color:#b91c1c;padding:6px 12px;font-size:12px"; }
+  }
+
+  function updateSupportStatus(data) {
+    state.reference = data.reference || state.reference;
+    if (typeof data.botActive === "boolean") state.botActive = data.botActive;
+    state.closed = ["RESOLVED", "CLOSED"].includes(data.status);
+    const status = shadow.querySelector(".fzm-support-status");
+    if (status) status.textContent = state.reference + (state.closed ? " · Closed" : state.botActive ? " · AI assistant" : " · Platform support team");
+    const handoff = shadow.querySelector(".fzm-handoff-btn[title]");
+    if (handoff) { handoff.textContent = state.closed ? "New request" : "Chat with Human"; handoff.disabled = !state.closed && !state.botActive; }
+  }
+
+  async function refreshSupport() {
+    if (!state.supportToken || state.polling) return;
+    state.polling = true;
+    try {
+      const res = await fetch(`${baseUrl}/api/widget/support`, { headers: supportHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unable to refresh support chat");
+      state.messages = data.messages || [];
+      updateSupportStatus(data);
+      renderMessages();
+    } catch (error) { supportError(error.message || "Connection interrupted. Retrying…"); }
+    finally { state.polling = false; }
+  }
+
+  async function initSupportSession(details = {}) {
+    if (state.sessionId || state.starting) return;
+    state.starting = true;
+    const submit = shadow.querySelector(".fzm-lead-btn");
+    if (submit) { submit.disabled = true; submit.textContent = "Connecting…"; }
+    try {
+      const res = await fetch(`${baseUrl}/api/widget/support`, {
+        method: state.supportToken ? "GET" : "POST", headers: supportHeaders(),
+        ...(state.supportToken ? {} : { body: JSON.stringify({ name: state.visitorName, phone: state.visitorPhone, mode: state.requestMode, ...details }) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          state.supportToken = null; state.leadCaptured = false;
+          try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (e) {}
+          render();
+        }
+        throw new Error(data.error || "Unable to start support chat");
+      }
+      state.supportToken = data.sessionToken || state.supportToken;
+      state.sessionId = data.sessionId || data.reference;
+      state.reference = data.reference;
+      state.botActive = data.botActive;
+      state.leadCaptured = true;
+      state.error = "";
+      try {
+        localStorage.setItem("fizmoh_platform_support_token", state.supportToken);
+        localStorage.setItem("fizmoh_chat_visitor_name", state.visitorName);
+        localStorage.setItem("fizmoh_chat_visitor_phone", state.visitorPhone);
+      } catch (e) {}
+      render();
+      await refreshSupport();
+      if (state.pollInterval) clearInterval(state.pollInterval);
+      state.pollInterval = setInterval(() => { if (state.isOpen && !document.hidden) refreshSupport(); }, 4000);
+    } catch (error) { supportError(error.message || "Unable to start chat. Please try again."); }
+    finally {
+      state.starting = false;
+      const button = shadow.querySelector(".fzm-lead-btn");
+      if (button) { button.disabled = false; button.textContent = state.requestMode === "ticket" ? "Submit ticket" : "Start AI chat"; }
+    }
+  }
+
+  async function sendSupportMessage(text, handoff = false) {
+    if (state.closed) {
+      state.sessionId = null; state.supportToken = null; state.leadCaptured = false; state.messages = []; state.error = "";
+      try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (e) {}
+      if (state.pollInterval) clearInterval(state.pollInterval);
+      render(); return;
+    }
+    if (!state.sessionId || state.sending || (!handoff && !text.trim())) return;
+    state.sending = true;
+    state.isTyping = state.botActive && !handoff;
+    renderTyping();
+    supportError("");
+    try {
+      const res = await fetch(`${baseUrl}/api/widget/support`, {
+        method: "POST", headers: supportHeaders(),
+        body: JSON.stringify(handoff ? { requestHumanHandoff: true } : { content: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Message could not be sent");
+      if (data.message) appendOrUpdateMessage(data.message);
+      if (data.aiResponse) appendOrUpdateMessage(data.aiResponse);
+      renderMessages();
+      await refreshSupport();
+    } catch (error) {
+      supportError(error.message || "Message could not be sent. Please retry.");
+      const input = shadow.querySelector(".fzm-input");
+      if (input && !input.value && !handoff) input.value = text;
+    } finally { state.sending = false; state.isTyping = false; renderTyping(); }
+  }
+
   // Initialize or resume Live Chat session
   async function initSession() {
+    if (platformSupport) return initSupportSession();
     if (state.sessionId) return;
     try {
       const res = await fetch(`${baseUrl}/api/widget/session`, {
@@ -301,6 +422,7 @@
 
   // Send visitor message
   async function sendMessage(text) {
+    if (platformSupport) return sendSupportMessage(text);
     if (!text || !text.trim()) return;
     const clean = text.trim();
 
@@ -356,6 +478,7 @@
 
   // Request live human agent handoff
   async function requestHumanHandoff() {
+    if (platformSupport) return sendSupportMessage("", true);
     if (!state.sessionId) return;
     try {
       const res = await fetch(`${baseUrl}/api/widget/messages`, {
@@ -411,6 +534,7 @@
           align-items: center;
           justify-content: center;
           cursor: pointer;
+          border: 0;
           transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
           position: relative;
           user-select: none;
@@ -631,6 +755,15 @@
         }
         .fzm-wa-btn:hover { opacity: 0.94; }
 
+        ${platformSupport ? `
+        .fzm-lead-label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: -6px; }
+        .fzm-lead-form .fzm-lead-input { min-height: 44px; font-size: 16px; flex-shrink: 0; }
+        .fzm-lead-form .fzm-ticket-mode { min-height: 44px; padding: 10px; font-size: 14px; border: 1px solid #94a3b8; background: white; color: #334155; border-radius: 10px; flex-shrink: 0; }
+        .fzm-btn-icon { min-width: 44px; min-height: 44px; }
+        button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+        ` : ""}
+
         /* Lead Form */
         .fzm-lead-form {
           padding: 24px 20px;
@@ -639,6 +772,7 @@
           gap: 12px;
           flex: 1;
           justify-content: center;
+          ${platformSupport ? "overflow-y: auto; min-height: 0; justify-content: flex-start;" : ""}
         }
         .fzm-lead-title { font-size: 16px; font-weight: 700; color: #0f172a; text-align: center; }
         .fzm-lead-sub { font-size: 12px; color: #64748b; text-align: center; margin-bottom: 6px; }
@@ -804,15 +938,17 @@
         /* Mobile full screen overlay */
         @media (max-width: 640px) {
           .fzm-window {
+            position: fixed;
             width: 100vw;
-            height: 100vh;
+            height: 100dvh;
             max-width: 100vw;
-            max-height: 100vh;
+            max-height: 100dvh;
             bottom: 0;
             right: 0;
             left: 0;
             border-radius: 0;
           }
+          .fzm-window.open ~ .fzm-launcher { display: none; }
         }
       </style>
 
@@ -848,7 +984,7 @@
             <div class="fzm-header-sub">${config.headerSubtitle || "Typically replies in under 5 minutes"}</div>
           </div>
           <div class="fzm-header-actions">
-            <button class="fzm-btn-icon fzm-close-btn" title="Close">✕</button>
+            <button class="fzm-btn-icon fzm-close-btn" aria-label="Close support chat" title="Close">✕</button>
           </div>
         </div>
 
@@ -879,6 +1015,7 @@
                 <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM16.56 14.37C16.31 14.25 15.09 13.65 14.86 13.56C14.63 13.48 14.47 13.44 14.3 13.69C14.14 13.94 13.67 14.49 13.53 14.65C13.38 14.82 13.24 14.84 12.99 14.71C12.74 14.59 11.95 14.33 11.01 13.49C10.28 12.84 9.78 12.03 9.64 11.78C9.5 11.53 9.62 11.4 9.75 11.27C9.86 11.16 10 10.98 10.12 10.84C10.25 10.7 10.29 10.59 10.37 10.43C10.45 10.26 10.41 10.12 10.35 10C10.29 9.88 9.79 8.65 9.59 8.14C9.39 7.65 9.18 7.72 9.03 7.71C8.89 7.7 8.72 7.7 8.56 7.7C8.39 7.7 8.12 7.76 7.89 8.01C7.66 8.26 7.02 8.86 7.02 10.08C7.02 11.3 7.91 12.47 8.03 12.64C8.16 12.81 9.77 15.28 12.24 16.35C12.83 16.6 13.28 16.75 13.64 16.87C14.23 17.06 14.77 17.03 15.2 16.97C15.68 16.9 16.67 16.37 16.88 15.79C17.08 15.22 17.08 14.73 17.02 14.63C16.96 14.53 16.81 14.49 16.56 14.37Z"/></svg>
               </div>
               <div class="fzm-wa-title">Chat on WhatsApp</div>
+              ${platformSupport ? `<div>${escapeHtml(config.whatsappNumber)}</div>` : ""}
               <div class="fzm-wa-desc">Connect directly with our support team on WhatsApp for instant replies and media sharing.</div>
               <textarea class="fzm-wa-input" placeholder="Type your message here...">${config.whatsappMessage || "Hello! I have a question."}</textarea>
               <button class="fzm-wa-btn">
@@ -889,22 +1026,25 @@
           `
               : !state.leadCaptured && config.requireLeadForm
               ? `
-            <form class="fzm-lead-form">
+            <form class="fzm-lead-form" ${platformSupport ? 'toolname="startPlatformSupport" tooldescription="Prepare an AI support chat or ticket. Your name and international phone are required; review and submit to start."' : ""}>
               <div class="fzm-lead-title">Welcome to Live Support 👋</div>
               <div class="fzm-lead-sub">Please introduce yourself to start chatting</div>
-              <input type="text" class="fzm-lead-input fzm-in-name" placeholder="Your Name" required value="${state.visitorName}" />
-              <input type="email" class="fzm-lead-input fzm-in-email" placeholder="Email Address" required value="${state.visitorEmail}" />
+              ${platformSupport ? '<label class="fzm-lead-label" for="fzm-support-name">Your name</label>' : ""}<input id="fzm-support-name" name="name" type="text" class="fzm-lead-input fzm-in-name" aria-label="Your name" autocomplete="name" minlength="2" maxlength="100" placeholder="Your Name" required value="${escapeHtml(state.visitorName)}" />
+              ${platformSupport ? "" : `<input type="email" class="fzm-lead-input fzm-in-email" aria-label="Email address" placeholder="Email Address" required value="${escapeHtml(state.visitorEmail)}" />`}
               ${
                 config.requirePhone
-                  ? `<input type="tel" class="fzm-lead-input fzm-in-phone" placeholder="Phone Number" required value="${state.visitorPhone}" />`
+                  ? `${platformSupport ? '<label class="fzm-lead-label" for="fzm-support-phone">Phone with country code</label>' : ""}<input id="fzm-support-phone" name="phone" type="tel" class="fzm-lead-input fzm-in-phone" aria-label="Phone number with country code" autocomplete="tel" maxlength="30" placeholder="Phone with country code, e.g. +96898314456" required value="${escapeHtml(state.visitorPhone)}" />`
                   : ""
               }
-              <button type="submit" class="fzm-lead-btn">Start Chat</button>
+              ${platformSupport && state.requestMode === "ticket" ? `<label class="fzm-lead-label" for="fzm-ticket-subject">Subject</label><input id="fzm-ticket-subject" name="subject" class="fzm-lead-input fzm-ticket-subject" aria-label="Ticket subject" placeholder="Subject" required minlength="3" maxlength="160" /><label class="fzm-lead-label" for="fzm-ticket-content">How can we help?</label><textarea id="fzm-ticket-content" name="content" class="fzm-lead-input fzm-ticket-content" aria-label="Ticket description" placeholder="How can we help?" required maxlength="4000"></textarea>` : ""}
+              <p class="fzm-error" role="alert">${escapeHtml(state.error)}</p>
+              <button type="submit" class="fzm-lead-btn" ${state.starting ? "disabled" : ""}>${state.starting ? "Connecting…" : state.requestMode === "ticket" ? "Submit ticket" : "Start AI chat"}</button>
+              ${platformSupport ? `<button type="button" class="fzm-ticket-mode fzm-handoff-btn">${state.requestMode === "ticket" ? "Back to AI chat" : "Create a support ticket"}</button><small>Your name and number are shared with the platform support team. This browser remembers the chat for 7 days. Do not send passwords or verification codes.</small>` : ""}
             </form>
           `
               : `
             <div class="fzm-handoff-bar">
-              <span>🤖 AI Assistant Active</span>
+              <span class="fzm-support-status">${platformSupport ? escapeHtml(state.reference + (state.botActive ? " · AI assistant" : " · Support team")) : "🤖 AI Assistant Active"}</span>
               <button class="fzm-handoff-btn" title="Talk to a human representative">Chat with Human</button>
             </div>
             <div class="fzm-messages-container"></div>
@@ -913,8 +1053,9 @@
               <div class="fzm-typing-dot"></div>
               <div class="fzm-typing-dot"></div>
             </div>
+            <p class="fzm-error" role="alert">${escapeHtml(state.error)}</p>
             <div class="fzm-composer">
-              <input type="text" class="fzm-input" placeholder="Type a message..." />
+              <input type="text" class="fzm-input" aria-label="Support message" maxlength="4000" placeholder="Type a message..." />
               <button class="fzm-send-btn" title="Send message">
                 <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
               </button>
@@ -925,9 +1066,9 @@
       </div>
 
       <!-- Floating Launcher Button -->
-      <div class="fzm-launcher">
+      <button type="button" class="fzm-launcher" aria-label="Open support chat">
         <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
-      </div>
+      </button>
     `;
 
     bindEvents();
@@ -990,7 +1131,7 @@
         const msg = textEl ? textEl.value : config.whatsappMessage || "";
         const cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
         const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`;
-        window.open(waUrl, "_blank");
+        window.open(waUrl, "_blank", "noopener,noreferrer");
       };
     }
 
@@ -1006,6 +1147,10 @@
         state.visitorName = inName ? inName.value.trim() : "";
         state.visitorEmail = inEmail ? inEmail.value.trim() : "";
         state.visitorPhone = inPhone ? inPhone.value.trim() : "";
+        if (platformSupport) {
+          initSupportSession({ subject: shadow.querySelector(".fzm-ticket-subject")?.value, content: shadow.querySelector(".fzm-ticket-content")?.value });
+          return;
+        }
         state.leadCaptured = true;
 
         try {
@@ -1019,10 +1164,18 @@
       };
     }
 
+    const ticketMode = shadow.querySelector(".fzm-ticket-mode");
+    if (ticketMode) ticketMode.onclick = () => {
+      state.visitorName = shadow.querySelector(".fzm-in-name")?.value.trim() || state.visitorName;
+      state.visitorPhone = shadow.querySelector(".fzm-in-phone")?.value.trim() || state.visitorPhone;
+      state.requestMode = state.requestMode === "chat" ? "ticket" : "chat";
+      render();
+    };
+
     // Chat Composer
     const composerInput = shadow.querySelector(".fzm-input");
     const sendBtn = shadow.querySelector(".fzm-send-btn");
-    const handoffBtn = shadow.querySelector(".fzm-handoff-btn");
+    const handoffBtn = shadow.querySelector(".fzm-handoff-btn[title]");
 
     if (handoffBtn) {
       handoffBtn.onclick = () => requestHumanHandoff();
@@ -1031,7 +1184,7 @@
     if (sendBtn && composerInput) {
       const handleSend = () => {
         const val = composerInput.value;
-        if (val.trim()) {
+        if (val.trim() && (!platformSupport || (!state.sending && state.sessionId))) {
           composerInput.value = "";
           sendMessage(val);
         }
@@ -1115,6 +1268,12 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+
+  if (platformSupport) window.addEventListener("fizmoh:open-support", () => {
+    state.isOpen = true;
+    state.activeTab = "chat";
+    render();
+  });
 
   // Initial load
   fetchConfig();

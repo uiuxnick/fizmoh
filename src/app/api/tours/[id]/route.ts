@@ -86,20 +86,55 @@ export const PATCH = withErrors(withModule("TOURS", async (request: NextRequest,
 export const DELETE = withErrors(withModule("TOURS", async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
 
-  // Orders reference the tour without a cascade, so deleting one that has ever
-  // been booked would either fail on the foreign key or orphan real bookings.
-  // Archiving keeps the history and takes it off the site, which is what
-  // "delete" means for a product that has sold.
-  const orders = await db.order.count({ where: { tourId: id } })
-  if (orders > 0) {
-    return NextResponse.json(
-      { error: `This tour has ${orders} booking${orders === 1 ? "" : "s"}. Archive it instead — deleting would break those orders.`, orders },
-      { status: 409 },
-    )
+  const tour = await db.tour.findUnique({
+    where: { id },
+    select: { id: true, name: true },
+  })
+  if (!tour) {
+    return NextResponse.json({ error: "Tour not found" }, { status: 404 })
   }
 
+  // 1. Find all orders referencing this tour
+  const orders = await db.order.findMany({
+    where: { tourId: id },
+    select: { id: true, customerId: true },
+  })
+  const orderIds = orders.map(o => o.id)
+  const customerIds = [...new Set(orders.map(o => o.customerId))]
+
+  // 2. Cascade delete all child records of these orders
+  if (orderIds.length > 0) {
+    await db.auditLog.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => null)
+    await db.review.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => null)
+    await db.voucher.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => null)
+    await db.payment.deleteMany({ where: { orderId: { in: orderIds } } }).catch(() => null)
+    await db.order.deleteMany({ where: { id: { in: orderIds } } })
+  }
+
+  // 3. Find slots for seat hold cleanup
+  const slots = await db.slot.findMany({
+    where: { tourId: id },
+    select: { id: true },
+  })
+  const slotIds = slots.map(s => s.id)
+  if (slotIds.length > 0) {
+    await db.botSeatHold.deleteMany({ where: { slotId: { in: slotIds } } }).catch(() => null)
+  }
+
+  // 4. Cascade delete all direct tour records
+  await db.waitlist.deleteMany({ where: { tourId: id } }).catch(() => null)
+  await db.review.deleteMany({ where: { tourId: id } }).catch(() => null)
   await db.slot.deleteMany({ where: { tourId: id } })
   await db.addOn.deleteMany({ where: { tourId: id } })
+
+  // 5. Permanently delete the tour
   await db.tour.delete({ where: { id } })
-  return NextResponse.json({ success: true })
+
+  // 6. Refresh customer totals for affected customers
+  const { refreshCustomerTotals } = await import("@/lib/customer-totals")
+  for (const cId of customerIds) {
+    await refreshCustomerTotals(cId).catch(() => null)
+  }
+
+  return NextResponse.json({ success: true, message: `Tour “${tour.name}” and all related data deleted completely` })
 }))

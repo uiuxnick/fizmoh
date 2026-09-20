@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/cookies" },
   title: "Cookies | Fizmoh",
   description: "The cookies Fizmoh sets, and why.",
 }

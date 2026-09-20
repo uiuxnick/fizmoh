@@ -22,6 +22,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { widgetId, visitorId, name, email, phone, currentUrl } = body
 
+    // Older cached embeds must never send platform support into a fallback tenant.
+    if (widgetId === "platform-support") {
+      return NextResponse.json({ error: "Please refresh the page to start platform support chat" }, { status: 400, headers: corsHeaders(origin) })
+    }
+
     if (!visitorId) {
       return NextResponse.json({ error: "Missing visitorId" }, { status: 400, headers: corsHeaders(origin) })
     }

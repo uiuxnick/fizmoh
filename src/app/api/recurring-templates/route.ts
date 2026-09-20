@@ -32,7 +32,7 @@ export const POST = withErrors(async (request: NextRequest) => {
               tourId,
               date: new Date(currentDate),
               startTime: time,
-              capacity: capacity || 10,
+              capacity: capacity || 8,
               seatsBooked: 0,
               priceOverride: priceOverride ?? (isWeekend ? null : null),
               status: "OPEN",

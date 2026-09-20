@@ -17,7 +17,7 @@ import { withinLimit } from "@/lib/entitlements"
  * data.
  */
 export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ token: string }> }) => {
-  const limited = qrRateLimited(request.headers, "scan")
+  const limited = await qrRateLimited(request.headers, "scan")
   if (limited) return limited
 
   const { token } = await params

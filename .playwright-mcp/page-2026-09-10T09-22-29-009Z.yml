@@ -1,0 +1,207 @@
+- generic [active] [ref=f13e1]:
+  - generic [ref=f13e2]:
+    - banner [ref=f13e3]:
+      - generic [ref=f13e4]:
+        - link [ref=f13e6] [cursor=pointer]:
+          - /url: /
+          - img "Fizmoh — Automate, Connect, Grow" [ref=f13e9]
+        - navigation [ref=f13e10]:
+          - button "Platforms" [ref=f13e12] [cursor=pointer]
+          - link "AI Agents" [ref=f13e16] [cursor=pointer]:
+            - /url: /product/botflow-studio
+          - button "Industries" [ref=f13e18] [cursor=pointer]
+          - button "Resources" [ref=f13e23] [cursor=pointer]
+          - link "Pricing" [ref=f13e27] [cursor=pointer]:
+            - /url: /pricing
+        - generic [ref=f13e28]:
+          - button "العربية" [ref=f13e29]
+          - link [ref=f13e34] [cursor=pointer]:
+            - /url: /book-demo
+            - button "Demo" [ref=f13e35]
+          - link [ref=f13e36] [cursor=pointer]:
+            - /url: /admin
+            - button "Sign In" [ref=f13e37]
+          - link [ref=f13e38] [cursor=pointer]:
+            - /url: /signup
+            - button "Sign Up Free" [ref=f13e39]
+    - main [ref=f13e41]:
+      - link "Fizmoh resources" [ref=f13e42] [cursor=pointer]:
+        - /url: /resources/knowledgebase
+      - heading "Technical support" [level=1] [ref=f13e43]
+      - paragraph [ref=f13e44]: Get AI help, create a support ticket, or ask the platform team to take over your conversation.
+      - generic [ref=f13e45]:
+        - button "Open support chat" [ref=f13e47]
+        - link "WhatsApp +96898314456" [ref=f13e48] [cursor=pointer]:
+          - /url: https://wa.me/96898314456
+      - generic [ref=f13e49]:
+        - generic [ref=f13e50]:
+          - heading "Start a conversation" [level=2] [ref=f13e51]
+          - paragraph [ref=f13e52]: Open the support chat and enter your name and international phone number. Ask the AI assistant a question or select Talk to human for the platform support team.
+        - generic [ref=f13e53]:
+          - heading "Create a ticket" [level=2] [ref=f13e54]
+          - paragraph [ref=f13e55]: Choose Create a support ticket in the widget, then enter a subject and description. Keep your ticket reference and return in the same browser to see replies.
+        - generic [ref=f13e56]:
+          - heading "Help us investigate" [level=2] [ref=f13e57]
+          - paragraph [ref=f13e58]: Share the page URL, approximate time, expected result and actual result. Remove customer details and credentials from screenshots or error messages.
+    - contentinfo [ref=f13e59]:
+      - generic [ref=f13e60]:
+        - generic [ref=f13e61]:
+          - generic [ref=f13e62]:
+            - link [ref=f13e63] [cursor=pointer]:
+              - /url: /
+              - img "Fizmoh — Automate, Connect, Grow" [ref=f13e66]
+            - paragraph [ref=f13e67]: "The operational WhatsApp Business platform: official Meta Cloud API, multi-agent CRM inbox, conversational AI botflows, and native AmwalPay card payments."
+            - generic [ref=f13e68]:
+              - generic [ref=f13e69]: All Systems Operational
+              - generic [ref=f13e71]: Meta Cloud Provider
+          - generic [ref=f13e75]:
+            - heading "Platform" [level=3] [ref=f13e76]
+            - list [ref=f13e77]:
+              - listitem [ref=f13e78]:
+                - link "Features" [ref=f13e79] [cursor=pointer]:
+                  - /url: /features
+              - listitem [ref=f13e80]:
+                - link "Smart Menu & Ordering" [ref=f13e81] [cursor=pointer]:
+                  - /url: /product/smart-menu-ordering
+              - listitem [ref=f13e82]:
+                - link "Team Inbox" [ref=f13e83] [cursor=pointer]:
+                  - /url: /product/team-inbox
+              - listitem [ref=f13e84]:
+                - link "Botflow Studio" [ref=f13e85] [cursor=pointer]:
+                  - /url: /product/botflow-studio
+              - listitem [ref=f13e86]:
+                - link "Digital Business Cards" [ref=f13e87] [cursor=pointer]:
+                  - /url: /product/digital-vcard
+              - listitem [ref=f13e88]:
+                - link "Digital QR Reviews" [ref=f13e89] [cursor=pointer]:
+                  - /url: /product/digital-qr-reviews
+              - listitem [ref=f13e90]:
+                - link "Facebook & Instagram" [ref=f13e91] [cursor=pointer]:
+                  - /url: /product/facebook-instagram-automation
+              - listitem [ref=f13e92]:
+                - link "Pricing" [ref=f13e93] [cursor=pointer]:
+                  - /url: /pricing
+          - generic [ref=f13e94]:
+            - heading "Industries" [level=3] [ref=f13e95]
+            - list [ref=f13e96]:
+              - listitem [ref=f13e97]:
+                - link "Restaurants & Cafes" [ref=f13e98] [cursor=pointer]:
+                  - /url: /solutions/restaurants-dining
+              - listitem [ref=f13e99]:
+                - link "Ecommerce & Retail" [ref=f13e100] [cursor=pointer]:
+                  - /url: /solutions/ecommerce-online-stores
+              - listitem [ref=f13e101]:
+                - link "Tours & Safari" [ref=f13e102] [cursor=pointer]:
+                  - /url: /solutions/tours-safari-musandam
+              - listitem [ref=f13e103]:
+                - link "Healthcare & Clinics" [ref=f13e104] [cursor=pointer]:
+                  - /url: /solutions/clinics-hospitals-health
+              - listitem [ref=f13e105]:
+                - link "Salons & Spas" [ref=f13e106] [cursor=pointer]:
+                  - /url: /solutions/salons-beauty-spas
+          - generic [ref=f13e107]:
+            - heading "Company" [level=3] [ref=f13e108]
+            - list [ref=f13e109]:
+              - listitem [ref=f13e110]:
+                - link "Contact Desk" [ref=f13e111] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=f13e112]:
+                - link "Download Apps" [ref=f13e113] [cursor=pointer]:
+                  - /url: /downloads/
+              - listitem [ref=f13e114]:
+                - link "Changelog" [ref=f13e115] [cursor=pointer]:
+                  - /url: /whats-new
+              - listitem [ref=f13e116]:
+                - link "REST API" [ref=f13e117] [cursor=pointer]:
+                  - /url: /docs
+              - listitem [ref=f13e118]:
+                - link "Privacy" [ref=f13e119] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f13e120]:
+                - link "Terms" [ref=f13e121] [cursor=pointer]:
+                  - /url: /terms
+        - generic [ref=f13e122]:
+          - generic [ref=f13e123]:
+            - heading "WhatsApp Oman" [level=4] [ref=f13e124]
+            - list [ref=f13e125]:
+              - listitem [ref=f13e126]:
+                - link "WhatsApp Business API Oman" [ref=f13e127] [cursor=pointer]:
+                  - /url: /whatsapp-business-api-oman
+              - listitem [ref=f13e128]:
+                - link "WhatsApp Automation Oman" [ref=f13e129] [cursor=pointer]:
+                  - /url: /whatsapp-automation-oman
+              - listitem [ref=f13e130]:
+                - link "WhatsApp Chatbot Oman" [ref=f13e131] [cursor=pointer]:
+                  - /url: /whatsapp-chatbot-oman
+              - listitem [ref=f13e132]:
+                - link "WhatsApp CRM Oman" [ref=f13e133] [cursor=pointer]:
+                  - /url: /whatsapp-crm-oman
+              - listitem [ref=f13e134]:
+                - link "WhatsApp Marketing Oman" [ref=f13e135] [cursor=pointer]:
+                  - /url: /whatsapp-marketing-oman
+          - generic [ref=f13e136]:
+            - heading "Comparisons" [level=4] [ref=f13e137]
+            - list [ref=f13e138]:
+              - listitem [ref=f13e139]:
+                - link "Fizmoh vs WATI" [ref=f13e140] [cursor=pointer]:
+                  - /url: /compare/fizmoh-vs-wati
+              - listitem [ref=f13e141]:
+                - link "Fizmoh vs Interakt" [ref=f13e142] [cursor=pointer]:
+                  - /url: /compare/fizmoh-vs-interakt
+              - listitem [ref=f13e143]:
+                - link "Fizmoh vs Twilio" [ref=f13e144] [cursor=pointer]:
+                  - /url: /compare/fizmoh-vs-twilio
+              - listitem [ref=f13e145]:
+                - link "Fizmoh vs Respond.io" [ref=f13e146] [cursor=pointer]:
+                  - /url: /compare/fizmoh-vs-respond-io
+              - listitem [ref=f13e147]:
+                - link "Fizmoh vs SleekFlow" [ref=f13e148] [cursor=pointer]:
+                  - /url: /compare/fizmoh-vs-sleekflow
+          - generic [ref=f13e149]:
+            - heading "GCC Locations" [level=4] [ref=f13e150]
+            - list [ref=f13e151]:
+              - listitem [ref=f13e152]:
+                - link "Muscat, Oman" [ref=f13e153] [cursor=pointer]:
+                  - /url: /locations/muscat
+              - listitem [ref=f13e154]:
+                - link "Dubai, UAE" [ref=f13e155] [cursor=pointer]:
+                  - /url: /locations/dubai
+              - listitem [ref=f13e156]:
+                - link "Riyadh, Saudi Arabia" [ref=f13e157] [cursor=pointer]:
+                  - /url: /locations/riyadh
+              - listitem [ref=f13e158]:
+                - link "Doha, Qatar" [ref=f13e159] [cursor=pointer]:
+                  - /url: /locations/doha
+              - listitem [ref=f13e160]:
+                - link "Kuwait City" [ref=f13e161] [cursor=pointer]:
+                  - /url: /locations/kuwait-city
+          - generic [ref=f13e162]:
+            - heading "Popular Guides" [level=4] [ref=f13e163]
+            - list [ref=f13e164]:
+              - listitem [ref=f13e165]:
+                - link "WhatsApp API Oman Guide" [ref=f13e166] [cursor=pointer]:
+                  - /url: /blog/whatsapp-business-api-oman-guide
+              - listitem [ref=f13e167]:
+                - link "AmwalPay WhatsApp Payments" [ref=f13e168] [cursor=pointer]:
+                  - /url: /blog/accept-online-payments-whatsapp-oman-amwalpay
+              - listitem [ref=f13e169]:
+                - link "Restaurant QR Ordering" [ref=f13e170] [cursor=pointer]:
+                  - /url: /blog/restaurant-qr-code-ordering-system-oman
+              - listitem [ref=f13e171]:
+                - link "Google Review QR Cards" [ref=f13e172] [cursor=pointer]:
+                  - /url: /blog/google-review-qr-code-cards-oman-reputation
+              - listitem [ref=f13e173]:
+                - link "Digital NFC vCards" [ref=f13e174] [cursor=pointer]:
+                  - /url: /blog/digital-business-cards-nfc-vcard-oman
+        - generic [ref=f13e175]:
+          - paragraph [ref=f13e176]: © 2026 Fizmoh Cloud Platform. All rights reserved.
+          - generic [ref=f13e177]:
+            - generic [ref=f13e178]: Meta WhatsApp Cloud API
+            - generic [ref=f13e179]: •
+            - generic [ref=f13e180]: AmwalPay Gateway
+            - generic [ref=f13e181]: •
+            - generic [ref=f13e182]: ISO 27001
+    - region "Notifications (F8)":
+      - list
+    - region "Notifications alt+T"
+  - alert [ref=f13e183]

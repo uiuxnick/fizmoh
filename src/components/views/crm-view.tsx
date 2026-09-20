@@ -118,7 +118,7 @@ export default function CrmView() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div data-tour="customers-search" className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
             <Input
               value={search}
@@ -221,7 +221,7 @@ export default function CrmView() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm min-w-[900px]">
+          <table data-tour="customers-table" className="w-full text-sm min-w-[900px]">
             <thead className="bg-stone-50 text-stone-600">
               <tr>
                 <th className="w-10 px-3 py-3">

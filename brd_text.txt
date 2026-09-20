@@ -1,0 +1,493 @@
+
+========== PAGE 1 ==========
+BUSINESS REQUIREMENTS DOCUMENT
+Tour & Activity Booking Platform with WhatsApp Commerce
+AmwalPay Payment Gateway | WhatsApp Cloud API | Admin Control Panel
+Prepared for: Project Owner
+Prepared by: Claude (Anthropic) — Business & Systems Analysis Draft
+Date: August 3, 2026
+Version: 1.0 (Draft for Review)
+
+========== PAGE 2 ==========
+Table of Contents
+
+========== PAGE 3 ==========
+1. Document Control
+Field Detail
+Document Title BRD – Tour & Activity Booking Platform with WhatsApp Commerce
+Version 1.0 – Draft
+For stakeholder review; requirements to be validated before development sign-
+Status
+off
+Prepared By Claude (Anthropic), based on stakeholder idea/discovery notes
+Product Owner, Development Team / Agency, Payment Gateway Provider
+Distribution
+(AmwalPay), WhatsApp BSP
+2. Executive Summary
+This document defines the business and functional requirements for a production-grade, web-based Tour & Activity
+Booking Platform. The platform allows customers to browse tours/services, check real-time slot availability, book
+online, and pay either through the AmwalPay payment gateway or via a manual bank-transfer-with-screenshot
+workflow that is verified by an admin. It integrates deeply with the WhatsApp Cloud API so that customers can check
+availability, book, and track orders directly inside WhatsApp chat, supported by rich message templates (including
+media and carousels), a bot/automation builder, and an AI chat assistant. A full-featured admin panel gives the
+business owner complete control over bookings, orders, payments, staff, WhatsApp/email marketing, and reporting.
+The system is designed around four pillars:
+• Booking Engine: slot-based availability, multi-service booking, and order lifecycle management
+• Payments: AmwalPay online gateway plus a manual bank-transfer approval workflow with screenshot proof
+• WhatsApp Commerce: two-way conversational commerce — availability, booking, order status, notifications,
+broadcast marketing, and AI-assisted automation
+• Admin Control Center: a single dashboard for operations, staff, CRM, marketing (email + WhatsApp) and
+analytics
+3. Business Objectives
+• Enable customers to discover, check availability, and book tours/services online in under 3 minutes.
+• Reduce manual coordination by allowing bookings and order tracking directly through WhatsApp.
+• Support both digital payments (AmwalPay) and manual bank transfer to accommodate customers without cards
+or with regional banking preferences.
+• Give staff a shared inbox to manage all WhatsApp conversations without conflicts (assignment, labels, notes).
+• Automate repetitive customer questions using an AI assistant and rule-based bot builder, escalating to a human
+when needed.
+• Provide the business owner with a single admin panel with full visibility and control: bookings, revenue, staff
+performance, campaigns, and subscriber growth.
+• Build a scalable base architecture that can add new tour categories, cities, currencies, and languages without a
+rebuild.
+
+========== PAGE 4 ==========
+4. Project Scope
+4.1 In Scope
+• Public-facing responsive booking website (desktop + mobile web).
+• Slot/availability engine and booking/order management system.
+• AmwalPay online payment integration.
+• Manual bank transfer payment method with screenshot upload and admin verification.
+• WhatsApp Cloud API integration for availability check, booking, order status, notifications, broadcast, and
+templates (text, media, carousel).
+• Bot/automation builder with AI assistant for WhatsApp conversations.
+• Staff/team inbox: chat assignment, internal notes, labels/tags.
+• Email system: template builder, contact sync, broadcast campaigns, subscriber management, transactional
+emails.
+• Order confirmation notifications via Email + WhatsApp with full order detail.
+• Full-featured admin/back-office panel with role-based access control.
+• Reporting & analytics dashboard.
+4.2 Out of Scope (Phase 1)
+• Native mobile apps (iOS/Android) — website will be mobile-responsive/PWA-ready; native apps can be a future
+phase.
+• Multi-vendor marketplace (multiple independent tour operators selling on one platform) — assumed single-
+business operation unless specified otherwise.
+• In-house SMS gateway (WhatsApp is the primary conversational channel; SMS can be added later as fallback).
+• Physical POS / on-site card terminal integration.
+5. Stakeholders & User Roles
+Role Description
+Browses tours, checks availability, books, pays, and tracks orders via website or
+Customer / End User
+WhatsApp.
+Super Admin Full system control: settings, payment configuration, staff, integrations, all data.
+Operations / Booking Admin Manages tours, slots, pricing, bookings, order approvals, refunds.
+Reviews manual bank-transfer submissions, approves/rejects with screenshot
+Finance / Payment Verifier
+proof, reconciles payments.
+Support / Chat Agent (Staff) Handles assigned WhatsApp/email conversations, uses labels, escalates issues.
+Builds email/WhatsApp templates, manages subscriber lists, runs broadcast
+Marketing Manager
+campaigns, reviews performance.
+Tour Guide / Field Staff (optional) Views assigned bookings/schedule; can mark attendance/completion.
+
+========== PAGE 5 ==========
+
+
+========== PAGE 6 ==========
+6. Functional Requirements
+6.1 Public Booking Website
+• Homepage with featured tours/services, search, and category/city filters.
+• Tour/service detail page: gallery, description, itinerary, inclusions/exclusions, pricing tiers (adult/child/group),
+reviews/ratings.
+• Real-time slot availability calendar per tour/service (date + time-slot level), showing remaining capacity.
+• Multi-step booking flow: select date/slot → select quantity/pax → add-ons → customer details → payment
+method → confirmation.
+• Guest checkout and registered-account checkout (login/OTP or email).
+• Cart/multi-item booking (book more than one tour/date in a single order) — optional but recommended.
+• Coupon/discount code and promotional pricing support.
+• Multi-language support (e.g., English/Arabic) and multi-currency display (e.g., OMR base currency).
+• SEO-friendly URLs, meta tags, sitemap, and page-speed optimized image delivery.
+• Customer account area: booking history, invoices/receipts, order status tracking, rebooking.
+6.2 Slot & Availability Management
+• Admin can define per-tour capacity: total slots per day, per time-slot, or per guide/vehicle resource.
+• Auto-block/close-out when a slot reaches full capacity, with optional waitlist.
+• Blackout dates, seasonal pricing, and recurring schedule templates (e.g., daily 9 AM/2 PM departures).
+• Overbooking protection: seat count is locked/held for a short window during checkout to prevent double-
+booking, released automatically if payment is not completed.
+• Bulk slot creation/editing (e.g., generate 3 months of slots in one action) and bulk block-out.
+• Live sync between website bookings and WhatsApp bookings — a seat booked from either channel instantly
+reduces available inventory on both.
+6.3 Booking & Order Management
+• Central Order Management System: every booking (from website or WhatsApp) generates a unique Order ID
+with full status lifecycle — Pending Payment → Payment Submitted → Verified/Paid → Confirmed →
+Completed / Cancelled / Refunded / No-show.
+• Order detail view: customer info, tour/slot, pax count, add-ons, price breakdown, payment method, payment
+proof, staff notes, communication history (WhatsApp + email thread).
+• Admin actions: approve/reject payment, modify booking (reschedule/date change), cancel with reason, issue
+full/partial refund, resend confirmation, generate invoice/voucher PDF.
+• Order Management API — REST/GraphQL endpoints so other systems (accounting software, tour-guide app,
+reporting tools, future mobile app) can read/write order data securely (API key / OAuth2).
+• Automatic reminders: pre-tour reminder (e.g., 24 hours before) via WhatsApp/email, and post-tour review
+request.
+• Booking source tracking (Website / WhatsApp / Admin-manual / API) for reporting.
+6.4 Payment Management
+6.4.1 AmwalPay Payment Gateway (Online)
+• Integrate AmwalPay hosted checkout / API for card and local payment methods (as offered by AmwalPay in
+Oman).
+
+========== PAGE 7 ==========
+• Support authorization, capture, refund, and webhook/callback handling for payment status updates.
+• Automatic order status update to "Confirmed" upon successful AmwalPay payment webhook, with instant email
++ WhatsApp confirmation.
+• Handle failed/abandoned payments gracefully — retry payment link sent via email/WhatsApp.
+• Payment reconciliation report matching AmwalPay settlement reports against internal orders.
+6.4.2 Manual Bank Transfer + Screenshot Verification (Priority / Phase 1 Payment Method)
+This is the payment flow explicitly requested as the first method to launch with:
+• Bank account setup: Admin panel lets the business add one or more company bank accounts (bank name,
+account name, account number/IBAN, branch) that are displayed to the customer at checkout
+• Customer payment submission: Customer selects "Bank Transfer", views the account details, makes the
+transfer, then submits a form with transaction reference/date and uploads a screenshot/photo of the payment
+proof
+• Pending state: Order is created in "Payment Submitted – Pending Verification" status; customer and admin both
+notified instantly (admin gets a WhatsApp/email/dashboard alert)
+• Admin verification: Verifier reviews the screenshot and reference in the order detail screen and clicks Approve
+or Reject (with a reason/comment for rejection)
+• Post-approval automation: On approval, the order status changes to "Confirmed" and the system automatically
+sends a detailed confirmation via both Email and WhatsApp (order ID, tour, date/time, pax, amount paid,
+voucher/QR code)
+• On rejection: Customer is notified with the reason and instructions to resubmit or contact support
+• Audit trail: Every verification action is logged with the staff name, timestamp, and decision for accountability
+6.4.3 Payment Method Framework (Future-Proofing)
+• Design the payment layer as a pluggable module so additional gateways (e.g., Thawani, PayTabs, Apple Pay, STC
+Pay, or a second local PSP) can be added later without re-architecting.
+• Support partial payment/deposit bookings (e.g., pay 25% now, balance before tour date) — suggested
+enhancement.
+6.5 WhatsApp Cloud API — Conversational Commerce
+This is the core differentiator of the platform. All the following are handled via the official WhatsApp Business Cloud
+API (Meta) through a Business Solution Provider (BSP) or direct Cloud API access:
+6.5.1 Customer-Facing Conversational Features
+• Check availability in chat: Customer types/selects a tour and date; bot replies with live slot availability pulled
+from the same engine as the website
+• Book directly in WhatsApp: Guided conversational flow (interactive list/buttons) to select tour → date/slot →
+pax → add-ons → payment method → confirmation, without leaving WhatsApp
+• Pay in chat: Send AmwalPay payment link, or accept bank-transfer screenshot directly as a chat attachment
+which auto-attaches to the order
+• Check order status/details in chat: Customer sends order ID or "my orders"; bot replies with full detail (status,
+date, amount, voucher)
+• Rich media & carousel messages: Product carousels (multiple tours with images, price, and a "Book Now" quick-
+reply button), image/video/PDF itinerary sharing, location pins
+• Order confirmation: Full detailed confirmation message automatically sent after approval (booking summary,
+QR/voucher, support contact, cancellation policy)
+
+========== PAGE 8 ==========
+6.5.2 Template Management
+• Create, edit, and submit WhatsApp message templates (marketing, utility, authentication categories) for Meta
+approval directly from the admin panel.
+• Support template variables/placeholders (customer name, order ID, date, amount, etc.), header media
+(image/video/document), and call-to-action / quick-reply buttons.
+• Template library with status tracking (Draft / Pending Approval / Approved / Rejected) and version history.
+• Sync approved templates automatically from Meta Business Manager into the platform (and vice versa).
+6.5.3 Broadcast & Campaigns
+• Send broadcast campaigns to segmented subscriber lists (e.g., past customers of a specific tour, inactive
+customers, VIP customers) respecting WhatsApp's 24-hour session and template rules.
+• Schedule broadcasts, view delivery/read/response analytics, and manage opt-out/unsubscribe automatically per
+WhatsApp/Meta policy.
+6.5.4 Subscriber & Contact Management
+• Central WhatsApp subscriber database with tags, custom fields, consent/opt-in status, and conversation history.
+• Import/export/sync contacts between website customer accounts, email subscribers, and WhatsApp contacts
+(unified customer profile).
+6.5.5 Staff Chat Management
+• Shared team inbox: All incoming WhatsApp conversations appear in one inbox visible to authorized staff
+• Chat assignment: Conversations can be manually or automatically (round-robin/load-based) assigned to a
+specific staff member; reassignment supported
+• Labels/tags: Custom labels (e.g., "New Lead", "Payment Pending", "VIP", "Complaint") for filtering and reporting
+• Internal notes: Private notes on a conversation visible only to staff, not the customer
+• Canned responses / quick replies: Predefined answers for FAQs to speed up agent response time
+• Agent performance view: Response time, resolved chats, and conversion (chats → bookings) per staff member
+6.5.6 Automation, Bot Builder & AI Assistant
+• Visual bot/flow builder: Drag-and-drop conversation flow builder (trigger → condition → action) for FAQs,
+booking flows, and follow-ups, requiring no coding
+• Keyword & intent triggers: Bot responds to keywords, button clicks, or detected intent (e.g., "availability",
+"price", "cancel")
+• AI Assistant (LLM-powered): Handles natural-language questions ("Do you have a desert safari this weekend for
+4 people?"), pulls live data (availability/pricing) via API/function-calling, and can complete a booking
+conversationally
+• Human handoff: Bot detects when it cannot resolve a query (or customer requests a human) and hands the chat
+to an available agent, with full context passed along
+• Business hours & auto-reply: Away messages outside working hours, with option to still allow AI-handled
+bookings 24/7
+6.6 Email Management
+• Template builder: Drag-and-drop / HTML email editor for transactional and marketing templates, with variable
+placeholders and preview
+• Template sync: Reusable template blocks shared between transactional emails (confirmations, receipts) and
+marketing campaigns
+
+========== PAGE 9 ==========
+• Broadcast/campaign manager: Segment-based bulk sending, scheduling, A/B subject-line testing, open/click
+tracking, bounce/complaint handling
+• Subscriber manager: List management, custom fields, tags, double opt-in, unsubscribe handling, GDPR/PDPL-
+compliant consent log
+• Transactional email engine: Order confirmation, payment receipt, booking reminder, cancellation/refund notice
+— all fully detailed and branded
+• Deliverability: SPF/DKIM/DMARC configuration, dedicated sending domain, and integration with a transactional
+ESP (e.g., SendGrid/Postmark/Amazon SES) for reliability
+6.7 Unified Order Confirmation Flow
+As specifically requested — once a customer submits booking + payment details (online or bank-transfer screenshot)
+and the admin approves it, the system automatically triggers:
+• An Email confirmation with: Order ID, tour name, date/time/slot, number of pax, add-ons, total amount paid,
+payment method, meeting point/instructions, cancellation policy, support contact, and a downloadable PDF
+voucher/invoice.
+• A WhatsApp confirmation message (using an approved template) with the same key details, optionally including
+a QR code/voucher image and quick links (Get Directions / Contact Support / Reschedule).
+• An internal notification to the assigned staff member / operations team so the field logistics (guide, vehicle) can
+be arranged.
+
+========== PAGE 10 ==========
+6.8 Admin / Back-Office Control Panel
+A single, full-control dashboard covering:
+• Dashboard: real-time KPIs — today's bookings, revenue, pending verifications, open chats, upcoming tours.
+• Tour/Service Management: create/edit tours, pricing tiers, media gallery, itinerary, SEO fields, add-ons.
+• Slot & Calendar Management (see 6.2).
+• Order & Booking Management (see 6.3) with search/filter by status, date, customer, channel.
+• Payment Management: gateway settings (AmwalPay keys/webhooks), bank account setup, manual-payment
+verification queue, refunds, reconciliation reports.
+• WhatsApp Manager: template builder, broadcast/campaign manager, subscriber manager, bot/automation
+builder, shared inbox, labels, staff assignment rules.
+• Email Manager: template builder, campaigns, subscriber lists, deliverability settings.
+• Staff & Role Management: add staff, assign roles/permissions, set working hours, view performance.
+• CRM: unified customer profiles (bookings + WhatsApp + email history in one view), segments/tags.
+• Coupons & Promotions: discount codes, seasonal offers, referral codes.
+• Reports & Analytics: sales/revenue, top tours, channel performance (Web vs WhatsApp), conversion funnel,
+campaign performance, staff performance.
+• System Settings: languages, currencies, tax/VAT rules, cancellation policy text, notification templates, API
+keys/integrations, audit logs, backups.
+• Content Management: banners, blog/SEO pages, FAQs shown on the website and reusable as WhatsApp quick
+answers.
+7. Suggested Additional Features (Recommended Enhancements)
+Based on the requirements shared, here are gaps and value-adding features worth considering before development
+begins:
+• Digital voucher with QR check-in: Generate a scannable QR code per booking that field staff can scan on the day
+of the tour to confirm attendance/no-show — closes the loop between booking and delivery
+• Deposit / partial payment support: Allow a customer to pay a percentage upfront and balance later, common
+for tour bookings — reduces drop-off at checkout
+• Dynamic/seasonal pricing rules: Auto-adjust prices by date, demand, or remaining capacity (e.g., higher price
+on weekends/holidays)
+• Waitlist & auto-notify: When a slot is full, let customers join a waitlist and get an automatic WhatsApp/email
+alert if a seat opens up (cancellation)
+• Reviews & ratings with photo upload: Post-tour review requests (auto-sent via WhatsApp/email) feed public
+star ratings on the tour page — builds trust and SEO
+• Referral & loyalty program: Reward repeat customers or referrals with discount codes distributed via
+WhatsApp/email
+• Abandoned booking recovery: Auto-detect incomplete bookings (slot selected, payment not completed) and
+send a reminder via WhatsApp/email with a direct resume link
+• Fraud/duplicate-screenshot detection: Basic checks (hash comparison, OCR of amount/reference vs submitted
+order) to flag suspicious manual-payment submissions before admin review
+• Multi-branch / multi-location support: If the business operates in more than one city/branch, structure data so
+each branch has its own inventory, staff, and bank account, with combined reporting
+
+========== PAGE 11 ==========
+• Guide/vehicle resource management: Beyond "slots", track which guide/vehicle is assigned to each departure
+to avoid double-booking staff/resources
+• Customer self-service reschedule/cancel: Allow customers to reschedule or cancel within policy directly from
+WhatsApp or the website, subject to rules the admin sets
+• Multi-agent / call-center style SLA alerts: Auto-escalate a WhatsApp chat if unanswered beyond X minutes
+(customer-experience protection)
+• Data export & accounting integration: Export financial data to formats compatible with common accounting
+tools; consider VAT-compliant invoicing for Oman (5% VAT) from day one
+• Native app or PWA (Phase 2): A Progressive Web App wrapper gives an app-like experience (push notifications,
+home-screen install) with less cost than native apps
+• Disaster recovery & backups: Automated daily database backups with a tested restore procedure — critical
+since this handles payments and customer data
+• Consent & data privacy compliance: Explicit opt-in capture for WhatsApp/email marketing and a privacy policy
+aligned with Oman's Personal Data Protection Law (PDPL)
+
+========== PAGE 12 ==========
+8. Non-Functional Requirements
+Category Requirement
+Performance Website pages load in <3 seconds on 4G; availability check API responds in <1 second;
+system supports at least 500 concurrent users at launch, horizontally scalable beyond
+that.
+Target 99.9% uptime; payment and WhatsApp webhook endpoints must have
+Availability
+retry/queue handling to avoid lost events.
+HTTPS everywhere, PCI-DSS-aware handling of payment data (tokenized where possible,
+Security no raw card storage), encrypted storage of screenshots/personal data, role-based
+access control, audit logging of admin actions.
+Cloud-hosted, containerized architecture that can scale booking, WhatsApp, and email
+Scalability
+services independently as volume grows.
+English and Arabic (RTL support) at minimum; OMR currency by default with multi-
+Localization
+currency ready architecture.
+Oman PDPL data-protection alignment; WhatsApp Business Policy and Meta Commerce
+Compliance
+Policy compliance for template/marketing messages; VAT-compliant invoicing.
+Modular codebase (booking, payments, WhatsApp, email, admin as separate
+Maintainability
+services/modules) with API documentation for future integrations.
+Every payment approval/rejection, booking modification, and refund is logged with user,
+Auditability
+timestamp, and reason.
+9. Recommended Technical Architecture
+9.1 Suggested High-Level Stack
+Layer Recommendation
+Next.js / React (SEO-friendly, fast, PWA-capable) with a headless component library;
+Frontend (Website)
+Tailwind CSS for styling.
+Admin Panel React-based SPA (or same Next.js app under /admin) with role-based routing.
+Node.js (NestJS) or Laravel/PHP — REST + webhook endpoints, with clear service
+Backend / API boundaries: Booking Service, Payment Service, WhatsApp Service, Email Service,
+Notification Service.
+PostgreSQL (relational, strong consistency for bookings/payments) + Redis (caching, slot-
+Database
+locking during checkout, session queues).
+Cloud object storage (e.g., S3-compatible) for tour images, payment screenshots, and
+File/Media Storage
+generated vouchers/invoices.
+Official WhatsApp Cloud API via a licensed BSP (e.g., a Meta Business Partner) — do NOT
+WhatsApp Integration
+use unofficial/automated WhatsApp libraries, which risk number bans.
+AmwalPay hosted checkout/API with signed webhook verification; PCI-DSS SAQ-A scope by
+Payment Gateway
+using hosted/redirect checkout rather than storing card data.
+
+========== PAGE 13 ==========
+Layer Recommendation
+Transactional ESP (e.g., Amazon SES, SendGrid, or Postmark) integrated with the in-house
+Email Delivery
+template/broadcast manager.
+LLM API (e.g., Claude via Anthropic API) with function-calling into the Booking/Order APIs
+AI Assistant
+for live availability and booking actions, plus guardrails for handoff to humans.
+Cloud provider (AWS/Azure/GCP) with containerized services (Docker + orchestration),
+Hosting/Infra CDN for static/media assets, automated backups and monitoring/alerting (e.g., Grafana,
+Sentry).
+Message queue (e.g., RabbitMQ/SQS) for WhatsApp/email sending, webhook processing,
+Queue/Jobs
+and reminders — ensures nothing is lost under load.
+9.2 Key Integration Flows
+• AmwalPay flow: Checkout → create payment session via AmwalPay API → redirect/host page → customer pays
+→ AmwalPay sends signed webhook → system verifies signature → order status updated → confirmation
+triggered
+• Manual bank transfer flow: Checkout → customer selects bank transfer → sees account details → submits
+reference + screenshot → order created as Pending Verification → admin dashboard alert → admin
+approves/rejects → confirmation or rejection notice triggered
+• WhatsApp booking flow: Customer message → Cloud API webhook → bot/flow engine (or AI assistant) → calls
+internal Booking API for availability/creation → payment link or bank-transfer instructions sent in chat →
+screenshot received as media message → attached to order automatically
+
+========== PAGE 14 ==========
+10. Core Data Model (Key Entities)
+Entity Key Fields (illustrative)
+Tour/Service id, name, description, category, city, base price, pricing tiers, media, itinerary, status
+Slot id, tour_id, date, time, capacity, seats_booked, resource_id (guide/vehicle), status
+id, customer_id, tour_id, slot_id, pax, add_ons, total_amount, payment_method,
+Order/Booking
+payment_status, order_status, channel (web/whatsapp/admin), created_at
+id, order_id, method (amwalpay/bank_transfer), amount, gateway_reference,
+Payment
+screenshot_url, verified_by, verified_at, status
+Customer id, name, phone, email, whatsapp_opt_in, email_opt_in, tags, booking_history
+Staff/User id, name, role, permissions, assigned_chats, working_hours
+id, customer_id, assigned_staff_id, labels, last_message_at, status (open/closed),
+WhatsApp Conversation
+bot_active (y/n)
+Template (WhatsApp/Email) id, type, category, content, media, variables, approval_status, version
+Campaign/Broadcast id, channel, template_id, segment_id, scheduled_at, stats (sent/delivered/read/clicked)
+Subscriber List/Segment id, name, channel, filter_rules, contact_count
+11. Role & Permission Matrix (Illustrative)
+Ops/Booking
+Module Super Admin Finance Verifier Chat Agent Marketing
+Admin
+Tours/Slots Full Full View View View
+View/Update
+Orders Full Full View View
+Payment
+Payment
+Full View Full — —
+Verification
+Broadcast
+WhatsApp Inbox Full View — Assigned Chats
+Only
+Templates
+Full — — — Full
+(Email/WA)
+Staff Management Full — — — —
+Own Campaigns
+Reports Full Bookings Only Payments Only
+Performance Only
+System Settings Full — — — —
+
+========== PAGE 15 ==========
+12. Assumptions & Constraints
+• This is treated as a single-business (not multi-vendor) platform unless clarified otherwise.
+• AmwalPay merchant account and API credentials will be provided by the business/AmwalPay onboarding team.
+• WhatsApp Cloud API access requires a verified Meta Business Manager account, a dedicated business phone
+number, and either direct Cloud API access or a licensed BSP — this has an approval lead time and template-
+approval process outside the development team's control.
+• AI Assistant responses must stay within business-provided data (tours, pricing, policies) to avoid giving incorrect
+commitments to customers.
+• Company bank account details for manual transfer will be provided by finance and are editable only by Super
+Admin.
+• Primary languages assumed as English and Arabic; other languages can be added later.
+13. Suggested Project Phases & Milestones
+Phase Deliverables Indicative Focus
+Phase 0 – Discovery Finalized BRD sign-off, wireframes, information Requirements lock,
+& UX architecture, data model design system
+Phase 1 – Core Website booking flow, slot engine, order management,
+Booking + Manual bank-transfer + screenshot verification, admin panel v1, Launch-ready MVP
+Payment email confirmations
+WhatsApp Cloud API integration,
+Phase 2 – WhatsApp Conversational
+availability/booking/order-status in chat, template
+Commerce commerce
+manager, shared inbox, staff assignment/labels
+Bot/flow builder, AI assistant with function-calling,
+Phase 3 – Automation &
+broadcast/campaign manager (WhatsApp + Email),
+Automation & AI marketing
+subscriber segmentation
+Phase 4 – AmwalPay AmwalPay online payment integration, coupons, waitlist,
+Growth & optimization
+& Growth Features reviews, reporting/analytics dashboard, PWA
+14. Success Metrics / KPIs
+• Online booking conversion rate (visits → completed bookings).
+• % of bookings completed via WhatsApp vs Website.
+• Average payment verification turnaround time (manual bank transfer).
+• WhatsApp bot resolution rate (queries resolved without human handoff).
+• Average agent response time and chats-to-booking conversion.
+• Email/WhatsApp campaign open, click, and conversion rates.
+• Repeat booking rate / customer retention.
+
+========== PAGE 16 ==========
+15. Risks & Mitigation
+Risk Mitigation
+WhatsApp template rejected by Meta or number Follow Meta's messaging policy strictly, keep opt-in records, avoid
+gets flagged for spam-like broadcasting promotional content in utility templates, monitor quality rating
+Require transaction reference + screenshot, cross-check against
+Fraudulent/edited payment screenshots submitted
+bank statement during reconciliation, restrict who can approve
+Double-booking due to concurrent checkout on Slot-locking mechanism (temporary hold with Redis/DB lock)
+same slot during checkout window
+Restrict AI to real-time function calls into the booking API rather
+AI assistant gives inaccurate info or overcommits
+than free-form answers on price/availability; human-handoff for
+pricing/availability
+edge cases
+Queue-based retry mechanism, fallback manual payment option
+Payment gateway or WhatsApp API downtime
+always available, status page/alerting for admin
+Delay in AmwalPay/WhatsApp Business approval Start account/API onboarding in parallel with Phase 0/1
+timelines development, not after
+
+========== PAGE 17 ==========
+16. Appendix — Glossary
+Term Meaning
+Business Solution Provider — a Meta-authorized partner that provides WhatsApp Cloud
+BSP
+API access and tooling
+Cloud API Meta's official WhatsApp Business API used for automated, programmatic messaging
+AmwalPay Payment gateway/PSP used for online card and local payment processing
+Slot A bookable date/time unit of a tour with limited capacity
+PDPL Oman's Personal Data Protection Law governing customer data handling
+BRD Business Requirements Document — this document

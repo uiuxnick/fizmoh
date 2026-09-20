@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
+import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 
 /** Orders that represent money actually taken. */
 const EARNING = ["CONFIRMED", "COMPLETED"]
@@ -14,6 +16,11 @@ const EARNING = ["CONFIRMED", "COMPLETED"]
  * whatever the caller asked for.
  */
 export const GET = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  const session = await sessionFromRequest(request)
+  if (!tenant?.tenantId || session?.kind !== "staff" || session.staffId !== tenant.staffId) {
+    return NextResponse.json({ error: "Workspace access required" }, { status: 403 })
+  }
   const { searchParams } = new URL(request.url)
 
   const to = searchParams.get("to") ? new Date(`${searchParams.get("to")}T23:59:59.999Z`) : new Date()
@@ -28,7 +35,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "The start date is after the end date" }, { status: 400 })
   }
 
-  const period = { createdAt: { gte: from, lte: to } }
+  const period = { tenantId: tenant.tenantId, createdAt: { gte: from, lte: to } }
 
   const [totalRevenue, totalBookings, avgOrderValue, webBookings, whatsappBookings, completedTours, cancelledOrders, pendingPayments] =
     await Promise.all([
@@ -77,7 +84,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     orderBy: { _count: { tourId: "desc" } },
     take: 10,
   })
-  const tours = await db.tour.findMany({ where: { id: { in: topToursRaw.map(t => t.tourId) } } })
+  const tours = await db.tour.findMany({ where: { tenantId: tenant.tenantId, id: { in: topToursRaw.map(t => t.tourId) } } })
   const topTours = topToursRaw.map(t => ({ ...t, tour: tours.find(tu => tu.id === t.tourId) }))
 
   const customers = await db.customer.findMany({ where: period, select: { createdAt: true } })

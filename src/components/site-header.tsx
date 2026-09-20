@@ -90,8 +90,11 @@ export function SiteHeader() {
         setActiveDropdown(null)
       }
     }
+    const handleEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setActiveDropdown(null) }
+    document.addEventListener("keydown", handleEscape)
     document.addEventListener("mousedown", handleClickOutside)
     return () => {
+      document.removeEventListener("keydown", handleEscape)
       document.removeEventListener("mousedown", handleClickOutside)
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
     }
@@ -109,7 +112,7 @@ export function SiteHeader() {
       titleAr: "واتساب",
       descEn: "WhatsApp marketing automation for sales & support.",
       descAr: "أتمتة تسويق وخدمة عملاء واتساب للمبيعات والدعم.",
-      href: "/product/team-inbox",
+      href: "/whatsapp-business-api-oman",
       icon: WhatsAppBrandIcon,
       color: "text-[#25D366] bg-[#25D366]/10",
     },
@@ -134,9 +137,9 @@ export function SiteHeader() {
     {
       titleEn: "Telegram",
       titleAr: "تيليجرام",
-      descEn: "Telegram bot automation for groups, DMs, broadcasts & AI support.",
-      descAr: "أتمتة بوت تيليجرام للمجموعات والرسائل والبث والدعم.",
-      href: "/features",
+      descEn: "Discuss Telegram integration requirements.",
+      descAr: "ناقش متطلبات تكامل تيليجرام.",
+      href: "/resources/telegram",
       icon: TelegramBrandIcon,
       color: "text-[#229ED9] bg-[#229ED9]/10",
     },
@@ -145,7 +148,7 @@ export function SiteHeader() {
       titleAr: "شات الموقع",
       descEn: "Website chat widget automation for lead capture, AI support & handoff.",
       descAr: "ودجت شات الموقع المباشر لالتقاط العملاء والدعم والتحويل.",
-      href: "/features",
+      href: "/resources/website-chat",
       icon: WebChatBrandIcon,
       color: "text-[#0284C7] bg-[#0284C7]/10",
     },
@@ -187,6 +190,9 @@ export function SiteHeader() {
       icon: Smartphone,
       color: "text-[#4F46E5] bg-[#4F46E5]/10",
     },
+    { titleEn: "Botflow Studio", titleAr: "استوديو المسارات", descEn: "Build and test visual conversation flows.", descAr: "أنشئ واختبر مسارات المحادثة.", href: "/product/botflow-studio", icon: Layers, color: "text-emerald-700 bg-emerald-50" },
+    { titleEn: "Broadcast Campaigns", titleAr: "الحملات الجماعية", descEn: "Send approved campaigns to opted-in contacts.", descAr: "أرسل حملات معتمدة للعملاء المشتركين.", href: "/product/broadcast-campaigns", icon: Layers, color: "text-emerald-700 bg-emerald-50" },
+    { titleEn: "Payments", titleAr: "المدفوعات", descEn: "Collect payments through connected checkout flows.", descAr: "حصّل المدفوعات من خلال مسارات الدفع.", href: "/product/payments", icon: Layers, color: "text-emerald-700 bg-emerald-50" },
   ]
 
   // ─── 2. Industries ───
@@ -205,7 +211,7 @@ export function SiteHeader() {
       titleAr: "المالية والمصارف",
       descEn: "Lead qualification and secure support routing.",
       descAr: "تأهيل العملاء والمدفوعات الآمنة والتوجيه المالي.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/finance",
       icon: CreditCard,
       color: "text-[#2563EB] bg-[#2563EB]/10",
     },
@@ -232,7 +238,7 @@ export function SiteHeader() {
       titleAr: "العقارات",
       descEn: "Property leads, showings, and inquiries.",
       descAr: "عروض العقارات، معاينات الشقق واستفسارات المشترين.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/real-estate",
       icon: Building2,
       color: "text-[#0D9488] bg-[#0D9488]/10",
     },
@@ -250,7 +256,7 @@ export function SiteHeader() {
       titleAr: "التعليم والتدريب",
       descEn: "Admissions, counseling, and student engagement.",
       descAr: "التسجيل والقبول، الاستشارات وتواصل الطلاب.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/education",
       icon: BookOpen,
       color: "text-[#4F46E5] bg-[#4F46E5]/10",
     },
@@ -259,7 +265,7 @@ export function SiteHeader() {
       titleAr: "البرمجيات والتقنية",
       descEn: "Leads, demos, onboarding, and retention.",
       descAr: "العملاء المحتملون، العروض الحية والتفعيل.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/saas-tech",
       icon: Workflow,
       color: "text-[#2563EB] bg-[#2563EB]/10",
     },
@@ -268,7 +274,7 @@ export function SiteHeader() {
       titleAr: "الشحن واللوجستيات",
       descEn: "Tracking, delivery updates, and support.",
       descAr: "تتبع الشحنات، تحديثات التوصيل وإشعارات الوصول.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/logistics",
       icon: Compass,
       color: "text-[#0891B2] bg-[#0891B2]/10",
     },
@@ -277,7 +283,7 @@ export function SiteHeader() {
       titleAr: "الوكالات والشركات",
       descEn: "Leads, consultations, and client comms.",
       descAr: "الاستشارات، إدارة العملاء والاتصالات الموحدة.",
-      href: "/solutions/ecommerce-online-stores",
+      href: "/solutions/agencies",
       icon: Layers,
       color: "text-[#9333EA] bg-[#9333EA]/10",
     },
@@ -299,6 +305,9 @@ export function SiteHeader() {
       icon: Compass,
       color: "text-[#E11D48] bg-[#E11D48]/10",
     },
+    { titleEn: "Salons & Spas", titleAr: "الصالونات والمنتجعات", descEn: "Appointment enquiries and customer follow-up.", descAr: "استفسارات المواعيد ومتابعة العملاء.", href: "/solutions/salons-beauty-spas", icon: Sparkles, color: "text-rose-700 bg-rose-50" },
+    { titleEn: "Supermarkets", titleAr: "السوبرماركت", descEn: "Store enquiries and customer messaging.", descAr: "استفسارات المتجر ومراسلة العملاء.", href: "/solutions/supermarkets-marts", icon: Layers, color: "text-emerald-700 bg-emerald-50" },
+    { titleEn: "Automotive", titleAr: "السيارات", descEn: "Vehicle enquiries and service conversations.", descAr: "استفسارات المركبات ومحادثات الخدمة.", href: "/solutions/automotive", icon: Layers, color: "text-blue-700 bg-blue-50" },
   ]
 
   // ─── 3. Resources ───
@@ -308,7 +317,7 @@ export function SiteHeader() {
       titleAr: "قاعدة المعرفة",
       descEn: "Find answers, guides, and resources all in one place.",
       descAr: "إجابات وأدلة شاملة وكافة المصادر في مكان واحد.",
-      href: "/docs",
+      href: "/resources/knowledgebase",
       icon: BookOpen,
       color: "text-[#2563EB] bg-[#2563EB]/10",
     },
@@ -331,20 +340,20 @@ export function SiteHeader() {
       color: "text-[#0284C7] bg-[#0284C7]/10",
     },
     {
-      titleEn: "Community & Forum",
+      titleEn: "Community & Feedback",
       titleAr: "المجتمع والنقاشات",
-      descEn: "Join discussions and connect with the community.",
+      descEn: "Share workflows and feedback with the Fizmoh team.",
       descAr: "انضم إلى النقاشات وتواصل مع مجتمع الأعمال.",
-      href: "/contact",
+      href: "/resources/community",
       icon: Bot,
       color: "text-[#9333EA] bg-[#9333EA]/10",
     },
     {
-      titleEn: "Video Tutorials",
-      titleAr: "شروحات الفيديو",
-      descEn: "Step-by-step videos to master features quickly.",
-      descAr: "فيديوهات تطبيقية خطوة بخطوة لتعلم المميزات.",
-      href: "/book-demo",
+      titleEn: "Product Tutorials",
+      titleAr: "شروحات المنتج",
+      descEn: "Interactive practice and guided product walkthroughs.",
+      descAr: "تجربة تفاعلية وجولات إرشادية لتعلم المميزات.",
+      href: "/resources/tutorials",
       icon: Video,
       color: "text-[#E11D48] bg-[#E11D48]/10",
     },
@@ -353,7 +362,7 @@ export function SiteHeader() {
       titleAr: "الإبلاغ عن خلل",
       descEn: "Report issues you experience and help us improve.",
       descAr: "أبلغ عن أي مشكلة وساعدنا في تحسين المنصة.",
-      href: "/contact",
+      href: "/resources/bug-report",
       icon: ShieldCheck,
       color: "text-[#DC2626] bg-[#DC2626]/10",
     },
@@ -362,7 +371,7 @@ export function SiteHeader() {
       titleAr: "اقتراح ميزة جديدة",
       descEn: "Contribute new feature ideas and help shape roadmap.",
       descAr: "شارك أفكارك وساهم في تشكيل خريطة التطوير.",
-      href: "/contact",
+      href: "/resources/feature-request",
       icon: Sparkles,
       color: "text-[#D97706] bg-[#D97706]/10",
     },
@@ -382,7 +391,7 @@ export function SiteHeader() {
       titleAr: "تكامل المتاجر",
       descEn: "Recover sales with automated WooCommerce webhooks.",
       descAr: "استرجاع السلات بربط ويبهوك ووكومرس وشوبيفاي.",
-      href: "/docs",
+      href: "/resources/woocommerce",
       icon: Layers,
       color: "text-[#0891B2] bg-[#0891B2]/10",
     },
@@ -400,7 +409,7 @@ export function SiteHeader() {
       titleAr: "الدعم الفني",
       descEn: "Need assistance? Our technical experts are ready.",
       descAr: "هل تحتاج لمساعدة؟ خبراؤنا التقنيون جاهزون.",
-      href: "/contact",
+      href: "/resources/support",
       icon: MessageCircleQuestion,
       color: "text-[#0284C7] bg-[#0284C7]/10",
     },
@@ -409,7 +418,7 @@ export function SiteHeader() {
       titleAr: "الدعم المميز VIP",
       descEn: "Dedicated support channel reserved for enterprise.",
       descAr: "قناة دعم مخصصة وسريعة لكبار العملاء والشركات.",
-      href: "/contact",
+      href: "/resources/priority-support",
       icon: Bot,
       color: "text-[#059669] bg-[#059669]/10",
     },
@@ -433,6 +442,8 @@ export function SiteHeader() {
           >
             <button
               type="button"
+              aria-expanded={activeDropdown === "platforms"}
+              aria-controls="platforms-dropdown"
               onClick={() => toggleDropdown("platforms")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeDropdown === "platforms"
@@ -449,14 +460,14 @@ export function SiteHeader() {
             </button>
 
             {activeDropdown === "platforms" && (
-              <div
-                className={`absolute top-full left-1/2 -translate-x-1/2 pt-2.5 w-[860px] max-w-[calc(100vw-32px)] z-50 transition-all ${
+              <div id="platforms-dropdown"
+                className={`fixed top-20 left-1/2 -translate-x-1/2 pt-2.5 w-[860px] max-w-[calc(100vw-32px)] z-50 transition-all ${
                   isAr ? "text-right" : "text-left"
                 }`}
                 onMouseEnter={() => handleMouseEnter("platforms")}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
+                <div className="max-h-[calc(100dvh-110px)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                     {platformItems.map((item, i) => (
                       <Link
@@ -526,6 +537,8 @@ export function SiteHeader() {
           >
             <button
               type="button"
+              aria-expanded={activeDropdown === "industries"}
+              aria-controls="industries-dropdown"
               onClick={() => toggleDropdown("industries")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeDropdown === "industries"
@@ -542,14 +555,14 @@ export function SiteHeader() {
             </button>
 
             {activeDropdown === "industries" && (
-              <div
-                className={`absolute top-full left-1/2 -translate-x-1/2 pt-2.5 w-[880px] max-w-[calc(100vw-32px)] z-50 transition-all ${
+              <div id="industries-dropdown"
+                className={`fixed top-20 left-1/2 -translate-x-1/2 pt-2.5 w-[880px] max-w-[calc(100vw-32px)] z-50 transition-all ${
                   isAr ? "text-right" : "text-left"
                 }`}
                 onMouseEnter={() => handleMouseEnter("industries")}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
+                <div className="max-h-[calc(100dvh-110px)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                     {industryItems.map((item, i) => (
                       <Link
@@ -596,6 +609,8 @@ export function SiteHeader() {
           >
             <button
               type="button"
+              aria-expanded={activeDropdown === "resources"}
+              aria-controls="resources-dropdown"
               onClick={() => toggleDropdown("resources")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeDropdown === "resources"
@@ -612,14 +627,14 @@ export function SiteHeader() {
             </button>
 
             {activeDropdown === "resources" && (
-              <div
-                className={`absolute top-full left-1/2 -translate-x-1/2 pt-2.5 w-[880px] max-w-[calc(100vw-32px)] z-50 transition-all ${
+              <div id="resources-dropdown"
+                className={`fixed top-20 left-1/2 -translate-x-1/2 pt-2.5 w-[880px] max-w-[calc(100vw-32px)] z-50 transition-all ${
                   isAr ? "text-right" : "text-left"
                 }`}
                 onMouseEnter={() => handleMouseEnter("resources")}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
+                <div className="max-h-[calc(100dvh-110px)] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                     {resourceItems.map((item, i) => (
                       <Link
@@ -693,36 +708,30 @@ export function SiteHeader() {
             <span>{isAr ? "English" : "العربية"}</span>
           </button>
 
-          <Link href="/book-demo">
-            <Button
+          <Button
               variant="outline"
               size="sm"
               className="h-9 rounded-lg border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-800 text-[12px] font-semibold px-3 shadow-2xs"
-            >
+             asChild><Link href="/book-demo">
               <Video className="h-3.5 w-3.5 text-emerald-600 mr-1" />
               {isAr ? "عرض Meet" : "Demo"}
-            </Button>
-          </Link>
+            </Link></Button>
 
-          <Link href="/admin">
-            <Button
+          <Button
               variant="ghost"
               size="sm"
               className="h-9 rounded-lg text-[12.5px] text-stone-600 hover:text-stone-900 hover:bg-stone-100 font-semibold px-3"
-            >
+             asChild><Link href="/admin">
               {isAr ? "دخول" : "Sign In"}
-            </Button>
-          </Link>
+            </Link></Button>
 
-          <Link href="/signup">
-            <Button
+          <Button
               size="sm"
               className="h-9 rounded-lg bg-[#047857] hover:bg-[#065f46] text-white text-[12.5px] font-bold px-4 transition shadow-xs flex items-center gap-1.5"
-            >
+             asChild><Link href="/signup">
               <span>{isAr ? "ابدأ مجاناً" : "Sign Up Free"}</span>
               <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </Link>
+            </Link></Button>
         </div>
 
         {/* Mobile Menu Toggle */}

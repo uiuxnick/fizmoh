@@ -172,7 +172,7 @@ async function loadConfig(): Promise<{ config: WhatsAppConfig; source: ConfigSou
       },
       select: {
         phoneNumberId: true, wabaId: true, businessId: true,
-        accessToken: true, tenantId: true,
+        accessToken: true, tenantId: true, displayPhone: true,
       },
     })
     const account = accounts.find(a => a.tenantId) ?? accounts[0]
@@ -183,7 +183,7 @@ async function loadConfig(): Promise<{ config: WhatsAppConfig; source: ConfigSou
         wabaId: account.wabaId,
         // The rest stays with the installation: the webhook is ours, not the
         // connected business's.
-        phoneNumber: byKeyFor(rows, DB_KEYS.phoneNumber) || env.phoneNumber || "",
+        phoneNumber: account.displayPhone || byKeyFor(rows, DB_KEYS.phoneNumber) || env.phoneNumber || "",
         webhookVerifyToken: byKeyFor(rows, DB_KEYS.webhookVerifyToken) || env.webhookVerifyToken || "",
         appSecret: byKeyFor(rows, DB_KEYS.appSecret) || env.appSecret || "",
       }
@@ -270,6 +270,28 @@ export async function isWhatsAppConfigured(): Promise<boolean> {
   return !!(c.accessToken && c.phoneNumberId && c.wabaId)
 }
 
+export function formatWhatsAppRecipient(rawPhone: string): string {
+  let cleaned = (rawPhone || "").replace(/[^\d]/g, "").trim()
+  if (!cleaned) return ""
+
+  // If 8 digits starting with 7 or 9 (Oman local number) -> 968
+  if (cleaned.length === 8 && /^[79]/.test(cleaned)) {
+    return `968${cleaned}`
+  }
+
+  // If 10 digits starting with 6, 7, 8, 9 (Indian local mobile number) -> 91
+  if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
+    return `91${cleaned}`
+  }
+
+  // If 9 digits starting with 5 (UAE / Saudi local number) -> 971
+  if (cleaned.length === 9 && /^[5]/.test(cleaned)) {
+    return `971${cleaned}`
+  }
+
+  return cleaned
+}
+
 /**
  * Send a text message via WhatsApp Cloud API
  */
@@ -284,6 +306,7 @@ export async function sendTextMessage(to: string, body: string): Promise<{ succe
   }
 
   try {
+    const recipient = formatWhatsAppRecipient(to)
     const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/messages`
     const response = await fetch(url, {
       method: "POST",
@@ -293,7 +316,7 @@ export async function sendTextMessage(to: string, body: string): Promise<{ succe
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: to.replace(/[^0-9]/g, ""),
+        to: recipient,
         type: "text",
         text: { body },
       }),
@@ -442,7 +465,7 @@ export async function sendTemplateMessage(params: {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: params.to.replace(/[^0-9]/g, ""),
+        to: formatWhatsAppRecipient(params.to),
         type: "template",
         template: {
           name: params.templateName,
@@ -531,7 +554,7 @@ export async function sendInteractiveMessage(params: {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: params.to.replace(/[^0-9]/g, ""),
+        to: formatWhatsAppRecipient(params.to),
         type: "interactive",
         interactive,
       }),
@@ -599,9 +622,14 @@ export async function sendCtaUrlMessage(params: {
   }
 
   try {
+    const rawBody = (params.body || "").trim()
+    const finalBody = rawBody.includes(params.url)
+      ? rawBody
+      : `${rawBody}\n\n👉 *${params.buttonText || "Open"}:*\n${params.url}`
+
     const interactive: Record<string, unknown> = {
       type: "cta_url",
-      body: { text: params.body },
+      body: { text: finalBody },
       action: {
         name: "cta_url",
         parameters: { display_text: params.buttonText, url: params.url },
@@ -613,7 +641,7 @@ export async function sendCtaUrlMessage(params: {
     const response = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: params.to, type: "interactive", interactive }),
+      body: JSON.stringify({ messaging_product: "whatsapp", to: formatWhatsAppRecipient(params.to), type: "interactive", interactive }),
     })
     const data = await response.json()
     if (!response.ok) {
@@ -663,7 +691,7 @@ export async function sendMediaMessage(params: {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: params.to.replace(/[^0-9]/g, ""),
+        to: formatWhatsAppRecipient(params.to),
         type: params.type,
         [params.type]: mediaObj,
       }),

@@ -408,17 +408,18 @@ export async function startAddonCheckout(params: {
     db.subscription.findFirst({ where: { tenantId: params.tenantId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } }, orderBy: { createdAt: "desc" } }),
   ])
   if (!tenant || !addon || !subscription) return { ok: false, error: "Workspace, add-on, or subscription not found" }
+  if (!Number.isFinite(params.quantity)) return { ok: false, error: "Valid quantity required" }
   const quantity = Math.min(100, Math.max(1, Math.round(params.quantity)))
   const amount = (params.period === "YEARLY" ? addon.priceYearly : addon.priceMonthly) * quantity
   const previous = await db.tenantAddon.findUnique({ where: { tenantId_addonId: { tenantId: tenant.id, addonId: addon.id } } })
-  const assignment = await db.tenantAddon.upsert({ where: { tenantId_addonId: { tenantId: tenant.id, addonId: addon.id } }, create: { tenantId: tenant.id, addonId: addon.id, subscriptionId: subscription.id, quantity, status: amount > 0 ? "PENDING_PAYMENT" : "ACTIVE" }, update: { subscriptionId: subscription.id, quantity, status: amount > 0 ? "PENDING_PAYMENT" : "ACTIVE" } })
+  const assignment = await db.tenantAddon.upsert({ where: { tenantId_addonId: { tenantId: tenant.id, addonId: addon.id } }, create: { tenantId: tenant.id, addonId: addon.id, subscriptionId: subscription.id, quantity, status: amount > 0 ? "PENDING_PAYMENT" : "ACTIVE" }, update: amount > 0 ? {} : { subscriptionId: subscription.id, quantity, status: "ACTIVE" } })
   if (amount <= 0) return { ok: true, url: null, assignmentId: assignment.id }
   const reference = `ADDON-${assignment.id}-${Date.now().toString(36).toUpperCase()}`
-  const invoice = await db.subscriptionInvoice.create({ data: { subscriptionId: subscription.id, tenantId: tenant.id, amount, currency: addon.currency, period: params.period, reference, periodEnd: nextPeriodEnd(params.period) } })
+  const invoice = await db.subscriptionInvoice.create({ data: { subscriptionId: subscription.id, tenantId: tenant.id, amount, currency: addon.currency, period: params.period, reference, periodEnd: nextPeriodEnd(params.period), items: { create: { description: `${addon.name} (${params.period === "YEARLY" ? "Yearly" : "Monthly"})`, quantity, unitAmount: amount / quantity } } } })
   
   const resolution = await resolvePlatformGateway(params.gateway)
   if (!resolution.active) {
-    await db.tenantAddon.update({ where: { id: assignment.id }, data: previous ? { status: previous.status, quantity: previous.quantity, subscriptionId: previous.subscriptionId } : { status: "CANCELLED" } })
+    if (!previous) await db.tenantAddon.updateMany({ where: { id: assignment.id, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } })
     await db.subscriptionInvoice.update({ where: { id: invoice.id }, data: { status: "FAILED" } })
     return { ok: false, error: "The platform gateway is not configured yet" }
   }
@@ -442,7 +443,7 @@ export async function startAddonCheckout(params: {
     })
 
     if (!intention.success || !intention.checkoutUrl) {
-      await db.tenantAddon.update({ where: { id: assignment.id }, data: previous ? { status: previous.status, quantity: previous.quantity, subscriptionId: previous.subscriptionId } : { status: "CANCELLED" } })
+      if (!previous) await db.tenantAddon.updateMany({ where: { id: assignment.id, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } })
       await db.subscriptionInvoice.update({ where: { id: invoice.id }, data: { status: "FAILED" } })
       return { ok: false, error: intention.error || "The Paymob platform gateway would not open a payment" }
     }
@@ -452,7 +453,7 @@ export async function startAddonCheckout(params: {
   const gateway = resolution.amwalpayConfig!
   const session = await asPlatform(() => createPaymentSession({ orderId: invoice.id, orderNumber: reference, amount: amount / 1000, currency: addon.currency, customerName: tenant.name, customerEmail: contact.email, customerPhone: contact.phone, description: `${addon.name} add-on`, successUrl: `${params.origin}/api/billing/return/${reference}`, failureUrl: `${params.origin}/api/billing/return/${reference}`, webhookUrl: `${params.origin}/api/amwalpay/cloud-notification`, config: gateway }))
   if (!session.success || !session.paymentLinkUrl) {
-    await db.tenantAddon.update({ where: { id: assignment.id }, data: previous ? { status: previous.status, quantity: previous.quantity, subscriptionId: previous.subscriptionId } : { status: "CANCELLED" } })
+    if (!previous) await db.tenantAddon.updateMany({ where: { id: assignment.id, status: "PENDING_PAYMENT" }, data: { status: "CANCELLED" } })
     await db.subscriptionInvoice.update({ where: { id: invoice.id }, data: { status: "FAILED" } })
     return { ok: false, error: session.error || "The gateway would not open a payment" }
   }
@@ -472,7 +473,7 @@ export async function settleInvoice(params: {
 }): Promise<{ ok: boolean; tenantId?: string }> {
   const invoice = await db.subscriptionInvoice.findUnique({
     where: { reference: params.reference.trim() },
-    include: { subscription: true },
+    include: { subscription: true, items: { orderBy: { position: "asc" } } },
   })
   if (!invoice) return { ok: false }
 
@@ -488,6 +489,24 @@ export async function settleInvoice(params: {
 
   if (invoice.status === "PAID") return { ok: true, tenantId: invoice.tenantId }
 
+  if (isAddonReference(invoice.reference)) {
+    const assignmentId = invoice.reference.split("-")[1]
+    await db.$transaction(async tx => {
+      const claim = await tx.subscriptionInvoice.updateMany({
+        where: { id: invoice.id, status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date(), gatewayReference: params.gatewayReference ?? null },
+      })
+      if (!claim.count) return
+      const updated = await tx.tenantAddon.updateMany({
+        where: { id: assignmentId, tenantId: invoice.tenantId },
+        data: { status: "ACTIVE", currentPeriodEnd: invoice.periodEnd, subscriptionId: invoice.subscriptionId,
+          ...(invoice.items[0] ? { quantity: invoice.items[0].quantity } : {}) },
+      })
+      if (updated.count !== 1) throw new Error("Invoice add-on assignment missing")
+    })
+    return { ok: true, tenantId: invoice.tenantId }
+  }
+
   // Claim the invoice atomically. Gateway retries can arrive concurrently;
   // only the request that moves PENDING -> PAID may activate the subscription.
   const claimed = await db.subscriptionInvoice.updateMany({
@@ -496,11 +515,6 @@ export async function settleInvoice(params: {
   })
   if (claimed.count === 0) return { ok: true, tenantId: invoice.tenantId }
 
-  if (isAddonReference(invoice.reference)) {
-    const assignmentId = invoice.reference.split("-")[1]
-    await db.tenantAddon.updateMany({ where: { id: assignmentId, tenantId: invoice.tenantId }, data: { status: "ACTIVE", currentPeriodEnd: invoice.periodEnd } })
-    return { ok: true, tenantId: invoice.tenantId }
-  }
 
   await activate({
     tenantId: invoice.tenantId,

@@ -3,7 +3,7 @@ import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { setSessionCookie, signSession } from "@/lib/auth"
 import { verifyAndConsumeMagicToken } from "@/lib/otp"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 
 function getBaseUrl(request: NextRequest): string {
   const forwardedHost = request.headers.get("x-forwarded-host")
@@ -24,7 +24,7 @@ function getBaseUrl(request: NextRequest): string {
  */
 export const GET = withErrors(async (request: NextRequest) => {
   const baseUrl = getBaseUrl(request)
-  const rate = checkRateLimit(`magic-login:${requestIp(request.headers)}`, 15, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`magic-login:${requestIp(request.headers)}`, 15, 15 * 60 * 1000)
   if (!rate.allowed) {
     return NextResponse.redirect(new URL("/login?error=too_many_attempts", baseUrl))
   }
@@ -68,7 +68,7 @@ export const GET = withErrors(async (request: NextRequest) => {
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
-  const rate = checkRateLimit(`magic-login-post:${requestIp(request.headers)}`, 15, 15 * 60 * 1000)
+  const rate = await checkRateLimit(`magic-login-post:${requestIp(request.headers)}`, 15, 15 * 60 * 1000)
   if (!rate.allowed) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 })
   }

@@ -36,6 +36,7 @@ export function ContactForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     if (!name.trim() || !email.trim() || !phone.trim() || !message.trim()) {
       toast.error(isAr ? "يرجى ملء جميع الحقول المطلوبة" : "Please fill in all required fields")
       return
@@ -82,7 +83,7 @@ export function ContactForm() {
           <h3 className="text-[18px] font-extrabold text-[#1D1D1D] mt-2">
             {isAr ? "شكراً لتواصلك معنا" : "Thank You for Contacting Us"}
           </h3>
-          <p className="text-[13px] text-[#717680] max-w-sm mx-auto leading-relaxed">
+          <p className="text-base text-[#717680] max-w-sm mx-auto leading-relaxed">
             {isAr ? (
               <>
                 تم استلام استفسارك بنجاح. سيقوم مهندس الحلول بمراجعة طلبك والرد على بريدك الإلكتروني{" "}
@@ -118,44 +119,44 @@ export function ContactForm() {
         <h3 className="text-[18px] font-extrabold text-[#1D1D1D]">
           {isAr ? "نموذج الاستفسارات والمبيعات" : "Send an Inquiry"}
         </h3>
-        <p className="text-[13px] text-[#717680] mt-1">
+        <p className="text-base text-[#717680] mt-1">
           {isAr
             ? "املأ النموذج أدناه وسيتواصل معك مهندس حلول متخصص لمناقشة متطلباتك."
             : "Fill in the details below and a solutions engineer will get in touch with you."}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form {...{ toolname: "sendInquiry", tooldescription: "Prepare a business inquiry for the Fizmoh team. Review the fields and submit to send." }} onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div className="space-y-1">
-            <Label className="text-[12px] font-bold text-[#1D1D1D]">
+            <Label htmlFor="contact-name" className="text-[12px] font-bold text-[#1D1D1D]">
               {isAr ? "الاسم الكامل *" : "Full Name *"}
             </Label>
             <div className="relative">
               <User className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-              <Input
+              <Input id="contact-name" name="name" autoComplete="name"
                 required
                 placeholder={isAr ? "سالم الرواحي" : "Salim Al-Rawahi"}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[12px] font-bold text-[#1D1D1D]">
+            <Label htmlFor="contact-email" className="text-[12px] font-bold text-[#1D1D1D]">
               {isAr ? "البريد الإلكتروني للعمل *" : "Work Email *"}
             </Label>
             <div className="relative">
               <Mail className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-              <Input
+              <Input id="contact-email" name="email" autoComplete="email"
                 required
                 type="email"
                 placeholder="salim@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
               />
             </div>
           </div>
@@ -163,45 +164,45 @@ export function ContactForm() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div className="space-y-1">
-            <Label className="text-[12px] font-bold text-[#1D1D1D]">
+            <Label htmlFor="contact-phone" className="text-[12px] font-bold text-[#1D1D1D]">
               {isAr ? "رقم الهاتف / واتساب *" : "Phone / WhatsApp *"}
             </Label>
             <div className="relative">
               <Phone className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-              <Input
+              <Input id="contact-phone" name="phone" autoComplete="tel" type="tel"
                 required
                 placeholder="+968 9123 4567"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[12px] font-bold text-[#1D1D1D]">
+            <Label htmlFor="contact-company" className="text-[12px] font-bold text-[#1D1D1D]">
               {isAr ? "اسم الشركة" : "Company Name"}
             </Label>
             <div className="relative">
               <Building2 className={`absolute ${isAr ? "right-3" : "left-3"} top-3 h-4 w-4 text-[#717680]`} />
-              <Input
+              <Input id="contact-company" name="company" autoComplete="organization"
                 placeholder={isAr ? "شركة النماء" : "Company LLC"}
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-10 rounded-[8px] text-[13px] focus:ring-[#00E785]`}
+                className={`${isAr ? "pr-9 text-right" : "pl-9 text-left"} bg-white border-[#E5E7EB] text-[#1D1D1D] h-11 rounded-[8px] text-base focus:ring-[#00E785]`}
               />
             </div>
           </div>
         </div>
 
         <div className="space-y-1">
-          <Label className="text-[12px] font-bold text-[#1D1D1D]">
+          <Label htmlFor="contact-inquiryType" className="text-[12px] font-bold text-[#1D1D1D]">
             {isAr ? "نوع الاستفسار" : "Inquiry Category"}
           </Label>
-          <select
+          <select id="contact-inquiryType" name="inquiryType"
             value={inquiryType}
             onChange={(e) => setInquiryType(e.target.value)}
-            className="w-full h-10 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-[13px] font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
+            className="w-full h-11 rounded-[8px] border border-[#E5E7EB] bg-white px-3 text-base font-medium text-[#1D1D1D] focus:outline-none focus:ring-1 focus:ring-[#00E785]"
           >
             {INQUIRY_TYPES.map((type) => (
               <option key={type.en} value={type.en}>
@@ -212,10 +213,10 @@ export function ContactForm() {
         </div>
 
         <div className="space-y-1">
-          <Label className="text-[12px] font-bold text-[#1D1D1D]">
+          <Label htmlFor="contact-message" className="text-[12px] font-bold text-[#1D1D1D]">
             {isAr ? "تفاصيل الرسالة *" : "Message Details *"}
           </Label>
-          <Textarea
+          <Textarea id="contact-message" name="message"
             required
             placeholder={
               isAr
@@ -224,7 +225,7 @@ export function ContactForm() {
             }
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="rounded-[8px] text-[13px] min-h-24 bg-white border-[#E5E7EB] text-[#1D1D1D] focus:ring-[#00E785]"
+            className="rounded-[8px] text-base min-h-24 bg-white border-[#E5E7EB] text-[#1D1D1D] focus:ring-[#00E785]"
           />
         </div>
 

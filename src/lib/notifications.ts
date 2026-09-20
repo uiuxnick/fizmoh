@@ -152,6 +152,8 @@ interface WhatsAppMessage {
   language?: string
   /** Bypass the 24h session check — only for replies inside a live webhook turn. */
   allowOutsideSession?: boolean
+  /** Force delivery via approved Meta template, ignoring the 24h window completely. */
+  forceTemplate?: boolean
 }
 
 /** The template half of a message, in the shape the Cloud API wants. */
@@ -179,6 +181,9 @@ export async function sendWhatsApp(message: WhatsAppMessage): Promise<{ success:
   const hasBody = !!message.body
 
   if (hasTemplate && hasBody) {
+    if (message.forceTemplate) {
+      return sendTemplateMessage(templateParamsFor(message))
+    }
     const freeformAllowed = await canSendFreeform(message.to)
     if (freeformAllowed) return sendTextMessage(message.to, message.body!)
     return sendTemplateMessage(templateParamsFor(message))

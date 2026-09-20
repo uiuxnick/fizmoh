@@ -1,0 +1,43 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "Website Live Support" [level=2] [ref=e6]
+      - paragraph [ref=e7]: Manage tickets and website chats. Replies refresh automatically; a public reply takes over from AI.
+    - generic [ref=e8]:
+      - button "Refresh" [disabled]
+      - button "Create Ticket" [ref=e9]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Open Tickets
+      - generic [ref=e13]: "0"
+    - generic [ref=e14]:
+      - generic [ref=e15]: In Progress
+      - generic [ref=e16]: "0"
+    - generic [ref=e17]:
+      - generic [ref=e18]: Waiting for Tenant
+      - generic [ref=e19]: "0"
+    - generic [ref=e20]:
+      - generic [ref=e21]: Resolved
+      - generic [ref=e22]: "0"
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - textbox "Search by ticket reference (e.g. FZ-0001) or subject..." [ref=e29]
+      - combobox [ref=e30]:
+        - option "All Statuses" [selected]
+        - option "Open"
+        - option "In Progress"
+        - option "Waiting"
+        - option "Resolved"
+        - option "Closed"
+      - combobox [ref=e31]:
+        - option "All Priorities" [selected]
+        - option "Low"
+        - option "Medium"
+        - option "High"
+        - option "Urgent"
+    - paragraph [ref=e35]: Loading tickets...
+  - generic [ref=e36]:
+    - generic [ref=e37]: 0 requests Â· Page 1
+    - generic [ref=e38]:
+      - button "Previous" [disabled]
+      - button "Next" [disabled]

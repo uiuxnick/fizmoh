@@ -10,6 +10,7 @@ import { withErrors } from "@/lib/api-handler"
 import { tenantOf, withTenant } from "@/lib/tenant"
 import { notifyStaff } from "@/lib/realtime"
 import { sendAptConfirmation } from "@/lib/apt-whatsapp"
+import { sendCtaUrlMessage, sendTextMessage } from "@/lib/whatsapp"
 import { localDateKey } from "@/lib/timezone"
 import { PLATFORM } from "@/lib/tenant"
 
@@ -32,6 +33,122 @@ export const POST = withErrors(async (request: NextRequest) => {
 
     const event = parseWebhookEvent(payload)
     const ref = event.orderReference || ""
+
+    // ── Handle Restaurant Kitchen Order Webhook (KIT-*) ──
+    if (ref.startsWith("KIT-") || /^KIT-/i.test(ref)) {
+      const kitchenId = ref.replace(/^KIT-/i, "")
+      const kitchenStub = await raw.kitchenOrder.findFirst({
+        where: { id: kitchenId },
+        select: { id: true, tenantId: true, paymentStatus: true },
+      })
+      if (!kitchenStub) {
+        console.error("AmwalPay webhook: Kitchen order not found:", ref)
+        return NextResponse.json({ error: "Kitchen order not found" }, { status: 404 })
+      }
+      const tenant = await tenantOf(kitchenStub.tenantId)
+      if (!tenant) return NextResponse.json({ error: "Workspace not resolved" }, { status: 404 })
+
+      return await withTenant(tenant, async () => {
+        await refreshAmwalPayConfig()
+
+        if (!verifyCallbackHash(payload)) {
+          console.error("AmwalPay callback hash verification FAILED for kitchen order:", ref)
+          return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+        }
+
+        const kitchen = await db.kitchenOrder.findFirst({
+          where: { id: kitchenId },
+          include: { branch: true },
+        })
+        if (!kitchen) return NextResponse.json({ error: "Kitchen order not found" }, { status: 404 })
+
+        if (event.eventType === "payment.success" || String(payload.responseCode) === "00") {
+          if (kitchen.paymentStatus === "PAID") {
+            return NextResponse.json({ received: true, duplicate: true })
+          }
+
+          let history: Array<{ status: string; timestamp: string; note?: string }> = []
+          try {
+            history = JSON.parse(kitchen.statusHistoryJson || "[]")
+          } catch {}
+          history.push({
+            status: kitchen.status,
+            timestamp: new Date().toISOString(),
+            note: `Paid online via AmwalPay Webhook (Txn: ${event.transactionId})`,
+          })
+
+          await db.kitchenOrder.update({
+            where: { id: kitchen.id },
+            data: {
+              paymentStatus: "PAID",
+              paymentMethod: "AMWALPAY_ONLINE",
+              paymentRef: event.transactionId || String(payload.merchantReference || ""),
+              statusHistoryJson: JSON.stringify(history),
+            },
+          })
+
+          const { publish, notifyStaff } = await import("@/lib/realtime")
+          // Publish realtime SSE event for order tracking page and dashboard
+          publish({
+            type: "restaurant_order",
+            tenantId: kitchen.tenantId,
+            orderId: kitchen.id,
+            status: kitchen.status,
+            paymentStatus: "PAID",
+            orderNumber: kitchen.orderNumber || undefined,
+            tableNumber: kitchen.tableNumber || undefined,
+            branchId: kitchen.branchId || undefined,
+            totalAmount: kitchen.totalAmount,
+            currency: kitchen.currency,
+          })
+
+          await notifyStaff({
+            tenantId: kitchen.tenantId,
+            type: "RESTAURANT_ORDER",
+            title: `💳 Order #${kitchen.orderNumber || ""} Paid Online!`,
+            message: `${kitchen.tableNumber ? `Table #${kitchen.tableNumber} • ` : ""}${kitchen.totalAmount.toFixed(3)} ${kitchen.currency} received via AmwalPay Card.`,
+            data: { orderId: kitchen.id, orderNumber: kitchen.orderNumber || "" },
+          }).catch(() => {})
+
+          // Send WhatsApp Receipt
+          if (kitchen.customerPhone) {
+            let itemsText = ""
+            try {
+              const items = JSON.parse(kitchen.itemsJson || "[]")
+              if (Array.isArray(items)) {
+                itemsText = items.map((i: any) => `• ${i.qty || 1}x ${i.name} (${Number(i.price || 0).toFixed(3)} ${kitchen.currency})`).join("\n")
+              }
+            } catch {}
+
+            const receiptMsg =
+              `🎉 *Thank you for your order, ${kitchen.customerName || "Guest"}!*\n\n` +
+              `Your payment of *${kitchen.totalAmount.toFixed(3)} ${kitchen.currency}* has been confirmed! ✅\n\n` +
+              `🧾 *Digital Receipt:*\n` +
+              `Order Number: *${kitchen.orderNumber || ""}*\n` +
+              `Type: *${kitchen.orderType}${kitchen.tableNumber ? ` (Table #${kitchen.tableNumber})` : ""}*\n` +
+              `Payment: *AmwalPay Online Card (PAID)*\n` +
+              `Txn Ref: *${event.transactionId || kitchen.id.slice(-6).toUpperCase()}*\n\n` +
+              (itemsText ? `*Items:*\n${itemsText}\n\n` : "") +
+              `Tap below to open your digital receipt & live kitchen tracking:`
+
+            const ctaRes = await sendCtaUrlMessage({
+              to: kitchen.customerPhone,
+              body: receiptMsg,
+              buttonText: "View Official Receipt",
+              url: `https://app.fizmoh.cloud/order/${kitchen.publicToken || kitchen.id}`,
+            }).catch(() => ({ success: false }))
+
+            if (!ctaRes.success) {
+              await sendTextMessage(
+                kitchen.customerPhone,
+                receiptMsg + `\nhttps://app.fizmoh.cloud/order/${kitchen.publicToken || kitchen.id}`,
+              ).catch(() => {})
+            }
+          }
+        }
+        return NextResponse.json({ received: true })
+      })
+    }
 
     // ── Handle Appointment Webhook (APT-*) ──
     if (ref.startsWith("APT-")) {

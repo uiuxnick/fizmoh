@@ -1,0 +1,712 @@
+- generic [active] [ref=f12e1]:
+  - generic [ref=f12e2]:
+    - generic [ref=f12e3]:
+      - banner [ref=f12e4]:
+        - generic [ref=f12e5]:
+          - link [ref=f12e7] [cursor=pointer]:
+            - /url: /
+            - img "Fizmoh — Automate, Connect, Grow" [ref=f12e10]
+          - navigation [ref=f12e11]:
+            - button "Platforms" [ref=f12e13] [cursor=pointer]
+            - link "AI Agents" [ref=f12e17] [cursor=pointer]:
+              - /url: /product/botflow-studio
+            - button "Industries" [ref=f12e19] [cursor=pointer]
+            - button "Resources" [ref=f12e24] [cursor=pointer]
+            - link "Pricing" [ref=f12e28] [cursor=pointer]:
+              - /url: /pricing
+          - generic [ref=f12e29]:
+            - button "العربية" [ref=f12e30]
+            - link [ref=f12e35] [cursor=pointer]:
+              - /url: /book-demo
+              - button "Demo" [ref=f12e36]
+            - link [ref=f12e37] [cursor=pointer]:
+              - /url: /admin
+              - button "Sign In" [ref=f12e38]
+            - link [ref=f12e39] [cursor=pointer]:
+              - /url: /signup
+              - button "Sign Up Free" [ref=f12e40]
+      - main [ref=f12e42]:
+        - generic [ref=f12e45]:
+          - generic [ref=f12e46]:
+            - generic [ref=f12e47]: Official Meta WhatsApp Cloud API Provider · Oman & GCC
+            - heading "Run your entire business on WhatsApp" [level=1] [ref=f12e51]:
+              - text: Run your entire business
+              - generic [ref=f12e52]: on WhatsApp
+            - generic [ref=f12e53]:
+              - paragraph [ref=f12e54]: Agencies & Growth Teams
+              - paragraph [ref=f12e57]: Official Meta Cloud API connectivity, multi-agent CRM inbox, conversational AI in Gulf Arabic, and native AmwalPay card checkout — all in one workspace.
+            - tablist "Industries" [ref=f12e58]:
+              - tab "Agencies & Growth Teams" [selected] [ref=f12e59] [cursor=pointer]
+              - tab "Tours, Safari & Travel" [ref=f12e60] [cursor=pointer]
+              - tab "Clinics & Healthcare" [ref=f12e61] [cursor=pointer]
+              - tab "Retail & Ecommerce" [ref=f12e62] [cursor=pointer]
+            - generic [ref=f12e63]:
+              - link [ref=f12e64] [cursor=pointer]:
+                - /url: /signup
+                - button "Start Free — 14 Days" [ref=f12e65]
+              - link [ref=f12e66] [cursor=pointer]:
+                - /url: /book-demo
+                - button "Book a Live Demo" [ref=f12e67]
+            - generic [ref=f12e68]:
+              - generic [ref=f12e69]: No credit card required
+              - generic [ref=f12e73]: 60-second API setup
+            - generic [ref=f12e77]:
+              - generic [ref=f12e78]:
+                - term [ref=f12e79]: 98%
+                - definition [ref=f12e80]: Message open rate
+              - generic [ref=f12e81]:
+                - term [ref=f12e82]: 45s
+                - definition [ref=f12e83]: Avg. bot response
+              - generic [ref=f12e84]:
+                - term [ref=f12e85]: OMR
+                - definition [ref=f12e86]: Direct AmwalPay payout
+          - generic [ref=f12e90]:
+            - generic [ref=f12e96]:
+              - generic [ref=f12e98]:
+                - generic [ref=f12e99]:
+                  - generic [ref=f12e102]: FM
+                  - generic [ref=f12e103]:
+                    - generic [ref=f12e104]:
+                      - generic [ref=f12e105]: Fizmoh Bot
+                      - generic [ref=f12e106]: ✓
+                    - generic [ref=f12e107]: Online · Verified API
+                - button "Reset Demo" [ref=f12e116]
+              - generic [ref=f12e122]:
+                - generic [ref=f12e124]:
+                  - generic [ref=f12e125]: Hi! I need digital marketing and SEO growth for my business.
+                  - generic [ref=f12e126]: 01:20 PM
+                - generic [ref=f12e131]:
+                  - generic [ref=f12e132]:
+                    - generic [ref=f12e133]: 👋 *Hello! Welcome to FizMoh Growth.* Your certified partner for Google Ads, Meta scaling, and WhatsApp sales automation. Please select an option from our menu below 👇
+                    - generic [ref=f12e134]: 01:20 PM
+                  - generic [ref=f12e139]:
+                    - button "🔍 Marketing & SEO Services" [ref=f12e140] [cursor=pointer]
+                    - button "📊 Case Studies & ROI" [ref=f12e141] [cursor=pointer]
+                    - button "📑 Request Custom Proposal" [ref=f12e142] [cursor=pointer]
+                    - button "🎥 Book Google Meet Session" [ref=f12e143] [cursor=pointer]
+              - generic [ref=f12e144]:
+                - textbox "Type a test message" [ref=f12e145]:
+                  - /placeholder: Type test message (e.g. SEO, Book)...
+                - button "Send message" [ref=f12e146] [cursor=pointer]
+            - paragraph [ref=f12e150]:
+              - generic [ref=f12e157]: Click any option inside device to test flow
+        - generic [ref=f12e159]:
+          - paragraph [ref=f12e160]: Certified & integrated with
+          - generic [ref=f12e162]:
+            - generic [ref=f12e165]:
+              - paragraph [ref=f12e166]: Meta Cloud API
+              - paragraph [ref=f12e167]: Verified Partner
+            - generic [ref=f12e170]:
+              - paragraph [ref=f12e171]: AmwalPay
+              - paragraph [ref=f12e172]: Oman Gateway
+            - generic [ref=f12e175]:
+              - paragraph [ref=f12e176]: Central Bank Oman
+              - paragraph [ref=f12e177]: CBO Compliant
+            - generic [ref=f12e180]:
+              - paragraph [ref=f12e181]: ISO 27001
+              - paragraph [ref=f12e182]: Certified
+            - generic [ref=f12e185]:
+              - paragraph [ref=f12e186]: WooCommerce
+              - paragraph [ref=f12e187]: Two-Way Sync
+            - generic [ref=f12e190]:
+              - paragraph [ref=f12e191]: Google Calendar
+              - paragraph [ref=f12e192]: Meet Integration
+            - generic [aria-hidden] [ref=f12e193]:
+              - generic [ref=f12e196]:
+                - paragraph [ref=f12e197]: Meta Cloud API
+                - paragraph [ref=f12e198]: Verified Partner
+              - generic [ref=f12e201]:
+                - paragraph [ref=f12e202]: AmwalPay
+                - paragraph [ref=f12e203]: Oman Gateway
+              - generic [ref=f12e206]:
+                - paragraph [ref=f12e207]: Central Bank Oman
+                - paragraph [ref=f12e208]: CBO Compliant
+              - generic [ref=f12e211]:
+                - paragraph [ref=f12e212]: ISO 27001
+                - paragraph [ref=f12e213]: Certified
+              - generic [ref=f12e216]:
+                - paragraph [ref=f12e217]: WooCommerce
+                - paragraph [ref=f12e218]: Two-Way Sync
+              - generic [ref=f12e221]:
+                - paragraph [ref=f12e222]: Google Calendar
+                - paragraph [ref=f12e223]: Meet Integration
+        - generic [ref=f12e225]:
+          - generic [ref=f12e226]:
+            - paragraph [ref=f12e227]: Our proud clients
+            - heading "Trusted by 40+ brands in Oman" [level=2] [ref=f12e228]
+            - paragraph [ref=f12e229]:
+              - text: Built by
+              - link "Fizmoh.cloud" [ref=f12e230] [cursor=pointer]:
+                - /url: https://fizmoh.cloud
+              - text: — the team that has delivered digital work for these organisations across Oman and the GCC.
+          - generic [ref=f12e231]:
+            - generic [ref=f12e233]:
+              - img "Kays International" [ref=f12e235]
+              - img "Travel Space" [ref=f12e237]
+              - img "Gadgets Oman" [ref=f12e239]
+              - img "BNI Oman" [ref=f12e241]
+              - img "Vanguard Engineering & Oilfield Services" [ref=f12e243]
+              - img "UFC Gym Oman" [ref=f12e245]
+              - img "Yusuf" [ref=f12e247]
+              - img "Smokey Grill & Chill Blues" [ref=f12e249]
+              - img "New Age Media Solutions" [ref=f12e251]
+              - img "Muscat Eye Laser Center" [ref=f12e253]
+              - img "Modern Hair Fixing" [ref=f12e255]
+              - img "Al Masa Mall" [ref=f12e257]
+              - img "Kawashi Fashion" [ref=f12e259]
+              - img "Markaz Al Bahja" [ref=f12e261]
+              - img "Kadok" [ref=f12e263]
+              - img "Al Nahda Group" [ref=f12e265]
+              - img "Gamez" [ref=f12e267]
+              - img "YAAT Building Engineered Solutions" [ref=f12e269]
+              - img "Europcar" [ref=f12e271]
+            - generic [ref=f12e312]:
+              - img "Enroil Oilfield Solutions & Services" [ref=f12e314]
+              - img "Alia Al Farsi Gallery" [ref=f12e316]
+              - img "Dada's Kitchen" [ref=f12e318]
+              - img "Studio Red" [ref=f12e320]
+              - img "Royal" [ref=f12e322]
+              - img "Queen Topaz International Trading" [ref=f12e324]
+              - img "Oud World" [ref=f12e326]
+              - img "Oman Phone" [ref=f12e328]
+              - img "New Food House" [ref=f12e330]
+              - img "Future I.T" [ref=f12e332]
+              - img "MobPC" [ref=f12e334]
+              - img "MaxLab Analytica" [ref=f12e336]
+              - img "Kiwi World International" [ref=f12e338]
+              - img "Hotel Frankincense" [ref=f12e340]
+              - img "Escape Gateways" [ref=f12e342]
+              - img "Copper Roastery" [ref=f12e344]
+              - img "Askari's Goldsmiths" [ref=f12e346]
+              - img "Space Code" [ref=f12e348]
+        - generic [ref=f12e387]:
+          - generic [ref=f12e388]:
+            - paragraph [ref=f12e389]: Core Capabilities
+            - heading "Everything you need to run WhatsApp operations" [level=2] [ref=f12e390]
+            - paragraph [ref=f12e391]: Shared team inbox, AI chatbot flows, payment checkout, and appointments — built into one unified platform.
+          - generic [ref=f12e392]:
+            - link [ref=f12e393] [cursor=pointer]:
+              - /url: /product/team-inbox
+              - generic [ref=f12e394]:
+                - generic [ref=f12e395]:
+                  - heading "Multi-Agent Team Inbox" [level=3] [ref=f12e400]
+                  - paragraph [ref=f12e401]: Manage hundreds of WhatsApp conversations across your team with smart routing, 24h SLA timers, internal notes, and human handover.
+                - generic [ref=f12e402]: Learn more
+            - link [ref=f12e405] [cursor=pointer]:
+              - /url: /product/botflow-studio
+              - generic [ref=f12e406]:
+                - generic [ref=f12e407]:
+                  - heading "Visual No-Code Botflow Studio" [level=3] [ref=f12e412]
+                  - paragraph [ref=f12e413]: Design interactive conversation flows with drag-and-drop nodes, AI knowledge-base fallback, and Gulf Arabic dialect understanding.
+                - generic [ref=f12e414]: Learn more
+            - link [ref=f12e417] [cursor=pointer]:
+              - /url: /product/broadcast-campaigns
+              - generic [ref=f12e418]:
+                - generic [ref=f12e419]:
+                  - heading "Broadcast Marketing Campaigns" [level=3] [ref=f12e424]
+                  - paragraph [ref=f12e425]: Deploy targeted promotions to segmented audiences using Meta-approved templates. WhatsApp is opened far more than email (commonly cited around 90-98%), with click attribution and rate pacing built in.
+                - generic [ref=f12e426]: Learn more
+            - link [ref=f12e429] [cursor=pointer]:
+              - /url: /product/payments
+              - generic [ref=f12e430]:
+                - generic [ref=f12e431]:
+                  - heading "AmwalPay Card Payments" [level=3] [ref=f12e435]
+                  - paragraph [ref=f12e436]: Generate hosted checkout links in Omani Rial (OMR), accept debit and credit cards, and auto-issue PDF invoices on verified payment.
+                - generic [ref=f12e437]: Learn more
+            - link [ref=f12e440] [cursor=pointer]:
+              - /url: /product/smart-menu-ordering
+              - generic [ref=f12e441]:
+                - generic [ref=f12e442]:
+                  - heading "Smart Menu & QR Dining" [level=3] [ref=f12e447]
+                  - paragraph [ref=f12e448]: Interactive QR dining, live Kitchen Display System (KDS), waiter paging, and GPT-4o AI menu scanning from PDF or photos.
+                - generic [ref=f12e449]: Learn more
+            - link [ref=f12e452] [cursor=pointer]:
+              - /url: /product/digital-vcard
+              - generic [ref=f12e453]:
+                - generic [ref=f12e454]:
+                  - heading "Smart Digital Business Cards" [level=3] [ref=f12e458]
+                  - paragraph [ref=f12e459]: 10+ executive themes, video covers, dynamic QR codes, and 1-tap phone contact synchronization via RFC 6350 vCard.
+                - generic [ref=f12e460]: Learn more
+            - link [ref=f12e463] [cursor=pointer]:
+              - /url: /product/digital-qr-reviews
+              - generic [ref=f12e464]:
+                - generic [ref=f12e465]:
+                  - heading "Digital QR Reviews & Google Auto-Reply" [level=3] [ref=f12e473]
+                  - paragraph [ref=f12e474]: AI-designed branded QR stands, 5-star customer review funnels, and automated AI reply engine to Google Business Profile reviews.
+                - generic [ref=f12e475]: Learn more
+            - link [ref=f12e478] [cursor=pointer]:
+              - /url: /solutions/clinics-hospitals-health
+              - generic [ref=f12e479]:
+                - generic [ref=f12e480]:
+                  - heading "Appointments & Bed Booking" [level=3] [ref=f12e486]
+                  - paragraph [ref=f12e487]: Live slot availability, specialist selection, Google Calendar sync, automated WhatsApp reminders, and oncology day-care bed maps.
+                - generic [ref=f12e488]: Learn more
+            - link [ref=f12e491] [cursor=pointer]:
+              - /url: /solutions/ecommerce-online-stores
+              - generic [ref=f12e492]:
+                - generic [ref=f12e493]:
+                  - heading "Conversational Commerce" [level=3] [ref=f12e498]
+                  - paragraph [ref=f12e499]: Two-way WooCommerce sync, native in-chat product catalog, cart management, and 30-minute abandoned cart recovery sequences.
+                - generic [ref=f12e500]: Learn more
+          - link [ref=f12e504] [cursor=pointer]:
+            - /url: /features
+            - button "Explore all features" [ref=f12e505]
+        - generic [ref=f12e507]:
+          - generic [ref=f12e508]:
+            - generic [ref=f12e509]: New Feature · Digital Business Cards
+            - heading "Your Professional Identity. Elevated." [level=2] [ref=f12e513]
+            - paragraph [ref=f12e514]: Say goodbye to disposable paper cards. Share your executive profile via smart QR code, 1-tap NFC, or WhatsApp in one second — featuring video covers, live WhatsApp chat leads, and 10+ handcrafted executive themes.
+          - generic [ref=f12e515]:
+            - generic [ref=f12e516]:
+              - generic [ref=f12e521]:
+                - heading "Smart vCards & 10+ Executive Themes" [level=3] [ref=f12e522]
+                - paragraph [ref=f12e523]: Stunning designs including Curve Emerald, Midnight Navy, Champagne Gold, Minimalist Monochrome, and Cyberpunk Neon tailored to your executive presence.
+              - generic [ref=f12e528]:
+                - heading "Seamless Instant Sharing & NFC" [level=3] [ref=f12e529]
+                - paragraph [ref=f12e530]: 1-tap .vcf contact save straight to Apple & Google Contacts, dynamic scannable QR codes, and frictionless NFC tap-to-share.
+              - generic [ref=f12e535]:
+                - heading "Real WhatsApp Connections & Video Covers" [level=3] [ref=f12e536]
+                - paragraph [ref=f12e537]: One-click pre-filled WhatsApp chat triggers, looping MP4 hero video banners, direct calling, and integrated Google Maps navigation.
+              - generic [ref=f12e542]:
+                - heading "Endless Possibilities & Lead Analytics" [level=3] [ref=f12e543]
+                - paragraph [ref=f12e544]: Square service portfolios, client testimonials, embedded social badges, custom URL tiles, and real-time view tracking.
+            - generic [ref=f12e545]:
+              - generic [ref=f12e546]:
+                - button "David Okello (Emerald)" [ref=f12e547]:
+                  - generic [ref=f12e549]: David Okello
+                  - generic [ref=f12e550]: (Emerald)
+                - button "Farida Mwaniki (Navy)" [ref=f12e551]:
+                  - generic [ref=f12e553]: Farida Mwaniki
+                  - generic [ref=f12e554]: (Navy)
+                - button "Aisha Abdullahi (Gold)" [ref=f12e555]:
+                  - generic [ref=f12e557]: Aisha Abdullahi
+                  - generic [ref=f12e558]: (Gold)
+              - generic [ref=f12e564]:
+                - generic [ref=f12e565]:
+                  - generic [ref=f12e566]: Executive Consultant
+                  - generic [ref=f12e567]: FM
+                - generic [ref=f12e569]:
+                  - heading "Farida Mwaniki" [level=3] [ref=f12e571]
+                  - paragraph [ref=f12e575]: Brand Strategist & Consultant
+                  - paragraph [ref=f12e576]: Mwaniki Consulting · Nairobi, Kenya
+                - paragraph [ref=f12e578]: “Building magnetic brand identities and positioning high-growth ventures to command authority.”
+                - generic [ref=f12e579]:
+                  - generic [ref=f12e580]: Chat
+                  - generic [ref=f12e586]: Call
+                  - generic [ref=f12e590]: Email
+                - generic [ref=f12e595]:
+                  - generic [ref=f12e596]:
+                    - generic [ref=f12e597]: Mwaniki Consulting
+                    - generic [ref=f12e603]: Firm
+                  - generic [ref=f12e604]: mwanikiconsulting.co.ke
+                - generic [ref=f12e612]:
+                  - generic [ref=f12e613]: W
+                  - generic [ref=f12e614]: IG
+                  - generic [ref=f12e615]: in
+                  - generic [ref=f12e616]: 𝕏
+                  - generic [ref=f12e617]: f
+                - link "Save Contact (.VCF)" [ref=f12e619] [cursor=pointer]:
+                  - /url: /card/farida-mwaniki
+              - generic [ref=f12e624]:
+                - generic [ref=f12e625]: "Open Live Card:"
+                - link "farida-mwaniki" [ref=f12e626] [cursor=pointer]:
+                  - /url: /card/farida-mwaniki
+              - link [ref=f12e632] [cursor=pointer]:
+                - /url: /product/digital-vcard
+                - button "Explore Digital Business Cards" [ref=f12e633]
+        - generic [ref=f12e636]:
+          - generic [ref=f12e637]:
+            - paragraph [ref=f12e638]: 98%
+            - paragraph [ref=f12e639]: WhatsApp message open rate vs 22% email
+          - generic [ref=f12e640]:
+            - paragraph [ref=f12e641]: 10×
+            - paragraph [ref=f12e642]: Average campaign ROI over email marketing
+          - generic [ref=f12e643]:
+            - paragraph [ref=f12e644]: 45s
+            - paragraph [ref=f12e645]: Average AI bot response SLA
+          - generic [ref=f12e646]:
+            - paragraph [ref=f12e647]: 100%
+            - paragraph [ref=f12e648]: Direct OMR bank payout via AmwalPay
+        - generic [ref=f12e650]:
+          - generic [ref=f12e651]:
+            - paragraph [ref=f12e652]: How it works
+            - heading "Live in under 10 minutes" [level=2] [ref=f12e653]
+            - paragraph [ref=f12e654]: No complex technical setup. Three steps and your full WhatsApp operation is running.
+          - generic [ref=f12e655]:
+            - generic [ref=f12e656]:
+              - text: "01"
+              - heading "Connect Your Number" [level=3] [ref=f12e660]
+              - paragraph [ref=f12e661]: Link your existing business number to Meta's official WhatsApp Cloud API in under 60 seconds. No extra hardware, no new SIM required.
+            - generic [ref=f12e662]:
+              - text: "02"
+              - heading "Build Your Flows" [level=3] [ref=f12e666]
+              - paragraph [ref=f12e667]: Use the visual botflow studio or pick from 25+ industry templates. Set up your team inbox, campaigns, and payment checkout in one workspace.
+            - generic [ref=f12e668]:
+              - text: "03"
+              - heading "Launch & Collect Revenue" [level=3] [ref=f12e669]
+              - paragraph [ref=f12e670]: Go live with campaigns, chatbots, and payment links. Monitor performance in the dashboard and scale without limits.
+        - generic [ref=f12e672]:
+          - generic [ref=f12e673]:
+            - paragraph [ref=f12e674]: Industries
+            - heading "Purpose-built for every industry" [level=2] [ref=f12e675]
+            - paragraph [ref=f12e676]: Vertical-specific operational modules ready to deploy — from restaurants to hospitals to agencies.
+          - generic [ref=f12e677]:
+            - link [ref=f12e678] [cursor=pointer]:
+              - /url: /solutions/restaurants-dining
+              - generic [ref=f12e684]:
+                - paragraph [ref=f12e685]: Restaurants & Cafes
+                - paragraph [ref=f12e686]: QR menus, table booking & kitchen routing
+            - link [ref=f12e687] [cursor=pointer]:
+              - /url: /solutions/ecommerce-online-stores
+              - generic [ref=f12e693]:
+                - paragraph [ref=f12e694]: Ecommerce & Retail
+                - paragraph [ref=f12e695]: WooCommerce sync & abandoned cart recovery
+            - link [ref=f12e696] [cursor=pointer]:
+              - /url: /solutions/clinics-hospitals-health
+              - generic [ref=f12e703]:
+                - paragraph [ref=f12e704]: Clinics & Healthcare
+                - paragraph [ref=f12e705]: Doctor appointments & oncology bed mapping
+            - link [ref=f12e706] [cursor=pointer]:
+              - /url: /solutions/tours-safari-musandam
+              - generic [ref=f12e712]:
+                - paragraph [ref=f12e713]: Tours & Safari
+                - paragraph [ref=f12e714]: Seat availability & AmwalPay checkout
+            - link [ref=f12e715] [cursor=pointer]:
+              - /url: /solutions/salons-beauty-spas
+              - generic [ref=f12e724]:
+                - paragraph [ref=f12e725]: Salons & Spas
+                - paragraph [ref=f12e726]: 24/7 self-service slot booking & reminders
+            - link [ref=f12e727] [cursor=pointer]:
+              - /url: /solutions/fashion-perfumes-retail
+              - generic [ref=f12e732]:
+                - paragraph [ref=f12e733]: Fashion & Apparel
+                - paragraph [ref=f12e734]: In-chat catalog browsing & instant checkout
+            - link [ref=f12e735] [cursor=pointer]:
+              - /url: /solutions/supermarkets-marts
+              - generic [ref=f12e743]:
+                - paragraph [ref=f12e744]: Grocer & Butcher
+                - paragraph [ref=f12e745]: List orders & fast local delivery dispatch
+            - link [ref=f12e746] [cursor=pointer]:
+              - /url: /features
+              - generic [ref=f12e753]:
+                - paragraph [ref=f12e754]: Agencies & SaaS
+                - paragraph [ref=f12e755]: Multi-tenant workspaces for client management
+        - generic [ref=f12e757]:
+          - generic [ref=f12e758]:
+            - paragraph [ref=f12e759]: Built for Oman & GCC
+            - heading "The right regional infrastructure" [level=2] [ref=f12e760]
+            - paragraph [ref=f12e761]: Direct OMR settlements via AmwalPay, Gulf Arabic colloquial AI understanding, and fully isolated multi-tenant workspace architecture.
+            - generic [ref=f12e762]:
+              - paragraph [ref=f12e764]: Oman · Muscat
+              - paragraph [ref=f12e766]: UAE · Dubai
+              - paragraph [ref=f12e768]: Saudi Arabia
+              - paragraph [ref=f12e770]: Qatar · Doha
+              - paragraph [ref=f12e772]: Bahrain
+              - paragraph [ref=f12e774]: Kuwait
+          - generic [ref=f12e775]:
+            - heading "Why leading GCC brands choose Fizmoh" [level=3] [ref=f12e776]
+            - list [ref=f12e780]:
+              - listitem [ref=f12e781]:
+                - generic [ref=f12e785]: AmwalPay gateway with instant settlement directly into local Omani & GCC bank accounts.
+              - listitem [ref=f12e786]:
+                - generic [ref=f12e790]: AI models specifically trained on Gulf Arabic colloquial dialect intents and customer idioms.
+              - listitem [ref=f12e791]:
+                - generic [ref=f12e795]: Ready-to-deploy operational modules for Healthcare, Safari Tours, and Dining POS.
+              - listitem [ref=f12e796]:
+                - generic [ref=f12e800]: Transparent flat subscriptions with zero markups on official Meta conversation rates.
+        - generic [ref=f12e802]:
+          - generic [ref=f12e803]:
+            - paragraph [ref=f12e804]: Customer stories
+            - heading "What our customers say" [level=2] [ref=f12e805]
+          - generic [ref=f12e806]:
+            - generic [ref=f12e807]:
+              - paragraph [ref=f12e820]: “Fizmoh automated our entire desert safari reservation flow with instant AmwalPay checkout. Zero phone calls needed.”
+              - generic [ref=f12e821]:
+                - generic [ref=f12e822]: S
+                - generic [ref=f12e823]:
+                  - paragraph [ref=f12e824]: Salim Al-Harthy
+                  - paragraph [ref=f12e825]: COO, Muscat Safaris
+            - generic [ref=f12e826]:
+              - paragraph [ref=f12e839]: “The shared team inbox slashed patient response time from 1 hour to 45 seconds. The automated reminders nearly eliminated no-shows.”
+              - generic [ref=f12e840]:
+                - generic [ref=f12e841]: M
+                - generic [ref=f12e842]:
+                  - paragraph [ref=f12e843]: Dr. Mona Al-Balushi
+                  - paragraph [ref=f12e844]: Medical Director, Al-Enaya Clinic
+            - generic [ref=f12e845]:
+              - paragraph [ref=f12e858]: “Recovered 35% of abandoned WooCommerce carts in the first two weeks using the 30-minute WhatsApp trigger sequence.”
+              - generic [ref=f12e859]:
+                - generic [ref=f12e860]: T
+                - generic [ref=f12e861]:
+                  - paragraph [ref=f12e862]: Tariq Al-Saadi
+                  - paragraph [ref=f12e863]: Head of E-Commerce
+        - generic [ref=f12e865]:
+          - generic [ref=f12e866]:
+            - paragraph [ref=f12e867]: Platform comparison
+            - heading "Fizmoh vs. the alternatives" [level=2] [ref=f12e868]
+            - paragraph [ref=f12e869]: The more complete alternative to WATI, Twilio, and Interakt for the GCC market.
+          - table [ref=f12e871]:
+            - rowgroup [ref=f12e872]:
+              - row [ref=f12e873]:
+                - columnheader "Feature" [ref=f12e874]
+                - columnheader "Fizmoh" [ref=f12e875]
+                - columnheader "WATI" [ref=f12e876]
+                - columnheader "Twilio" [ref=f12e877]
+                - columnheader "Interakt" [ref=f12e878]
+            - rowgroup [ref=f12e879]:
+              - row [ref=f12e880]:
+                - cell "Native AmwalPay Oman Gateway" [ref=f12e881]
+                - cell "✅ Included" [ref=f12e882]
+                - cell "❌ None" [ref=f12e883]
+                - cell "❌ Custom dev" [ref=f12e884]
+                - cell "❌ INR only" [ref=f12e885]
+              - row [ref=f12e886]:
+                - cell "Gulf Arabic Dialect AI Bot" [ref=f12e887]
+                - cell "✅ Native GCC NLP" [ref=f12e888]
+                - cell "⚠️ Basic" [ref=f12e889]
+                - cell "❌ Raw API" [ref=f12e890]
+                - cell "❌ EN/Hindi" [ref=f12e891]
+              - row [ref=f12e892]:
+                - cell "Multi-Agent CRM Inbox" [ref=f12e893]
+                - cell "✅ Unlimited" [ref=f12e894]
+                - cell "⚠️ Limited seats" [ref=f12e895]
+                - cell "❌ API only" [ref=f12e896]
+                - cell "⚠️ Paid add-on" [ref=f12e897]
+              - row [ref=f12e898]:
+                - cell "Ready Industry Modules" [ref=f12e899]
+                - cell "✅ 25+ built-in" [ref=f12e900]
+                - cell "❌ E-com only" [ref=f12e901]
+                - cell "❌ Dev required" [ref=f12e902]
+                - cell "❌ Shopify only" [ref=f12e903]
+              - row [ref=f12e904]:
+                - cell "Multi-Tenant Agency Workspaces" [ref=f12e905]
+                - cell "✅ Built-in" [ref=f12e906]
+                - cell "❌ Single account" [ref=f12e907]
+                - cell "❌ Raw API" [ref=f12e908]
+                - cell "❌ Single account" [ref=f12e909]
+        - generic [ref=f12e911]:
+          - generic [ref=f12e912]:
+            - generic [ref=f12e913]: Official Multi-Platform Apps
+            - heading "Download Fizmoh for All Your Devices" [level=2] [ref=f12e917]
+            - paragraph [ref=f12e918]: Respond to customer chats on the move with Android, or supercharge support speeds with dedicated native clients for macOS and Windows.
+          - generic [ref=f12e919]:
+            - generic [ref=f12e920]:
+              - generic [ref=f12e921]:
+                - generic [ref=f12e922]: Android APK
+                - generic [ref=f12e927]:
+                  - heading "Fizmoh for Android" [level=3] [ref=f12e928]
+                  - paragraph [ref=f12e929]: Instant push alerts, camera receipt scanning, offline draft saving, and 1-tap quick replies.
+              - generic [ref=f12e930]:
+                - link "Download Android APK" [ref=f12e931] [cursor=pointer]:
+                  - /url: /downloads/Fizmoh.apk
+                - paragraph [ref=f12e936]: 193 MB · Compatible with Android 10+
+            - generic [ref=f12e937]:
+              - generic [ref=f12e938]:
+                - generic [ref=f12e939]: macOS Universal
+                - generic [ref=f12e944]:
+                  - heading "Fizmoh for macOS" [level=3] [ref=f12e945]
+                  - paragraph [ref=f12e946]: Universal binary for Apple Silicon & Intel with menu-bar badges, audio alerts, and hotkeys.
+              - generic [ref=f12e947]:
+                - link "Download for Mac (.zip)" [ref=f12e948] [cursor=pointer]:
+                  - /url: /downloads/Fizmoh-macOS.zip
+                - paragraph [ref=f12e953]: 117 MB · macOS 12 Monterey+
+            - generic [ref=f12e954]:
+              - generic [ref=f12e955]:
+                - generic [ref=f12e956]: Windows 64-bit
+                - generic [ref=f12e961]:
+                  - heading "Fizmoh for Windows" [level=3] [ref=f12e962]
+                  - paragraph [ref=f12e963]: Lightweight background client with taskbar tray notifications and seamless agent switching.
+              - generic [ref=f12e964]:
+                - link "Download for Windows (.zip)" [ref=f12e965] [cursor=pointer]:
+                  - /url: /downloads/Fizmoh-Windows.zip
+                - paragraph [ref=f12e970]: 62 MB · Windows 10/11 (64-bit)
+          - link "Open Full Download Center & Release Hashes" [ref=f12e972] [cursor=pointer]:
+            - /url: /downloads/
+        - generic [ref=f12e977]:
+          - generic [ref=f12e978]:
+            - paragraph [ref=f12e979]: FAQ
+            - heading "Frequently asked questions" [level=2] [ref=f12e980]
+          - generic [ref=f12e981]:
+            - heading [level=3] [ref=f12e983]:
+              - button "How do I run a full business on WhatsApp?" [ref=f12e984]
+            - heading [level=3] [ref=f12e986]:
+              - button "How do I send bulk WhatsApp messages without getting banned?" [ref=f12e987]
+            - heading [level=3] [ref=f12e989]:
+              - button "How do I accept card payments on WhatsApp in Oman & GCC?" [ref=f12e990]
+            - heading [level=3] [ref=f12e992]:
+              - button "How do I build a WhatsApp chatbot without coding?" [ref=f12e993]
+            - heading [level=3] [ref=f12e995]:
+              - button "What is the pricing model for WhatsApp Cloud API?" [ref=f12e996]
+        - generic [ref=f12e998]:
+          - heading "Ready to make WhatsApp your top revenue channel?" [level=2] [ref=f12e999]
+          - paragraph [ref=f12e1000]: Launch your official WhatsApp Cloud API workspace, multi-agent CRM, AI chatbot, and AmwalPay gateway in under 10 minutes.
+          - generic [ref=f12e1001]:
+            - link [ref=f12e1002] [cursor=pointer]:
+              - /url: /signup
+              - button "Start Free Trial — 14 Days" [ref=f12e1003]
+            - link [ref=f12e1004] [cursor=pointer]:
+              - /url: /book-demo
+              - button "Book a Live Demo" [ref=f12e1005]
+          - paragraph [ref=f12e1006]: No credit card required · 60-second API setup · Dedicated onboarding support
+      - contentinfo [ref=f12e1007]:
+        - generic [ref=f12e1008]:
+          - generic [ref=f12e1009]:
+            - generic [ref=f12e1010]:
+              - link [ref=f12e1011] [cursor=pointer]:
+                - /url: /
+                - img "Fizmoh — Automate, Connect, Grow" [ref=f12e1014]
+              - paragraph [ref=f12e1015]: "The operational WhatsApp Business platform: official Meta Cloud API, multi-agent CRM inbox, conversational AI botflows, and native AmwalPay card payments."
+              - generic [ref=f12e1016]:
+                - generic [ref=f12e1017]: All Systems Operational
+                - generic [ref=f12e1019]: Meta Cloud Provider
+            - generic [ref=f12e1023]:
+              - heading "Platform" [level=3] [ref=f12e1024]
+              - list [ref=f12e1025]:
+                - listitem [ref=f12e1026]:
+                  - link "Features" [ref=f12e1027] [cursor=pointer]:
+                    - /url: /features
+                - listitem [ref=f12e1028]:
+                  - link "Smart Menu & Ordering" [ref=f12e1029] [cursor=pointer]:
+                    - /url: /product/smart-menu-ordering
+                - listitem [ref=f12e1030]:
+                  - link "Team Inbox" [ref=f12e1031] [cursor=pointer]:
+                    - /url: /product/team-inbox
+                - listitem [ref=f12e1032]:
+                  - link "Botflow Studio" [ref=f12e1033] [cursor=pointer]:
+                    - /url: /product/botflow-studio
+                - listitem [ref=f12e1034]:
+                  - link "Digital Business Cards" [ref=f12e1035] [cursor=pointer]:
+                    - /url: /product/digital-vcard
+                - listitem [ref=f12e1036]:
+                  - link "Digital QR Reviews" [ref=f12e1037] [cursor=pointer]:
+                    - /url: /product/digital-qr-reviews
+                - listitem [ref=f12e1038]:
+                  - link "Facebook & Instagram" [ref=f12e1039] [cursor=pointer]:
+                    - /url: /product/facebook-instagram-automation
+                - listitem [ref=f12e1040]:
+                  - link "Pricing" [ref=f12e1041] [cursor=pointer]:
+                    - /url: /pricing
+            - generic [ref=f12e1042]:
+              - heading "Industries" [level=3] [ref=f12e1043]
+              - list [ref=f12e1044]:
+                - listitem [ref=f12e1045]:
+                  - link "Restaurants & Cafes" [ref=f12e1046] [cursor=pointer]:
+                    - /url: /solutions/restaurants-dining
+                - listitem [ref=f12e1047]:
+                  - link "Ecommerce & Retail" [ref=f12e1048] [cursor=pointer]:
+                    - /url: /solutions/ecommerce-online-stores
+                - listitem [ref=f12e1049]:
+                  - link "Tours & Safari" [ref=f12e1050] [cursor=pointer]:
+                    - /url: /solutions/tours-safari-musandam
+                - listitem [ref=f12e1051]:
+                  - link "Healthcare & Clinics" [ref=f12e1052] [cursor=pointer]:
+                    - /url: /solutions/clinics-hospitals-health
+                - listitem [ref=f12e1053]:
+                  - link "Salons & Spas" [ref=f12e1054] [cursor=pointer]:
+                    - /url: /solutions/salons-beauty-spas
+            - generic [ref=f12e1055]:
+              - heading "Company" [level=3] [ref=f12e1056]
+              - list [ref=f12e1057]:
+                - listitem [ref=f12e1058]:
+                  - link "Contact Desk" [ref=f12e1059] [cursor=pointer]:
+                    - /url: /contact
+                - listitem [ref=f12e1060]:
+                  - link "Download Apps" [ref=f12e1061] [cursor=pointer]:
+                    - /url: /downloads/
+                - listitem [ref=f12e1062]:
+                  - link "Changelog" [ref=f12e1063] [cursor=pointer]:
+                    - /url: /whats-new
+                - listitem [ref=f12e1064]:
+                  - link "REST API" [ref=f12e1065] [cursor=pointer]:
+                    - /url: /docs
+                - listitem [ref=f12e1066]:
+                  - link "Privacy" [ref=f12e1067] [cursor=pointer]:
+                    - /url: /privacy
+                - listitem [ref=f12e1068]:
+                  - link "Terms" [ref=f12e1069] [cursor=pointer]:
+                    - /url: /terms
+          - generic [ref=f12e1070]:
+            - generic [ref=f12e1071]:
+              - heading "WhatsApp Oman" [level=4] [ref=f12e1072]
+              - list [ref=f12e1073]:
+                - listitem [ref=f12e1074]:
+                  - link "WhatsApp Business API Oman" [ref=f12e1075] [cursor=pointer]:
+                    - /url: /whatsapp-business-api-oman
+                - listitem [ref=f12e1076]:
+                  - link "WhatsApp Automation Oman" [ref=f12e1077] [cursor=pointer]:
+                    - /url: /whatsapp-automation-oman
+                - listitem [ref=f12e1078]:
+                  - link "WhatsApp Chatbot Oman" [ref=f12e1079] [cursor=pointer]:
+                    - /url: /whatsapp-chatbot-oman
+                - listitem [ref=f12e1080]:
+                  - link "WhatsApp CRM Oman" [ref=f12e1081] [cursor=pointer]:
+                    - /url: /whatsapp-crm-oman
+                - listitem [ref=f12e1082]:
+                  - link "WhatsApp Marketing Oman" [ref=f12e1083] [cursor=pointer]:
+                    - /url: /whatsapp-marketing-oman
+            - generic [ref=f12e1084]:
+              - heading "Comparisons" [level=4] [ref=f12e1085]
+              - list [ref=f12e1086]:
+                - listitem [ref=f12e1087]:
+                  - link "Fizmoh vs WATI" [ref=f12e1088] [cursor=pointer]:
+                    - /url: /compare/fizmoh-vs-wati
+                - listitem [ref=f12e1089]:
+                  - link "Fizmoh vs Interakt" [ref=f12e1090] [cursor=pointer]:
+                    - /url: /compare/fizmoh-vs-interakt
+                - listitem [ref=f12e1091]:
+                  - link "Fizmoh vs Twilio" [ref=f12e1092] [cursor=pointer]:
+                    - /url: /compare/fizmoh-vs-twilio
+                - listitem [ref=f12e1093]:
+                  - link "Fizmoh vs Respond.io" [ref=f12e1094] [cursor=pointer]:
+                    - /url: /compare/fizmoh-vs-respond-io
+                - listitem [ref=f12e1095]:
+                  - link "Fizmoh vs SleekFlow" [ref=f12e1096] [cursor=pointer]:
+                    - /url: /compare/fizmoh-vs-sleekflow
+            - generic [ref=f12e1097]:
+              - heading "GCC Locations" [level=4] [ref=f12e1098]
+              - list [ref=f12e1099]:
+                - listitem [ref=f12e1100]:
+                  - link "Muscat, Oman" [ref=f12e1101] [cursor=pointer]:
+                    - /url: /locations/muscat
+                - listitem [ref=f12e1102]:
+                  - link "Dubai, UAE" [ref=f12e1103] [cursor=pointer]:
+                    - /url: /locations/dubai
+                - listitem [ref=f12e1104]:
+                  - link "Riyadh, Saudi Arabia" [ref=f12e1105] [cursor=pointer]:
+                    - /url: /locations/riyadh
+                - listitem [ref=f12e1106]:
+                  - link "Doha, Qatar" [ref=f12e1107] [cursor=pointer]:
+                    - /url: /locations/doha
+                - listitem [ref=f12e1108]:
+                  - link "Kuwait City" [ref=f12e1109] [cursor=pointer]:
+                    - /url: /locations/kuwait-city
+            - generic [ref=f12e1110]:
+              - heading "Popular Guides" [level=4] [ref=f12e1111]
+              - list [ref=f12e1112]:
+                - listitem [ref=f12e1113]:
+                  - link "WhatsApp API Oman Guide" [ref=f12e1114] [cursor=pointer]:
+                    - /url: /blog/whatsapp-business-api-oman-guide
+                - listitem [ref=f12e1115]:
+                  - link "AmwalPay WhatsApp Payments" [ref=f12e1116] [cursor=pointer]:
+                    - /url: /blog/accept-online-payments-whatsapp-oman-amwalpay
+                - listitem [ref=f12e1117]:
+                  - link "Restaurant QR Ordering" [ref=f12e1118] [cursor=pointer]:
+                    - /url: /blog/restaurant-qr-code-ordering-system-oman
+                - listitem [ref=f12e1119]:
+                  - link "Google Review QR Cards" [ref=f12e1120] [cursor=pointer]:
+                    - /url: /blog/google-review-qr-code-cards-oman-reputation
+                - listitem [ref=f12e1121]:
+                  - link "Digital NFC vCards" [ref=f12e1122] [cursor=pointer]:
+                    - /url: /blog/digital-business-cards-nfc-vcard-oman
+          - generic [ref=f12e1123]:
+            - paragraph [ref=f12e1124]: © 2026 Fizmoh Cloud Platform. All rights reserved.
+            - generic [ref=f12e1125]:
+              - generic [ref=f12e1126]: Meta WhatsApp Cloud API
+              - generic [ref=f12e1127]: •
+              - generic [ref=f12e1128]: AmwalPay Gateway
+              - generic [ref=f12e1129]: •
+              - generic [ref=f12e1130]: ISO 27001
+    - region "Notifications (F8)":
+      - list
+    - region "Notifications alt+T"
+  - alert [ref=f12e1131]

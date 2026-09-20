@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { createPaymentSession } from "@/lib/amwalpay"
 import { withErrors } from "@/lib/api-handler"
 import { tenantOf, withTenant } from "@/lib/tenant"
@@ -299,7 +299,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   // Public by necessity — the customer is not signed in at checkout — but each
   // call creates a payment link against the live merchant account, so it is
   // capped per address.
-  const rate = checkRateLimit(`amwalsession:${requestIp(request.headers)}`, 15, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`amwalsession:${requestIp(request.headers)}`, 15, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many payment attempts, please wait" }, { status: 429 })
 
 
@@ -344,7 +344,7 @@ export const POST = withErrors(async (request: NextRequest) => {
   // Public by necessity — the customer is not signed in at checkout — but each
   // call creates a payment link against the live merchant account, so it is
   // capped per address.
-  const rate = checkRateLimit(`amwalsession:${requestIp(request.headers)}`, 15, 10 * 60 * 1000)
+  const rate = await checkRateLimit(`amwalsession:${requestIp(request.headers)}`, 15, 10 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many payment attempts, please wait" }, { status: 429 })
 
 

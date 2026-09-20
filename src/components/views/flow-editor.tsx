@@ -114,12 +114,22 @@ const PALETTE: { group: string; items: PaletteItem[] }[] = [
     ],
   },
   {
-    group: "Travel & Dining",
+    group: "Smart Menu & Restaurant",
+    items: [
+      { type: "RESTAURANT_SITE", label: "Online Ordering Website", emoji: "🌐", color: "rose", defaultData: { text: "🍽️ Order online from our fresh seasonal menu:", buttonText: "Open Smart Menu" } },
+      { type: "RESTAURANT_TABLES", label: "Live Table Visibility", emoji: "🪑", color: "rose", defaultData: { text: "🍽️ Live Table Availability:" } },
+      { type: "RESTAURANT_MENU", label: "Dynamic Menu Picker", emoji: "📖", color: "rose", defaultData: { text: "🍽️ Choose from our chef specials:" } },
+      { type: "RESTAURANT_ORDER", label: "Place Food Order", emoji: "🛍️", color: "rose", defaultData: { text: "🍽️ Place your delivery, pickup, or dine-in order:" } },
+      { type: "RESTAURANT_ORDER_STATUS", label: "Live Order Status", emoji: "🧾", color: "rose", defaultData: {} },
+      { type: "RESTAURANT_PAY", label: "Pay Restaurant Order", emoji: "💳", color: "rose", defaultData: { text: "💳 Pay for your food order securely online via Card:" } },
+      { type: "RESTAURANT_CALL_WAITER", label: "Call Waiter / Bill", emoji: "🔔", color: "rose", defaultData: { requestType: "ASSISTANCE", text: "🔔 Service request sent to our staff." } },
+      { type: "RESTAURANT_SCAN", label: "Table QR Scan & Menu", emoji: "📱", color: "rose", defaultData: { text: "📱 Scan the QR code on your table to view menu and order directly:" } },
+    ],
+  },
+  {
+    group: "Travel & Services",
     items: [
       { type: "VISA", label: "Visa Enquiry / Upload", emoji: "🛂", color: "cyan", defaultData: { text: "🛂 Oman Visa & Travel Assistance. Choose your visa category:" } },
-      { type: "RESTAURANT", label: "Table Reservation", emoji: "🍽️", color: "rose", defaultData: { text: "🍽️ Reserve a dining table or view our chef special menu:" } },
-      { type: "RESTAURANT_MENU", label: "Restaurant Menu", emoji: "📖", color: "rose", defaultData: { text: "🍽️ Here is our menu:" } },
-      { type: "RESTAURANT_ORDER_STATUS", label: "Order Status", emoji: "🧾", color: "rose", defaultData: {} },
       { type: "HOSPITAL_AVAILABILITY", label: "Hospital Availability", emoji: "🏥", color: "blue", defaultData: {} },
     ],
   },
@@ -189,6 +199,14 @@ const NODE_COLORS: Record<string, string> = {
   CATALOG: "border-purple-400 bg-purple-50",
   VISA: "border-cyan-400 bg-cyan-50",
   RESTAURANT: "border-rose-400 bg-rose-50",
+  RESTAURANT_SITE: "border-rose-400 bg-rose-50",
+  RESTAURANT_TABLES: "border-rose-400 bg-rose-50",
+  RESTAURANT_MENU: "border-rose-400 bg-rose-50",
+  RESTAURANT_ORDER: "border-rose-400 bg-rose-50",
+  RESTAURANT_ORDER_STATUS: "border-rose-400 bg-rose-50",
+  RESTAURANT_PAY: "border-rose-400 bg-rose-50",
+  RESTAURANT_CALL_WAITER: "border-rose-400 bg-rose-50",
+  RESTAURANT_SCAN: "border-rose-400 bg-rose-50",
 }
 
 const NODE_EMOJI: Record<string, string> = {
@@ -199,6 +217,9 @@ const NODE_EMOJI: Record<string, string> = {
   HOSPITAL: "🏥", HOSP_CHEMO: "💊", HOSP_DOCTOR: "🩺", HOSP_BED_MAP: "🛏️",
   TOUR: "🚙", TOUR_DETAILS: "🌄", TOUR_AVAIL: "📅", PAYMENT: "💳", BANK_TRANSFER: "🏦",
   PRODUCT: "🛍️", CATALOG: "📦", VISA: "🛂", RESTAURANT: "🍽️",
+  RESTAURANT_SITE: "🌐", RESTAURANT_TABLES: "🪑", RESTAURANT_MENU: "📖",
+  RESTAURANT_ORDER: "🛍️", RESTAURANT_ORDER_STATUS: "🧾", RESTAURANT_PAY: "💳",
+  RESTAURANT_CALL_WAITER: "🔔", RESTAURANT_SCAN: "📱",
 }
 
 const NODE_LABEL: Record<string, string> = {
@@ -216,6 +237,10 @@ const NODE_LABEL: Record<string, string> = {
   APPOINTMENT: "Book Appointment", APT_RESCHEDULE: "Reschedule / Cancel",
   PRODUCT: "Product Card", CATALOG: "Catalog List",
   VISA: "Visa Assistance", RESTAURANT: "Restaurant Reservation",
+  RESTAURANT_SITE: "Smart Menu Website", RESTAURANT_TABLES: "Live Table Visibility",
+  RESTAURANT_MENU: "Dynamic Menu Picker", RESTAURANT_ORDER: "Place Food Order",
+  RESTAURANT_ORDER_STATUS: "Live Order Status", RESTAURANT_PAY: "Pay Restaurant Order",
+  RESTAURANT_CALL_WAITER: "Call Waiter / Bill", RESTAURANT_SCAN: "Table QR Scan & Menu",
 }
 const NODE_W = 200
 
@@ -238,6 +263,14 @@ function nodePreview(type: string, data: Record<string, unknown>): string {
   if (type === "BANK_TRANSFER") return `🏦 ${data.bankName || "Bank Transfer"}`
   if (type === "VISA") return `🛂 Visa Assistance`
   if (type === "RESTAURANT") return `🍽️ Table Reservation`
+  if (type === "RESTAURANT_SITE") return `🌐 Smart Menu Website`
+  if (type === "RESTAURANT_TABLES") return `🪑 Live Table Visibility`
+  if (type === "RESTAURANT_MENU") return `📖 Dynamic Menu Picker`
+  if (type === "RESTAURANT_ORDER") return `🛍️ Place Food Order`
+  if (type === "RESTAURANT_ORDER_STATUS") return `🧾 Live Order Status Tracker`
+  if (type === "RESTAURANT_PAY") return `💳 Online Card Payment`
+  if (type === "RESTAURANT_CALL_WAITER") return `🔔 Call Waiter / Bill (${data.requestType || "ASSISTANCE"})`
+  if (type === "RESTAURANT_SCAN") return `📱 Table QR Scan & Menu`
   if (type === "APT_RESCHEDULE") return `🔄 Manage Appointment`
   if (type === "HOSPITAL") return `🏥 Kauvery Hospital (${data.hospMode || "menu"})`
   if (type === "TOUR") return `🚙 Tours (${data.tourCount || 4} items)`
@@ -2050,14 +2083,105 @@ function NodeInspector({
           </>
         )}
 
-        {/* RESTAURANT */}
-        {node.type === "RESTAURANT" && (
+        {/* RESTAURANT & RESTAURANT_TABLES */}
+        {(node.type === "RESTAURANT" || node.type === "RESTAURANT_TABLES") && (
           <>
             <label className="text-[11px] font-medium text-stone-600 block">
-              Intro text
-              <Textarea rows={2} className="mt-1 text-xs" value={String(d.text || "")} placeholder="🍽️ Reserve a dining table or view menu:" onChange={e => onUpdate({ text: e.target.value })} />
+              Table Availability Message
+              <Textarea rows={3} className="mt-1 text-xs" value={String(d.text || "")} placeholder="Leave blank to use live real-time table counter and area breakdown (Indoor, Terrace, VIP)." onChange={e => onUpdate({ text: e.target.value })} />
             </label>
-            <p className="text-[10px] text-stone-400">Interactive dining table reservation and digital menu selector.</p>
+            <p className="text-[10px] text-stone-400">Dynamically checks live database for free tables, seats, and sections.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_SITE */}
+        {node.type === "RESTAURANT_SITE" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Website CTA Text
+              <Textarea rows={3} className="mt-1 text-xs" value={String(d.text || "")} placeholder="🍽️ Welcome to our Restaurant! Browse our digital smart menu and order online:" onChange={e => onUpdate({ text: e.target.value })} />
+            </label>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Button Label
+              <Input className="mt-1 h-8 text-xs" value={String(d.buttonText || "Open Smart Menu")} onChange={e => onUpdate({ buttonText: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Automatically links to this workspace's dynamic restaurant website.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_MENU */}
+        {node.type === "RESTAURANT_MENU" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Menu Intro Text
+              <Textarea rows={3} className="mt-1 text-xs" value={String(d.text || "")} placeholder="🍽️ Choose from our chef special dishes:" onChange={e => onUpdate({ text: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Dynamically loads available dishes and categories with OMR prices.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_ORDER */}
+        {node.type === "RESTAURANT_ORDER" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Order Intro Text
+              <Textarea rows={3} className="mt-1 text-xs" value={String(d.text || "")} placeholder="🍽️ Place your delivery, pickup, or dine-in order:" onChange={e => onUpdate({ text: e.target.value })} />
+            </label>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Pre-selected Table Number (Optional)
+              <Input className="mt-1 h-8 text-xs" value={String(d.tableNumber || "")} placeholder="e.g. 4 or leave blank" onChange={e => onUpdate({ tableNumber: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Links customer straight to online ordering with table pre-selection.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_ORDER_STATUS */}
+        {node.type === "RESTAURANT_ORDER_STATUS" && (
+          <>
+            <p className="text-xs text-stone-700 font-medium">🧾 Live Order Tracker</p>
+            <p className="text-[10px] text-stone-400">Finds the customer's most recent kitchen order by WhatsApp phone number. Shows live preparation status, order items, total amount, online payment link (if unpaid), and real-time live tracker URL.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_PAY */}
+        {node.type === "RESTAURANT_PAY" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Custom Payment Prompt (Optional)
+              <Textarea rows={2} className="mt-1 text-xs" value={String(d.text || "")} placeholder="💳 Complete your food order payment securely via Card:" onChange={e => onUpdate({ text: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Generates a live AmwalPay hosted payment session link for the customer's active kitchen order.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_CALL_WAITER */}
+        {node.type === "RESTAURANT_CALL_WAITER" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Request Type
+              <select className="mt-1 w-full h-8 px-2 rounded border bg-white text-xs" value={String(d.requestType || "ASSISTANCE")} onChange={e => onUpdate({ requestType: e.target.value })}>
+                <option value="ASSISTANCE">🔔 General Waiter Call</option>
+                <option value="BILL">🧾 Request Bill / Receipt</option>
+                <option value="WATER">💧 Water & Beverages</option>
+                <option value="CUTLERY">🍴 Extra Cutlery & Napkins</option>
+              </select>
+            </label>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Specific Table Number (Optional)
+              <Input className="mt-1 h-8 text-xs" value={String(d.tableNumber || "")} placeholder="e.g. 5 or leave blank to detect from context" onChange={e => onUpdate({ tableNumber: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Instantly notifies floor staff and KDS with audio/visual alert.</p>
+          </>
+        )}
+
+        {/* RESTAURANT_SCAN */}
+        {node.type === "RESTAURANT_SCAN" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              QR Scan Instructions
+              <Textarea rows={3} className="mt-1 text-xs" value={String(d.text || "")} placeholder="📱 Scan the QR code on your table for instant dine-in ordering:" onChange={e => onUpdate({ text: e.target.value })} />
+            </label>
+            <p className="text-[10px] text-stone-400">Explains table QR scanning and provides direct link to the dynamic ordering site.</p>
           </>
         )}
 

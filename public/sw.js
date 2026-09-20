@@ -26,7 +26,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== SHELL).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.startsWith("shell-") && k !== SHELL).map(k => caches.delete(k))))
       .then(() => self.clients.claim()),
   )
 })
@@ -40,6 +40,10 @@ self.addEventListener("fetch", event => {
 
   // Never serve business data from a cache, and never cache the event stream.
   if (url.pathname.startsWith("/api/")) return
+
+  // Unlike hashed build assets, the support widget keeps the same URL across
+  // releases. Let its HTTP revalidation fetch the current contact form/code.
+  if (url.pathname === "/widget.js") return
 
   const cacheFirst = response => {
     if (response.ok && response.type === "basic") {

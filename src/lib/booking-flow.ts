@@ -40,6 +40,8 @@ export type BookingStep =
   | "ASK_EMAIL"
   | "ASK_PAYMENT"
   | "AWAITING_SCREENSHOT"
+  | "RESCHEDULE_AWAITING_DATE"
+  | "RESCHEDULE_SHOW_SLOTS"
   | "DONE"
 
 export type BookingState = {
@@ -63,6 +65,7 @@ export type BookingState = {
   name?: string
   email?: string
   orderId?: string
+  rescheduleOrderId?: string
   updatedAt: string
 }
 
@@ -169,7 +172,9 @@ export function isFlowReply(id?: string | null): boolean {
     id.startsWith("train_") ||
     id.includes("train_") ||
     id.startsWith("chat_") ||
-    id.includes("chat_")
+    id.includes("chat_") ||
+    id.startsWith("lang_") ||
+    id.includes("lang_")
   )
 }
 
@@ -223,7 +228,14 @@ async function withLang(ctx: FlowContext, message?: string | null): Promise<Flow
   await primeBotMessages(ctx.tenantId)
   if (ctx.lang) return ctx
   const saved = (await getState(ctx.conversationId))?.lang
-  return { ...ctx, lang: saved ?? detectLang(message) ?? "en" }
+  const detected = detectLang(message)
+  const cust = await db.customer.findFirst({
+    where: { tenantId: ctx.tenantId, phone: ctx.phone },
+    select: { preferredLang: true },
+  })
+  const isArabic = saved === "ar" || detected === "ar" || cust?.preferredLang === "ar"
+  const lang: Lang = isArabic ? "ar" : (saved ?? detected ?? (cust?.preferredLang as Lang) ?? "en")
+  return { ...ctx, lang }
 }
 
 /** Record what we sent so the agent inbox shows the same thread the customer sees. */
@@ -373,66 +385,56 @@ async function botText(ctx: FlowContext, key: string, vars: Record<string, strin
 export async function startBookingFlow(rawCtx: FlowContext, message?: string) {
   await primeBotMessages(rawCtx.tenantId)
   const existing = await getState(rawCtx.conversationId)
-  const chosen = existing?.langChosen ? existing.lang : undefined
-  const ctx = { ...rawCtx, lang: chosen ?? detectLang(message) ?? rawCtx.lang ?? "en" }
+  const isGreetingOrReset = !message || isFlowTrigger(message)
+  const chosen = (!isGreetingOrReset && existing?.langChosen) ? existing.lang : undefined
 
-  /*
-   * The language is asked once, before anything else.
-   *
-   * Guessing it from the opening message is unreliable — an emoji, a sticker or
-   * a bare "hi" carries no language at all — and every later step then commits
-   * to that guess. Asking costs one tap and makes the rest of the conversation
-   * certain.
-   */
+  // The user MUST be asked to choose language first before proceeding!
   if (!chosen) {
-    const { business } = await identity(ctx.tenantId)
-    const { loadBotMessages, renderBotMessage } = await import("@/lib/bot-messages")
-    const msgs = await loadBotMessages()
-    // The opening is shown in both languages, because which one they read is
-    // exactly what is not known yet.
-    const line = (key: string) => [
-      renderBotMessage(msgs, key, "en", { business }),
-      renderBotMessage(msgs, key, "ar", { business }),
-    ]
-    const [welcomeEn, welcomeAr] = line("welcome")
-    const [promptEn, promptAr] = line("language_prompt")
-
+    const { business } = await identity(rawCtx.tenantId)
+    const welcomeText = `Welcome to *${business}*! 👋\nأهلاً بك في *${business}*! 👋\n\nPlease choose your preferred language:\nيرجى اختيار لغتكم المفضلة:`
     await sendInteractiveMessage({
-      to: ctx.phone,
-      body: `${welcomeEn}\n${welcomeAr}\n\n${promptEn}\n${promptAr}`,
+      to: rawCtx.phone,
+      body: welcomeText,
       buttons: [
-        { id: `${PREFIX}lang_en`, title: renderBotMessage(msgs, "language_button_en", "en").slice(0, 20) },
-        { id: `${PREFIX}lang_ar`, title: renderBotMessage(msgs, "language_button_ar", "ar").slice(0, 20) },
+        { id: `${PREFIX}lang_ar`, title: "العربية 🇴🇲" },
+        { id: `${PREFIX}lang_en`, title: "English 🇬🇧" },
       ],
     })
-    await logBot(ctx, "Asked for language")
-    await save(ctx, { step: "ASK_LANG" })
+    await logBot(rawCtx, "Asked to choose language first")
+    await save(rawCtx, { step: "ASK_LANG" })
     return
   }
 
-  await showMainMenu(ctx)
+  await showMainMenu({ ...rawCtx, lang: chosen })
 }
 
-/** The menu, once the language is known. */
+/** The menu, once the language is known. 100% in the chosen language. */
 async function showMainMenu(ctx: FlowContext) {
   const { business } = await identity(ctx.tenantId)
-  const t = L(ctx)
-  const greeting = await botText(ctx, "greeting", { business })
+  const isAr = ctx.lang === "ar"
+  const greeting = isAr
+    ? `مرحباً! 👋 أهلاً بك في *${business}*. كيف يمكنني مساعدتك اليوم؟`
+    : `Hello! 👋 Welcome to *${business}*. How can I help you today?`
   await sendWhatsApp({ to: ctx.phone, body: greeting, allowOutsideSession: true })
 
   const shortcuts = await menuShortcuts()
+  const customSecond = shortcuts[0]
+  const browseTitle = isAr ? "🐎 الجولات" : "🐪 Browse Tours"
+  const secondTitle = isAr
+    ? (customSecond && /[\u0600-\u06FF]/.test(customSecond.title) ? customSecond.title : "🎓 التدريب")
+    : (customSecond ? customSecond.title : "🎓 Training")
 
   await sendInteractiveMessage({
     to: ctx.phone,
-    body: await botText(ctx, "menu_prompt"),
+    body: isAr ? "اختر من التالي:" : "Choose an option below:",
     buttons: [
-      { id: `${PREFIX}browse`, title: (await botText(ctx, "menu_browse_button")).slice(0, 20) },
-      ...shortcuts.slice(0, 1).map((sc, i) => ({ id: `${PREFIX}cat_${i}`, title: sc.title })),
+      { id: `${PREFIX}browse`, title: browseTitle.slice(0, 20) },
+      { id: `${PREFIX}cat_0`, title: secondTitle.slice(0, 20) },
     ],
   })
 
   await logBot(ctx, `${greeting} Choose an option`)
-  await save(ctx, { step: "AWAITING_CHOICE" })
+  await save(ctx, { step: "AWAITING_CHOICE", lang: ctx.lang, langChosen: true })
 }
 
 // ─── Step 2: tour list ───
@@ -524,8 +526,32 @@ async function showTours(ctx: FlowContext, shortcut?: MenuShortcut) {
 
 // ─── Step 3: date ───
 
+export function getMuscatTime(now = new Date()): { todayIso: string; nowMinutes: number; hour: number } {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Muscat",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+  const parts = formatter.formatToParts(now)
+  const y = parts.find(p => p.type === "year")?.value || "2026"
+  const m = parts.find(p => p.type === "month")?.value || "01"
+  const d = parts.find(p => p.type === "day")?.value || "01"
+  const h = Number(parts.find(p => p.type === "hour")?.value || "0")
+  const min = Number(parts.find(p => p.type === "minute")?.value || "0")
+  return {
+    todayIso: `${y}-${m}-${d}`,
+    nowMinutes: h * 60 + min,
+    hour: h,
+  }
+}
+
 /** Dates in the next 60 days that actually have a bookable seat. */
 async function availableDates(tenantId: string, tourId: string, limit = 9) {
+  const muscat = getMuscatTime()
   const from = new Date()
   from.setHours(0, 0, 0, 0)
   const until = new Date(from)
@@ -533,8 +559,8 @@ async function availableDates(tenantId: string, tourId: string, limit = 9) {
 
   const slots = await db.slot.findMany({
     where: { tenantId, tourId, status: "OPEN", date: { gte: from, lt: until } },
-    orderBy: { date: "asc" },
-    select: { date: true, capacity: true, seatsBooked: true, seatsHeld: true },
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    select: { date: true, startTime: true, capacity: true, seatsBooked: true, seatsHeld: true },
   })
 
   const byDay = new Map<string, number>()
@@ -542,20 +568,30 @@ async function availableDates(tenantId: string, tourId: string, limit = 9) {
     const seats = s.capacity - s.seatsBooked - s.seatsHeld
     if (seats <= 0) continue
     const key = s.date.toISOString().slice(0, 10)
+
+    // If slot is for today in Muscat, filter expired or morning slots in afternoon/evening
+    if (key === muscat.todayIso) {
+      const [sh, sm] = s.startTime.split(":").map(Number)
+      const slotMinutes = (sh || 0) * 60 + (sm || 0)
+      if (slotMinutes <= muscat.nowMinutes + 30) continue
+      // If currently afternoon or evening (>= 12:00 PM), hide morning slots (< 12:00 PM)
+      if (muscat.hour >= 12 && (sh || 0) < 12) continue
+    }
+
     byDay.set(key, (byDay.get(key) ?? 0) + seats)
   }
 
   return [...byDay.entries()].slice(0, limit).map(([iso, seats]) => ({ iso, seats }))
 }
 
-function dayLabel(iso: string): string {
-  const today = new Date().toISOString().slice(0, 10)
+export function dayLabel(iso: string, lang: Lang = "en"): string {
+  const muscat = getMuscatTime()
   const tomorrowDate = new Date()
   tomorrowDate.setDate(tomorrowDate.getDate() + 1)
-  const tomorrow = tomorrowDate.toISOString().slice(0, 10)
-  if (iso === today) return "Today"
-  if (iso === tomorrow) return "Tomorrow"
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", {
+  const tomorrowIso = tomorrowDate.toISOString().slice(0, 10)
+  if (iso === muscat.todayIso) return lang === "ar" ? "اليوم" : "Today"
+  if (iso === tomorrowIso) return lang === "ar" ? "غداً" : "Tomorrow"
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(lang === "ar" ? "ar-OM" : "en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -599,7 +635,7 @@ async function askDate(ctx: FlowContext, tourId: string) {
           rows: [
             ...dates.map(d => ({
               id: `${PREFIX}day_${d.iso}`,
-              title: dayLabel(d.iso).slice(0, 24),
+              title: dayLabel(d.iso, ctx.lang).slice(0, 24),
               description: td(`${d.seats} seat${d.seats === 1 ? "" : "s"} available`, `${d.seats} مقعد متاح`).slice(0, 72),
             })),
             { id: `${PREFIX}day_other`, title: td("📅 Another date", "📅 تاريخ آخر"), description: td("Type any date you like", "اكتب أي تاريخ تريده") },
@@ -613,22 +649,127 @@ async function askDate(ctx: FlowContext, tourId: string) {
   await save(ctx, { step: "AWAITING_DATE", tourId })
 }
 
+export function normalizeArabicDigits(str: string): string {
+  return str
+    .replace(/[٠۰]/g, "0")
+    .replace(/[١۱]/g, "1")
+    .replace(/[٢۲]/g, "2")
+    .replace(/[٣۳]/g, "3")
+    .replace(/[٤۴]/g, "4")
+    .replace(/[٥۵]/g, "5")
+    .replace(/[٦۶]/g, "6")
+    .replace(/[٧۷]/g, "7")
+    .replace(/[٨۸]/g, "8")
+    .replace(/[٩۹]/g, "9")
+}
+
+const ARABIC_MONTHS: Record<string, number> = {
+  "يناير": 1,
+  "فبراير": 2,
+  "مارس": 3,
+  "ابريل": 4,
+  "أبريل": 4,
+  "مايو": 5,
+  "يونيو": 6,
+  "يوليو": 7,
+  "اغسطس": 8,
+  "أغسطس": 8,
+  "سبتمبر": 9,
+  "اكتوبر": 10,
+  "أكتوبر": 10,
+  "نوفمبر": 11,
+  "ديسمبر": 12,
+  "كانون الثاني": 1,
+  "شباط": 2,
+  "آذار": 3,
+  "اذار": 3,
+  "نيسان": 4,
+  "أيار": 5,
+  "ايار": 5,
+  "حزيران": 6,
+  "تموز": 7,
+  "آب": 8,
+  "اب": 8,
+  "أيلول": 9,
+  "ايلول": 9,
+  "تشرين الأول": 10,
+  "تشرين الاول": 10,
+  "تشرين الثاني": 11,
+  "كانون الأول": 12,
+  "كانون الاول": 12,
+}
+
+const ARABIC_WEEKDAYS: Record<string, number> = {
+  "الأحد": 0, "الاحد": 0, "sunday": 0,
+  "الإثنين": 1, "الاثنين": 1, "monday": 1,
+  "الثلاثاء": 2, "الثلوث": 2, "tuesday": 2,
+  "الأربعاء": 3, "الاربعاء": 3, "wednesday": 3,
+  "الخميس": 4, "thursday": 4,
+  "الجمعة": 5, "الجمعه": 5, "friday": 5,
+  "السبت": 6, "saturday": 6,
+}
+
 /**
- * Parse a customer-typed date. Deliberately forgiving about format but strict
- * about range: WhatsApp users write "15/8", "15 aug", "2026-08-15" and
- * "tomorrow" interchangeably.
+ * Parse a customer-typed date. Deliberately forgiving about format:
+ * WhatsApp users write "15/8", "١٥/٨", "15 aug", "15 اغسطس", "بكره", "اليوم",
+ * "بعد بكره", "الجمعة الجاية", "2026-08-15".
  */
 export function parseCustomerDate(text: string, now = new Date()): string | null {
-  const raw = text.trim().toLowerCase()
+  const normalized = normalizeArabicDigits(text).trim().toLowerCase()
+  // Clean surrounding noise
+  const raw = normalized
+    .replace(/^(يوم|تاريخ|بتاريخ|في|on|date)\s+/i, "")
+    .replace(/[.،,!?؟]+$/, "")
+    .trim()
 
-  if (raw === "today") return now.toISOString().slice(0, 10)
-  if (raw === "tomorrow") {
+  if (raw === "today" || raw === "اليوم" || raw === "ليوم") return now.toISOString().slice(0, 10)
+
+  if (
+    raw === "tomorrow" ||
+    raw === "بكرة" ||
+    raw === "بكره" ||
+    raw === "باكر" ||
+    raw === "غدا" ||
+    raw === "غداً"
+  ) {
     const d = new Date(now)
     d.setDate(d.getDate() + 1)
     return d.toISOString().slice(0, 10)
   }
 
-  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (
+    raw === "بعد بكرة" ||
+    raw === "بعد بكره" ||
+    raw === "بعد غد" ||
+    raw === "بعد غدا" ||
+    raw === "بعد غداً" ||
+    raw === "day after tomorrow"
+  ) {
+    const d = new Date(now)
+    d.setDate(d.getDate() + 2)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Weekdays: e.g. "الجمعة", "الجمعة الجاية", "الجمعة القادمة", "next friday"
+  for (const [dayName, dayIndex] of Object.entries(ARABIC_WEEKDAYS)) {
+    if (raw.includes(dayName)) {
+      const currentDay = now.getDay()
+      let diff = dayIndex - currentDay
+      const isNext =
+        raw.includes("القادم") ||
+        raw.includes("القادمة") ||
+        raw.includes("الجاية") ||
+        raw.includes("الجاي") ||
+        raw.includes("next")
+      if (diff <= 0 || isNext) diff += 7
+      const d = new Date(now)
+      d.setDate(d.getDate() + diff)
+      return d.toISOString().slice(0, 10)
+    }
+  }
+
+  // ISO: 2026-08-15 or 2026/08/15
+  const iso = raw.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/)
   if (iso) return build(Number(iso[1]), Number(iso[2]), Number(iso[3]))
 
   // 15/8, 15-8-2026, 15.8
@@ -638,7 +779,20 @@ export function parseCustomerDate(text: string, now = new Date()): string | null
     return rollForward(build(year, Number(dmy[2]), Number(dmy[1])), now, !dmy[3])
   }
 
-  // 15 aug / aug 15 / 15 august 2026
+  // Arabic month names: e.g. "15 اغسطس", "15 أغسطس 2026", "أغسطس 15"
+  for (const [mName, mNum] of Object.entries(ARABIC_MONTHS)) {
+    if (raw.includes(mName)) {
+      const numMatch = raw.match(/\b\d{1,2}\b/)
+      const yearMatch = raw.match(/\b\d{4}\b/)
+      if (numMatch) {
+        const day = Number(numMatch[0])
+        const year = yearMatch ? Number(yearMatch[0]) : now.getFullYear()
+        return rollForward(build(year, mNum, day), now, !yearMatch)
+      }
+    }
+  }
+
+  // English month names: 15 aug / aug 15 / 15 august 2026
   const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
   const words = raw.replace(/(\d)(st|nd|rd|th)\b/g, "$1").split(/[\s,]+/).filter(Boolean)
   const day = words.find(w => /^\d{1,2}$/.test(w))
@@ -655,18 +809,35 @@ export function parseCustomerDate(text: string, now = new Date()): string | null
   function build(y: number, m: number, d: number): string | null {
     if (m < 1 || m > 12 || d < 1 || d > 31) return null
     const date = new Date(Date.UTC(y, m - 1, d))
-    // Rejects impossible dates like 31 February, which Date would roll over.
     if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null
     return date.toISOString().slice(0, 10)
   }
 
   function rollForward(value: string | null, from: Date, mayRoll: boolean): string | null {
     if (!value || !mayRoll) return value
-    // "15 aug" in December means next year, not a date in the past.
     if (new Date(`${value}T23:59:59Z`) >= from) return value
     const d = new Date(`${value}T00:00:00Z`)
     d.setUTCFullYear(d.getUTCFullYear() + 1)
     return d.toISOString().slice(0, 10)
+  }
+}
+
+/** Fallback parser using AI when conversational phrases are typed. */
+export async function parseCustomerDateAsync(text: string, now = new Date()): Promise<string | null> {
+  const sync = parseCustomerDate(text, now)
+  if (sync) return sync
+  try {
+    const { aiChat } = await import("@/lib/ai")
+    const nowIso = now.toISOString().slice(0, 10)
+    const prompt = `Current date: ${nowIso} (${now.toLocaleDateString("en-US", { weekday: "long" })}).
+The customer in Oman wrote: "${text}".
+If they mentioned or intended a specific date (in Arabic or English, relative or absolute), extract it.
+Respond with ONLY the date in YYYY-MM-DD format, or "NONE" if no date is mentioned. Do not provide any other words.`
+    const res = (await aiChat([{ role: "user", content: prompt }], "en")).trim()
+    const match = res.match(/\b\d{4}-\d{2}-\d{2}\b/)
+    return match ? match[0] : null
+  } catch {
+    return null
   }
 }
 
@@ -700,13 +871,45 @@ async function showSlots(ctx: FlowContext, iso: string) {
     orderBy: { startTime: "asc" },
   })
 
-  const bookable = slots.filter(s => s.capacity - s.seatsBooked - s.seatsHeld > 0)
+  const muscat = getMuscatTime()
+  const isToday = iso === muscat.todayIso
+
+  const bookable = slots.filter(s => {
+    const seats = s.capacity - s.seatsBooked - s.seatsHeld
+    if (seats <= 0) return false
+    if (isToday) {
+      const [sh, sm] = s.startTime.split(":").map(Number)
+      const slotMinutes = (sh || 0) * 60 + (sm || 0)
+      // Cutoff: at least 30 minutes in advance
+      if (slotMinutes <= muscat.nowMinutes + 30) return false
+      // If afternoon/evening in Muscat (>= 12:00 PM), automatically hide morning slots (< 12:00 PM)
+      if (muscat.hour >= 12 && (sh || 0) < 12) return false
+    }
+    return true
+  })
+
+  const dateHeading = dayLabel(iso, ctx.lang)
 
   if (bookable.length === 0) {
+    const tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrowIso = tomorrowDate.toISOString().slice(0, 10)
+
+    const noSeatsMsg = isToday
+      ? ts(
+          `Sorry, today's departures for ${tour ? tourLabel(ctx, tour) : ""} have ended or are fully booked. Would you like to check tomorrow or other dates?`,
+          `عذراً، انتهت رحلات اليوم لـ ${tour ? tourLabel(ctx, tour) : ""} أو نفدت مقاعدها. هل ترغب في حجز موعد ليوم غد أو تاريخ آخر؟`
+        )
+      : ts(
+          `Sorry, no seats left for ${tour ? tourLabel(ctx, tour) : ""} on ${dateHeading}. Pick another date?`,
+          `عذراً، لا توجد مقاعد متاحة لـ ${tour ? tourLabel(ctx, tour) : ""} في ${dateHeading}. هل تختار تاريخاً آخر؟`
+        )
+
     await sendInteractiveMessage({
       to: ctx.phone,
-      body: ts(`Sorry, no seats left for ${tour ? tourLabel(ctx, tour) : ""} on ${dayLabel(iso)}. Pick another date?`, `عذراً، لا توجد مقاعد متاحة لـ ${tour ? tourLabel(ctx, tour) : ""} في ${dayLabel(iso)}. هل تختار تاريخاً آخر؟`),
+      body: noSeatsMsg,
       buttons: [
+        { id: `${PREFIX}date_${tomorrowIso}`, title: ts("📅 Tomorrow", "📅 غداً") },
         { id: `${PREFIX}tour_${state.tourId}`, title: ts("📅 Other dates", "📅 تواريخ أخرى") },
         { id: `${PREFIX}browse`, title: ts("🐪 Other tours", "🐪 جولات أخرى") },
       ],
@@ -717,8 +920,8 @@ async function showSlots(ctx: FlowContext, iso: string) {
 
   await sendInteractiveMessage({
     to: ctx.phone,
-    headerText: dayLabel(iso),
-    body: ts(`Available times on ${dayLabel(iso)}:`, `الأوقات المتاحة في ${dayLabel(iso)}:`),
+    headerText: dateHeading,
+    body: ts(`Available times on ${dateHeading}:`, `الأوقات المتاحة في ${dateHeading}:`),
     list: {
       title: ts("Choose a time", "اختر الوقت"),
       sections: [
@@ -810,51 +1013,304 @@ async function askCustomPax(ctx: FlowContext) {
 
 /**
  * Whether the customer has asked something rather than answered the question.
- *
- * The guided flow consumes every message while it is running, so "how long is
- * the tour?" typed at the "what's your name?" step was stored as the customer's
- * name. People do not stop having questions because a form has started.
  */
-function looksLikeQuestion(text: string): boolean {
+export function looksLikeQuestion(text: string): boolean {
   const t = text.trim().toLowerCase()
   if (t.includes("?") || t.includes("؟")) return true
+
+  // Specific question / inquiry keywords anywhere in message
+  const inquiryKeywords = [
+    "الغاء", "إلغاء", "الغي", "ألغي", "كنسل", "استرجاع",
+    "وين موقعكم", "موقعكم", "الموقع", "مكانكم", "وين انتم", "وين مكانكم",
+    "كم السعر", "كم سعر", "بكم", "بكم الحجز", "كم يكلف", "اسعاركم", "أسعاركم",
+    "شروط", "وزن", "اطفال", "أطفال", "حوامل", "مسموح", "ممنوع",
+    "طريقة الدفع", "رقم الحساب", "اي حساب", "أي حساب", "استفسار", "سؤال",
+    "تفاصيل", "معلومات", "خدمة العملاء", "رقم التواصل", "كيف طريقة", "كيف احجز"
+  ]
+  if (inquiryKeywords.some(k => t.includes(k))) return true
+
   const openers = [
     "how", "what", "when", "where", "why", "which", "who", "can ", "could ", "do ",
     "does ", "is ", "are ", "will ", "would ", "should ", "tell me", "i want to know",
-    // Arabic: how / what / when / where / why / is there
-    "كيف", "ما ", "ماذا", "متى", "اين", "أين", "لماذا", "هل ",
+    // Arabic: how / what / when / where / why / is there / how much
+    "كيف", "ما ", "ماذا", "متى", "اين", "أين", "وين", "لماذا", "ليه", "هل ", "كم ", "بكم ",
+    "شو ", "ايش ", "إيش ", "عندكم", "في عندكم", "شي عندكم", "ممكن "
   ]
   if (openers.some(o => t.startsWith(o))) return true
-  // A sentence at a step expecting a name or an email is a question in practice.
+
   return t.split(/\s+/).length > 6
+}
+
+export function getStepReprompt(ctx: FlowContext, step: BookingStep): string {
+  const ts = L(ctx)
+  switch (step) {
+    case "AWAITING_CUSTOM_DATE":
+      return ts(
+        "Which date would you like? You can write e.g. *tomorrow*, *15 Aug*, or *15/8*.",
+        "ما التاريخ الذي تفضله؟ يمكنك كتابته مثل *بكرة* أو *15 أغسطس* أو *15/8*."
+      )
+    case "AWAITING_DATE":
+    case "SHOW_TOURS":
+      return ts(
+        "Please choose a tour or date to continue your booking 🐪",
+        "يرجى اختيار جولة أو موعد لمتابعة حجزك 🐪"
+      )
+    case "SHOW_SLOTS":
+      return ts(
+        "Please select your preferred time from the list ⏰",
+        "يرجى اختيار الوقت المناسب من القائمة ⏰"
+      )
+    case "AWAITING_CUSTOM_PAX":
+      return ts(
+        "How many guests would you like to book for? 👥",
+        "كم عدد الأشخاص المطلوب حجزهم؟ 👥"
+      )
+    case "ASK_NAME":
+      return ts(
+        "And what name should the booking be under? 👤",
+        "بأي اسم ترغب في تسجيل الحجز؟ 👤"
+      )
+    case "ASK_EMAIL":
+      return ts(
+        "What's your email address? (or reply *skip*) ✉️",
+        "ما هو بريدك الإلكتروني؟ (أو أرسل *تخطي*) ✉️"
+      )
+    case "AWAITING_SCREENSHOT":
+      return ts(
+        "Please send your payment screenshot to complete your booking 📸",
+        "يرجى إرسال صورة إيصال التحويل لإتمام تأكيد الحجز 📸"
+      )
+    case "RESCHEDULE_AWAITING_DATE":
+      return ts(
+        "What new date would you like to reschedule to? 📅",
+        "ما هو التاريخ الجديد الذي ترغب في إعادة الجدولة إليه؟ 📅"
+      )
+    default:
+      return ts(
+        "How can we help you complete your booking?",
+        "كيف يمكننا مساعدتك في إتمام حجزك؟"
+      )
+  }
 }
 
 /**
  * Answers an aside with the assistant, then repeats the step's question so the
  * booking does not quietly stall.
  */
-async function answerAside(ctx: FlowContext, text: string, reprompt: string): Promise<void> {
+export async function answerAside(ctx: FlowContext, text: string, reprompt: string): Promise<void> {
   const { aiChat } = await import("@/lib/ai")
-  const customer = await db.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: ctx.phone }, select: { preferredLang: true } })
+  const customer = await db.customer.findFirst({
+    where: { tenantId: ctx.tenantId, phone: ctx.phone },
+    select: { preferredLang: true },
+  })
+
+  const effectiveLang: Lang = ctx.lang ?? (customer?.preferredLang as Lang) ?? "ar"
 
   let answer: string
   try {
     answer = await aiChat(
       [{
         role: "user",
-        content: `${text}\n\n(The customer is part-way through booking. Answer just this, briefly.)`,
+        content: `${text}\n\n(Note: The customer is currently mid-booking flow. Answer their question directly, warmly and concisely in ${effectiveLang === "ar" ? "Gulf/Omani Arabic" : "English"} using company knowledge base. Do not repeat full greetings.)`,
       }],
-      customer?.preferredLang || "en",
+      effectiveLang,
       ctx.phone,
     )
   } catch (error) {
     console.error("Aside answer failed:", error)
-    answer = "Let me check that for you."
+    answer = effectiveLang === "ar" ? "دعني أتحقق لك من ذلك في أقرب وقت." : "Let me check that for you."
   }
 
   await sendWhatsApp({ to: ctx.phone, body: answer, allowOutsideSession: true })
   await sendWhatsApp({ to: ctx.phone, body: reprompt, allowOutsideSession: true })
   await logBot(ctx, `Answered an aside mid-flow, re-asked: ${reprompt.slice(0, 40)}`)
+}
+
+export function isRescheduleIntent(text: string): boolean {
+  const t = (text || "").toLowerCase().trim()
+  const phrases = [
+    "ما اقدر اجي", "ما بقدر اجي", "ما اقدر احضر", "ما بقدر احضر", "ما راح اجي", "مش حقدر اجي", "مش هقدر اجي",
+    "لن استطيع", "لا استطيع",
+    "تغيير الموعد", "تغيير موعد", "تغيير التاريخ", "تغيير تاريخ", "تغيير الحجز", "تغيير حجز",
+    "تأجيل الحجز", "تاجيل الحجز", "تأجيل موعد", "تاجيل موعد", "تأجيل رحلة", "تاجيل رحلة",
+    "تعديل الحجز", "تعديل موعد", "تعديل الموعد", "نقل الحجز", "نقل موعد",
+    "اريد اغير", "أريد أغير", "ابي اغير", "ابغي اغير", "بدي اغير", "ودي اغير",
+    "اريد ااجل", "اريد اأجل", "ابي ااجل", "ابغي ااجل",
+    "reschedule", "change date", "change booking", "can't come", "cannot come", "cant come",
+    "postpone booking", "postpone tour"
+  ]
+  return phrases.some(p => t.includes(p))
+}
+
+export async function isRescheduleEnabled(tenantId?: string): Promise<boolean> {
+  try {
+    if (!tenantId) return true
+    const setting = await db.systemSetting.findFirst({
+      where: {
+        tenantId,
+        key: { in: ["ai_reschedule_enabled", "wa_reschedule_enabled"] },
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    if (!setting) {
+      const { getConfigValue } = await import("@/lib/app-config")
+      const val = (await getConfigValue("ai_reschedule_enabled").catch(() => "")).trim().toLowerCase()
+      if (val === "false" || val === "off" || val === "0") return false
+      return true
+    }
+    const val = String(setting.value ?? "").trim().toLowerCase()
+    if (val === "false" || val === "0" || val === "off") return false
+    return true
+  } catch {
+    return true
+  }
+}
+
+export async function startRescheduleFlow(rawCtx: FlowContext): Promise<boolean> {
+  const ctx = await withLang(rawCtx)
+  const tr = L(ctx)
+
+  if (!(await isRescheduleEnabled(ctx.tenantId))) {
+    await sendInteractiveMessage({
+      to: ctx.phone,
+      body: tr(
+        "Booking reschedule and date changes are handled directly by our customer service team. Please click below to connect with us.",
+        "عذراً، تعديل وتغيير مواعيد الحجوزات يتم حالياً عبر فريق خدمة العملاء مباشرة. يرجى الضغط أدناه للتواصل مع خدمة العملاء وسيقوم أحد موظفينا بمساعدتك فوراً."
+      ),
+      buttons: [
+        { id: `${PREFIX}chat_human`, title: tr("👤 Customer care", "👤 خدمة العملاء") },
+        { id: `${PREFIX}menu`, title: tr("🐪 Main menu", "🐪 القائمة الرئيسية") },
+      ],
+    })
+    return true
+  }
+
+  const orders = await db.order.findMany({
+    where: {
+      tenantId: ctx.tenantId,
+      customerId: ctx.customerId,
+      orderStatus: { in: ["CONFIRMED", "PENDING_PAYMENT", "PROCESSING"] },
+    },
+    include: { tour: true, slot: true },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+  })
+
+  if (orders.length === 0) {
+    await sendInteractiveMessage({
+      to: ctx.phone,
+      body: tr(
+        "We couldn't find an active booking under your number. Would you like to make a new booking or speak with our team?",
+        "لم نتمكن من العثور على حجز نشط مسجل برقم هاتفك. هل ترغب في عمل حجز جديد أو التحدث مع موظفينا؟"
+      ),
+      buttons: [
+        { id: `${PREFIX}browse`, title: tr("🐪 New booking", "🐪 حجز جديد") },
+        { id: `${PREFIX}chat_human`, title: tr("👤 Customer care", "👤 خدمة العملاء") },
+      ],
+    })
+    return true
+  }
+
+  const order = orders[0]
+  const slotDateStr = order.slot ? formatDate(order.slot.date) : ""
+  const slotTimeStr = order.slot?.startTime ?? ""
+  const tourName = tourLabel(ctx, order.tour)
+
+  await save(ctx, {
+    step: "RESCHEDULE_AWAITING_DATE",
+    rescheduleOrderId: order.id,
+    tourId: order.tourId,
+  })
+
+  await sendWhatsApp({
+    to: ctx.phone,
+    body: tr(
+      `Hello! Your current booking for *${tourName}* is on *${slotDateStr}* at *${slotTimeStr}*.\n\nWe'd be glad to help you reschedule 📅 What new date would you prefer? (You can reply e.g. *tomorrow*, *15 Aug*, or *15/8*)`,
+      `أهلاً بك! حجزك الحالي لـ *${tourName}* هو بتاريخ *${slotDateStr}* الساعة *${slotTimeStr}*.\n\nيسعدنا مساعدتك في تغيير الموعد 📅 ما هو التاريخ الجديد الذي تفضله؟ (يمكنك كتابته مثل: *بكرة* أو *15 أغسطس* أو *15/8*)`
+    ),
+    allowOutsideSession: true,
+  })
+  await logBot(ctx, `Started reschedule flow for order ${order.orderNumber}`)
+  return true
+}
+
+async function showRescheduleSlots(ctx: FlowContext, iso: string, orderId: string) {
+  const ts = L(ctx)
+  const order = await db.order.findFirst({
+    where: { id: orderId, tenantId: ctx.tenantId },
+    include: { tour: true },
+  })
+  if (!order) return startBookingFlow(ctx)
+
+  const start = new Date(`${iso}T00:00:00.000Z`)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 1)
+
+  const slots = await db.slot.findMany({
+    where: { tenantId: ctx.tenantId, tourId: order.tourId, date: { gte: start, lt: end }, status: "OPEN" },
+    orderBy: { startTime: "asc" },
+  })
+
+  const muscat = getMuscatTime()
+  const isToday = iso === muscat.todayIso
+  const pax = order.paxAdult ?? 1
+
+  const bookable = slots.filter(s => {
+    if (s.id === order.slotId) return false
+    const seats = s.capacity - s.seatsBooked - s.seatsHeld
+    if (seats < pax) return false
+    if (isToday) {
+      const [sh, sm] = s.startTime.split(":").map(Number)
+      const slotMinutes = (sh || 0) * 60 + (sm || 0)
+      if (slotMinutes <= muscat.nowMinutes + 30) return false
+      if (muscat.hour >= 12 && (sh || 0) < 12) return false
+    }
+    return true
+  })
+
+  const dateHeading = dayLabel(iso, ctx.lang)
+
+  if (bookable.length === 0) {
+    await sendInteractiveMessage({
+      to: ctx.phone,
+      body: ts(
+        `Sorry, no available times for ${tourLabel(ctx, order.tour)} on ${dateHeading}. Would you like to pick another date?`,
+        `عذراً، لا تتوفر أوقات متاحة لـ ${tourLabel(ctx, order.tour)} في ${dateHeading}. هل ترغب في اختيار تاريخ آخر؟`
+      ),
+      buttons: [
+        { id: `${PREFIX}resched_date_other`, title: ts("📅 Another date", "📅 تاريخ آخر") },
+        { id: `${PREFIX}chat_human`, title: ts("👤 Customer care", "👤 خدمة العملاء") },
+      ],
+    })
+    return
+  }
+
+  await sendInteractiveMessage({
+    to: ctx.phone,
+    headerText: dateHeading,
+    body: ts(
+      `Available times on ${dateHeading} for rescheduling:`,
+      `الأوقات المتاحة في ${dateHeading} لتعديل موعدك:`
+    ),
+    list: {
+      title: ts("Select new time", "اختر الوقت الجديد"),
+      sections: [
+        {
+          title: ts("Departure times", "أوقات الانطلاق"),
+          rows: bookable.map(s => {
+            const seats = s.capacity - s.seatsBooked - s.seatsHeld
+            return {
+              id: `${PREFIX}resched_slot_${s.id}`,
+              title: s.startTime.slice(0, 24),
+              description: ts(`${seats} seat${seats === 1 ? "" : "s"} left`, `بقي ${seats} مقعد`).slice(0, 72),
+            }
+          }),
+        },
+      ],
+    },
+  })
+
+  await save(ctx, { step: "RESCHEDULE_SHOW_SLOTS", date: iso, rescheduleOrderId: order.id, tourId: order.tourId })
 }
 
 /*
@@ -1167,11 +1623,12 @@ export async function handleBookingReply(
     const shortcuts = await menuShortcuts()
     const shortcut = shortcuts[Number(id.slice(4))]
     if (
-      shortcut &&
-      (shortcut.category?.toLowerCase() === "education" ||
-        shortcut.title?.toLowerCase().includes("train") ||
-        shortcut.category?.toLowerCase().includes("train") ||
-        shortcut.title?.includes("تدريب"))
+      id === "cat_0" ||
+      !shortcut ||
+      shortcut.category?.toLowerCase() === "education" ||
+      shortcut.title?.toLowerCase().includes("train") ||
+      shortcut.category?.toLowerCase().includes("train") ||
+      shortcut.title?.includes("تدريب")
     ) {
       const { startTrainingFlow } = await import("@/lib/training-flow")
       await startTrainingFlow(ctx)
@@ -1186,12 +1643,11 @@ export async function handleBookingReply(
     await sendWhatsApp({
       to: ctx.phone,
       body: L(ctx)(
-        "What are you looking for? Tell me the kind of trip — *desert*, *snorkelling*, *mountains*, *something for kids* — or a place, and I'll find it. 🔍",
-        "عن ماذا تبحث؟ أخبرني بنوع الرحلة — *صحراء*، *غوص*، *جبال*، *مناسبة للأطفال* — أو اذكر مكاناً وسأجدها لك. 🔍",
+        "What kind of tour are you looking for? Tell me a bit about what you'd like to do, and I'll find the right one.",
+        "ما نوع الجولة التي تبحث عنها؟ أخبرني بما ترغب في تجربته، وسأساعدك في اختيار الأنسب لك."
       ),
       allowOutsideSession: true,
     })
-    await logBot(ctx, "Offered free-text tour search")
     await setState(ctx.conversationId, null)
     return true
   }
@@ -1226,6 +1682,10 @@ export async function handleBookingReply(
   if (id === "lang_en" || id === "lang_ar") {
     const lang: Lang = id === "lang_ar" ? "ar" : "en"
     await save({ ...ctx, lang }, { step: "AWAITING_CHOICE", lang, langChosen: true })
+    await db.customer.updateMany({
+      where: { tenantId: ctx.tenantId, phone: ctx.phone },
+      data: { preferredLang: lang },
+    }).catch(() => {})
     await showMainMenu({ ...ctx, lang })
     return true
   }
@@ -1327,13 +1787,10 @@ export async function handleBookingReply(
       })
       await logBot(ctx, `Bank transfer instructions sent for ${order.orderNumber}`)
       await save(ctx, { step: "AWAITING_SCREENSHOT", orderId: order.id })
-      await sendPostBookingChatChoice(ctx)
       return true
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud"
-    // Kept so a customer who tapped Apple Pay on a message sent before it was
-    // withdrawn still reaches a working checkout rather than nothing at all.
     const applePay = id === "pay_apple"
     const payUrl = order.paymentMethod === "PAYMOB"
       ? `${baseUrl}/api/paymob/pay/${encodeURIComponent(order.orderNumber)}`
@@ -1344,19 +1801,6 @@ export async function handleBookingReply(
       `💳 ادفع بأمان بالبطاقة\n\n🎫 رقم الطلب: ${order.orderNumber}\n💰 ${formatCurrency(total)}\n📍 ${tourLabel(ctx, tour)} · ${formatDate(slot.date)} ${slot.startTime}\n\n🔒 متوافق مع PCI-DSS · بيانات بطاقتك لا تصل إلينا`,
     )
 
-    /*
-     * A button rather than a bare link. Both open WhatsApp's in-app browser,
-     * but a button is tapped far more often than a line of blue text.
-     *
-     * The footer is not decoration. WhatsApp's in-app browser is a WebView,
-     * and a card that asks for 3-D Secure hands off to the bank's own page —
-     * some banks refuse to render inside a WebView at all, and Apple Pay is
-     * simply unavailable there, because iOS only offers it in Safari or a
-     * native app. Neither failure explains itself: the customer sees a blank
-     * page or a missing button and assumes the payment is broken. Telling
-     * them where the "open in browser" control is costs one line and saves
-     * the sale.
-     */
     const sent = await sendCtaUrlMessage({
       to: ctx.phone,
       body: summary,
@@ -1374,8 +1818,119 @@ export async function handleBookingReply(
       })
     }
     await logBot(ctx, `${applePay ? "Apple Pay" : "Card"} link sent for ${order.orderNumber}`)
-    await save(ctx, { step: "DONE", orderId: order.id })
+    await save(ctx, { step: "AWAITING_SCREENSHOT", orderId: order.id })
+    return true
+  }
+
+  // ─── Reschedule button selections ───
+  if (id.startsWith("resched_slot_") || id === "resched_date_other") {
+    if (!(await isRescheduleEnabled(ctx.tenantId))) {
+      await sendInteractiveMessage({
+        to: ctx.phone,
+        body: tpay(
+          "Booking reschedule is currently managed by our customer service team. Please connect with our team below.",
+          "عذراً، تعديل مواعيد الحجوزات يتم حالياً عبر فريق خدمة العملاء. يرجى التواصل معنا عبر الزر أدناه."
+        ),
+        buttons: [
+          { id: `${PREFIX}chat_human`, title: tpay("👤 Customer care", "👤 خدمة العملاء") },
+          { id: `${PREFIX}menu`, title: tpay("🐪 Main menu", "🐪 القائمة الرئيسية") },
+        ],
+      })
+      return true
+    }
+  }
+
+  if (id.startsWith("resched_slot_")) {
+    const slotId = id.replace("resched_slot_", "")
+    const state = await getState(ctx.conversationId)
+    if (!state?.rescheduleOrderId) {
+      await sendWhatsApp({
+        to: ctx.phone,
+        body: tpay(
+          "Your session has expired. Please type *reschedule* to pick a new date.",
+          "انتهت الجلسة. يرجى كتابة *تغيير الموعد* لاختيار تاريخ جديد."
+        ),
+        allowOutsideSession: true,
+      })
+      return true
+    }
+
+    const order = await db.order.findFirst({
+      where: { id: state.rescheduleOrderId, tenantId: ctx.tenantId },
+      include: { tour: true, slot: true },
+    })
+    if (!order) return false
+
+    const newSlot = await db.slot.findFirst({
+      where: { id: slotId, tenantId: ctx.tenantId },
+    })
+    if (!newSlot) return false
+
+    const pax = order.paxAdult ?? 1
+    const available = newSlot.capacity - newSlot.seatsBooked - newSlot.seatsHeld
+    if (available < pax) {
+      await sendWhatsApp({
+        to: ctx.phone,
+        body: tpay(
+          "Sorry, that time just filled up. Please pick another time.",
+          "عذراً، نفدت مقاعد هذا الوقت للتو. يرجى اختيار وقت آخر."
+        ),
+        allowOutsideSession: true,
+      })
+      if (state.date) await showRescheduleSlots(ctx, state.date, order.id)
+      return true
+    }
+
+    // Release seats from old slot
+    if (order.slotId && order.slotId !== newSlot.id) {
+      await db.slot.update({
+        where: { id: order.slotId },
+        data: { seatsBooked: { decrement: pax } },
+      }).catch(() => null)
+    }
+
+    // Reserve seats on new slot
+    await db.slot.update({
+      where: { id: newSlot.id },
+      data: { seatsBooked: { increment: pax } },
+    })
+
+    // Update order
+    await db.order.update({
+      where: { id: order.id },
+      data: { slotId: newSlot.id },
+    })
+
+    const newDateStr = formatDate(newSlot.date)
+    const newTimeStr = newSlot.startTime
+    const tourName = tourLabel(ctx, order.tour)
+
+    await sendWhatsApp({
+      to: ctx.phone,
+      body: tpay(
+        `✅ Your booking has been successfully rescheduled!\n\n🎫 *${tourName}*\n📅 *${newDateStr} at ${newTimeStr}*\n👥 *${pax} guest${pax === 1 ? "" : "s"}*\n🎟️ Order: *${order.orderNumber}*\n\nWe look forward to welcoming you! 🐎✨`,
+        `✅ تم تعديل موعد حجزك بنجاح!\n\n🎫 *${tourName}*\n📅 *${newDateStr} الساعة ${newTimeStr}*\n👥 *${pax} شخص*\n🎟️ رقم الطلب: *${order.orderNumber}*\n\nنتمنى لك وقتاً ممتعاً ونحن بانتظارك! 🐎✨`
+      ),
+      allowOutsideSession: true,
+    })
+
+    await logBot(ctx, `Rescheduled order ${order.orderNumber} to ${newDateStr} ${newTimeStr}`)
+    await setState(ctx.conversationId, null)
     await sendPostBookingChatChoice(ctx)
+    return true
+  }
+
+  if (id === "resched_date_other") {
+    const state = await getState(ctx.conversationId)
+    await sendWhatsApp({
+      to: ctx.phone,
+      body: tpay(
+        "Which date would you like to reschedule to? (e.g. *tomorrow*, *15 Aug*, or *15/8*)",
+        "ما التاريخ الجديد الذي ترغب في إعادة الجدولة إليه؟ (مثل: *بكرة* أو *15 أغسطس* أو *15/8*)"
+      ),
+      allowOutsideSession: true,
+    })
+    await save(ctx, { step: "RESCHEDULE_AWAITING_DATE", rescheduleOrderId: state?.rescheduleOrderId, tourId: state?.tourId })
     return true
   }
 
@@ -1395,6 +1950,11 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
     return handleBookingReply(rawCtx, `${PREFIX}chat_human`)
   }
 
+  // Reschedule intent recognized anywhere
+  if (isRescheduleIntent(text)) {
+    return startRescheduleFlow(ctx)
+  }
+
   const state = await getState(ctx.conversationId)
   if ((state as any)?.flowType === "TRAINING") {
     const { handleTrainingText } = await import("@/lib/training-flow")
@@ -1402,14 +1962,90 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
   }
   if (!state) return false
 
-  if (state.step === "AWAITING_CUSTOM_DATE") {
-    const iso = parseCustomerDate(text)
+  if (state.step === "ASK_LANG") {
+    const isAr = /[\u0600-\u06FF]/.test(text) || ["ar", "عربي", "العربية", "arabic", "1"].includes(lower)
+    const lang: Lang = isAr ? "ar" : "en"
+    await save({ ...ctx, lang }, { step: "AWAITING_CHOICE", lang, langChosen: true })
+    await db.customer.updateMany({
+      where: { tenantId: ctx.tenantId, phone: ctx.phone },
+      data: { preferredLang: lang },
+    }).catch(() => {})
+    await showMainMenu({ ...ctx, lang })
+    return true
+  }
+
+  // Mid-flow question interceptor: answers via Knowledge Base and re-prompts the current step
+  if (looksLikeQuestion(text)) {
+    const reprompt = getStepReprompt(ctx, state.step)
+    await answerAside(ctx, text, reprompt)
+    return true
+  }
+
+  if (state.step === "RESCHEDULE_AWAITING_DATE") {
+    let iso = parseCustomerDate(text)
     if (!iso) {
-      // Something that is not a date is usually a question, not a typo.
-      if (looksLikeQuestion(text)) {
-        await answerAside(ctx, text, "Which date would you like? Try *15 Aug*, *15/8* or *2026-08-15*.")
-        return true
-      }
+      iso = await parseCustomerDateAsync(text)
+    }
+    if (!iso) {
+      await sendWhatsApp({
+        to: ctx.phone,
+        body: ttxt(
+          "I couldn't read that date. Please try *tomorrow*, *15 Aug*, or *15/8*.",
+          "لم أتمكن من قراءة التاريخ. يرجى إرسال تاريخ مثل *بكرة* أو *15 أغسطس* أو *15/8*."
+        ),
+        allowOutsideSession: true,
+      })
+      return true
+    }
+    const muscat = getMuscatTime()
+    if (iso < muscat.todayIso) {
+      await sendWhatsApp({
+        to: ctx.phone,
+        body: ttxt(
+          "That date has already passed. Which upcoming date would you prefer?",
+          "هذا التاريخ قد مضى. ما التاريخ القادم الذي تفضله؟"
+        ),
+        allowOutsideSession: true,
+      })
+      return true
+    }
+    await showRescheduleSlots(ctx, iso, state.rescheduleOrderId!)
+    return true
+  }
+
+  if (state.step === "AWAITING_SCREENSHOT") {
+    const lowerConfirm = text.trim().toLowerCase()
+    const isTransferred = [
+      "تم التحويل", "حولتها", "تم الدفع", "دفعت", "تم", "خلاص حولت", "done", "paid", "transferred", "sent"
+    ].some(k => lowerConfirm.includes(k))
+    if (isTransferred) {
+      await sendWhatsApp({
+        to: ctx.phone,
+        body: ttxt(
+          "Thank you! Please send a screenshot or photo of the transfer receipt so our team can verify and confirm your booking immediately 📸",
+          "شكراً لك! يرجى إرسال صورة أو لقطة شاشة لإيصال التحويل البنكي لنتمكن من مراجعته وتأكيد حجزك فوراً 📸"
+        ),
+        allowOutsideSession: true,
+      })
+      return true
+    }
+    await sendWhatsApp({
+      to: ctx.phone,
+      body: ttxt(
+        "We are waiting for your payment receipt. Please send a photo or screenshot of the transfer 📸",
+        "نحن بانتظار إيصال الدفع. يرجى إرسال صورة أو لقطة شاشة لإيصال التحويل 📸"
+      ),
+      allowOutsideSession: true,
+    })
+    return true
+  }
+
+  if (state.step === "AWAITING_CUSTOM_DATE") {
+    let iso = parseCustomerDate(text)
+    if (!iso) {
+      iso = await parseCustomerDateAsync(text)
+    }
+    if (!iso) {
       await sendWhatsApp({
         to: ctx.phone,
         body: ttxt("I couldn't read that date. Try *15 Aug*, *15/8* or *2026-08-15*.", "لم أتمكن من قراءة التاريخ. جرّب *15 أغسطس* أو *15/8* أو *2026-08-15*."),
@@ -1417,8 +2053,8 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
       })
       return true
     }
-    const today = new Date().toISOString().slice(0, 10)
-    if (iso < today) {
+    const muscat = getMuscatTime()
+    if (iso < muscat.todayIso) {
       await sendWhatsApp({
         to: ctx.phone,
         body: ttxt("That date has already passed. Which upcoming date would you like?", "هذا التاريخ قد مضى. ما التاريخ القادم الذي تفضله؟"),
@@ -1431,7 +2067,8 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
   }
 
   if (state.step === "AWAITING_CUSTOM_PAX") {
-    const wanted = Number(text.trim().match(/\d+/)?.[0])
+    const norm = normalizeArabicDigits(text)
+    const wanted = Number(norm.trim().match(/\d+/)?.[0])
     const available = state.slotId ? await seatsLeft(ctx.tenantId, state.slotId) : 0
     if (!wanted || wanted < 1) {
       await sendWhatsApp({ to: ctx.phone, body: ttxt("Please reply with a number, for example *4*.", "يرجى الرد برقم، مثل *4*."), allowOutsideSession: true })
@@ -1450,10 +2087,6 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
   }
 
   if (state.step === "ASK_NAME") {
-    if (looksLikeQuestion(text)) {
-      await answerAside(ctx, text, "And what name should the booking be under?")
-      return true
-    }
     const name = text.trim().slice(0, 80)
     await sendWhatsApp({
       to: ctx.phone,
@@ -1467,14 +2100,7 @@ export async function handleBookingText(rawCtx: FlowContext, text: string): Prom
 
   if (state.step === "ASK_EMAIL") {
     const raw = text.trim()
-    // The prompt offers "تخطي" in Arabic, so it has to be accepted too.
     const skip = ["skip", "تخطي", "تخطى"].includes(raw.trim().toLowerCase())
-    if (!skip && looksLikeQuestion(raw) && !raw.includes("@")) {
-      await answerAside(ctx, raw, "What's your email address? (or reply *skip*)")
-      return true
-    }
-    // Don't reject a malformed address outright — a booking is worth more
-    // than a clean email field, and staff can correct it later.
     const email = !skip && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw) ? raw : undefined
     if (!skip && !email) {
       await sendWhatsApp({
@@ -1499,8 +2125,6 @@ export async function bookingAwaitingScreenshot(conversationId: string): Promise
 }
 
 export async function completeBooking(ctx: FlowContext) {
-  // Clear rather than park at DONE: the booking is finished, so the next
-  // message should be treated as a fresh conversation, not a continuation.
   await setState(ctx.conversationId, null)
 }
 

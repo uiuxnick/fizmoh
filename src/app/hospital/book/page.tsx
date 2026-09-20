@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { format, addDays, addMinutes, differenceInSeconds } from "date-fns"
+import { HospitalPhoneVerification } from "@/components/hospital-phone-verification"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Screen =
@@ -98,6 +99,7 @@ function Btn({ children, onClick, variant = "primary", disabled = false, classNa
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HospitalBookingPortal() {
   const [screen, setScreen] = useState<Screen>("home")
+  const [verifiedMobile, setVerifiedMobile] = useState("")
   const [patient, setPatient] = useState<Patient | null>(null)
   const [isExisting, setIsExisting] = useState(true)
 
@@ -154,7 +156,7 @@ export default function HospitalBookingPortal() {
       })
       const data = await res.json()
       if (data.found) { setPatient(data); setScreen("patient-confirm") }
-      else setError("We couldn't find a patient with those details.")
+      else setError(data.error || "We couldn't find a patient with those details.")
     } catch { setError("Connection error. Please try again.") }
     setLoading(false)
   }
@@ -169,6 +171,7 @@ export default function HospitalBookingPortal() {
         body: JSON.stringify(newPatient),
       })
       const data = await res.json()
+      if (!res.ok) { setError(data.error || "Could not register patient"); setLoading(false); return }
       setPatient({ id: data.id, mrn: data.mrn, fullName: data.fullName, mobileMasked: data.mobile })
       setScreen("choose-flow")
     } catch { setError("Failed to register. Please try again.") }
@@ -374,7 +377,8 @@ export default function HospitalBookingPortal() {
         <input className="w-full rounded-xl border border-stone-300 px-4 py-3 text-sm" value={mrnInput} onChange={e => setMrnInput(e.target.value)} placeholder="Medical record number" />
         <input className="w-full rounded-xl border border-stone-300 px-4 py-3 text-sm" value={mobileInput} onChange={e => setMobileInput(e.target.value)} placeholder="Registered mobile number" type="tel" />
         {error && <div className="rounded-xl bg-rose-50 text-rose-700 p-3 text-sm">{error}</div>}
-        <Btn onClick={loadMyBookings} disabled={loading || !mrnInput || !mobileInput}>{loading ? "Loading..." : "Find My Bookings"}</Btn>
+        {(!verifiedMobile || verifiedMobile !== mobileInput) && <HospitalPhoneVerification mobile={mobileInput} onVerified={setVerifiedMobile} />}
+        <Btn onClick={loadMyBookings} disabled={loading || !mrnInput || !mobileInput || verifiedMobile !== mobileInput}>{loading ? "Loading..." : "Find My Bookings"}</Btn>
         {myBookings.length > 0 && <div className="space-y-3">
           {myBookings.map((booking) => <div key={booking.reference} className="rounded-xl border p-4 text-sm">
             <div className="font-semibold text-stone-900">{booking.type}</div>
@@ -401,7 +405,7 @@ export default function HospitalBookingPortal() {
             New Patient
           </button>
         </div>
-        <p className="text-stone-600 text-sm">Enter your patient ID or mobile number to find your records.</p>
+        <p className="text-stone-600 text-sm">Enter your registered mobile number. You can also enter your patient ID.</p>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">MRN / Patient ID</label>
@@ -412,7 +416,7 @@ export default function HospitalBookingPortal() {
               onChange={e => setMrnInput(e.target.value)}
             />
           </div>
-          <div className="text-center text-xs text-stone-400">— or —</div>
+          <div className="text-center text-xs text-stone-400">Registered number required</div>
           <div>
             <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Mobile Number</label>
             <input
@@ -424,7 +428,8 @@ export default function HospitalBookingPortal() {
           </div>
         </div>
         {error && <div className="text-rose-600 text-sm bg-rose-50 rounded-xl p-3">{error}</div>}
-        <Btn onClick={identifyPatient} disabled={loading || (!mrnInput && !mobileInput)}>
+        {(!verifiedMobile || verifiedMobile !== mobileInput) && <HospitalPhoneVerification mobile={mobileInput} onVerified={setVerifiedMobile} />}
+        <Btn onClick={identifyPatient} disabled={loading || !mobileInput || verifiedMobile !== mobileInput}>
           {loading ? "Searching..." : "Find My Records →"}
         </Btn>
         <Btn variant="outline" onClick={() => { setIsExisting(false); setScreen("new-patient") }}>
@@ -452,7 +457,8 @@ export default function HospitalBookingPortal() {
           <input className="mt-1 w-full border rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="email@example.com" value={newPatient.email} onChange={e => setNewPatient(p => ({ ...p, email: e.target.value }))} />
         </div>
         {error && <div className="text-rose-600 text-sm bg-rose-50 rounded-xl p-3">{error}</div>}
-        <Btn onClick={createNewPatient} disabled={loading}>{loading ? "Registering..." : "Register & Continue →"}</Btn>
+        {(!verifiedMobile || verifiedMobile !== newPatient.mobile) && <HospitalPhoneVerification mobile={newPatient.mobile} onVerified={setVerifiedMobile} />}
+        <Btn onClick={createNewPatient} disabled={loading || !newPatient.mobile || verifiedMobile !== newPatient.mobile}>{loading ? "Registering..." : "Register & Continue →"}</Btn>
       </div>
     </div>
   )

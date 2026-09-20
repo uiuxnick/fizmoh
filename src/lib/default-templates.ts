@@ -7,12 +7,39 @@ export interface DefaultTemplateDef {
   channel: string
   type: string
   headerType?: string
+  headerContent?: string
   bodyContent: string
   footerContent?: string
   variables: string[]
+  buttons?: Array<{ type: string; text: string; url?: string }>
 }
 
 export const DEFAULT_ADMIN_ORDER_TEMPLATES: DefaultTemplateDef[] = [
+  {
+    name: "restaurant_order_confirmation",
+    category: "UTILITY",
+    language: "en_US",
+    channel: "WHATSAPP",
+    type: "INTERACTIVE",
+    headerType: "TEXT",
+    headerContent: "Order Confirmed 🍽️",
+    bodyContent: `Thank you {{1}}! Your order #{{2}} ({{3}}) has been received by our kitchen.
+
+Total: {{4}}
+
+Tap Track Order to follow live cooking progress in real-time, or tap Call Waiter if you need assistance at your table.`,
+    footerContent: "Smart Dining & Ordering",
+    variables: [
+      "Customer Name",
+      "Order Number",
+      "Table or Location",
+      "Total Amount",
+    ],
+    buttons: [
+      { type: "URL", text: "Track Order", url: "https://app.fizmoh.cloud/order/{{1}}" },
+      { type: "QUICK_REPLY", text: "Call Waiter" },
+    ],
+  },
   {
     name: "admin_booking_notification",
     category: "UTILITY",
@@ -92,9 +119,11 @@ export async function ensureDefaultOrderTemplates(tenantId: string): Promise<voi
           language: tpl.language,
           type: tpl.type,
           headerType: tpl.headerType || null,
+          headerContent: tpl.headerContent || null,
           bodyContent: tpl.bodyContent,
           footerContent: tpl.footerContent || null,
           variables: JSON.stringify(tpl.variables),
+          buttons: tpl.buttons ? JSON.stringify(tpl.buttons) : undefined,
           status: "DRAFT",
         },
       }).catch((err) => {

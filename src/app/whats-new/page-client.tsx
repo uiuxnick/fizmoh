@@ -29,6 +29,31 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    dateEn: "10 September 2026",
+    dateAr: "10 سبتمبر 2026",
+    version: "v6.2.0",
+    titleEn: "Dynamic 8-Seat Slots with Real-Time Auto-Decrease, Interactive Knowledge Base Studio & Meta Template WhatsApp Alerts",
+    titleAr: "سعة المقاعد التلقائية (8 مقاعد بالافتراضي) مع التناقص الفوري، محرر قاعدة المعرفة الذكي وإشعارات واتساب عبر قوالب ميتا",
+    badgeEn: "v6.2 New Update",
+    badgeAr: "تحديث جديد v6.2",
+    badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    icon: Calendar,
+    itemsEn: [
+      "Dynamic 8-Seat Slot Defaults & Instant Auto-Decrease: Tour departures and recurring templates now default to 8 seats. Available seats automatically decrement in real time the instant a booking is placed or confirmed, ensuring zero overbooking.",
+      "Interactive Knowledge Base Studio (View & Edit): Inspect all indexed chunks and training passages, copy excerpts, and edit documents or FAQs with 1-click automatic re-chunking and vector re-embedding.",
+      "24/7 Meta Template WhatsApp Alerts: High-priority staff and coach booking notifications now dispatch via official Meta Utility templates, ensuring immediate delivery outside the 24-hour customer service window.",
+      "Pure Arabic & English First-Choice Flow: Welcomes new WhatsApp guests with instant interactive language selection and localized menus, eliminating bilingual mixing for a pure Arabic journey.",
+      "Self-Service AI Rescheduling with Human Safeguards: Customers can reschedule bookings via WhatsApp with smart Arabic relative date recognition (e.g., غداً، بعد يومين), automatically paused when an admin intervenes.",
+    ],
+    itemsAr: [
+      "سعة المقاعد التلقائية (8 مقاعد بالافتراضي) وتناقص فوري: تم ضبط سعة الجولات والرحلات والقوالب المتكررة افتراضياً بحد أقصى 8 مقاعد، مع خصم المقاعد تلقائياً فور حجز الرحلة أو تأكيدها لمنع أي حجز زائد.",
+      "محرر واستعراض قاعدة المعرفة الذكية: إمكانية استعراض وتعديل مصادر المعرفة والأسئلة الشائعة مباشرة من لوحة التحكم مع إعادة الفهرسة والتضمين التلقائي للذكاء الاصطناعي بنقرة واحدة.",
+      "إشعارات واتساب عبر قوالب ميتا المعتمدة على مدار الساعة: إرسال تنبيهات الحجوزات والمدفوعات للمدربين والإدارة عبر قوالب Meta Utility الرسمية بدون التقيد بنافذة الـ 24 ساعة.",
+      "تجربة عربية خالصة وخيار اختيار اللغة: بدء المحادثة بخيار تحديد اللغة وقوائم تفاعلية عربية كاملة لضمان ردود متسقة دون خلط غير مقصود بين اللغات.",
+      "إعادة جدولة الحجوزات بالذكاء الاصطناعي مع تحكم بشري: تمكين العملاء من تغيير مواعيد رحلاتهم عبر واتساب بفهم دقيق للتواريخ والأوقات باللغة العربية، مع إيقاف تلقائي للبوت عند تدخل الإدارة.",
+    ],
+  },
+  {
     dateEn: "8 September 2026",
     dateAr: "8 سبتمبر 2026",
     version: "v6.1.0",

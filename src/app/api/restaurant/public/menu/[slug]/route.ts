@@ -104,8 +104,37 @@ export async function GET(
     },
   })
 
+  // Fetch tenant system settings for restaurant branding & customization
+  const settings = await raw.systemSetting.findMany({
+    where: { tenantId },
+  })
+  const branding: Record<string, string> = {}
+  for (const s of settings) {
+    branding[s.key] = s.value
+  }
+
+  // Fetch tables for the active branch or tenant so customer can select table when dining in
+  const tables = await raw.restaurantTable.findMany({
+    where: {
+      tenantId,
+      ...(activeBranch ? { OR: [{ branchId: activeBranch.id }, { branchId: null }] } : {}),
+    },
+    select: {
+      id: true,
+      number: true,
+      name: true,
+      section: true,
+      area: true,
+      capacity: true,
+      status: true,
+      token: true,
+    },
+    orderBy: { number: "asc" },
+  })
+
   return NextResponse.json({
     tenant,
+    branding,
     branches: branches.map((b) => ({
       id: b.id,
       name: b.name,
@@ -134,6 +163,7 @@ export async function GET(
       minOrderDelivery: activeBranch.minOrderDelivery,
     } : null,
     table: tableInfo,
+    tables,
     categories,
     discounts,
   })

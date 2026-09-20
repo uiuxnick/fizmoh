@@ -69,11 +69,6 @@ export async function generateMetadata(): Promise<Metadata> {
     publisher: "Fizmoh Cloud Platform",
     alternates: {
       canonical: absoluteUrl("/"),
-      languages: {
-        en: absoluteUrl("/"),
-        ar: `${absoluteUrl("/")}?lang=ar`,
-        "x-default": absoluteUrl("/"),
-      },
     },
     openGraph: {
       type: "website",

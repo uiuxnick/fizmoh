@@ -100,7 +100,7 @@ function renderBoldText(text: string) {
 
 export default function BlogPostReader({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
-  const { lang, isAr } = useLanguage()
+  const { isAr: preferredIsAr } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
@@ -112,6 +112,8 @@ export default function BlogPostReader({ params }: { params: Promise<{ slug: str
     notFound()
   }
 
+  // An Arabic article URL must render Arabic on the server, before preferences hydrate.
+  const isAr = post.slugAr === slug || preferredIsAr
   const title = isAr ? post.h1Ar : post.h1
   const metaTitle = isAr ? post.metaTitleAr : post.metaTitle
   const desc = isAr ? post.metaDescriptionAr : post.metaDescription
@@ -176,7 +178,7 @@ export default function BlogPostReader({ params }: { params: Promise<{ slug: str
   }
 
   return (
-    <div className={`min-h-screen bg-white text-[#111827] ${isAr ? "font-sans rtl" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
+    <div lang={isAr ? "ar" : "en"} className={`min-h-screen bg-white text-[#111827] ${isAr ? "font-sans rtl" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
       {/* Schema Markup for SEO */}
       <script
         type="application/ld+json"
