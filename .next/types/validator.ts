@@ -1163,6 +1163,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/cron/ecommerce-recovery/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron/ecommerce-recovery">> = Specific
+  const handler = {} as typeof import("../../src/app/api/cron/ecommerce-recovery/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/cron/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/cron">> = Specific
@@ -1284,6 +1293,69 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/docs/postman">> = Specific
   const handler = {} as typeof import("../../src/app/api/docs/postman/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/cart-abandoned/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/cart-abandoned">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/cart-abandoned/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/newsletter/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/newsletter">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/newsletter/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/orders/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/orders">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/orders/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/plugin/download/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/plugin/download">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/plugin/download/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/stores/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/stores">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/stores/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/templates/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/templates">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/templates/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ecommerce/webhooks/shopify/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ecommerce/webhooks/shopify">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ecommerce/webhooks/shopify/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

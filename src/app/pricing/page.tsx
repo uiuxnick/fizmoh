@@ -6,9 +6,7 @@ export async function generateMetadata() {
   return pageSeo("/pricing", "Fizmoh Pricing and Plans", "Compare Fizmoh plans, included modules, usage limits and add-ons for WhatsApp commerce and business automation.")
 }
 
-export default async function PricingPage() {
-  const { getPublicPlanCatalogue } = await import("@/lib/public-plan-catalogue")
-  const catalogue = await getPublicPlanCatalogue().catch(() => null)
+export default function PricingPage() {
   const pricingUrl = absoluteUrl("/pricing")
 
   const breadcrumbSchema = {
@@ -81,7 +79,7 @@ export default async function PricingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
         suppressHydrationWarning
       />
-      <MarketingPage kind="pricing" initialPlans={catalogue?.plans} />
+      <MarketingPage kind="pricing" />
     </>
   )
 }
