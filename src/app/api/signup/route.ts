@@ -26,7 +26,7 @@ const schema = z.object({
   business: z.string().trim().min(2).max(80),
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email(),
-  phone: z.string().trim().min(6).max(20).optional(),
+  phone: z.string().trim().min(7).max(20),
   password: z.string().min(8).max(200),
   /** Optional: what they want to be called at fizmoh.cloud. */
   slug: z.string().trim().toLowerCase().optional(),
@@ -44,7 +44,7 @@ export const POST = withErrors(async (request: NextRequest) => {
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Check the form: a business name, your name, a valid email and a password of at least 8 characters." },
+      { error: "Check the form: a business name, your name, a valid email, a WhatsApp phone number, and a password of at least 8 characters." },
       { status: 400 },
     )
   }
@@ -85,7 +85,7 @@ export const POST = withErrors(async (request: NextRequest) => {
         tenantId: tenant.id,
         email: input.email,
         name: input.name,
-        phone: input.phone || null,
+        phone: input.phone,
         passwordHash,
         // The first person in is the one who can add everyone else.
         role: "SUPER_ADMIN",
@@ -112,6 +112,81 @@ export const POST = withErrors(async (request: NextRequest) => {
 
     return { tenant, staff }
   })
+
+  // Alert platform operator of new workspace signup
+  try {
+    const { sendEmail } = await import("@/lib/notifications")
+    const alertRecipient = process.env.ADMIN_ALERT_EMAIL || "rajgumgi@gmail.com"
+    const formattedDate = new Intl.DateTimeFormat("en-GB", {
+      dateStyle: "full",
+      timeStyle: "medium",
+      timeZone: "Asia/Muscat",
+    }).format(new Date())
+
+    const cleanPhone = input.phone.replace(/[^0-9]/g, "")
+    const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : null
+
+    sendEmail({
+      to: alertRecipient,
+      subject: `🎉 New Tenant Signup: ${tenant.name} (${input.phone})`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+          <div style="background: #00E785; padding: 24px; text-align: center;">
+            <h1 style="margin: 0; color: #1D1D1D; font-size: 22px; font-weight: 800;">New Business Account Created!</h1>
+            <p style="margin: 4px 0 0 0; color: #1D1D1D; font-size: 14px; font-weight: 600;">Fizmoh Platform Signup Alert</p>
+          </div>
+          <div style="padding: 24px;">
+            <p style="font-size: 15px; color: #334155; margin-top: 0;">A new tenant has just registered on <strong>app.fizmoh.cloud</strong>:</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600; width: 140px;">Workspace Name</td>
+                <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${tenant.name}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Workspace URL</td>
+                <td style="padding: 10px 0; color: #0f172a;"><a href="https://app.fizmoh.cloud/${tenant.slug}" style="color: #00B96A; font-weight: 600; text-decoration: none;">app.fizmoh.cloud/${tenant.slug}</a></td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Admin Name</td>
+                <td style="padding: 10px 0; color: #0f172a; font-weight: 600;">${staff.name}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Email Address</td>
+                <td style="padding: 10px 0; color: #0f172a;"><a href="mailto:${staff.email}" style="color: #0284c7; text-decoration: none;">${staff.email}</a></td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">WhatsApp Phone</td>
+                <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${input.phone} ${waLink ? `&nbsp;(<a href="${waLink}" style="color: #059669; text-decoration: underline;">Chat on WhatsApp &rarr;</a>)` : ""}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Plan & Trial</td>
+                <td style="padding: 10px 0; color: #0f172a;">${plan?.name || plan?.slug || "14-Day Free Trial"} (ends ${trialEndsAt.toLocaleDateString("en-GB")})</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Registered At</td>
+                <td style="padding: 10px 0; color: #0f172a;">${formattedDate} (Oman Time)</td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 28px; text-align: center;">
+              <a href="https://app.fizmoh.cloud/platform/workspaces" style="display: inline-block; background: #1D1D1D; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none;">
+                Open Platform Console &rarr;
+              </a>
+            </div>
+          </div>
+          <div style="background: #f8fafc; padding: 14px 24px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+            Fizmoh Cloud Notification System · Generated automatically for Platform Operators
+          </div>
+        </div>
+      `,
+      text: `New Tenant Signup!\n\nWorkspace: ${tenant.name} (app.fizmoh.cloud/${tenant.slug})\nAdmin: ${staff.name}\nEmail: ${staff.email}\nPhone: ${input.phone}\nPlan: ${plan?.name || plan?.slug || "Trial"}\nRegistered: ${formattedDate} (Muscat)\n\nManage in console: https://app.fizmoh.cloud/platform/workspaces`,
+    }).catch(err => {
+      console.error("[Signup Alert] Failed to send operator email:", err)
+    })
+  } catch (err) {
+    console.error("[Signup Alert] Setup error:", err)
+  }
 
   return NextResponse.json({
     workspace: { slug: tenant.slug, name: tenant.name },
