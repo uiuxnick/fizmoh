@@ -80,6 +80,62 @@ export const GET = withErrors(async (request: NextRequest) => {
       where: { metric: "AI_REPLIES", period: currentMonth },
     }).catch(() => ({ _sum: { used: 0 } }));
 
+    // Tenant Health & Churn Risk Analytics
+    const [pastDueTenants, recentMessageTenants, allActiveTenants] = await Promise.all([
+      raw.subscription.findMany({
+        where: { status: "PAST_DUE" },
+        select: { tenantId: true, tenant: { select: { id: true, name: true, slug: true } } },
+      }).catch(() => []),
+      raw.message.groupBy({
+        by: ["tenantId"],
+        where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, tenantId: { not: null } },
+        _count: { id: true },
+      }).catch(() => []),
+      raw.tenant.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true, name: true, slug: true },
+      }).catch(() => []),
+    ]);
+
+    const activeMsgTenantIds = new Set(recentMessageTenants.map((m: any) => m.tenantId).filter(Boolean));
+    const pastDueTenantIds = new Set(pastDueTenants.map((p: any) => p.tenantId));
+
+    let healthyCount = 0;
+    let lowActivityCount = 0;
+    const atRiskCount = pastDueTenants.length;
+
+    const atRiskList: Array<{ id: string; name: string; slug: string; reason: string; severity: string }> = pastDueTenants.slice(0, 5).map((p: any) => ({
+      id: p.tenantId,
+      name: p.tenant?.name || p.tenantId,
+      slug: p.tenant?.slug || "",
+      reason: "Subscription Payment Past Due",
+      severity: "high",
+    }));
+
+    for (const t of allActiveTenants) {
+      if (pastDueTenantIds.has(t.id)) continue;
+      if (activeMsgTenantIds.has(t.id)) {
+        healthyCount++;
+      } else {
+        lowActivityCount++;
+        if (atRiskList.length < 5) {
+          atRiskList.push({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            reason: "0 WhatsApp messages in last 7 days",
+            severity: "medium",
+          });
+        }
+      }
+    }
+
+    // Feature Adoption Metrics
+    const [wabaAdopted, menuAdopted] = await Promise.all([
+      raw.whatsAppAccount.count({ where: { tenantId: { not: null } } }).catch(() => 0),
+      raw.restaurantMenu.count().catch(() => 0),
+    ]);
+
     return NextResponse.json({
       mrrTotal: Number((mrrTotalResult as any[])[0]?.total ?? 0) / 1000,
       mrrTrend: (mrrTrendResult as any[]).map((r: any) => ({ month: r.month, amount: Number(r.amount) })),
@@ -99,6 +155,16 @@ export const GET = withErrors(async (request: NextRequest) => {
         revenue: Number(r.revenue ?? r.total ?? 0),
       })),
       aiUsage: aiUsage._sum.used ?? 0,
+      tenantHealth: {
+        healthyCount,
+        lowActivityCount,
+        atRiskCount,
+        atRiskList,
+      },
+      featureAdoption: {
+        wabaAdopted,
+        menuAdopted,
+      },
     });
   } catch (error) {
     throw error;

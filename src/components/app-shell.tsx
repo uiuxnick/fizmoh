@@ -656,6 +656,7 @@ function WorkspaceSwitcher() {
 function ImpersonationBar() {
   const router = useRouter()
   const [inside, setInside] = useState<{ name: string; slug: string } | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(900) // 15-minute safety window
 
   useEffect(() => {
     fetch("/api/workspaces")
@@ -664,22 +665,61 @@ function ImpersonationBar() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!inside) return
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          // Auto-leave when session expires
+          fetch(`/api/platform/tenants/${inside.slug}/impersonate`, { method: "DELETE" }).catch(() => {})
+          router.push("/platform")
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [inside, router])
+
   if (!inside) return null
 
+  const minutes = Math.floor(secondsLeft / 60)
+  const seconds = secondsLeft % 60
+  const timeFormatted = `${minutes}:${String(seconds).padStart(2, "0")}`
+
   return (
-    <div className="bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between gap-3 text-sm">
-      <span className="font-semibold truncate">
-        You are inside {inside.name}. Everything you do here is theirs, and this visit is in their audit log.
-      </span>
-      <button
-        onClick={async () => {
-          await fetch(`/api/platform/tenants/${inside.slug}/impersonate`, { method: "DELETE" }).catch(() => {})
-          router.push("/platform")
-        }}
-        className="shrink-0 rounded-lg bg-amber-950/10 hover:bg-amber-950/20 px-3 py-1 font-semibold"
-      >
-        Leave
-      </button>
+    <div className="bg-gradient-to-r from-rose-600 via-amber-600 to-amber-500 text-white px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-md z-50 sticky top-0">
+      <div className="flex items-center gap-2.5 truncate">
+        <span className="h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
+        <span className="font-extrabold tracking-wide uppercase text-[11px] bg-black/20 px-2 py-0.5 rounded-md">
+          Platform Operator Mode
+        </span>
+        <span className="font-semibold truncate">
+          You are viewing <strong>{inside.name}</strong> as an operator. All actions are logged to the immutable compliance audit trail.
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="px-2.5 py-1 rounded-lg bg-black/30 font-mono font-bold text-[11px] flex items-center gap-1 text-white">
+          ⏱️ Auto-expire in {timeFormatted}
+        </span>
+        <button
+          onClick={() => setSecondsLeft(900)}
+          className="rounded-lg bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 font-bold text-[11px] transition"
+        >
+          +15m Extend
+        </button>
+        <button
+          onClick={async () => {
+            await fetch(`/api/platform/tenants/${inside.slug}/impersonate`, { method: "DELETE" }).catch(() => {})
+            router.push("/platform")
+          }}
+          className="rounded-lg bg-black hover:bg-stone-950 text-white px-3 py-1 font-extrabold text-[11px] shadow-sm transition"
+        >
+          Exit Session
+        </button>
+      </div>
     </div>
   )
 }

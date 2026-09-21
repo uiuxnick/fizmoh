@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import {
   Loader2, Phone, Search, RefreshCw, Edit2, CheckCircle2,
   AlertTriangle, Building2, Smartphone, ShieldCheck,
+  Power, Zap, Radio, Activity, ShieldAlert,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -60,8 +61,50 @@ export function WhatsAppNumbersPanel() {
     }
   }
 
+  const [killswitches, setKillswitches] = useState<{
+    pauseBroadcasts: boolean
+    throttleAi: boolean
+    maintenanceMode: boolean
+  }>({
+    pauseBroadcasts: false,
+    throttleAi: false,
+    maintenanceMode: false,
+  })
+  const [togglingKillswitch, setTogglingKillswitch] = useState<string | null>(null)
+
+  const loadKillswitches = async () => {
+    try {
+      const res = await fetch("/api/platform/system/killswitches")
+      if (res.ok) {
+        const d = await res.json()
+        if (d.killswitches) setKillswitches(d.killswitches)
+      }
+    } catch {}
+  }
+
+  const handleToggleKillswitch = async (key: "pauseBroadcasts" | "throttleAi" | "maintenanceMode") => {
+    const nextVal = !killswitches[key]
+    setTogglingKillswitch(key)
+    try {
+      const res = await fetch("/api/platform/system/killswitches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: nextVal }),
+      })
+      if (!res.ok) throw new Error()
+      const d = await res.json()
+      setKillswitches(d.killswitches)
+      toast.success(`${key} is now ${nextVal ? "ENABLED (ACTIVE)" : "DISABLED"}`)
+    } catch {
+      toast.error("Failed to update emergency control")
+    } finally {
+      setTogglingKillswitch(null)
+    }
+  }
+
   useEffect(() => {
     loadNumbers()
+    loadKillswitches()
     fetch("/api/platform/tenants")
       .then(r => r.json())
       .then(d => {
@@ -146,6 +189,179 @@ export function WhatsAppNumbersPanel() {
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
+      </div>
+
+      {/* Health & Tier KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
+          <div className="text-xs font-bold text-stone-500">Total Phone Pool</div>
+          <div className="text-xl font-black text-stone-800 mt-1 flex items-baseline gap-2">
+            {safeNumbers.length}
+            <span className="text-[11px] font-medium text-stone-400">WABA numbers</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-emerald-200/80 bg-gradient-to-b from-emerald-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Green Quality
+          </div>
+          <div className="text-xl font-black text-emerald-800 mt-1">
+            {safeNumbers.length > 0 ? Math.round((safeNumbers.filter(n => (n.qualityRating || "GREEN").toUpperCase() === "GREEN").length / safeNumbers.length) * 100) : 100}%
+            <span className="text-[11px] font-medium text-emerald-600 ml-1.5">healthy</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-amber-200/80 bg-gradient-to-b from-amber-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-amber-700 flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Degraded Quality
+          </div>
+          <div className="text-xl font-black text-amber-800 mt-1">
+            {safeNumbers.filter(n => ["YELLOW", "RED", "DEGRADED"].includes((n.qualityRating || "").toUpperCase())).length}
+            <span className="text-[11px] font-medium text-amber-600 ml-1.5">needs review</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-blue-200/80 bg-gradient-to-b from-blue-50/40 to-white shadow-2xs">
+          <div className="text-xs font-bold text-blue-700 flex items-center gap-1">
+            <Activity className="h-3.5 w-3.5 text-blue-600" /> High Tier (10K+)
+          </div>
+          <div className="text-xl font-black text-blue-800 mt-1">
+            {safeNumbers.filter(n => ["TIER_10K", "TIER_100K", "TIER_UNLIMITED"].includes(n.messagingLimit || "")).length}
+            <span className="text-[11px] font-medium text-blue-600 ml-1.5">numbers</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-stone-200/80 shadow-2xs">
+          <div className="text-xs font-bold text-stone-500">Allocated Workspaces</div>
+          <div className="text-xl font-black text-stone-800 mt-1">
+            {safeNumbers.filter(n => !!n.tenantId).length}
+            <span className="text-[11px] font-medium text-stone-400 ml-1.5">of {safeNumbers.length}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency Platform Kill-Switches Card */}
+      <div className="p-5 rounded-2xl bg-stone-900 text-white border border-stone-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-400" />
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                Emergency Platform Kill-Switches
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                Super Admin Only
+              </span>
+            </div>
+            <p className="text-xs text-stone-400">
+              Immediate circuit-breakers to halt outbound pipelines during Meta outages, rate limits, or emergency platform maintenance.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          {/* Pause Broadcasts */}
+          <div className={`p-4 rounded-xl border transition-all ${
+            killswitches.pauseBroadcasts
+              ? "bg-rose-950/80 border-rose-500 text-white"
+              : "bg-stone-800/80 border-stone-700/80 text-stone-200"
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold flex items-center gap-1.5">
+                <Radio className="h-3.5 w-3.5 text-rose-400" /> Pause Outbound Broadcasts
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                killswitches.pauseBroadcasts ? "bg-rose-500 text-white animate-pulse" : "bg-stone-700 text-stone-300"
+              }`}>
+                {killswitches.pauseBroadcasts ? "ACTIVE" : "OFF"}
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-400 leading-relaxed mb-3">
+              Halts all scheduled marketing campaigns across all workspaces to prevent Meta phone number bans.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => handleToggleKillswitch("pauseBroadcasts")}
+              disabled={togglingKillswitch === "pauseBroadcasts"}
+              className={`w-full text-xs font-bold rounded-lg h-8 ${
+                killswitches.pauseBroadcasts
+                  ? "bg-rose-600 hover:bg-rose-700 text-white"
+                  : "bg-stone-700 hover:bg-stone-600 text-white"
+              }`}
+            >
+              {togglingKillswitch === "pauseBroadcasts" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Power className="h-3 w-3" />}
+              {killswitches.pauseBroadcasts ? "Resume All Broadcasts" : "Halt Broadcasts"}
+            </Button>
+          </div>
+
+          {/* Throttle AI Auto-Replies */}
+          <div className={`p-4 rounded-xl border transition-all ${
+            killswitches.throttleAi
+              ? "bg-amber-950/80 border-amber-500 text-white"
+              : "bg-stone-800/80 border-stone-700/80 text-stone-200"
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-amber-400" /> Throttle AI Replies
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                killswitches.throttleAi ? "bg-amber-500 text-white animate-pulse" : "bg-stone-700 text-stone-300"
+              }`}>
+                {killswitches.throttleAi ? "ACTIVE" : "OFF"}
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-400 leading-relaxed mb-3">
+              Forces all inbound WhatsApp messages into human team inboxes, pausing AI assistant auto-generations.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => handleToggleKillswitch("throttleAi")}
+              disabled={togglingKillswitch === "throttleAi"}
+              className={`w-full text-xs font-bold rounded-lg h-8 ${
+                killswitches.throttleAi
+                  ? "bg-amber-600 hover:bg-amber-700 text-white"
+                  : "bg-stone-700 hover:bg-stone-600 text-white"
+              }`}
+            >
+              {togglingKillswitch === "throttleAi" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Power className="h-3 w-3" />}
+              {killswitches.throttleAi ? "Resume AI Engine" : "Throttle AI"}
+            </Button>
+          </div>
+
+          {/* Maintenance Lock */}
+          <div className={`p-4 rounded-xl border transition-all ${
+            killswitches.maintenanceMode
+              ? "bg-purple-950/80 border-purple-500 text-white"
+              : "bg-stone-800/80 border-stone-700/80 text-stone-200"
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5 text-purple-400" /> Platform Maintenance
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                killswitches.maintenanceMode ? "bg-purple-500 text-white animate-pulse" : "bg-stone-700 text-stone-300"
+              }`}>
+                {killswitches.maintenanceMode ? "ACTIVE" : "OFF"}
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-400 leading-relaxed mb-3">
+              Displays read-only maintenance notification banner across tenant workspaces for emergency upgrades.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => handleToggleKillswitch("maintenanceMode")}
+              disabled={togglingKillswitch === "maintenanceMode"}
+              className={`w-full text-xs font-bold rounded-lg h-8 ${
+                killswitches.maintenanceMode
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-stone-700 hover:bg-stone-600 text-white"
+              }`}
+            >
+              {togglingKillswitch === "maintenanceMode" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Power className="h-3 w-3" />}
+              {killswitches.maintenanceMode ? "Disable Maintenance" : "Enable Maintenance"}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main Table Card */}

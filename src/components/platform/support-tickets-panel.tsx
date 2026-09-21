@@ -6,6 +6,7 @@ import {
   Loader2, Search, Headphones, AlertTriangle, Send, Plus,
   CheckCircle2, Clock, MessageSquare, Lock, Globe, User, Building2,
   RefreshCw, X, ChevronRight, Lightbulb, Bug, MessageCircle, ExternalLink, Mail, Phone,
+  Download, Trash2, Timer, Sparkles,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -119,11 +120,30 @@ export function SupportTicketsPanel({
     return () => { clearTimeout(timer); clearInterval(poll); listSequence.current++ }
   }, [page, search, channelFilter, statusFilter, priorityFilter, liveOnly])
 
+  const [staffList, setStaffList] = useState<{ id: string; name: string; email: string }[]>([])
+  const [assigneeFilter, setAssigneeFilter] = useState("ALL")
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const CANNED_RESPONSES = [
+    { label: "Investigation in Progress", text: "Hello, our engineering team has received your report and is actively investigating the issue. We will update this thread as soon as we have a fix." },
+    { label: "Feature Added to Roadmap", text: "Thank you for this valuable feature suggestion! We have reviewed it and added it to our product engineering roadmap for an upcoming release." },
+    { label: "Fix Deployed in Latest Build", text: "We have resolved this issue and deployed a fix to production. Please refresh your browser or try again and let us know if everything works smoothly." },
+    { label: "Need More Information / Logs", text: "To help us diagnose this faster, could you please provide your workspace subdomain, a screenshot or console error, and the exact steps taken?" },
+  ]
+
   useEffect(() => {
     fetch("/api/platform/tenants")
       .then(r => r.json())
       .then(d => {
         if (Array.isArray(d.tenants)) setTenants(d.tenants.map((t: any) => ({ id: t.id, name: t.name })))
+      })
+      .catch(() => {})
+
+    fetch("/api/platform/staff")
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.staff)) setStaffList(d.staff)
       })
       .catch(() => {})
   }, [])
@@ -247,8 +267,99 @@ export function SupportTicketsPanel({
     const matchesSearch = (t.subject || "").toLowerCase().includes(s) || (t.reference || "").toLowerCase().includes(s)
     const matchesStatus = statusFilter === "ALL" || t.status === statusFilter
     const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter
-    return matchesSearch && matchesStatus && matchesPriority
+    const matchesAssignee =
+      assigneeFilter === "ALL" ||
+      (assigneeFilter === "UNASSIGNED" && !t.assignedStaffId) ||
+      (assigneeFilter === "ASSIGNED" && !!t.assignedStaffId) ||
+      t.assignedStaffId === assigneeFilter
+    return matchesSearch && matchesStatus && matchesPriority && matchesAssignee
   })
+
+  const getSlaBadge = (t: Ticket) => {
+    if (["RESOLVED", "CLOSED"].includes(t.status)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="h-3 w-3" /> Met SLA
+        </span>
+      )
+    }
+
+    let targetHours = 24
+    if (t.priority === "URGENT") targetHours = 1
+    else if (t.priority === "HIGH") targetHours = 4
+    else if (t.priority === "MEDIUM") targetHours = 24
+    else if (t.priority === "LOW") targetHours = 48
+
+    const createdTime = new Date(t.createdAt).getTime()
+    const deadline = createdTime + targetHours * 60 * 60 * 1000
+    const diffMinutes = Math.round((deadline - Date.now()) / (60 * 1000))
+
+    if (diffMinutes < 0) {
+      const overdueMins = Math.abs(diffMinutes)
+      const overdueStr = overdueMins >= 60 ? `${Math.floor(overdueMins / 60)}h ${overdueMins % 60}m` : `${overdueMins}m`
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 animate-pulse">
+          <Timer className="h-3 w-3 text-rose-600" /> Breached ({overdueStr})
+        </span>
+      )
+    }
+
+    const remainingStr = diffMinutes >= 60 ? `${Math.floor(diffMinutes / 60)}h ${diffMinutes % 60}m` : `${diffMinutes}m`
+    const isClose = diffMinutes < 30
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+        isClose ? "bg-amber-100 text-amber-800 border-amber-200" : "bg-stone-100 text-stone-700 border-stone-200"
+      }`}>
+        <Timer className="h-3 w-3 text-stone-500" /> {remainingStr} left
+      </span>
+    )
+  }
+
+  const exportCsv = () => {
+    if (filtered.length === 0) {
+      toast.error("No tickets to export")
+      return
+    }
+    const headers = ["Reference", "Subject", "Priority", "Status", "Channel", "Workspace", "Assignee", "Created At"]
+    const rows = filtered.map(t => [
+      `"${t.reference || ""}"`,
+      `"${(t.subject || "").replace(/"/g, '""')}"`,
+      `"${t.priority || ""}"`,
+      `"${t.status || ""}"`,
+      `"${t.channel || ""}"`,
+      `"${(t.tenantName || t.tenantId || "Global Platform").replace(/"/g, '""')}"`,
+      `"${(t.assigneeName || "Unassigned").replace(/"/g, '""')}"`,
+      `"${t.createdAt}"`,
+    ])
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `support-tickets-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${filtered.length} tickets to CSV`)
+  }
+
+  const handleDeleteTicket = async () => {
+    if (!selectedTicket) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/platform/support/tickets/${selectedTicket.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error()
+      toast.success("Ticket deleted successfully")
+      setSelectedTicket(null)
+      setDeleteConfirmOpen(false)
+      await loadTickets()
+    } catch {
+      toast.error("Failed to delete ticket")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const getPriorityBadge = (p: string) => {
     if (p === "LOW") return "bg-slate-100 text-slate-700 border-slate-200"
@@ -311,6 +422,14 @@ export function SupportTicketsPanel({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={exportCsv}
+            className="text-xs rounded-xl h-9 gap-1.5 border-stone-200 text-stone-700 hover:bg-stone-50"
+          >
+            <Download className="h-3.5 w-3.5 text-stone-500" /> Export CSV
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -476,6 +595,18 @@ export function SupportTicketsPanel({
             <option value="HIGH">High</option>
             <option value="URGENT">Urgent</option>
           </select>
+          <select
+            value={assigneeFilter}
+            onChange={e => { setAssigneeFilter(e.target.value); setPage(1) }}
+            className="h-9 px-3 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-700 w-full sm:w-auto"
+          >
+            <option value="ALL">All Assignees</option>
+            <option value="UNASSIGNED">Unassigned</option>
+            <option value="ASSIGNED">Any Assigned</option>
+            {staffList.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
 
         {loading && safeTickets.length === 0 ? (
@@ -501,7 +632,9 @@ export function SupportTicketsPanel({
                   <th className="px-4 py-3">Workspace / Tenant</th>
                   <th className="px-4 py-3">Priority</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">SLA Status</th>
                   <th className="px-4 py-3">Channel</th>
+                  <th className="px-4 py-3">Assignee</th>
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -528,7 +661,11 @@ export function SupportTicketsPanel({
                         {t.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3.5">{getSlaBadge(t)}</td>
                     <td className="px-4 py-3.5">{getChannelBadge(t)}</td>
+                    <td className="px-4 py-3.5 text-stone-600 font-medium whitespace-nowrap">
+                      {t.assigneeName || <span className="text-stone-400 italic">Unassigned</span>}
+                    </td>
                     <td className="px-4 py-3.5 text-stone-500 whitespace-nowrap">
                       {new Date(t.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </td>
@@ -595,6 +732,26 @@ export function SupportTicketsPanel({
                     <option value="HIGH">Priority: HIGH</option>
                     <option value="URGENT">Priority: URGENT</option>
                   </select>
+                  <select
+                    value={selectedTicket.assignedStaffId || ""}
+                    onChange={e => handleUpdateTicket({ assignedStaffId: e.target.value || null })}
+                    disabled={updatingStatus}
+                    className="h-8 px-2.5 text-xs font-semibold rounded-lg border border-stone-200 bg-white text-stone-800"
+                  >
+                    <option value="">Assignee: Unassigned</option>
+                    {staffList.map(s => (
+                      <option key={s.id} value={s.id}>Assigned: {s.name}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                    title="Delete Ticket"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
               <DialogTitle className="text-lg font-black text-stone-900">{selectedTicket.subject}</DialogTitle>
@@ -698,6 +855,24 @@ export function SupportTicketsPanel({
                   <span className="text-[11px] font-semibold text-amber-800">Internal note (hidden from visitor and tenant)</span>
                 </label>
               </div>
+              {/* Canned Responses */}
+              {!isInternalReply && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                    <Sparkles className="h-3 w-3 text-emerald-600" /> Canned:
+                  </span>
+                  {CANNED_RESPONSES.map(c => (
+                    <button
+                      key={c.label}
+                      type="button"
+                      onClick={() => setReplyText(c.text)}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-600 border border-stone-200 shrink-0 transition"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Input
                   placeholder={isInternalReply ? "Write an internal note..." : "Write a response..."}
@@ -722,6 +897,41 @@ export function SupportTicketsPanel({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md p-6 bg-white rounded-3xl border-stone-200">
+          <DialogHeader>
+            <div className="h-10 w-10 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 mb-2">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <DialogTitle className="text-lg font-black text-stone-900">Permanently Delete Ticket?</DialogTitle>
+            <DialogDescription className="text-xs text-stone-500">
+              This action will permanently delete ticket <strong className="text-stone-800 font-mono">{selectedTicket?.reference}</strong>, all its replies, and records. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+              className="text-xs rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleDeleteTicket}
+              disabled={deleting}
+              className="text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold gap-1.5"
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Yes, Delete Ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Ticket Modal */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

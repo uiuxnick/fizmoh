@@ -4,6 +4,8 @@ import { CUSTOMER_COOKIE, STAFF_COOKIE, verifySession } from "@/lib/auth"
 const PUBLIC_EXACT = new Set([
   "/api",
   "/api/health",
+  "/api/status",
+  "/api/feedback/track",
   "/api/docs/postman",
   "/api/config/public",
   "/api/plans/public",

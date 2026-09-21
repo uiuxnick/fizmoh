@@ -887,10 +887,10 @@ export function SiteFooter() {
                 : "The operational WhatsApp Business platform: official Meta Cloud API, multi-agent CRM inbox, conversational AI botflows, and native AmwalPay card payments."}
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-white text-[#111827] border border-[#D1D5DB] text-[11.5px] font-bold shadow-xs">
+              <Link href="/status" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-white text-[#111827] hover:border-emerald-600 hover:text-emerald-700 border border-[#D1D5DB] text-[11.5px] font-bold shadow-xs transition-colors">
                 <span className="h-2 w-2 rounded-full bg-[#00E785] border border-[#047857]" />
                 {isAr ? "الحالة: 100% تعمل" : "All Systems Operational"}
-              </span>
+              </Link>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-white text-[#111827] border border-[#D1D5DB] text-[11.5px] font-semibold shadow-xs">
                 <ShieldCheck className="h-4 w-4 text-[#047857]" />
                 {isAr ? "Meta Cloud Provider" : "Meta Cloud Provider"}
@@ -934,6 +934,7 @@ export function SiteFooter() {
             </h3>
             <ul className="space-y-2.5 text-[13.5px]">
               <li><Link href="/contact" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "اتصل بنا" : "Contact Desk"}</Link></li>
+              <li><Link href="/status" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "حالة النظام" : "System Status"}</Link></li>
               <li><a href="/downloads/" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "تحميل التطبيقات" : "Download Apps"}</a></li>
               <li><a href="/api/ecommerce/plugin/download" className="text-[#047857] hover:text-[#000000] font-bold transition-colors">{isAr ? "إضافة ووكومرس (.zip)" : "WooCommerce Plugin"}</a></li>
               <li><Link href="/whats-new" className="text-[#374151] hover:text-[#000000] font-medium transition-colors">{isAr ? "التحديثات" : "Changelog"}</Link></li>

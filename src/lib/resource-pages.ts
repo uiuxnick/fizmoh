@@ -28,6 +28,11 @@ export const RESOURCE_PAGES: ResourcePage[] = [
     { title: "Explain the impact", body: "Include how often the task occurs, the current workaround, and any channel or integration involved. Avoid including private customer records." },
     { title: "Send your proposal", body: "Create a support ticket with Feature request in the subject. The team can ask follow-up questions there. Submission does not promise a release date." },
   ] },
+  { slug: "track-ticket", title: "Track Request or Bug Report", description: "Check the live resolution status, engineering replies, and milestone progress for your submission reference code.", support: true, sections: [
+    { title: "Reference Code", body: "Enter the code generated when you submitted your feature request or bug report (e.g. FR-XXXX-XXXX or BUG-XXXX-XXXX)." },
+    { title: "Direct Updates", body: "Official responses and status transitions made by Fizmoh platform engineers appear live on this tracking page." },
+    { title: "Need further help?", body: "If you cannot find your reference code or need to provide urgent follow-up details, reach out directly through our priority support channels.", href: "/resources/priority-support", label: "Contact Priority Support" },
+  ] },
   { slug: "community", title: "Community & feedback", description: "Share practical workflows and product feedback with the Fizmoh team.", support: true, sections: [
     { title: "Share a workflow", body: "Tell us how your business uses conversations, bookings or payments. Send a summary through support without exposing customer information." },
     { title: "Suggest an improvement", body: "Explain the task you want to make easier and the result you need.", href: "/resources/feature-request", label: "Submit a feature request" },

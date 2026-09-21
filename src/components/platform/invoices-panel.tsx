@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import {
   Loader2, Receipt, Search, CheckCircle2, BellRing, Edit2,
   Calendar, RefreshCw, AlertTriangle, ExternalLink, ArrowUpDown, FileText, Printer, Download, Share2, Send, CreditCard,
-  PenTool, Upload, Trash2, Check
+  PenTool, Upload, Trash2, Check, Clock, Gift, Coins,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,14 @@ export function InvoicesDunningPanel() {
   const [editGatewayRef, setEditGatewayRef] = useState("")
   const [saving, setSaving] = useState(false)
 
+  const [tenantsList, setTenantsList] = useState<{ id: string; name: string }[]>([])
+  const [creditModalOpen, setCreditModalOpen] = useState(false)
+  const [creditTenantId, setCreditTenantId] = useState("")
+  const [creditAmount, setCreditAmount] = useState("")
+  const [creditMessages, setCreditMessages] = useState("")
+  const [creditReason, setCreditReason] = useState("")
+  const [grantingCredit, setGrantingCredit] = useState(false)
+
   const loadInvoices = async () => {
     setLoading(true)
     try {
@@ -57,7 +65,67 @@ export function InvoicesDunningPanel() {
 
   useEffect(() => {
     loadInvoices()
+    fetch("/api/platform/tenants")
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.tenants)) setTenantsList(d.tenants.map((t: any) => ({ id: t.id, name: t.name })))
+      })
+      .catch(() => {})
   }, [page])
+
+  const extendGrace = async (inv: Invoice) => {
+    try {
+      const res = await fetch(`/api/platform/invoices/${inv.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dunningStep: 0,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(`Grace period extended by +7 days for ${inv.reference}`)
+      await loadInvoices()
+    } catch {
+      toast.error("Failed to extend grace period")
+    }
+  }
+
+  const handleGrantCredit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!creditTenantId) {
+      toast.error("Please select a workspace")
+      return
+    }
+    if (!creditAmount && !creditMessages) {
+      toast.error("Please specify an amount in OMR or extra messages")
+      return
+    }
+    setGrantingCredit(true)
+    try {
+      const res = await fetch("/api/platform/billing/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: creditTenantId,
+          amountOmr: Number(creditAmount || 0),
+          messageAllowance: Number(creditMessages || 0),
+          reason: creditReason || "Goodwill operator adjustment",
+        }),
+      })
+      if (!res.ok) throw new Error()
+      const d = await res.json()
+      toast.success(d.message || "Credit granted successfully")
+      setCreditModalOpen(false)
+      setCreditAmount("")
+      setCreditMessages("")
+      setCreditReason("")
+      await loadInvoices()
+    } catch {
+      toast.error("Failed to grant service credit")
+    } finally {
+      setGrantingCredit(false)
+    }
+  }
 
   const openEdit = (inv: Invoice) => {
     setSelectedInvoice(inv)
@@ -238,6 +306,14 @@ export function InvoicesDunningPanel() {
           <Button
             size="sm"
             variant="outline"
+            onClick={() => setCreditModalOpen(true)}
+            className="text-xs rounded-xl h-9 gap-1.5 bg-white border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
+          >
+            <Gift className="h-3.5 w-3.5 text-purple-600" /> Grant Goodwill Credit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={openSignatureModal}
             className="text-xs rounded-xl h-9 gap-1.5 bg-white border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold"
           >
@@ -357,6 +433,15 @@ export function InvoicesDunningPanel() {
                             className="h-7 text-xs rounded-lg text-amber-800 border-amber-200 hover:bg-amber-50 font-bold gap-1"
                           >
                             <BellRing className="h-3 w-3" /> Send Reminder
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => extendGrace(inv)}
+                            className="h-7 text-xs rounded-lg text-blue-800 border-blue-200 hover:bg-blue-50 font-bold gap-1"
+                            title="Reset dunning escalation and grant +7 days grace period"
+                          >
+                            <Clock className="h-3 w-3" /> +7d Grace
                           </Button>
                         </>
                       )}
@@ -631,6 +716,89 @@ export function InvoicesDunningPanel() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Goodwill Credit Modal */}
+      <Dialog open={creditModalOpen} onOpenChange={setCreditModalOpen}>
+        <DialogContent className="sm:max-w-md p-6 bg-white rounded-3xl border-stone-200">
+          <DialogHeader>
+            <div className="h-10 w-10 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600 mb-2">
+              <Gift className="h-5 w-5" />
+            </div>
+            <DialogTitle className="text-lg font-black text-stone-900">Grant Goodwill Service Credit</DialogTitle>
+            <DialogDescription className="text-xs text-stone-500">
+              Credit a tenant workspace with an OMR balance or extra WhatsApp messages for goodwill or compensation.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleGrantCredit} className="space-y-4 mt-2">
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Target Workspace</label>
+              <select
+                value={creditTenantId}
+                onChange={e => setCreditTenantId(e.target.value)}
+                required
+                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-stone-200 bg-white text-stone-800"
+              >
+                <option value="">Select a workspace...</option>
+                {tenantsList.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-stone-700 block mb-1">Credit Amount (OMR)</label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="e.g. 15.00"
+                  value={creditAmount}
+                  onChange={e => setCreditAmount(e.target.value)}
+                  className="text-xs rounded-xl h-9"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-stone-700 block mb-1">Bonus Messages</label>
+                <Input
+                  type="number"
+                  step="1000"
+                  min="0"
+                  placeholder="e.g. 5000"
+                  value={creditMessages}
+                  onChange={e => setCreditMessages(e.target.value)}
+                  className="text-xs rounded-xl h-9"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-stone-700 block mb-1">Audit Reason (Required for Compliance)</label>
+              <Input
+                placeholder="e.g. Goodwill credit for Meta API outage on Saturday"
+                value={creditReason}
+                onChange={e => setCreditReason(e.target.value)}
+                required
+                className="text-xs rounded-xl h-9"
+              />
+            </div>
+
+            <DialogFooter className="pt-2 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreditModalOpen(false)} className="rounded-xl text-xs">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={grantingCredit}
+                className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5"
+              >
+                {grantingCredit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coins className="h-3.5 w-3.5" />}
+                Issue Credit
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

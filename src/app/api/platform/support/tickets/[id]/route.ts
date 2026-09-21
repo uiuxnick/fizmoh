@@ -102,3 +102,36 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
 
   return NextResponse.json({ ticket: updatedTicket });
 });
+
+export const DELETE = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const admin = await requirePlatformAdmin(request);
+  if (!admin) return NextResponse.json({ error: "Not a platform administrator" }, { status: 403 });
+
+  const { id } = await params;
+  const ticket = await raw.supportTicket.findUnique({ where: { id } });
+  if (!ticket) return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+
+  await raw.$transaction(async tx => {
+    await tx.supportTicketReply.deleteMany({ where: { ticketId: id } });
+    await tx.supportTicket.delete({ where: { id } });
+
+    await tx.platformAuditEvent.create({
+      data: {
+        tenantId: ticket.tenantId,
+        actorStaffId: admin.id,
+        action: "DELETE_SUPPORT_TICKET",
+        entity: "SupportTicket",
+        entityId: ticket.id,
+        before: {
+          reference: ticket.reference,
+          subject: ticket.subject,
+          status: ticket.status,
+          channel: ticket.channel,
+        } as any,
+        reason: "Purged via platform operator dashboard",
+      },
+    });
+  });
+
+  return NextResponse.json({ success: true, message: "Ticket permanently removed" });
+});

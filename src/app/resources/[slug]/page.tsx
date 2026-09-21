@@ -6,6 +6,7 @@ import { SupportChatButton } from "@/components/support-chat-button"
 import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 import { FeatureRequestForm } from "@/components/resources/feature-request-form"
 import { BugReportForm } from "@/components/resources/bug-report-form"
+import { TicketTracker } from "@/components/resources/ticket-tracker"
 
 export function generateStaticParams() {
   return RESOURCE_PAGES.map(({ slug }) => ({ slug }))
@@ -99,14 +100,34 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
           </div>
         )}
         {slug === "feature-request" && (
-          <div className="mt-10">
+          <div className="mt-10 space-y-12">
             <FeatureRequestForm />
+            <div className="pt-8 border-t border-stone-200">
+              <h3 className="text-xl font-bold text-stone-900 mb-1">Track Existing Feature Request</h3>
+              <p className="text-xs text-stone-500 mb-4">
+                Already submitted a request? Check its evaluation progress and engineering notes.
+              </p>
+              <TicketTracker />
+            </div>
           </div>
         )}
 
         {slug === "bug-report" && (
-          <div className="mt-10">
+          <div className="mt-10 space-y-12">
             <BugReportForm />
+            <div className="pt-8 border-t border-stone-200">
+              <h3 className="text-xl font-bold text-stone-900 mb-1">Track Existing Bug Report</h3>
+              <p className="text-xs text-stone-500 mb-4">
+                Check whether your reported bug has been triaged, reproduced, or resolved in production.
+              </p>
+              <TicketTracker />
+            </div>
+          </div>
+        )}
+
+        {slug === "track-ticket" && (
+          <div className="mt-10">
+            <TicketTracker />
           </div>
         )}
 

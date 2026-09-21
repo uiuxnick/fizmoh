@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import {
   TrendingUp, Building2, CreditCard, Activity, Headphones,
   Loader2, AlertTriangle, Zap, Users, Brain,
+  HeartPulse, ShieldAlert, CheckCircle2, ArrowRight, ExternalLink,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import {
@@ -27,6 +28,16 @@ interface Analytics {
   recentActivity: { id: string; action: string; entity: string; entityId: string; tenantId?: string; reason?: string; createdAt: string }[]
   topTenantsByRevenue: { tenantId: string; tenantName: string; revenue: number }[]
   aiUsage: number
+  tenantHealth?: {
+    healthyCount: number
+    lowActivityCount: number
+    atRiskCount: number
+    atRiskList: Array<{ id: string; name: string; slug: string; reason: string; severity: string }>
+  }
+  featureAdoption?: {
+    wabaAdopted: number
+    menuAdopted: number
+  }
 }
 
 export function CommandCenter() {
@@ -213,6 +224,97 @@ export function CommandCenter() {
               ))
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Tenant Health & Churn Risk Intelligence */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Health Score Summary */}
+        <div className="p-5 rounded-2xl bg-white border border-stone-200/80 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+              <HeartPulse className="h-4 w-4 text-emerald-600" /> Tenant Health & Churn Risk
+            </h3>
+            <span className="text-[10px] font-bold text-stone-400 uppercase">Live Cohort</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/60 text-center">
+              <div className="text-[10px] font-bold text-emerald-800 uppercase">Healthy</div>
+              <div className="text-lg font-black text-emerald-700 mt-0.5">
+                {data.tenantHealth?.healthyCount ?? data.activeTenantsCount}
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/60 text-center">
+              <div className="text-[10px] font-bold text-amber-800 uppercase">Low Volume</div>
+              <div className="text-lg font-black text-amber-700 mt-0.5">
+                {data.tenantHealth?.lowActivityCount ?? 0}
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200/60 text-center">
+              <div className="text-[10px] font-bold text-rose-800 uppercase">At Risk</div>
+              <div className="text-lg font-black text-rose-700 mt-0.5">
+                {data.tenantHealth?.atRiskCount ?? 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-1 border-t border-stone-100">
+            <div className="text-[11px] font-bold text-stone-600">Feature Adoption Across Workspaces</div>
+            <div className="space-y-1.5 text-xs text-stone-600">
+              <div className="flex items-center justify-between">
+                <span>WhatsApp Numbers Connected</span>
+                <strong className="text-stone-900">{data.featureAdoption?.wabaAdopted ?? 0} workspaces</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Restaurant Menus Active</span>
+                <strong className="text-stone-900">{data.featureAdoption?.menuAdopted ?? 0} menus</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* At-Risk Accounts Priority Action List */}
+        <div className="lg:col-span-2 p-5 rounded-2xl bg-white border border-stone-200/80 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-500" />
+              <h3 className="text-xs font-bold text-stone-700">Priority Accounts Requiring Intervention</h3>
+            </div>
+            <span className="text-[10px] font-semibold text-stone-500">Auto-detected churn indicators</span>
+          </div>
+
+          {(!data.tenantHealth?.atRiskList || data.tenantHealth.atRiskList.length === 0) ? (
+            <div className="py-8 text-center text-xs text-stone-400">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+              All active workspaces have healthy throughput and up-to-date subscriptions.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {data.tenantHealth.atRiskList.map(item => (
+                <div key={item.id} className="p-3 rounded-xl border border-stone-100 bg-stone-50/50 flex items-center justify-between gap-3 text-xs">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-stone-900 flex items-center gap-2">
+                      {item.name}
+                      <span className={`px-2 py-0.2 rounded-full text-[9px] font-extrabold uppercase ${
+                        item.severity === "high" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                      }`}>
+                        {item.severity}
+                      </span>
+                    </div>
+                    <div className="text-stone-500 text-[11px]">{item.reason}</div>
+                  </div>
+
+                  <a
+                    href={`/platform#tenants`}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 shrink-0"
+                  >
+                    View in Tenants <ArrowRight className="h-3 w-3" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
