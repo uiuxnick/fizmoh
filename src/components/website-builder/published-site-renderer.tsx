@@ -46,6 +46,45 @@ interface CartItem {
   imageUrl?: string
 }
 
+function getResponsiveGrid(
+  desktop?: any,
+  tablet?: any,
+  mobile?: any,
+  fallbackCols?: any
+) {
+  // Mobile: 1 or 2
+  const m = String(mobile || "1")
+  const mCls = m === "2" ? "grid-cols-2" : "grid-cols-1"
+
+  // Tablet (sm): 1, 2, 3, 4
+  const t = String(tablet || (fallbackCols === "2" ? "2" : "2"))
+  const tCls =
+    t === "1"
+      ? "sm:grid-cols-1"
+      : t === "3"
+      ? "sm:grid-cols-3"
+      : t === "4"
+      ? "sm:grid-cols-4"
+      : "sm:grid-cols-2"
+
+  // Desktop (lg): 1..6
+  const d = String(desktop || fallbackCols || "3")
+  const dCls =
+    d === "1"
+      ? "lg:grid-cols-1"
+      : d === "2"
+      ? "lg:grid-cols-2"
+      : d === "4"
+      ? "lg:grid-cols-4"
+      : d === "5"
+      ? "lg:grid-cols-5"
+      : d === "6"
+      ? "lg:grid-cols-6"
+      : "lg:grid-cols-3"
+
+  return `${mCls} ${tCls} ${dCls}`
+}
+
 export function PublishedSiteRenderer({
   elements,
   products = [],
@@ -61,6 +100,9 @@ export function PublishedSiteRenderer({
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({})
   const [activeTabs, setActiveTabs] = useState<Record<string, number>>({})
   const [formSubmitting, setFormSubmitting] = useState(false)
+  const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({})
+  const [customFormData, setCustomFormData] = useState<Record<string, Record<string, string>>>({})
+  const [customFormSubmitting, setCustomFormSubmitting] = useState<Record<string, boolean>>({})
 
   // Checkout inputs
   const [customerName, setCustomerName] = useState("")
@@ -342,7 +384,7 @@ export function PublishedSiteRenderer({
       }
 
       case "product-grid": {
-        const cols = p.columns === "2" ? "grid-cols-1 sm:grid-cols-2" : p.columns === "4" ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, p.columns || "3")
         const displayItems = products.length > 0 ? products : [
           { id: "demo-1", name: "Horse Riding Tour", basePrice: 12, currency: activeCurrency, description: "Sunset beach ride with experienced guide." },
           { id: "demo-2", name: "Desert Safari & Camp", basePrice: 45, currency: activeCurrency, description: "Dune bashing, BBQ dinner and star watching." },
@@ -363,7 +405,7 @@ export function PublishedSiteRenderer({
               )}
             </div>
 
-            <div className={`grid ${cols} gap-5`}>
+            <div className={`grid ${gridClass} gap-5`}>
               {displayItems.map((prod) => {
                 const pr = prod.basePrice ?? prod.price ?? 25
                 const curr = prod.currency || activeCurrency
@@ -402,6 +444,331 @@ export function PublishedSiteRenderer({
                   </div>
                 )
               })}
+            </div>
+          </div>
+        )
+      }
+
+      case "product-carousel": {
+        const displayItems = products.length > 0 ? products : [
+          { id: "demo-c1", name: "Wahiba Sands Desert Safari", basePrice: 45, currency: activeCurrency, description: "Full-day 4x4 dune bashing with Bedouin camp & sunset dinner." },
+          { id: "demo-c2", name: "Daymaniyat Islands Snorkeling", basePrice: 35, currency: activeCurrency, description: "Boat excursion with sea turtles, coral reefs & gear included." },
+          { id: "demo-c3", name: "Wadi Shab & Bimmah Sinkhole", basePrice: 28, currency: activeCurrency, description: "Guided canyon hike, cave swimming, and coastal views." },
+          { id: "demo-c4", name: "Jebel Akhdar Mountain Tour", basePrice: 50, currency: activeCurrency, description: "Green Mountain terrace villages, rose water distilleries & peaks." },
+          { id: "demo-c5", name: "Muscat City Heritage Night Tour", basePrice: 20, currency: activeCurrency, description: "Muttrah Souq, Sultan Qaboos Grand Mosque & Al Alam Palace." },
+        ]
+        const currentIdx = carouselIndices[el.id] || 0
+        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, 4)
+
+        const handlePrev = () => {
+          setCarouselIndices(prev => ({
+            ...prev,
+            [el.id]: Math.max(0, currentIdx - 1)
+          }))
+        }
+        const handleNext = () => {
+          setCarouselIndices(prev => ({
+            ...prev,
+            [el.id]: (currentIdx + 1) >= displayItems.length ? 0 : currentIdx + 1
+          }))
+        }
+
+        return (
+          <div className="my-10 space-y-4">
+            <div className="flex items-end justify-between">
+              <div>
+                {p.subtext && <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{String(p.subtext)}</p>}
+                <h3 className="font-black text-2xl sm:text-3xl text-stone-900">{String(p.heading || "Featured Collection")}</h3>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handlePrev}
+                  disabled={currentIdx === 0}
+                  className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center text-stone-600 disabled:opacity-30 shadow-xs cursor-pointer"
+                  title="Previous"
+                >
+                  <ChevronRight className="h-4 w-4 rotate-180" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center text-stone-600 shadow-xs cursor-pointer"
+                  title="Next"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto pb-4 pt-1 scrollbar-thin scrollbar-thumb-stone-200 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className={`grid ${gridClass} gap-4 min-w-[280px]`}>
+                {displayItems.map((prod) => {
+                  const pr = prod.basePrice ?? prod.price ?? 25
+                  const curr = prod.currency || activeCurrency
+                  return (
+                    <div key={prod.id} className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
+                      <div className="h-40 bg-stone-100 relative flex items-center justify-center overflow-hidden">
+                        {prod.imageUrl ? (
+                          <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Sparkles className="h-8 w-8 text-emerald-300" />
+                        )}
+                        {prod.category && (
+                          <span className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-stone-800 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
+                            {prod.category}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-bold text-stone-900 text-sm line-clamp-1">{prod.name}</h4>
+                          <p className="text-xs text-stone-500 mt-1 line-clamp-2">{prod.description}</p>
+                        </div>
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
+                          <span className="font-black text-emerald-700 text-base">{curr} {pr.toFixed(2)}</span>
+                          <button
+                            onClick={() => addToCart({ id: prod.id, name: prod.name, price: pr, currency: curr, imageUrl: prod.imageUrl })}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            <span>Add</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case "image-carousel": {
+        const slideUrls = String(p.slides || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80|https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=80")
+          .split("|")
+          .map(s => s.trim())
+          .filter(Boolean)
+        const currentIdx = carouselIndices[el.id] || 0
+        const activeSlide = slideUrls[currentIdx] || slideUrls[0]
+        const sliderHeight = p.height || "420"
+
+        const handlePrev = () => {
+          setCarouselIndices(prev => ({
+            ...prev,
+            [el.id]: currentIdx <= 0 ? slideUrls.length - 1 : currentIdx - 1
+          }))
+        }
+        const handleNext = () => {
+          setCarouselIndices(prev => ({
+            ...prev,
+            [el.id]: currentIdx >= slideUrls.length - 1 ? 0 : currentIdx + 1
+          }))
+        }
+
+        return (
+          <div className="my-8 rounded-3xl overflow-hidden relative shadow-lg group" style={{ height: `${sliderHeight}px` }}>
+            <img
+              src={activeSlide}
+              alt={`Slide ${currentIdx + 1}`}
+              className="w-full h-full object-cover transition-all duration-700 ease-in-out"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+
+            {slideUrls.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md flex items-center justify-center transition cursor-pointer"
+                  title="Previous Slide"
+                >
+                  <ChevronRight className="h-5 w-5 rotate-180" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md flex items-center justify-center transition cursor-pointer"
+                  title="Next Slide"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                  {slideUrls.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCarouselIndices(prev => ({ ...prev, [el.id]: i }))}
+                      className={`h-2 rounded-full transition-all cursor-pointer ${currentIdx === i ? "w-6 bg-white" : "w-2 bg-white/50"}`}
+                      title={`Slide ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )
+      }
+
+      case "before-after": {
+        return (
+          <div className="my-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
+            <div className="text-center max-w-lg mx-auto mb-2">
+              <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Proven Results & Transformation")}</h3>
+              <p className="text-xs text-stone-500 mt-1">See the direct impact of our tailored services</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-5 rounded-2xl bg-stone-100 border border-stone-200 relative overflow-hidden">
+                <span className="inline-block px-3 py-1 bg-stone-900 text-white text-[10px] font-black rounded-lg uppercase tracking-wider mb-3">
+                  {String(p.beforeLabel || "Before")}
+                </span>
+                <p className="text-sm font-bold text-stone-700">Manual booking hassles & delayed replies</p>
+                <p className="text-xs text-stone-500 mt-1">Customers waiting hours for WhatsApp replies, missed bookings during weekends, manual invoice paperwork.</p>
+              </div>
+              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 relative overflow-hidden">
+                <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-lg uppercase tracking-wider mb-3">
+                  {String(p.afterLabel || "After")}
+                </span>
+                <p className="text-sm font-bold text-emerald-900">Instant 24/7 Automated Booking & Checkout</p>
+                <p className="text-xs text-emerald-700 mt-1">Direct live catalog ordering, automated WhatsApp confirmations, 3x faster customer turnaround and instant revenue.</p>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case "cta-multi": {
+        return (
+          <div className="my-10 rounded-3xl p-8 sm:p-12 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-950 text-white shadow-2xl relative overflow-hidden space-y-5">
+            <div className="relative z-10 max-w-2xl space-y-3">
+              {p.badge && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold uppercase tracking-wider">
+                  <Sparkles className="h-3 w-3 text-emerald-400" />
+                  <span>{String(p.badge)}</span>
+                </span>
+              )}
+              <h3 className="text-3xl sm:text-4xl font-black leading-tight tracking-tight">{String(p.heading || "Ready to experience the best?")}</h3>
+              <p className="text-stone-300 text-sm sm:text-base leading-relaxed">{String(p.subtext || "Reach out directly on WhatsApp for custom packages, or browse our complete collection.")}</p>
+              <div className="flex flex-wrap gap-3 pt-3">
+                <button
+                  onClick={() => openWhatsAppInquiry(String(p.heading || "Inquiry from website"))}
+                  className="px-6 py-3.5 bg-[#25D366] hover:bg-[#20ba5a] text-stone-950 font-black rounded-xl text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
+                >
+                  <WhatsAppIcon className="h-4 w-4 fill-stone-950" />
+                  <span>{String(p.primaryText || "Order on WhatsApp")}</span>
+                </button>
+                {onSwitchToCatalog ? (
+                  <button
+                    onClick={onSwitchToCatalog}
+                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-sm border border-white/20 transition cursor-pointer"
+                  >
+                    {String(p.secondaryText || "Explore Catalog")}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setCartOpen(true)}
+                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-sm border border-white/20 transition cursor-pointer"
+                  >
+                    {String(p.secondaryText || "View Cart & Products")}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case "custom-form": {
+        const fields = String(p.fields || "Full Name,WhatsApp Phone,Email,Notes").split(",").map(f => f.trim()).filter(Boolean)
+        const isSubmitting = !!customFormSubmitting[el.id]
+        const currentValues = customFormData[el.id] || {}
+
+        const handleFieldChange = (f: string, v: string) => {
+          setCustomFormData(prev => ({
+            ...prev,
+            [el.id]: {
+              ...(prev[el.id] || {}),
+              [f]: v,
+            }
+          }))
+        }
+
+        const handleFormSubmit = (e: React.FormEvent) => {
+          e.preventDefault()
+          setCustomFormSubmitting(prev => ({ ...prev, [el.id]: true }))
+
+          const lines = fields.map(f => `*${f}:* ${currentValues[f] || "N/A"}`).join("\n")
+          const msg = `📝 *New Custom Form Submission*\n*Form:* ${String(p.heading || "Inquiry")}\n\n${lines}`
+
+          const targetPhone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
+          const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`
+
+          setTimeout(() => {
+            setCustomFormSubmitting(prev => ({ ...prev, [el.id]: false }))
+            toast.success("Inquiry submitted! Launching WhatsApp…")
+            window.open(waUrl, "_blank")
+          }, 500)
+        }
+
+        return (
+          <div className="my-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-xs max-w-xl mx-auto space-y-4">
+            <div>
+              <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Custom Inquiry Form")}</h3>
+              <p className="text-xs text-stone-500 mt-1">Submit your request below and we will get back to you immediately.</p>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="space-y-3.5">
+              {fields.map((f, i) => (
+                <div key={i}>
+                  <label className="text-xs font-bold text-stone-700 block mb-1">{f} *</label>
+                  {f.toLowerCase().includes("note") || f.toLowerCase().includes("message") ? (
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder={`Enter your ${f.toLowerCase()}…`}
+                      value={currentValues[f] || ""}
+                      onChange={e => handleFieldChange(f, e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  ) : (
+                    <input
+                      required
+                      type={f.toLowerCase().includes("email") ? "email" : f.toLowerCase().includes("phone") ? "tel" : "text"}
+                      placeholder={`Enter your ${f.toLowerCase()}…`}
+                      value={currentValues[f] || ""}
+                      onChange={e => handleFieldChange(f, e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Send className="h-3.5 w-3.5" />
+                <span>{isSubmitting ? "Sending…" : String(p.submitText || "Submit Request via WhatsApp")}</span>
+              </button>
+            </form>
+          </div>
+        )
+      }
+
+      case "logo-marquee": {
+        const logos = String(p.logos || "Premium Partner|Verified Seller|Official Agency|Secure Checkout|Global Delivery")
+          .split("|")
+          .map(l => l.trim())
+          .filter(Boolean)
+        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, 5)
+
+        return (
+          <div className="my-8 py-6 px-4 bg-stone-50 rounded-2xl border border-stone-200/80 text-center space-y-3">
+            <p className="text-[11px] uppercase tracking-widest font-black text-stone-400">Trusted By & Certified With</p>
+            <div className={`grid ${gridClass} gap-3 items-center justify-center max-w-4xl mx-auto`}>
+              {logos.map((logo, i) => (
+                <div key={i} className="px-3 py-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs flex items-center justify-center text-xs font-bold text-stone-700">
+                  {logo}
+                </div>
+              ))}
             </div>
           </div>
         )

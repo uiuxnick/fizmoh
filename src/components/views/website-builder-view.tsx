@@ -9,6 +9,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import {
   Eye, EyeOff, Globe, Layers, Smartphone, Monitor, Tablet,
   Plus, Trash2, GripVertical, ChevronUp, ChevronDown, Settings,
   Image, Type, Video, Link, Star, ShoppingCart, Mail, Phone, Map,
@@ -26,23 +33,23 @@ export type ElementType =
   // Text
   | "heading" | "subheading" | "paragraph" | "caption" | "quote" | "badge-text"
   // Media
-  | "image" | "video-embed" | "icon" | "logo" | "gallery"
+  | "image" | "video-embed" | "icon" | "logo" | "gallery" | "image-carousel" | "before-after"
   // Buttons & Links
-  | "button" | "button-outline" | "link" | "whatsapp-cta" | "cta-banner"
+  | "button" | "button-outline" | "link" | "whatsapp-cta" | "cta-banner" | "cta-multi"
   // Forms
-  | "input-field" | "textarea-field" | "select-field" | "checkbox" | "contact-form"
+  | "input-field" | "textarea-field" | "select-field" | "checkbox" | "contact-form" | "custom-form"
   // Layout
   | "divider" | "spacer" | "container" | "two-column" | "three-column" | "card"
   // Navigation
   | "navbar" | "breadcrumb" | "tabs" | "accordion" | "pagination"
   // Commerce
-  | "product-card" | "product-grid" | "price-tag" | "cart-button" | "checkout-form"
+  | "product-card" | "product-grid" | "product-carousel" | "price-tag" | "cart-button" | "checkout-form"
   | "promo-badge" | "countdown-timer"
   // Social Proof
   | "testimonial" | "rating-stars" | "review-card" | "trust-badges" | "customer-count"
   // Marketing
   | "hero-banner" | "feature-box" | "stat-counter" | "team-member" | "pricing-table"
-  | "faq-item" | "timeline-item" | "newsletter-signup" | "social-links"
+  | "faq-item" | "timeline-item" | "newsletter-signup" | "social-links" | "logo-marquee"
   // Maps & Contact
   | "map-embed" | "contact-info" | "business-hours"
 
@@ -74,6 +81,8 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "badge-text", label: "Badge", icon: Award, group: "Text", defaultProps: { text: "NEW", color: "green" }, preview: "Badge" },
   // ── Media
   { type: "image", label: "Image", icon: Image, group: "Media", defaultProps: { src: "", alt: "Image", width: "100%", borderRadius: "8", objectFit: "cover" }, preview: "📷 Image" },
+  { type: "image-carousel", label: "Image Slider", icon: Image, group: "Media", defaultProps: { slides: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80|https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=80", height: "400", autoPlay: true }, preview: "🖼 Slider" },
+  { type: "before-after", label: "Before / After", icon: Columns, group: "Media", defaultProps: { beforeLabel: "Before", afterLabel: "After", heading: "Real Results" }, preview: "🌓 Compare" },
   { type: "video-embed", label: "Video", icon: Play, group: "Media", defaultProps: { url: "https://www.youtube.com/embed/dQw4w9WgXcQ", height: "400", caption: "" }, preview: "▶ Video" },
   { type: "gallery", label: "Gallery", icon: Grid, group: "Media", defaultProps: { columns: "3", gap: "8", images: "" }, preview: "🖼 Gallery" },
   { type: "icon", label: "Icon", icon: Star, group: "Media", defaultProps: { name: "star", size: "48", color: "#F59E0B" }, preview: "⭐ Icon" },
@@ -82,6 +91,7 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "button-outline", label: "Outline Button", icon: Zap, group: "Buttons", defaultProps: { text: "Learn More", href: "#", borderColor: "#10B981", textColor: "#10B981", size: "md", align: "center", borderRadius: "8" }, preview: "[ Outline ]" },
   { type: "link", label: "Text Link", icon: Link, group: "Buttons", defaultProps: { text: "Click here", href: "#", color: "#2563EB" }, preview: "Text link →" },
   { type: "whatsapp-cta", label: "WhatsApp CTA", icon: MessageSquare, group: "Buttons", defaultProps: { text: "Chat on WhatsApp", phone: "", message: "Hello! I'd like to know more.", align: "center" }, preview: "💬 WhatsApp" },
+  { type: "cta-multi", label: "Multi-CTA Block", icon: Sparkles, group: "Buttons", defaultProps: { heading: "Ready to get started?", subtext: "Chat with us on WhatsApp or explore our catalog.", primaryText: "Order on WhatsApp", secondaryText: "Explore Catalog", badge: "Instant Response" }, preview: "✨ Multi-CTA" },
   { type: "cta-banner", label: "CTA Banner", icon: ArrowRight, group: "Buttons", defaultProps: { heading: "Ready to get started?", subtext: "Join thousands of happy customers", buttonText: "Start Free Trial", buttonHref: "#", bgColor: "#10B981" }, preview: "CTA Banner" },
   // ── Forms
   { type: "input-field", label: "Input Field", icon: AlignLeft, group: "Forms", defaultProps: { label: "Your Name", placeholder: "Enter your name", required: true, type: "text" }, preview: "[ Input ]" },
@@ -89,6 +99,7 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "select-field", label: "Dropdown", icon: ListOrdered, group: "Forms", defaultProps: { label: "Select Option", options: "Option 1\nOption 2\nOption 3" }, preview: "[ Select ▾ ]" },
   { type: "checkbox", label: "Checkbox", icon: CheckSquare, group: "Forms", defaultProps: { label: "I agree to the terms and conditions", required: false }, preview: "☑ Checkbox" },
   { type: "contact-form", label: "Contact Form", icon: Mail, group: "Forms", defaultProps: { heading: "Get In Touch", submitText: "Send Message", successMessage: "Thank you! We'll be in touch soon." }, preview: "📧 Contact Form" },
+  { type: "custom-form", label: "Custom Form", icon: FileText, group: "Forms", defaultProps: { heading: "Custom Inquiry", submitText: "Submit Request", fields: "Full Name,WhatsApp Phone,Email,Notes" }, preview: "📝 Custom Form" },
   { type: "newsletter-signup", label: "Newsletter", icon: Mail, group: "Forms", defaultProps: { heading: "Stay Updated", placeholder: "Enter your email", buttonText: "Subscribe", note: "No spam, unsubscribe anytime." }, preview: "📨 Newsletter" },
   // ── Layout
   { type: "divider", label: "Divider", icon: Minus, group: "Layout", defaultProps: { style: "solid", color: "#E5E7EB", thickness: "1", margin: "24" }, preview: "─────────" },
@@ -104,7 +115,8 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "accordion", label: "Accordion", icon: ChevronDown, group: "Navigation", defaultProps: { question: "How does it work?", answer: "It's simple! Just sign up and start building your page in minutes." }, preview: "▼ FAQ Item" },
   // ── Commerce
   { type: "product-card", label: "Product Card", icon: ShoppingCart, group: "Commerce", defaultProps: { name: "Premium Package", price: "99.00", currency: "OMR", image: "", description: "All features included.", buttonText: "Buy Now" }, preview: "🛍 Product" },
-  { type: "product-grid", label: "Product Grid", icon: LayoutGrid, group: "Commerce", defaultProps: { columns: "3", showFilter: true, category: "" }, preview: "🛒 Grid" },
+  { type: "product-grid", label: "Product Grid", icon: LayoutGrid, group: "Commerce", defaultProps: { columns: "3", colsDesktop: "3", colsTablet: "2", colsMobile: "1", showFilter: true, category: "" }, preview: "🛒 Grid" },
+  { type: "product-carousel", label: "Product Carousel", icon: LayoutGrid, group: "Commerce", defaultProps: { heading: "Trending Products", subtext: "Swipe or scroll through our collection", colsDesktop: "4", colsTablet: "2", colsMobile: "1", autoPlay: true, category: "" }, preview: "🎠 Carousel" },
   { type: "price-tag", label: "Price Tag", icon: Award, group: "Commerce", defaultProps: { price: "49", currency: "OMR", period: "/month", highlight: false }, preview: "OMR 49/mo" },
   { type: "cart-button", label: "Add to Cart", icon: ShoppingCart, group: "Commerce", defaultProps: { text: "Add to Cart", productId: "", bgColor: "#10B981" }, preview: "🛒 Add to Cart" },
   { type: "promo-badge", label: "Promo Badge", icon: Award, group: "Commerce", defaultProps: { text: "50% OFF", color: "#DC2626", expiry: "" }, preview: "🔥 SALE" },
@@ -125,6 +137,7 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "faq-item", label: "FAQ Item", icon: MessageSquare, group: "Marketing", defaultProps: { question: "What makes you different?", answer: "We provide AI-powered automation that saves hours of manual work every day." }, preview: "❓ FAQ" },
   { type: "timeline-item", label: "Timeline", icon: Clock, group: "Marketing", defaultProps: { year: "2024", title: "Milestone", description: "Reached 10,000 customers across the GCC." }, preview: "◉ Timeline" },
   { type: "social-links", label: "Social Links", icon: Share2, group: "Marketing", defaultProps: { whatsapp: "", instagram: "", facebook: "", tiktok: "", twitter: "", youtube: "" }, preview: "🔗 Social" },
+  { type: "logo-marquee", label: "Brand Logos", icon: LayoutGrid, group: "Marketing", defaultProps: { logos: "Premium Partner|Verified Seller|Official Agency|Secure Checkout|Global Delivery", colsDesktop: "5", colsTablet: "3", colsMobile: "2" }, preview: "🏢 Logos" },
   // ── Maps & Contact
   { type: "map-embed", label: "Google Map", icon: Map, group: "Contact", defaultProps: { lat: "23.5880", lng: "58.3829", zoom: "14", height: "400", label: "Our Location" }, preview: "📍 Map" },
   { type: "contact-info", label: "Contact Info", icon: Phone, group: "Contact", defaultProps: { phone: "+968 9000 0000", email: "hello@business.com", address: "Muscat, Oman", whatsapp: "" }, preview: "📞 Contact" },
@@ -259,15 +272,24 @@ function ElementPreview({ el, selected, onClick }: { el: BuilderElement; selecte
           </div>
         )
       case "product-grid": {
-        const cols = p.columns === "2" ? "grid-cols-2" : p.columns === "4" ? "grid-cols-4" : "grid-cols-3"
+        const dCols = String(p.colsDesktop || p.columns || "3")
+        const tCols = String(p.colsTablet || "2")
+        const mCols = String(p.colsMobile || "1")
         return (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="font-black text-stone-900 text-lg">Product Grid ({p.columns || "3"} Columns)</h4>
-              <span className="text-xs text-emerald-700 font-semibold">Store Catalog Active</span>
+              <div>
+                <h4 className="font-black text-stone-900 text-lg">Product Grid</h4>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-mono font-semibold">🖥️ {dCols} in row</span>
+                  <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-mono font-semibold">📱 {mCols} mobile</span>
+                  <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-mono font-semibold">💻 {tCols} tablet</span>
+                </div>
+              </div>
+              <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full">Live Catalog</span>
             </div>
-            <div className={`grid ${cols} gap-3`}>
-              {[1, 2, 3].map(i => (
+            <div className={`grid grid-cols-${dCols === "4" ? "4" : dCols === "2" ? "2" : dCols === "5" ? "5" : dCols === "6" ? "6" : "3"} gap-3`}>
+              {[1, 2, 3, 4, 5, 6].slice(0, Number(dCols) * 2).map(i => (
                 <div key={i} className="rounded-xl border border-stone-200 bg-white overflow-hidden p-3 space-y-2">
                   <div className="h-28 bg-stone-100 rounded-lg flex items-center justify-center text-stone-400">
                     <ShoppingCart className="h-6 w-6 opacity-40" />
@@ -283,6 +305,126 @@ function ElementPreview({ el, selected, onClick }: { el: BuilderElement; selecte
           </div>
         )
       }
+      case "product-carousel": {
+        const dCols = String(p.colsDesktop || "4")
+        return (
+          <div className="space-y-3 p-4 bg-stone-50/70 rounded-2xl border border-stone-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-black text-stone-900 text-base">{String(p.heading || "Product Carousel / Slider")}</h4>
+                <p className="text-xs text-stone-500">{String(p.subtext || "Swipe or scroll products")}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] bg-violet-100 text-violet-800 px-2 py-0.5 rounded-full font-bold">🖥️ {dCols} in row</span>
+                <span className="text-[10px] bg-violet-100 text-violet-800 px-2 py-0.5 rounded-full font-bold">📱 {p.colsMobile || "1"} mobile</span>
+                <button className="w-7 h-7 rounded-full bg-white border border-stone-200 flex items-center justify-center shadow-xs"><ChevronRight className="h-3.5 w-3.5 rotate-180" /></button>
+                <button className="w-7 h-7 rounded-full bg-white border border-stone-200 flex items-center justify-center shadow-xs"><ChevronRight className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-hidden">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex-1 min-w-[180px] rounded-xl border border-stone-200 bg-white p-3 space-y-2 shadow-xs">
+                  <div className="h-28 bg-stone-100 rounded-lg flex items-center justify-center text-stone-400">
+                    <Sparkles className="h-6 w-6 text-emerald-300" />
+                  </div>
+                  <p className="font-bold text-xs text-stone-900 truncate">Trending Product #{i}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-emerald-700">OMR {(i * 22).toFixed(2)}</span>
+                    <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded">Buy</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+      case "image-carousel":
+        return (
+          <div className="rounded-2xl overflow-hidden border border-stone-200 bg-stone-900 text-white relative h-64 flex flex-col justify-between p-6">
+            <div className="flex justify-between items-center z-10">
+              <span className="bg-white/20 backdrop-blur-xs text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">Banner Slider</span>
+              <div className="flex gap-1.5">
+                {[1, 2, 3].map(i => <div key={i} className={`w-2 h-2 rounded-full ${i === 1 ? "bg-white" : "bg-white/40"}`} />)}
+              </div>
+            </div>
+            <div className="z-10 max-w-md space-y-1">
+              <h4 className="font-black text-2xl">Visual Image Carousel</h4>
+              <p className="text-xs text-stone-300">Auto-playing hero transitions with customized CTA buttons.</p>
+            </div>
+            <div className="flex justify-between items-center z-10">
+              <button className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs">Learn More</button>
+              <div className="flex gap-1">
+                <span className="p-1 rounded bg-white/20"><ChevronRight className="h-4 w-4 rotate-180" /></span>
+                <span className="p-1 rounded bg-white/20"><ChevronRight className="h-4 w-4" /></span>
+              </div>
+            </div>
+          </div>
+        )
+      case "before-after":
+        return (
+          <div className="rounded-2xl border border-stone-200 overflow-hidden bg-white p-4 space-y-3">
+            <h4 className="font-black text-stone-900 text-base">{String(p.heading || "Before & After Transformation")}</h4>
+            <div className="grid grid-cols-2 gap-2 relative">
+              <div className="h-40 bg-stone-100 rounded-xl flex items-center justify-center relative overflow-hidden">
+                <span className="absolute top-2 left-2 bg-stone-900/80 text-white text-[10px] font-black px-2 py-0.5 rounded">{String(p.beforeLabel || "Before")}</span>
+                <span className="text-xs text-stone-400">Original State</span>
+              </div>
+              <div className="h-40 bg-emerald-50 rounded-xl flex items-center justify-center relative overflow-hidden border border-emerald-200">
+                <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded">{String(p.afterLabel || "After")}</span>
+                <span className="text-xs text-emerald-700 font-bold">Transformed Result</span>
+              </div>
+            </div>
+          </div>
+        )
+      case "cta-multi":
+        return (
+          <div className="rounded-3xl p-8 bg-gradient-to-r from-stone-900 to-stone-800 text-white shadow-xl space-y-4">
+            {p.badge && (
+              <span className="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold uppercase">
+                {String(p.badge)}
+              </span>
+            )}
+            <h3 className="text-2xl sm:text-3xl font-black">{String(p.heading)}</h3>
+            <p className="text-stone-300 text-sm">{String(p.subtext)}</p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button className="px-6 py-3 bg-[#25D366] text-white font-bold rounded-xl text-xs flex items-center gap-2">
+                <span>💬</span>
+                <span>{String(p.primaryText || "Order on WhatsApp")}</span>
+              </button>
+              <button className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs border border-white/20">
+                {String(p.secondaryText || "Explore Catalog")}
+              </button>
+            </div>
+          </div>
+        )
+      case "custom-form":
+        return (
+          <div className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4 max-w-xl mx-auto shadow-xs">
+            <h4 className="font-black text-stone-900 text-lg">{String(p.heading || "Custom Inquiry Form")}</h4>
+            <div className="space-y-3">
+              {String(p.fields || "Full Name,WhatsApp Phone,Email,Notes").split(",").map((f, i) => (
+                <div key={i} className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700">{f.trim()}</label>
+                  <input className="w-full text-xs p-2 rounded-lg border border-stone-200 bg-stone-50" placeholder={`Enter ${f.trim()}...`} readOnly />
+                </div>
+              ))}
+              <button className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">{String(p.submitText || "Submit Inquiry")}</button>
+            </div>
+          </div>
+        )
+      case "logo-marquee":
+        return (
+          <div className="py-4 space-y-2 text-center">
+            <p className="text-xs uppercase tracking-widest font-bold text-stone-400">Trusted By Leading Brands</p>
+            <div className="flex flex-wrap justify-center items-center gap-4 py-2">
+              {String(p.logos || "Brand A|Brand B|Brand C|Brand D").split("|").map((l, i) => (
+                <span key={i} className="px-4 py-2 bg-stone-100 rounded-lg text-xs font-bold text-stone-600 border border-stone-200">
+                  {l.trim()}
+                </span>
+              ))}
+            </div>
+          </div>
+        )
       case "cart-button":
         return (
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white font-bold text-xs shadow" style={{ backgroundColor: String(p.bgColor || "#10B981") }}>
@@ -845,8 +987,57 @@ function PropsPanel({ el, onChange }: { el: BuilderElement | null; onChange: (id
         </>)
       case "product-grid":
         return (<>
-          <SelectField k="columns" label="Columns" options={[{ value: "2", label: "2 Columns" }, { value: "3", label: "3 Columns" }, { value: "4", label: "4 Columns" }]} />
+          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-700">Responsive Grid Layout</p>
+            <SelectField k="colsDesktop" label="🖥️ Desktop: Products per Row" options={[{ value: "1", label: "1 in row" }, { value: "2", label: "2 in row" }, { value: "3", label: "3 in row" }, { value: "4", label: "4 in row" }, { value: "5", label: "5 in row" }, { value: "6", label: "6 in row" }]} />
+            <SelectField k="colsTablet" label="💻 Tablet: Products per Row" options={[{ value: "1", label: "1 in row" }, { value: "2", label: "2 in row" }, { value: "3", label: "3 in row" }, { value: "4", label: "4 in row" }]} />
+            <SelectField k="colsMobile" label="📱 Mobile: Products per Row" options={[{ value: "1", label: "1 in row (Single column)" }, { value: "2", label: "2 in row (Compact dual)" }]} />
+          </div>
           <Field k="category" label="Category Filter (Optional)" />
+        </>)
+      case "product-carousel":
+        return (<>
+          <Field k="heading" label="Section Heading" />
+          <Field k="subtext" label="Subtext" />
+          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-700">Responsive Carousel View</p>
+            <SelectField k="colsDesktop" label="🖥️ Desktop: Items Visible" options={[{ value: "2", label: "2 Items" }, { value: "3", label: "3 Items" }, { value: "4", label: "4 Items" }, { value: "5", label: "5 Items" }, { value: "6", label: "6 Items" }]} />
+            <SelectField k="colsTablet" label="💻 Tablet: Items Visible" options={[{ value: "1", label: "1 Item" }, { value: "2", label: "2 Items" }, { value: "3", label: "3 Items" }]} />
+            <SelectField k="colsMobile" label="📱 Mobile: Items Visible" options={[{ value: "1", label: "1 Item (Full swipe)" }, { value: "2", label: "2 Items (Dual)" }]} />
+          </div>
+          <Field k="category" label="Category Filter (Optional)" />
+        </>)
+      case "image-carousel":
+        return (<>
+          <Field k="slides" label="Slide Image URLs (Pipe separated)" type="textarea" />
+          <Field k="height" label="Slider Height (px)" />
+        </>)
+      case "cta-multi":
+        return (<>
+          <Field k="badge" label="Top Badge Text" />
+          <Field k="heading" label="Heading" />
+          <Field k="subtext" label="Subtext" type="textarea" />
+          <Field k="primaryText" label="Primary Action Text (WhatsApp)" />
+          <Field k="secondaryText" label="Secondary Action Text" />
+        </>)
+      case "custom-form":
+        return (<>
+          <Field k="heading" label="Form Heading" />
+          <Field k="submitText" label="Button Text" />
+          <Field k="fields" label="Field Labels (Comma separated)" />
+        </>)
+      case "logo-marquee":
+        return (<>
+          <Field k="logos" label="Brand Names (Pipe separated)" type="textarea" />
+          <SelectField k="colsDesktop" label="🖥️ Desktop: Logos per Row" options={[{ value: "3", label: "3 Logos" }, { value: "4", label: "4 Logos" }, { value: "5", label: "5 Logos" }, { value: "6", label: "6 Logos" }]} />
+          <SelectField k="colsTablet" label="💻 Tablet: Logos per Row" options={[{ value: "2", label: "2 Logos" }, { value: "3", label: "3 Logos" }, { value: "4", label: "4 Logos" }]} />
+          <SelectField k="colsMobile" label="📱 Mobile: Logos per Row" options={[{ value: "1", label: "1 Logo" }, { value: "2", label: "2 Logos" }, { value: "3", label: "3 Logos" }]} />
+        </>)
+      case "before-after":
+        return (<>
+          <Field k="heading" label="Heading" />
+          <Field k="beforeLabel" label="Before Label" />
+          <Field k="afterLabel" label="After Label" />
         </>)
       case "cart-button":
         return (<>
@@ -1051,6 +1242,45 @@ export default function WebsiteBuilderView() {
     setElements(historyStack[historyIdx + 1])
   }
 
+  // ── AI Website Builder state & generator
+  const [aiModalOpen, setAiModalOpen] = useState(false)
+  const [aiBusinessName, setAiBusinessName] = useState("")
+  const [aiIndustry, setAiIndustry] = useState("ecommerce")
+  const [aiStyle, setAiStyle] = useState("emerald-luxury")
+  const [aiPrompt, setAiPrompt] = useState("")
+  const [aiGenerating, setAiGenerating] = useState(false)
+
+  const generateWithAi = async () => {
+    setAiGenerating(true)
+    try {
+      const res = await fetch("/api/website-builder/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: aiBusinessName.trim() || (tenantSlug ? tenantSlug.replace(/-/g, " ") : "Premium Brand"),
+          industry: aiIndustry,
+          style: aiStyle,
+          prompt: aiPrompt.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Generation failed")
+      if (Array.isArray(data.elements) && data.elements.length > 0) {
+        setElements(data.elements)
+        pushHistory(data.elements)
+        localStorage.setItem("wb_elements", JSON.stringify(data.elements))
+        toast.success(`✨ AI Website generated! (${data.elements.length} elements)`)
+        setAiModalOpen(false)
+      } else {
+        toast.error("No elements returned by AI generator")
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate website")
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   // ── Add element at position
   const addElement = (type: ElementType, afterId?: string) => {
     const def = ELEMENT_DEFS.find(d => d.type === type)!
@@ -1222,6 +1452,14 @@ export default function WebsiteBuilderView() {
               </a>
             )}
             <span className="text-xs text-stone-400">{elements.length} element{elements.length !== 1 ? "s" : ""}</span>
+            <Button
+              onClick={() => setAiModalOpen(true)}
+              size="sm"
+              className="h-8 px-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+              <span>AI Builder</span>
+            </Button>
             <Button onClick={save} disabled={saving || publishing} size="sm" className="h-8 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold gap-1.5 cursor-pointer">
               <Save className="h-3.5 w-3.5" />
               {saving ? "Saving…" : "Save Draft"}
@@ -1244,9 +1482,23 @@ export default function WebsiteBuilderView() {
                 onDragLeave={() => setDragOver(null)}
                 onDrop={e => handleCanvasDrop(e)}
               >
-                <Layers className="h-12 w-12 text-stone-300 mb-4" />
-                <h3 className="text-xl font-bold text-stone-900 mb-2">Start building your website</h3>
-                <p className="text-sm text-stone-500 mb-6 max-w-sm">Drag elements from the left panel, or click any element to add it to your page.</p>
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/10 to-indigo-500/20 flex items-center justify-center mb-4">
+                  <Sparkles className="h-7 w-7 text-violet-600" />
+                </div>
+                <h3 className="text-xl font-bold text-stone-900 mb-2">Build your website with AI or manually</h3>
+                <p className="text-sm text-stone-500 mb-6 max-w-sm">Generate a complete high-converting storefront in seconds, or drag elements from the left panel.</p>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+                  <button
+                    onClick={() => setAiModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4 text-amber-300" />
+                    <span>Generate with AI</span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-stone-400 font-semibold uppercase tracking-wider mb-3">Or quick-start with an element:</p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {["hero-banner", "feature-box", "testimonial", "contact-form", "product-card"].map(t => {
                     const def = ELEMENT_DEFS.find(d => d.type === t as ElementType)!
@@ -1336,6 +1588,140 @@ export default function WebsiteBuilderView() {
           <PropsPanel el={selectedEl} onChange={updateProps} />
         </div>
       )}
+
+      {/* ── AI Website Builder Dialog ── */}
+      <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-extrabold text-stone-900">AI Website Builder</DialogTitle>
+                <DialogDescription className="text-xs text-stone-500">
+                  Generate a complete high-converting, mobile-responsive website tailored to your business in seconds.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Business Name */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Business or Brand Name</Label>
+              <Input
+                placeholder="e.g. Oman Adventures / Al-Bahr Cafe"
+                value={aiBusinessName}
+                onChange={e => setAiBusinessName(e.target.value)}
+                className="text-xs h-9"
+              />
+            </div>
+
+            {/* Industry Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Business Industry / Type</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { id: "ecommerce", label: "🛍️ E-Commerce", desc: "Products, cart & offers" },
+                  { id: "tours", label: "🐪 Tours & Tourism", desc: "Packages & excursions" },
+                  { id: "restaurant", label: "🍽️ Restaurant & Cafe", desc: "Menus & online orders" },
+                  { id: "services", label: "💼 Services & Agency", desc: "Consulting & quotes" },
+                  { id: "clinic", label: "🏥 Clinic & Health", desc: "Appointments & doctors" },
+                  { id: "realestate", label: "🏢 Real Estate", desc: "Properties & listings" },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setAiIndustry(item.id)}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      aiIndustry === item.id
+                        ? "border-violet-600 bg-violet-50/60 ring-2 ring-violet-500/20"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-stone-900">{item.label}</p>
+                    <p className="text-[10px] text-stone-500 mt-0.5">{item.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Theme & Palette */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Visual Theme & Style</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "emerald-luxury", label: "Emerald Luxury", desc: "Oman signature green & gold" },
+                  { id: "modern-clean", label: "Modern Slate", desc: "High contrast clean tech" },
+                  { id: "warm-sunset", label: "Warm Sunset", desc: "Amber & terracotta tones" },
+                  { id: "dark-minimal", label: "Dark Mode", desc: "Sleek premium dark theme" },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setAiStyle(item.id)}
+                    className={`p-2 rounded-lg border text-left transition cursor-pointer ${
+                      aiStyle === item.id
+                        ? "border-violet-600 bg-violet-50/60 ring-1 ring-violet-500"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-stone-800">{item.label}</p>
+                    <p className="text-[10px] text-stone-400">{item.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Prompt */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Custom Prompt or Special Requirements (Optional)</Label>
+              <Textarea
+                placeholder="e.g. Focus on desert safari camping in Wahiba Sands, 2-day beach tours, WhatsApp instant booking, and showcase customer reviews from Muscat..."
+                rows={3}
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                className="text-xs"
+              />
+              <p className="text-[10px] text-stone-400">Our AI synthesizer automatically constructs heroes, carousels, responsive product grids, testimonials, pricing, and WhatsApp checkout forms.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAiModalOpen(false)}
+              disabled={aiGenerating}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={generateWithAi}
+              disabled={aiGenerating}
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold text-xs gap-1.5 cursor-pointer shadow-sm"
+            >
+              {aiGenerating ? (
+                <>
+                  <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Synthesizing Website…</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  <span>Generate Website</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
