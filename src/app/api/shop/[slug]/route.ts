@@ -157,15 +157,17 @@ export const GET = withErrors(async (
     },
   })
 
+  const hasRestaurantContent = Boolean(
+    (restaurantData.categories && restaurantData.categories.length > 0) ||
+    (restaurantData.branches && restaurantData.branches.length > 0)
+  )
+
   const isRestaurant = Boolean(
     branding.business_type === "RESTAURANT" ||
     branding.site_type === "RESTAURANT" ||
     branding.industry === "restaurant" ||
-    hasRestaurantModule ||
-    isRestaurantPlan ||
     hasRestaurantAddon ||
-    (restaurantData.categories && restaurantData.categories.length > 0) ||
-    (restaurantData.branches && restaurantData.branches.length > 0)
+    (hasRestaurantContent && (hasRestaurantModule || isRestaurantPlan))
   )
 
   return NextResponse.json({
@@ -230,6 +232,9 @@ export const GET = withErrors(async (
       },
       closed: false,
     },
-    products: isRestaurant ? [] : products,
+    publishedWebsite: branding.website_published_json ? (() => {
+      try { return JSON.parse(branding.website_published_json) } catch { return null }
+    })() : null,
+    products: products,
   })
 })

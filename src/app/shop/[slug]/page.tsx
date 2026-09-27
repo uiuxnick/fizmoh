@@ -49,7 +49,8 @@ export default async function ShopSlugPage({ params }: { params: Promise<{ slug:
   const setting = await raw.systemSetting.findFirst({
     where: { tenantId: tenant.id, key: "business_type" }
   })
-  const isRestaurant = hasRestModule || branchesCount > 0 || categoriesCount > 0 || setting?.value === "RESTAURANT"
+  const hasRestContent = branchesCount > 0 || categoriesCount > 0
+  const isRestaurant = setting?.value === "RESTAURANT" || (hasRestContent && hasRestModule)
 
   return <CustomerSiteView slug={tenant.slug} initialIsRestaurant={isRestaurant} />
 }

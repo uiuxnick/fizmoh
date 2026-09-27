@@ -40,6 +40,7 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
 import RestaurantSiteView from "@/components/restaurant/restaurant-site-view"
+import { PublishedSiteRenderer } from "@/components/website-builder/published-site-renderer"
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CONSTANTS
@@ -4334,6 +4335,8 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
   })
   const [cartOpen, setCartOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [publishedWebsite, setPublishedWebsite] = useState<any[] | null>(null)
+  const [showPublished, setShowPublished] = useState(true)
 
   // i18n
   const t = useCallback((k: string) => T[lang][k] ?? T.EN[k] ?? k, [lang])
@@ -4385,6 +4388,20 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
       .then(r => r.json())
       .then(d => {
         setBrand(brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? ""))
+        if (d.publishedWebsite && Array.isArray(d.publishedWebsite) && d.publishedWebsite.length > 0) {
+          setPublishedWebsite(d.publishedWebsite)
+        } else if (d.branding?.website_published_json) {
+          try {
+            const parsed = JSON.parse(d.branding.website_published_json)
+            if (Array.isArray(parsed) && parsed.length > 0) setPublishedWebsite(parsed)
+          } catch {}
+        } else if (d.settings?.website_published_json) {
+          try {
+            const parsed = JSON.parse(d.settings.website_published_json)
+            if (Array.isArray(parsed) && parsed.length > 0) setPublishedWebsite(parsed)
+          } catch {}
+        }
+
         const isRest = !!(
           d.isRestaurant ||
           d.shop?.isRestaurant ||
@@ -4403,7 +4420,7 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
       .catch(() => {})
   }, [slug])
 
-  // If in dashboard and no slug passed, check if restaurant module is primary
+  // If in dashboard and no slug passed, check if restaurant module is primary and check website builder publish
   useEffect(() => {
     if (!slug) {
       fetch("/api/features")
@@ -4411,6 +4428,15 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
         .then(f => {
           if (f.restaurant) {
             setIsRestaurant(true)
+          }
+        })
+        .catch(() => {})
+
+      fetch("/api/website-builder/publish")
+        .then(r => r.json())
+        .then(d => {
+          if (d.published && Array.isArray(d.elements) && d.elements.length > 0) {
+            setPublishedWebsite(d.elements)
           }
         })
         .catch(() => {})
@@ -4536,11 +4562,34 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
     return <RestaurantSiteView slug={slug} initialData={restaurantData} />
   }
 
+  // If workspace has published a custom drag-and-drop website, render it as primary homepage
+  if (publishedWebsite && publishedWebsite.length > 0 && showPublished && step === 0) {
+    return (
+      <PublishedSiteRenderer
+        elements={publishedWebsite}
+        products={tours}
+        brand={brand}
+        onSwitchToCatalog={() => setShowPublished(false)}
+      />
+    )
+  }
+
   // Render Tour Website
   return (
     <BrandContext.Provider value={brand}>
     <TooltipProvider delayDuration={200}>
       <div dir={isRTL ? "rtl" : "ltr"} className="min-h-screen flex flex-col bg-white text-stone-900">
+        {publishedWebsite && publishedWebsite.length > 0 && !showPublished && (
+          <div className="bg-emerald-950 text-emerald-200 text-xs py-2 px-4 flex items-center justify-between border-b border-emerald-900/60">
+            <span>🌟 Custom drag-and-drop website is live. Currently viewing classic catalog.</span>
+            <button
+              onClick={() => setShowPublished(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-md text-xs cursor-pointer transition"
+            >
+              View Custom Website →
+            </button>
+          </div>
+        )}
         <SiteHeader
           lang={lang} setLang={setLang} step={step} onNav={navigate}
           cartCount={cart.length} onOpenCart={() => setCartOpen(true)}

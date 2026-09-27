@@ -243,8 +243,11 @@ function ElementPreview({ el, selected, onClick }: { el: BuilderElement; selecte
         )
       case "product-card":
         return (
-          <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-            <div className="h-40 bg-stone-100 flex items-center justify-center"><ShoppingCart className="h-10 w-10 text-stone-300" /></div>
+          <div className="rounded-xl border border-stone-200 bg-white overflow-hidden max-w-sm">
+            <div className="h-40 bg-stone-100 flex items-center justify-center relative">
+              {p.image ? <img src={String(p.image)} alt={String(p.name)} className="w-full h-full object-cover" /> : <ShoppingCart className="h-10 w-10 text-stone-300" />}
+              {p.badge && <span className="absolute top-2 right-2 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{String(p.badge)}</span>}
+            </div>
             <div className="p-4">
               <h4 className="font-bold text-stone-900">{String(p.name)}</h4>
               <p className="text-xs text-stone-500 mt-1">{String(p.description)}</p>
@@ -253,6 +256,157 @@ function ElementPreview({ el, selected, onClick }: { el: BuilderElement; selecte
                 <button className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold">{String(p.buttonText)}</button>
               </div>
             </div>
+          </div>
+        )
+      case "product-grid": {
+        const cols = p.columns === "2" ? "grid-cols-2" : p.columns === "4" ? "grid-cols-4" : "grid-cols-3"
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-black text-stone-900 text-lg">Product Grid ({p.columns || "3"} Columns)</h4>
+              <span className="text-xs text-emerald-700 font-semibold">Store Catalog Active</span>
+            </div>
+            <div className={`grid ${cols} gap-3`}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-xl border border-stone-200 bg-white overflow-hidden p-3 space-y-2">
+                  <div className="h-28 bg-stone-100 rounded-lg flex items-center justify-center text-stone-400">
+                    <ShoppingCart className="h-6 w-6 opacity-40" />
+                  </div>
+                  <p className="font-bold text-xs text-stone-900">Featured Item #{i}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-emerald-700">OMR {(i * 15).toFixed(2)}</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Add to Cart</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+      case "cart-button":
+        return (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white font-bold text-xs shadow" style={{ backgroundColor: String(p.bgColor || "#10B981") }}>
+            <ShoppingCart className="h-3.5 w-3.5" />
+            <span>{String(p.text || "View Cart")}</span>
+            <span className="bg-white text-emerald-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">3</span>
+          </div>
+        )
+      case "checkout-form":
+        return (
+          <div className="p-6 rounded-2xl border border-stone-200 bg-white max-w-lg mx-auto space-y-3 shadow-xs">
+            <h4 className="font-black text-stone-900 text-base">{String(p.heading || "Complete Your Order")}</h4>
+            <div className="space-y-2">
+              <input className="w-full text-xs p-2 rounded-lg border border-stone-200" placeholder="Full Name" readOnly />
+              <input className="w-full text-xs p-2 rounded-lg border border-stone-200" placeholder="WhatsApp Phone (+968...)" readOnly />
+              <textarea className="w-full text-xs p-2 rounded-lg border border-stone-200" rows={2} placeholder="Delivery address or booking notes..." readOnly />
+              <button className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">{String(p.submitText || "Confirm Order on WhatsApp")}</button>
+            </div>
+          </div>
+        )
+      case "price-tag":
+        return (
+          <div className="inline-flex items-baseline gap-1 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+            <span className="text-xs text-stone-500 font-bold">{String(p.currency || "OMR")}</span>
+            <span className="text-2xl font-black text-emerald-800">{String(p.price || "49")}</span>
+            <span className="text-[11px] text-stone-400">{String(p.period || "/month")}</span>
+          </div>
+        )
+      case "promo-badge":
+        return (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black text-white shadow-xs" style={{ backgroundColor: String(p.color || "#DC2626") }}>
+            <span>🔥</span>
+            <span>{String(p.text || "50% OFF LIMITED TIME")}</span>
+          </span>
+        )
+      case "gallery":
+        return (
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-24 bg-stone-100 rounded-lg border border-stone-200 flex items-center justify-center text-xs text-stone-400">
+                Gallery Image {i}
+              </div>
+            ))}
+          </div>
+        )
+      case "accordion":
+        return (
+          <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
+            <div className="p-3.5 flex justify-between items-center bg-stone-50 font-bold text-xs text-stone-800">
+              <span>{String(p.question || "Accordion Question")}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+            </div>
+            <div className="p-3 text-xs text-stone-600 border-t border-stone-100">{String(p.answer || "Accordion details here.")}</div>
+          </div>
+        )
+      case "tabs":
+        return (
+          <div className="space-y-2">
+            <div className="flex border-b border-stone-200 gap-2">
+              {String(p.tabs || "Tab 1|Tab 2|Tab 3").split("|").map((t, idx) => (
+                <span key={idx} className={`pb-1.5 px-2 text-xs font-bold border-b-2 ${idx === 0 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400"}`}>
+                  {t}
+                </span>
+              ))}
+            </div>
+            <div className="p-3 bg-stone-50 rounded-lg text-xs text-stone-500">Active Tab Content Panel</div>
+          </div>
+        )
+      case "breadcrumb":
+        return (
+          <div className="flex items-center gap-1.5 text-xs text-stone-500">
+            <span>Home</span>
+            <ChevronRight className="h-3 w-3 text-stone-400" />
+            <span>Store</span>
+            <ChevronRight className="h-3 w-3 text-stone-400" />
+            <span className="font-bold text-stone-800">Products</span>
+          </div>
+        )
+      case "card":
+        return (
+          <div className="p-5 rounded-2xl border border-stone-200 bg-white shadow-xs space-y-2">
+            <h5 className="font-bold text-sm text-stone-900">Card Container</h5>
+            <p className="text-xs text-stone-500">Flexible card element for structured content, banners, and offers.</p>
+          </div>
+        )
+      case "container":
+        return (
+          <div className="p-6 rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/50 text-center">
+            <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Section Container ({p.maxWidth || "1100"}px)</p>
+          </div>
+        )
+      case "customer-count":
+        return (
+          <div className="inline-flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-stone-200 shadow-xs">
+            <Users className="h-5 w-5 text-emerald-600" />
+            <div>
+              <p className="font-black text-sm text-stone-900">{String(p.count || "10,000+")}</p>
+              <p className="text-[10px] text-stone-500">{String(p.label || "Happy Customers")}</p>
+            </div>
+          </div>
+        )
+      case "input-field":
+      case "textarea-field":
+        return (
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-stone-700 block">{String(p.label || "Input Label")}</label>
+            <input className="w-full text-xs p-2 rounded-lg border border-stone-200 bg-white" placeholder={String(p.placeholder || "Enter text...")} readOnly />
+          </div>
+        )
+      case "select-field":
+        return (
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-stone-700 block">{String(p.label || "Select Option")}</label>
+            <div className="w-full text-xs p-2 rounded-lg border border-stone-200 bg-white flex justify-between items-center text-stone-500">
+              <span>{String(p.options || "Option 1, Option 2").split(",")[0]}</span>
+              <ChevronDown className="h-3 w-3" />
+            </div>
+          </div>
+        )
+      case "checkbox":
+        return (
+          <div className="flex items-center gap-2">
+            <input type="checkbox" defaultChecked className="rounded border-stone-300 text-emerald-600" readOnly />
+            <span className="text-xs text-stone-700 font-medium">{String(p.label || "I agree to terms and conditions")}</span>
           </div>
         )
       case "pricing-table":
@@ -689,6 +843,65 @@ function PropsPanel({ el, onChange }: { el: BuilderElement | null; onChange: (id
           <Field k="count" label="Count" />
           <Field k="label" label="Label" />
         </>)
+      case "product-grid":
+        return (<>
+          <SelectField k="columns" label="Columns" options={[{ value: "2", label: "2 Columns" }, { value: "3", label: "3 Columns" }, { value: "4", label: "4 Columns" }]} />
+          <Field k="category" label="Category Filter (Optional)" />
+        </>)
+      case "cart-button":
+        return (<>
+          <Field k="text" label="Button Text" />
+          <ColorField k="bgColor" label="Button Color" />
+        </>)
+      case "checkout-form":
+        return (<>
+          <Field k="heading" label="Form Heading" />
+          <Field k="submitText" label="Submit Button Text" />
+          <Field k="currency" label="Currency" />
+        </>)
+      case "price-tag":
+        return (<>
+          <Field k="price" label="Price" />
+          <Field k="currency" label="Currency" />
+          <Field k="period" label="Billing Period (e.g. /mo)" />
+        </>)
+      case "promo-badge":
+        return (<>
+          <Field k="text" label="Badge Text" />
+          <ColorField k="color" label="Background Color" />
+        </>)
+      case "accordion":
+        return (<>
+          <Field k="question" label="Question" />
+          <Field k="answer" label="Answer" type="textarea" />
+        </>)
+      case "tabs":
+        return <Field k="tabs" label="Tab Titles (Pipe separated)" />
+      case "container":
+        return (<>
+          <Field k="maxWidth" label="Max Width (px)" />
+          <Field k="padding" label="Padding (px)" />
+          <ColorField k="bgColor" label="Background Color" />
+        </>)
+      case "card":
+        return (<>
+          <Field k="padding" label="Padding (px)" />
+          <ColorField k="bgColor" label="Background Color" />
+          <ColorField k="borderColor" label="Border Color" />
+        </>)
+      case "input-field":
+      case "textarea-field":
+        return (<>
+          <Field k="label" label="Input Label" />
+          <Field k="placeholder" label="Placeholder Text" />
+        </>)
+      case "select-field":
+        return (<>
+          <Field k="label" label="Select Label" />
+          <Field k="options" label="Options (Comma separated)" />
+        </>)
+      case "checkbox":
+        return <Field k="label" label="Checkbox Label" />
       default:
         return <p className="text-xs text-stone-400">No configurable properties for this element.</p>
     }
@@ -718,6 +931,95 @@ export default function WebsiteBuilderView() {
   const [previewMode, setPreviewMode] = useState(false)
   const [activeGroup, setActiveGroup] = useState("Text")
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishedAt, setPublishedAt] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [tenantSlug, setTenantSlug] = useState<string>("oman-adventures")
+
+  // ── Save draft to API (with localStorage fallback)
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch("/api/website-builder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements }),
+      })
+      if (!res.ok) throw new Error("API save failed")
+      // Mirror to localStorage for instant reload
+      localStorage.setItem("wb_elements", JSON.stringify(elements))
+      toast.success("Draft saved!")
+    } catch {
+      localStorage.setItem("wb_elements", JSON.stringify(elements))
+      toast.success("Draft saved locally")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Publish: promote draft → live
+  const publish = async () => {
+    setPublishing(true)
+    try {
+      // Save draft first
+      await fetch("/api/website-builder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements }),
+      })
+      // Then publish
+      const res = await fetch("/api/website-builder/publish", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Publish failed")
+      setPublishedAt(data.publishedAt)
+      toast.success("🎉 Website published! It's now live on your customer site.")
+    } catch (err: any) {
+      toast.error(err?.message || "Publish failed")
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  // ── Load from API on mount (localStorage as instant cache)
+  useEffect(() => {
+    // 1. Show local cache immediately so the canvas isn't blank
+    try {
+      const local = localStorage.getItem("wb_elements")
+      if (local) {
+        const parsed = JSON.parse(local) as BuilderElement[]
+        setElements(parsed)
+        setHistoryStack([parsed])
+      }
+    } catch {}
+
+    // 2. Fetch from API (authoritative)
+    fetch("/api/website-builder")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data.elements) && data.elements.length > 0) {
+          setElements(data.elements)
+          setHistoryStack([data.elements])
+          localStorage.setItem("wb_elements", JSON.stringify(data.elements))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true))
+
+    // 3. Check publish status
+    fetch("/api/website-builder/publish")
+      .then(r => r.json())
+      .then(d => { if (d.publishedAt) setPublishedAt(d.publishedAt) })
+      .catch(() => {})
+
+    // 4. Fetch tenant info
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(d => {
+        if (d.tenant_slug || d.slug) setTenantSlug(d.tenant_slug || d.slug)
+      })
+      .catch(() => {})
+  }, [])
+
   const [dragOver, setDragOver] = useState<string | null>(null)
   const [dragType, setDragType] = useState<ElementType | null>(null)
   const [historyStack, setHistoryStack] = useState<BuilderElement[][]>([[]])
@@ -814,37 +1116,7 @@ export default function WebsiteBuilderView() {
     setDragOver(null)
   }
 
-  // ── Save
-  const save = async () => {
-    setSaving(true)
-    try {
-      const res = await fetch("/api/website-builder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ elements }),
-      })
-      if (!res.ok) throw new Error("Save failed")
-      toast.success("Website saved successfully!")
-    } catch {
-      // API not yet created — save to localStorage as fallback
-      localStorage.setItem("wb_elements", JSON.stringify(elements))
-      toast.success("Draft saved locally!")
-    } finally {
-      setSaving(false)
-    }
-  }
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("wb_elements")
-      if (saved) {
-        const parsed = JSON.parse(saved) as BuilderElement[]
-        setElements(parsed)
-        setHistoryStack([parsed])
-      }
-    } catch {}
-  }, [])
 
   const filteredDefs = ELEMENT_DEFS.filter(d =>
     (search ? d.label.toLowerCase().includes(search.toLowerCase()) || d.group.toLowerCase().includes(search.toLowerCase()) : d.group === activeGroup)
@@ -936,16 +1208,30 @@ export default function WebsiteBuilderView() {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
+            {publishedAt && (
+              <a
+                href={`/shop/${tenantSlug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold transition shadow-xs cursor-pointer mr-1"
+                title="Open live customer website in new tab"
+              >
+                <Globe className="h-3.5 w-3.5 text-emerald-600" />
+                <span>View Live Site</span>
+                <ExternalLink className="h-3 w-3 opacity-60" />
+              </a>
+            )}
             <span className="text-xs text-stone-400">{elements.length} element{elements.length !== 1 ? "s" : ""}</span>
-            <Button onClick={save} disabled={saving} size="sm" className="h-8 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold gap-1.5 cursor-pointer">
+            <Button onClick={save} disabled={saving || publishing} size="sm" className="h-8 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold gap-1.5 cursor-pointer">
               <Save className="h-3.5 w-3.5" />
               {saving ? "Saving…" : "Save Draft"}
             </Button>
-            <Button size="sm" className="h-8 px-3 bg-stone-900 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold gap-1.5 cursor-pointer">
+            <Button onClick={publish} disabled={publishing || saving || elements.length === 0} size="sm" className="h-8 px-3 bg-stone-900 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold gap-1.5 cursor-pointer">
               <Globe className="h-3.5 w-3.5" />
-              Publish
+              {publishing ? "Publishing…" : "Publish"}
             </Button>
           </div>
+
         </div>
 
         {/* Canvas Area */}
