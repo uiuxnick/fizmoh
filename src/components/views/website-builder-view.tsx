@@ -24,7 +24,7 @@ import {
   Upload, ExternalLink, ArrowRight, Undo2, Redo2, X, Palette,
   Bold, Italic, Underline, AlignRight, Timer, Users, Award,
   FileText, Zap, Heart, Share2, Clock, TrendingUp, Menu,
-  ChevronRight, Search, Download, Sliders, Grid, Play, PanelLeft,
+  ChevronRight, Search, Download, Sliders, Grid, Play, PanelLeft, RotateCcw,
 } from "lucide-react"
 
 // ─── Element Type Catalogue (50+ elements) ───────────────────────────────────
@@ -1171,6 +1171,22 @@ export default function WebsiteBuilderView() {
     }
   }
 
+  const unpublish = async () => {
+    if (!confirm("Are you sure you want to unpublish? Your storefront will immediately revert to the classic booking catalog.")) return
+    setPublishing(true)
+    try {
+      const res = await fetch("/api/website-builder/publish", { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Unpublish failed")
+      setPublishedAt(null)
+      toast.success("Website unpublished! Live storefront reverted to classic catalog.")
+    } catch (err: any) {
+      toast.error(err?.message || "Unpublish failed")
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   // ── Load from API on mount (localStorage as instant cache)
   useEffect(() => {
     // 1. Show local cache immediately so the canvas isn't blank
@@ -1276,6 +1292,67 @@ export default function WebsiteBuilderView() {
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to generate website")
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  // ── AI Copilot In-line Edits & Translation
+  const [aiChatPrompt, setAiChatPrompt] = useState("")
+
+  const handleAiCopilotEdit = async (customPrompt?: string) => {
+    const textToUse = (customPrompt || aiChatPrompt).trim()
+    if (!textToUse) return
+    setAiGenerating(true)
+    try {
+      const res = await fetch("/api/website-builder/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "edit",
+          prompt: textToUse,
+          currentElements: elements,
+          businessName: aiBusinessName.trim() || (tenantSlug ? tenantSlug.replace(/-/g, " ") : "Premium Store"),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Edit failed")
+      if (Array.isArray(data.elements) && data.elements.length > 0) {
+        setElements(data.elements)
+        pushHistory(data.elements)
+        localStorage.setItem("wb_elements", JSON.stringify(data.elements))
+        toast.success(`✨ ${data.summary || "Website updated by AI!"}`)
+        setAiChatPrompt("")
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update website with AI")
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const handleAiTranslateArabic = async () => {
+    setAiGenerating(true)
+    try {
+      const res = await fetch("/api/website-builder/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "translate_ar",
+          currentElements: elements,
+          businessName: aiBusinessName.trim() || (tenantSlug ? tenantSlug.replace(/-/g, " ") : "متجرنا"),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Translation failed")
+      if (Array.isArray(data.elements) && data.elements.length > 0) {
+        setElements(data.elements)
+        pushHistory(data.elements)
+        localStorage.setItem("wb_elements", JSON.stringify(data.elements))
+        toast.success("🌍 تم ترجمة الموقع وتفعيل العربية بنجاح!")
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to translate website")
     } finally {
       setAiGenerating(false)
     }
@@ -1438,18 +1515,39 @@ export default function WebsiteBuilderView() {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
-            {publishedAt && (
-              <a
-                href={`/shop/${tenantSlug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold transition shadow-xs cursor-pointer mr-1"
-                title="Open live customer website in new tab"
-              >
-                <Globe className="h-3.5 w-3.5 text-emerald-600" />
-                <span>View Live Site</span>
-                <ExternalLink className="h-3 w-3 opacity-60" />
-              </a>
+            {publishedAt ? (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-1 rounded-md border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live on Homepage
+                </span>
+                <a
+                  href={`/shop/${tenantSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-lg font-bold transition shadow-xs cursor-pointer"
+                  title="Open live customer website in new tab"
+                >
+                  <Globe className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>View Live</span>
+                  <ExternalLink className="h-3 w-3 opacity-60" />
+                </a>
+                <Button
+                  onClick={unpublish}
+                  disabled={publishing}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-2.5 text-xs font-semibold text-rose-700 hover:text-rose-800 border-rose-200 hover:bg-rose-50 gap-1 cursor-pointer"
+                  title="Revert live storefront back to classic catalog"
+                >
+                  <RotateCcw className="h-3 w-3 text-rose-500" />
+                  <span>Unpublish</span>
+                </Button>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-1 rounded-md border border-stone-200">
+                Classic Storefront Active
+              </span>
             )}
             <span className="text-xs text-stone-400">{elements.length} element{elements.length !== 1 ? "s" : ""}</span>
             <Button
@@ -1470,6 +1568,67 @@ export default function WebsiteBuilderView() {
             </Button>
           </div>
 
+        </div>
+
+        {/* ── AI Copilot Bar ── */}
+        <div className="bg-gradient-to-r from-violet-50/90 via-indigo-50/40 to-white border-b border-violet-100 px-4 py-2 flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 text-violet-700 font-bold text-xs shrink-0">
+            <Sparkles className="h-3.5 w-3.5 text-violet-600 animate-pulse" />
+            <span>AI Copilot:</span>
+          </div>
+          <div className="flex-1 relative">
+            <Input
+              value={aiChatPrompt}
+              onChange={e => setAiChatPrompt(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleAiCopilotEdit() }}
+              placeholder="e.g. Add a 20% sale banner, add customer reviews, change theme to luxury gold, add WhatsApp form..."
+              className="h-7.5 px-3 bg-white border-violet-200 text-xs placeholder:text-stone-400 focus-visible:ring-violet-500 shadow-2xs"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => handleAiCopilotEdit()}
+            disabled={aiGenerating || !aiChatPrompt.trim()}
+            className="h-7.5 px-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
+          >
+            {aiGenerating ? "Generating…" : "Apply with AI"}
+          </Button>
+
+          <div className="hidden lg:flex items-center gap-1.5 border-l border-violet-200 pl-2">
+            <button
+              type="button"
+              onClick={() => handleAiTranslateArabic()}
+              disabled={aiGenerating}
+              className="px-2 py-1 rounded bg-white hover:bg-violet-100 text-[11px] font-bold text-violet-700 border border-violet-200 transition cursor-pointer shadow-2xs"
+              title="Translate entire website to Arabic"
+            >
+              العربية 🌍
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAiCopilotEdit("Add 4 customer reviews with 5 star ratings and testimonials")}
+              disabled={aiGenerating}
+              className="px-2 py-1 rounded bg-white hover:bg-violet-100 text-[11px] font-semibold text-stone-600 border border-stone-200 transition cursor-pointer shadow-2xs"
+            >
+              + Reviews ⭐
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAiCopilotEdit("Add a 25% discount flash sale countdown banner")}
+              disabled={aiGenerating}
+              className="px-2 py-1 rounded bg-white hover:bg-violet-100 text-[11px] font-semibold text-stone-600 border border-stone-200 transition cursor-pointer shadow-2xs"
+            >
+              + Flash Sale 🔥
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAiCopilotEdit("Add a custom WhatsApp booking form")}
+              disabled={aiGenerating}
+              className="px-2 py-1 rounded bg-white hover:bg-violet-100 text-[11px] font-semibold text-stone-600 border border-stone-200 transition cursor-pointer shadow-2xs"
+            >
+              + WhatsApp Form 💬
+            </button>
+          </div>
         </div>
 
         {/* Canvas Area */}

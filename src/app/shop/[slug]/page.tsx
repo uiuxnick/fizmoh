@@ -42,7 +42,6 @@ export default async function ShopSlugPage({ params }: { params: Promise<{ slug:
   const planModules: string[] = Array.isArray(subscription?.moduleSnapshot)
     ? (subscription.moduleSnapshot as string[])
     : (Array.isArray(subscription?.plan?.modules) ? (subscription.plan.modules as string[]) : [])
-
   const hasRestModule = planModules.includes("RESTAURANT") || planSlug.includes("rest") || planName.includes("rest")
   const branchesCount = await raw.restaurantBranch.count({ where: { tenantId: tenant.id } })
   const categoriesCount = await raw.menuCategory.count({ where: { tenantId: tenant.id } })
@@ -52,7 +51,33 @@ export default async function ShopSlugPage({ params }: { params: Promise<{ slug:
   const hasRestContent = branchesCount > 0 || categoriesCount > 0
   const isRestaurant = setting?.value === "RESTAURANT" || (hasRestContent && hasRestModule)
 
-  return <CustomerSiteView slug={tenant.slug} initialIsRestaurant={isRestaurant} />
+  const publishedSetting = await raw.systemSetting.findUnique({
+    where: { tenantId_key: { tenantId: tenant.id, key: "website_published_json" } },
+  })
+  let initialPublishedWebsite: any[] | null = null
+  if (publishedSetting?.value) {
+    try {
+      const parsed = JSON.parse(publishedSetting.value)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        initialPublishedWebsite = parsed
+      }
+    } catch {}
+  }
+
+  const tours = await raw.tour.findMany({
+    where: { tenantId: tenant.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  })
+
+  return (
+    <CustomerSiteView
+      slug={tenant.slug}
+      initialIsRestaurant={isRestaurant}
+      initialPublishedWebsite={initialPublishedWebsite}
+      initialTours={tours}
+    />
+  )
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {

@@ -69,7 +69,7 @@ export async function GET() {
     ["/", "Home", "What the platform does, with a live interactive demo"],
     ["/features", "Features", "Team inbox, bot builder, broadcasts, payments, bookings, commerce"],
     ["/pricing", "Pricing", "Plans, included modules, usage limits and add-ons, monthly or yearly"],
-    ["/whats-new", "What's New", "Release changelog and platform updates (v6.3: WooCommerce Plugin, Real-Time Abandoned Cart Recovery & Interactive Action Buttons)"],
+    ["/whats-new", "What's New", "Release changelog and platform updates (v6.5: AI Website Builder Studio, Generative Site Synthesis, Per-Device Responsive Carousels, Multi-CTA & Custom WhatsApp Forms)"],
     ["/docs", "Developer documentation", "REST API reference and operator manual"],
     ["/product/smart-menu-ordering", "Smart Menu & QR Dining", "Live Kitchen Display System (KDS), table QR ordering, waiter paging, and GPT-4o AI menu scanner"],
     ["/product/digital-vcard", "Smart Digital Business Cards", "10+ executive themes, video covers, dynamic QR codes, and 1-click vCard phone sync"],
@@ -97,9 +97,17 @@ export async function GET() {
     ["/compare/fizmoh-vs-wati", "Fizmoh vs WATI", "Comparison of WhatsApp Cloud API platforms in Oman & GCC, highlighting AmwalPay and 0% markup"],
     ["/compare/fizmoh-vs-interakt", "Fizmoh vs Interakt", "Why GCC businesses choose Fizmoh for local e-commerce, bilingual support and local payments"],
     ["/compare/fizmoh-vs-twilio", "Fizmoh vs Twilio", "Out-of-the-box no-code platform vs raw API requiring months of custom engineering"],
+    ["/compare/fizmoh-vs-respond-io", "Fizmoh vs Respond.io", "Unified inbox with native AmwalPay (OMR) in-chat payments vs overseas USD-only platform"],
+    ["/compare/fizmoh-vs-sleekflow", "Fizmoh vs SleekFlow", "Localized GCC conversational commerce vs generic international messaging suite"],
+    ["/compare/fizmoh-vs-gallabox", "Fizmoh vs Gallabox", "Zero markup WhatsApp Cloud API with native Gulf Arabic NLP vs offshore provider"],
     ["/locations/muscat", "WhatsApp Business Platform Muscat", "Enterprise WhatsApp solutions tailored for businesses in the Muscat Governorate"],
+    ["/locations/salalah", "WhatsApp Marketing & Booking Salalah", "Khareef tour reservations, hospitality guest messaging, and Dhofar business automation"],
+    ["/locations/sohar", "WhatsApp Business Platform Sohar", "Logistics dispatch queue, industrial supply notifications, and Al Batinah customer support"],
     ["/locations/dubai", "WhatsApp Business API Dubai", "High-speed conversational commerce and automation for UAE enterprises"],
     ["/locations/riyadh", "WhatsApp Business Platform Riyadh", "Saudi dialect AI chatbots, broadcast engine, and ZATCA compliance"],
+    ["/locations/doha", "WhatsApp Business API Doha", "High-delivery broadcast messaging and bilingual customer support across Qatar"],
+    ["/locations/kuwait-city", "WhatsApp Business Automation Kuwait City", "Automated order recovery and retail boutique commerce for Kuwait"],
+    ["/locations/manama", "WhatsApp Business Platform Manama", "Unified WhatsApp inbox and verified Meta Green Tick onboarding for Bahrain"],
     ["/book-demo", "Book a demo", "Live walkthrough over Google Meet"],
     ["/signup", "Free trial", "14 days, no credit card required"],
     ["/contact", "Contact", "Talk to the team"],
@@ -125,7 +133,8 @@ export async function GET() {
   lines.push("")
   lines.push("- Fizmoh is an official Meta WhatsApp Cloud API provider; it is not affiliated with, or endorsed by, WhatsApp or Meta beyond that provider relationship.")
   lines.push("- Pricing changes; quote it from the pricing page rather than from memory.")
-  lines.push(`- Full URL list: ${absoluteUrl("/sitemap.xml")}`)
+  lines.push(`- Detailed technical & architectural knowledge base: ${absoluteUrl("/llms-full.txt")}`)
+  lines.push(`- Full machine-readable URL list: ${absoluteUrl("/sitemap.xml")}`)
   lines.push("")
 
   return new Response(lines.join("\n"), {

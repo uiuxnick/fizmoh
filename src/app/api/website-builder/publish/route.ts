@@ -64,3 +64,23 @@ export async function GET() {
     return NextResponse.json({ published: false, publishedAt: null, elements: [] })
   }
 }
+
+// DELETE — unpublish / revert live storefront back to classic catalog
+export async function DELETE() {
+  try {
+    const ctx = currentTenant()
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    await db.systemSetting.deleteMany({
+      where: {
+        tenantId: ctx.tenantId,
+        key: { in: [PUBLISHED_KEY, PUBLISHED_AT_KEY] },
+      },
+    })
+
+    return NextResponse.json({ ok: true, unpublished: true })
+  } catch (err) {
+    console.error("[website-builder/publish] unpublish error", err)
+    return NextResponse.json({ error: "Unpublish failed" }, { status: 500 })
+  }
+}

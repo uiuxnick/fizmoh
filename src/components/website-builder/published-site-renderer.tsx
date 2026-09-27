@@ -1092,14 +1092,114 @@ export function PublishedSiteRenderer({
           </div>
         )
 
+      // ─── Layout & Navigation Elements ─────────────────────────
+      case "navbar":
+        return (
+          <nav key={el.id} className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs -mx-4 sm:-mx-6 -mt-6 mb-6">
+            <div className="flex items-center gap-3">
+              {brand.logoUrl ? (
+                <img src={brand.logoUrl} alt={String(p.logo || brand.name || "Logo")} className="h-8 w-auto object-contain rounded" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
+                  {String(p.logo || brand.name || "B")[0]}
+                </div>
+              )}
+              <span className="font-extrabold text-base text-stone-900 tracking-tight">
+                {String(p.logo || brand.name || "Official Store")}
+              </span>
+            </div>
+            <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-stone-600">
+              {String(p.links || "").split("|").map((l, i) => (
+                <span key={i} className="hover:text-emerald-700 transition cursor-pointer">{l.trim()}</span>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {onSwitchToCatalog && (
+                <button
+                  onClick={onSwitchToCatalog}
+                  className="text-xs font-semibold text-stone-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                >
+                  Classic Catalog
+                </button>
+              )}
+              {p.ctaText && (
+                <button
+                  onClick={() => openWhatsAppInquiry()}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow-xs"
+                >
+                  <WhatsAppIcon className="h-3.5 w-3.5 fill-white" />
+                  <span>{String(p.ctaText)}</span>
+                </button>
+              )}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
+                title="Open Cart"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </nav>
+        )
+
+      case "card":
+        return (
+          <div
+            key={el.id}
+            className="rounded-2xl p-6 border transition shadow-xs"
+            style={{
+              backgroundColor: String(p.bgColor || "#ffffff"),
+              borderColor: String(p.borderColor || "#E5E7EB"),
+              borderRadius: `${p.borderRadius || 16}px`,
+            }}
+          >
+            {p.title && <h4 className="font-bold text-lg text-stone-900 mb-1">{String(p.title)}</h4>}
+            {p.description && <p className="text-sm text-stone-600">{String(p.description)}</p>}
+          </div>
+        )
+
+      case "two-column":
+        return (
+          <div key={el.id} className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
+            <div className="p-5 rounded-xl bg-stone-50 border border-stone-200">
+              <h4 className="font-bold text-stone-900 mb-1">{String(p.leftHeading || "Feature One")}</h4>
+              <p className="text-sm text-stone-600">{String(p.leftText || "Discover our specialized offerings and personalized service.")}</p>
+            </div>
+            <div className="p-5 rounded-xl bg-stone-50 border border-stone-200">
+              <h4 className="font-bold text-stone-900 mb-1">{String(p.rightHeading || "Feature Two")}</h4>
+              <p className="text-sm text-stone-600">{String(p.rightText || "Instant booking confirmation and continuous support via WhatsApp.")}</p>
+            </div>
+          </div>
+        )
+
+      case "three-column":
+        return (
+          <div key={el.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 my-4">
+            {[1, 2, 3].map((col) => (
+              <div key={col} className="p-4 rounded-xl bg-stone-50 border border-stone-200">
+                <h4 className="font-bold text-stone-900 text-sm mb-1">{String(p[`col${col}Heading`] || `Highlight ${col}`)}</h4>
+                <p className="text-xs text-stone-600">{String(p[`col${col}Text`] || "Dedicated hospitality and authentic desert journeys.")}</p>
+              </div>
+            ))}
+          </div>
+        )
+
       default:
         return null
     }
   }
 
+  const hasNavbarElement = elements.some((e) => e.type === "navbar")
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 relative">
-      {/* Site Header */}
+      {/* Site Header - only shown if no custom navbar element was added */}
+      {!hasNavbarElement && (
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {brand.logoUrl ? (
@@ -1146,6 +1246,7 @@ export function PublishedSiteRenderer({
           </button>
         </div>
       </header>
+      )}
 
       {/* Main Drag-and-Drop Content Canvas */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-4">

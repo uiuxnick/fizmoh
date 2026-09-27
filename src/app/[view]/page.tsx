@@ -89,7 +89,34 @@ export default async function SegmentPage({ params }: { params: Promise<{ view: 
   const setting = await raw.systemSetting.findFirst({
     where: { tenantId: tenant.id, key: "business_type" }
   })
-  const isRestaurant = hasRestModule || branchesCount > 0 || categoriesCount > 0 || setting?.value === "RESTAURANT"
+  const hasRestContent = branchesCount > 0 || categoriesCount > 0
+  const isRestaurant = setting?.value === "RESTAURANT" || (hasRestContent && hasRestModule)
 
-  return <CustomerSiteView slug={tenant.slug} initialIsRestaurant={isRestaurant} />
+  const publishedSetting = await raw.systemSetting.findUnique({
+    where: { tenantId_key: { tenantId: tenant.id, key: "website_published_json" } },
+  })
+  let initialPublishedWebsite: any[] | null = null
+  if (publishedSetting?.value) {
+    try {
+      const parsed = JSON.parse(publishedSetting.value)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        initialPublishedWebsite = parsed
+      }
+    } catch {}
+  }
+
+  const tours = await raw.tour.findMany({
+    where: { tenantId: tenant.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  })
+
+  return (
+    <CustomerSiteView
+      slug={tenant.slug}
+      initialIsRestaurant={isRestaurant}
+      initialPublishedWebsite={initialPublishedWebsite}
+      initialTours={tours}
+    />
+  )
 }

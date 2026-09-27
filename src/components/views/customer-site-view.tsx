@@ -4303,7 +4303,17 @@ function CartSheet({ open, onOpenChange, cart, setCart, onNav, lang, t }: {
  * public at /shop/their-address. Absent inside the dashboard, where the
  * signed-in session already says which workspace is being looked at.
  */
-export default function CustomerSiteView({ slug, initialIsRestaurant = false }: { slug?: string; initialIsRestaurant?: boolean } = {}) {
+export default function CustomerSiteView({
+  slug,
+  initialIsRestaurant = false,
+  initialPublishedWebsite = null,
+  initialTours = [],
+}: {
+  slug?: string
+  initialIsRestaurant?: boolean
+  initialPublishedWebsite?: any[] | null
+  initialTours?: any[]
+} = {}) {
   const [isRestaurant, setIsRestaurant] = useState(initialIsRestaurant)
   const [restaurantData, setRestaurantData] = useState<any>(null)
   const [brand, setBrand] = useState<Brand>(FALLBACK_BRAND)
@@ -4322,8 +4332,8 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
   const [lang, setLang] = useState<Lang>(() => {
     try { const s = localStorage.getItem("oa-lang") as Lang | null; return s || "EN" } catch { return "EN" }
   })
-  const [tours, setTours] = useState<any[]>([])
-  const [loadingTours, setLoadingTours] = useState(true)
+  const [tours, setTours] = useState<any[]>(initialTours || [])
+  const [loadingTours, setLoadingTours] = useState(initialTours && initialTours.length > 0 ? false : true)
   const [selectedTourId, setSelectedTourIdLocal] = useState<string | null>(null)
   const [tour, setTour] = useState<any>(null)
   const [loadingTour, setLoadingTour] = useState(false)
@@ -4335,7 +4345,7 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
   })
   const [cartOpen, setCartOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [publishedWebsite, setPublishedWebsite] = useState<any[] | null>(null)
+  const [publishedWebsite, setPublishedWebsite] = useState<any[] | null>(initialPublishedWebsite)
   const [showPublished, setShowPublished] = useState(true)
 
   // i18n
