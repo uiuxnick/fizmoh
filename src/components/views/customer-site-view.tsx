@@ -4402,18 +4402,17 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
           } catch {}
         }
 
-        const isRest = !!(
-          d.isRestaurant ||
-          d.shop?.isRestaurant ||
-          (d.restaurant?.categories && d.restaurant.categories.length > 0) ||
-          (d.restaurant?.branches && d.restaurant.branches.length > 0) ||
-          d.settings?.business_type === "RESTAURANT" ||
-          d.settings?.site_type === "RESTAURANT" ||
-          d.branding?.business_type === "RESTAURANT" ||
-          d.branding?.site_type === "RESTAURANT"
-        )
+        const isRest = typeof d.isRestaurant === "boolean"
+          ? d.isRestaurant
+          : Boolean(
+              d.shop?.isRestaurant ||
+              d.settings?.business_type === "RESTAURANT" ||
+              d.settings?.site_type === "RESTAURANT" ||
+              d.branding?.business_type === "RESTAURANT" ||
+              d.branding?.site_type === "RESTAURANT"
+            )
+        setIsRestaurant(isRest)
         if (isRest) {
-          setIsRestaurant(true)
           setRestaurantData(d)
         }
       })
@@ -4557,11 +4556,6 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
 
   const handleTryWhatsapp = useCallback(() => navigate(10), [navigate])
 
-  // If workspace is a restaurant or has restaurant menu, render complete Restaurant Website & Digital Menu
-  if (isRestaurant) {
-    return <RestaurantSiteView slug={slug} initialData={restaurantData} />
-  }
-
   // If workspace has published a custom drag-and-drop website, render it as primary homepage
   if (publishedWebsite && publishedWebsite.length > 0 && showPublished && step === 0) {
     return (
@@ -4572,6 +4566,11 @@ export default function CustomerSiteView({ slug, initialIsRestaurant = false }: 
         onSwitchToCatalog={() => setShowPublished(false)}
       />
     )
+  }
+
+  // If workspace is a restaurant or has restaurant menu, render complete Restaurant Website & Digital Menu
+  if (isRestaurant) {
+    return <RestaurantSiteView slug={slug} initialData={restaurantData} />
   }
 
   // Render Tour Website
