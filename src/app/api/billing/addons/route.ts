@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { activeAddonsFor } from "@/lib/entitlements"
 import { startAddonCheckout } from "@/lib/billing"
+import { DEFAULT_ADDONS, ensureDefaultAddons } from "@/lib/addon-catalog"
 
 function canManage(role?: string) { return !role || ["OWNER", "SUPER_ADMIN", "MANAGER", "OPS_ADMIN"].includes(role) }
 
@@ -22,12 +23,19 @@ function resolveOrigin(request: NextRequest): string {
 export const GET = withErrors(async () => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace in scope" }, { status: 400 })
-  const [addons, available, gateways] = await Promise.all([
+  const count = await db.planAddon.count()
+  if (count < DEFAULT_ADDONS.length) {
+    await ensureDefaultAddons().catch(err => console.error("[addons] sync failed:", err))
+  }
+  const { getTenantEntitledModules, getTenantDisabledModules } = await import("@/lib/entitlements")
+  const [addons, available, gateways, entitledModules, disabledModules] = await Promise.all([
     activeAddonsFor(tenant.tenantId),
     db.planAddon.findMany({ where: { isPublic: true }, orderBy: { sortOrder: "asc" } }),
     import("@/lib/billing").then(m => m.availablePlatformGateways()),
+    getTenantEntitledModules(tenant.tenantId),
+    getTenantDisabledModules(tenant.tenantId),
   ])
-  return NextResponse.json({ addons, available, gateways })
+  return NextResponse.json({ addons, available, gateways, entitledModules, disabledModules })
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
@@ -67,6 +75,13 @@ export const DELETE = withErrors(async (request: NextRequest) => {
   const addon = await db.planAddon.findUnique({ where: { slug } })
   if (!addon) return NextResponse.json({ error: "Add-on not found" }, { status: 404 })
   const assignment = await db.tenantAddon.updateMany({ where: { tenantId: tenant.tenantId, addonId: addon.id }, data: { status: "CANCELLED" } })
+  
+  // When an add-on is cancelled/turned off, also disable its module for this workspace so sidebar drops it
+  if (addon.module) {
+    const { setTenantModuleEnabled } = await import("@/lib/entitlements")
+    await setTenantModuleEnabled(tenant.tenantId, addon.module, false).catch(() => {})
+  }
+
   await db.platformAuditEvent.create({ data: { tenantId: tenant.tenantId, actorStaffId: tenant.staffId ?? null, action: "ADDON_CANCELLED", entity: "PlanAddon", entityId: addon.id, after: { slug } } })
-  return NextResponse.json({ cancelled: assignment.count })
+  return NextResponse.json({ cancelled: assignment.count, slug, module: addon.module })
 })

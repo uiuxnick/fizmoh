@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import dynamic from "next/dynamic"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -17,8 +17,9 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target,
 } from "lucide-react"
+
 import { SessionGuard } from "@/components/session-guard"
 import { Brand } from "@/components/brand"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
@@ -73,7 +74,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "content" | "reports" | "digital_qr" | "digital_vcard" | "social_inbox" | "live_chat"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff"
   badge?: string
   accent?: string
   hash?: string
@@ -106,20 +107,21 @@ const NAV_ITEMS: NavItem[] = [
       { key: "rest-branches", label: "Branches", tab: "branches", emoji: "🏪", icon: Store, accent: "text-blue-400" },
     ],
   },
+  { key: "corporate", label: "Corporate Systems", icon: Building2, group: "Operations", feature: "corporate", badge: "Addon", accent: "text-sky-600" },
   { key: "bookings", label: "Bookings & Orders", icon: ShoppingBag, group: "Operations", feature: "tours" },
   { key: "calendar", label: "Booking Calendar", icon: CalendarDays, group: "Operations", feature: "tours" },
   { key: "appointments", label: "Appointments", icon: CalendarClock, group: "Operations", feature: "appointments" },
   { key: "hospital", label: "Hospital", icon: Building2, group: "Operations", feature: "hospital", accent: "text-blue-600" },
   { key: "visa", label: "Visa Assistance", icon: StampIcon, group: "Operations", feature: "visa" },
   { key: "payments", label: "Payment Verification", icon: CreditCard, group: "Operations", badge: "queue", feature: "payments" },
-  { key: "inbox", label: "WhatsApp Inbox", icon: WhatsAppIcon, group: "WhatsApp Commerce", accent: "text-emerald-600" },
+  { key: "inbox", label: "WhatsApp Inbox", icon: WhatsAppIcon, group: "WhatsApp Commerce", accent: "text-emerald-600", feature: "inbox" },
   { key: "catalog", label: "Catalog & Products", icon: ShoppingBag, group: "WhatsApp Commerce", accent: "text-purple-600", feature: "catalog" },
   { key: "woocommerce", label: "WooCommerce Store", icon: ShoppingBag, group: "WhatsApp Commerce", accent: "text-indigo-600", feature: "woocommerce" },
   { key: "ai-assistant", label: "AI Assistant", icon: Sparkles, group: "WhatsApp Commerce", accent: "text-amber-600", feature: "ai" },
   { key: "knowledge", label: "Knowledge Base", icon: BookOpen, group: "WhatsApp Commerce", feature: "knowledge" },
   { key: "bot-builder", label: "Bot & Automation", icon: Workflow, group: "WhatsApp Commerce", accent: "text-emerald-600", feature: "flows" },
-  { key: "whatsapp-numbers", label: "Numbers", icon: Smartphone, group: "WhatsApp Commerce" },
-  { key: "whatsapp-setup", label: "Setup & Guide", icon: ShieldCheck, group: "WhatsApp Commerce" },
+  { key: "whatsapp-numbers", label: "Numbers", icon: Smartphone, group: "WhatsApp Commerce", feature: "inbox" },
+  { key: "whatsapp-setup", label: "Setup & Guide", icon: ShieldCheck, group: "WhatsApp Commerce", feature: "inbox" },
   { key: "templates", label: "Templates", icon: FileText, group: "Marketing" },
   {
     key: "campaigns",
@@ -149,13 +151,13 @@ const NAV_ITEMS: NavItem[] = [
       { key: "sub-instagram", label: "Instagram", channel: "INSTAGRAM", icon: Instagram, accent: "text-[#E1306C]" },
     ],
   },
-  { key: "coupons", label: "Coupons & Promotions", icon: Ticket, group: "Marketing" },
+  { key: "coupons", label: "Coupons & Promotions", icon: Ticket, group: "Marketing", feature: "tours" },
   { key: "content", label: "Content Management", icon: Newspaper, group: "Marketing", feature: "content" },
   { key: "digital-qr", label: "Digital QR Addons", icon: QrCode, group: "Marketing", accent: "text-emerald-600", feature: "digital_qr" },
   { key: "digital-vcard", label: "Digital Business Card", icon: Contact2, group: "Marketing", accent: "text-cyan-500", feature: "digital_vcard" },
   { key: "live-chat", label: "Website Chat Widget", icon: MessageCircle, group: "Marketing", accent: "text-emerald-500", badge: "Addon", feature: "live_chat" },
-  { key: "customers", label: "Customers & CRM", icon: Users, group: "People" },
-  { key: "staff", label: "Staff & Roles", icon: UserCog, group: "People" },
+  { key: "customers", label: "Customers & CRM", icon: Users, group: "People", feature: "crm" },
+  { key: "staff", label: "Staff & Roles", icon: UserCog, group: "People", feature: "staff" },
   { key: "reports", label: "Reports & Analytics", icon: BarChart3, group: "Insights", feature: "reports" },
   { key: "settings", label: "Settings", icon: Settings, group: "Insights" },
   { key: "audit-logs", label: "Audit Logs", icon: History, group: "Insights" },
@@ -409,9 +411,64 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
     return "overview"
   })
 
-  useEffect(() => {
-    fetch("/api/features").then(r => r.json()).then(setFeatures).catch(() => {})
+  const refreshFeatures = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/features?_t=${Date.now()}`, { cache: "no-store" })
+      if (r.ok) {
+        const d = await r.json()
+        setFeatures(d)
+      }
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    refreshFeatures()
+    const handleUpdate = (e?: Event) => {
+      const customEvent = e as CustomEvent<{ module?: string; enabled?: boolean }>
+      if (customEvent?.detail?.module !== undefined && customEvent?.detail?.enabled !== undefined) {
+        const modKey = customEvent.detail.module.toLowerCase()
+        const enabled = customEvent.detail.enabled
+        setFeatures((prev) => {
+          if (!prev) return prev
+          const next = { ...prev }
+          if (modKey === "tours") next.tours = enabled
+          else if (modKey === "restaurant") next.restaurant = enabled
+          else if (modKey === "corporate") next.corporate = enabled
+          else if (modKey === "appointments") next.appointments = enabled
+          else if (modKey === "hospital") next.hospital = enabled
+          else if (modKey === "visa") next.visa = enabled
+          else if (modKey === "payments") next.payments = enabled
+          else if (modKey === "inbox") next.inbox = enabled
+          else if (modKey === "crm") next.crm = enabled
+          else if (modKey === "staff") next.staff = enabled
+          else if (modKey === "flows") next.flows = enabled
+          else if (modKey === "ai") next.ai = enabled
+          else if (modKey === "knowledge") next.knowledge = enabled
+          else if (modKey === "catalog") next.catalog = enabled
+          else if (modKey === "woocommerce") next.woocommerce = enabled
+          else if (modKey === "ecommerce") { next.ecommerce = enabled; next.woocommerce = enabled }
+          else if (modKey === "broadcast") next.broadcast = enabled
+          else if (modKey === "content") next.content = enabled
+          else if (modKey === "reports") next.reports = enabled
+          else if (modKey === "digital_qr" || modKey === "reputation") {
+            next.digital_qr = enabled
+            next.reputation = enabled
+          }
+          else if (modKey === "digital_vcard") next.digital_vcard = enabled
+          else if (modKey === "social_inbox") next.social_inbox = enabled
+          else if (modKey === "live_chat") next.live_chat = enabled
+          return next
+        })
+      }
+      refreshFeatures()
+    }
+    window.addEventListener("fizmoh:features-updated", handleUpdate)
+    window.addEventListener("focus", () => refreshFeatures())
+    return () => {
+      window.removeEventListener("fizmoh:features-updated", handleUpdate)
+      window.removeEventListener("focus", () => refreshFeatures())
+    }
+  }, [refreshFeatures])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -437,9 +494,19 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
   useEffect(() => {
     const f = async () => {
       try {
-        const [p, n] = await Promise.all([fetch("/api/payments?status=SUBMITTED"), fetch("/api/notifications?unreadOnly=true")])
+        // Inbox badge = WhatsApp conversations with unread messages waiting for staff.
+        // Notifications panel uses a separate bell icon; here we want the true
+        // "unread customer chats" count so agents know at a glance what needs attention.
+        const [p, c] = await Promise.all([
+          fetch("/api/payments?status=SUBMITTED"),
+          fetch("/api/conversations"),
+        ])
         if (p.ok) { const d = await p.json(); setPendingCount(d.payments?.length || 0) }
-        if (n.ok) { const d = await n.json(); setUnreadCount(d.notifications?.length || 0) }
+        if (c.ok) {
+          const d = await c.json()
+          const unread = (d.conversations || []).filter((cv: any) => (cv.unreadCount || 0) > 0).length
+          setUnreadCount(unread)
+        }
       } catch {}
     }
     f(); const i = setInterval(f, 15000); return () => clearInterval(i)
@@ -450,7 +517,9 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
     ? [
         { key: "platform" as ViewKey, label: "Command Center", icon: LayoutDashboard, group: "Overview", accent: "text-emerald-600", path: "/platform/command-center" },
         { key: "platform" as ViewKey, label: "All Workspaces", icon: Building2, group: "Tenants & Workspaces", accent: "text-teal-600", path: "/platform/tenants" },
+        { key: "platform" as ViewKey, label: "Marketing Intel", icon: Target, group: "Tenants & Workspaces", accent: "text-violet-500", path: "/platform/marketing" },
         { key: "platform" as ViewKey, label: "Website Demos & Leads", icon: Video, group: "Tenants & Workspaces", accent: "text-purple-600", path: "/platform/leads" },
+
         { key: "platform" as ViewKey, label: "Subscriptions & Billing", icon: CreditCard, group: "Billing & Revenue", accent: "text-indigo-600", path: "/platform/billing" },
         { key: "platform" as ViewKey, label: "Invoices & Dunning", icon: Receipt, group: "Billing & Revenue", accent: "text-blue-600", path: "/platform/invoices" },
         { key: "platform" as ViewKey, label: "Revenue Analytics", icon: BarChart3, group: "Billing & Revenue", accent: "text-emerald-600", path: "/platform/revenue" },
@@ -467,7 +536,25 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
       ]
     : NAV_ITEMS.filter(i => {
         if (i.key === "platform") return false
-        return !i.feature || features === null || features[i.feature]
+        if (features?.corporate) {
+          // Corporate Addon: No customer website and no unrelated addon dashboards
+          if (i.key === "customer-site") return false
+          if (i.key === "tours" || i.key === "bookings" || i.key === "calendar" || i.key === "coupons") return false
+          if (i.key === "restaurant" && !features?.restaurant) return false
+        }
+        if (i.key === "customer-site") {
+          if (!features) return false
+          if (!features.tours && !features.restaurant) return false
+        }
+        if (i.key === "templates") {
+          if (!features) return false
+          if (!features.flows && !features.broadcast) return false
+        }
+        if (i.feature) {
+          if (!features) return false
+          return Boolean(features[i.feature])
+        }
+        return true
       }).map(i => {
         if (i.key === "customer-site" && features?.restaurant) {
           return { ...i, label: "Restaurant Website", accent: "text-amber-400" }
@@ -732,9 +819,64 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
   const [profileOpen, setProfileOpen] = useState(false)
   const [features, setFeatures] = useState<Record<string, boolean> | null>(null)
 
-  useEffect(() => {
-    fetch("/api/features").then(r => r.json()).then(setFeatures).catch(() => {})
+  const refreshFeatures = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/features?_t=${Date.now()}`, { cache: "no-store" })
+      if (r.ok) {
+        const d = await r.json()
+        setFeatures(d)
+      }
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    refreshFeatures()
+    const handleUpdate = (e?: Event) => {
+      const customEvent = e as CustomEvent<{ module?: string; enabled?: boolean }>
+      if (customEvent?.detail?.module !== undefined && customEvent?.detail?.enabled !== undefined) {
+        const modKey = customEvent.detail.module.toLowerCase()
+        const enabled = customEvent.detail.enabled
+        setFeatures((prev) => {
+          if (!prev) return prev
+          const next = { ...prev }
+          if (modKey === "tours") next.tours = enabled
+          else if (modKey === "restaurant") next.restaurant = enabled
+          else if (modKey === "corporate") next.corporate = enabled
+          else if (modKey === "appointments") next.appointments = enabled
+          else if (modKey === "hospital") next.hospital = enabled
+          else if (modKey === "visa") next.visa = enabled
+          else if (modKey === "payments") next.payments = enabled
+          else if (modKey === "inbox") next.inbox = enabled
+          else if (modKey === "crm") next.crm = enabled
+          else if (modKey === "staff") next.staff = enabled
+          else if (modKey === "flows") next.flows = enabled
+          else if (modKey === "ai") next.ai = enabled
+          else if (modKey === "knowledge") next.knowledge = enabled
+          else if (modKey === "catalog") next.catalog = enabled
+          else if (modKey === "woocommerce") next.woocommerce = enabled
+          else if (modKey === "ecommerce") { next.ecommerce = enabled; next.woocommerce = enabled }
+          else if (modKey === "broadcast") next.broadcast = enabled
+          else if (modKey === "content") next.content = enabled
+          else if (modKey === "reports") next.reports = enabled
+          else if (modKey === "digital_qr" || modKey === "reputation") {
+            next.digital_qr = enabled
+            next.reputation = enabled
+          }
+          else if (modKey === "digital_vcard") next.digital_vcard = enabled
+          else if (modKey === "social_inbox") next.social_inbox = enabled
+          else if (modKey === "live_chat") next.live_chat = enabled
+          return next
+        })
+      }
+      refreshFeatures()
+    }
+    window.addEventListener("fizmoh:features-updated", handleUpdate)
+    window.addEventListener("focus", () => refreshFeatures())
+    return () => {
+      window.removeEventListener("fizmoh:features-updated", handleUpdate)
+      window.removeEventListener("focus", () => refreshFeatures())
+    }
+  }, [refreshFeatures])
 
   useEffect(() => {
     setNow(new Date())
@@ -755,13 +897,24 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
   const quickLinks: { key: ViewKey; label: string; icon: any; path: string }[] = isPlatform
     ? [
         { key: "platform", label: "Workspaces", icon: Building2, path: "/platform/tenants" },
+        { key: "platform", label: "Marketing Intel", icon: Target, path: "/platform/marketing" },
         { key: "platform", label: "Audit Logs", icon: History, path: "/platform/audit" },
         { key: "settings", label: "Platform Settings", icon: Settings, path: "/settings" },
       ]
+
     : QUICK_LINKS.map(link => {
-        if (link === "bookings" && features?.restaurant && !features?.tours) {
-          const restItem = NAV_ITEMS.find(i => i.key === "restaurant")
-          return restItem ? { key: restItem.key, label: "Menu", icon: restItem.icon, path: pathForView(restItem.key) } : null
+        if (link === "bookings") {
+          if (features?.corporate) {
+            const corpItem = NAV_ITEMS.find(i => i.key === "corporate")
+            return corpItem ? { key: corpItem.key, label: "Corporate", icon: corpItem.icon, path: pathForView(corpItem.key) } : null
+          }
+          if (features?.restaurant && !features?.tours) {
+            const restItem = NAV_ITEMS.find(i => i.key === "restaurant")
+            return restItem ? { key: restItem.key, label: "Menu", icon: restItem.icon, path: pathForView(restItem.key) } : null
+          }
+          if (features && !features?.tours) {
+            return null
+          }
         }
         const it = NAV_ITEMS.find(i => i.key === link)
         return it ? { key: it.key, label: it.label.split(" ")[0], icon: it.icon, path: pathForView(it.key) } : null

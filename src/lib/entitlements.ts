@@ -142,7 +142,8 @@ export function limitReached(limit: Limit, used?: number, cap?: number): Respons
 }
 
 /** Everything included in the plan a workspace is currently on. */
-export async function modulesFor(tenantId: string): Promise<Module[]> {
+/** What a tenant is entitled to have based on plan + addons, regardless of toggle state. */
+export async function getTenantEntitledModules(tenantId: string): Promise<Module[]> {
   const subscription = await db.subscription.findFirst({
     where: { tenantId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "PENDING_PAYMENT"] } },
     include: { plan: true },
@@ -161,6 +162,84 @@ export async function modulesFor(tenantId: string): Promise<Module[]> {
     if (moduleKey && !modules.includes(moduleKey)) modules.push(moduleKey)
   }
   return modules
+}
+
+/** Modules explicitly toggled OFF by the tenant for this workspace. */
+export async function getTenantDisabledModules(tenantId: string): Promise<string[]> {
+  try {
+    const row = await db.systemSetting.findUnique({
+      where: { tenantId_key: { tenantId, key: "disabled_modules" } },
+    })
+    if (!row?.value) return []
+    const parsed = JSON.parse(row.value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** Toggles a module on or off for this tenant. */
+export async function setTenantModuleEnabled(
+  tenantId: string,
+  moduleKey: string,
+  enabled: boolean,
+): Promise<{ success: boolean; error?: string; disabledModules: string[]; activeModules: Module[] }> {
+  const entitled = await getTenantEntitledModules(tenantId)
+  if (enabled && !entitled.includes(moduleKey as Module)) {
+    return {
+      success: false,
+      error: `Your subscription does not include the ${moduleKey} module. Upgrade your plan or purchase the add-on to activate it.`,
+      disabledModules: await getTenantDisabledModules(tenantId),
+      activeModules: await modulesFor(tenantId),
+    }
+  }
+
+  const currentDisabled = await getTenantDisabledModules(tenantId)
+  let updatedDisabled: string[]
+
+  // DIGITAL_QR and REPUTATION both govern the Google Review / QR Reputation surface in the app.
+  // When either is toggled, synchronize both so the sidebar item disappears/appears consistently.
+  const keysToUpdate = (moduleKey === "REPUTATION" || moduleKey === "DIGITAL_QR")
+    ? ["REPUTATION", "DIGITAL_QR"]
+    : [moduleKey]
+
+  if (enabled) {
+    // Remove from disabled list
+    updatedDisabled = currentDisabled.filter(m => !keysToUpdate.includes(m))
+  } else {
+    // Add to disabled list
+    updatedDisabled = Array.from(new Set([...currentDisabled, ...keysToUpdate]))
+  }
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId, key: "disabled_modules" } },
+    create: {
+      tenantId,
+      key: "disabled_modules",
+      value: JSON.stringify(updatedDisabled),
+      type: "JSON",
+      category: "GENERAL",
+    },
+    update: {
+      value: JSON.stringify(updatedDisabled),
+      type: "JSON",
+    },
+  })
+
+  const activeModules = entitled.filter(m => !updatedDisabled.includes(m))
+  return {
+    success: true,
+    disabledModules: updatedDisabled,
+    activeModules,
+  }
+}
+
+/** Everything currently active for a workspace (entitled minus toggled off). */
+export async function modulesFor(tenantId: string): Promise<Module[]> {
+  const entitled = await getTenantEntitledModules(tenantId)
+  const disabled = await getTenantDisabledModules(tenantId)
+  if (!disabled.length) return entitled
+  return entitled.filter(m => !disabled.includes(m))
 }
 
 export async function addonFor(tenantId: string, slug: string) {
