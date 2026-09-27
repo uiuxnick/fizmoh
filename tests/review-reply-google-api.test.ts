@@ -25,6 +25,7 @@ describe("raw review mapping — duplicate prevention depends on this", () => {
       reviewReply: { comment: "Thanks for visiting!" },
     })
     expect(mapped.alreadyReplied).toBe(true)
+    expect(mapped.replyComment).toBe("Thanks for visiting!")
   })
 
   test("a review with no reply yet is not flagged", () => {

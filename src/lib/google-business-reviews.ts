@@ -24,6 +24,7 @@ export interface RawGoogleReview {
   createTime: string
   updateTime: string | null
   alreadyReplied: boolean
+  replyComment?: string | null
 }
 
 export interface ApiFailure {
@@ -40,6 +41,7 @@ export function isPendingApproval(status: number): boolean {
 
 /** Pure mapping from Google's raw Review JSON to our shape — the seam duplicate-prevention actually depends on (`alreadyReplied`). */
 export function mapRawReview(r: Record<string, unknown>): RawGoogleReview {
+  const replyObj = r.reviewReply as { comment?: string } | undefined
   return {
     name: String(r.name),
     reviewId: String(r.reviewId || ""),
@@ -48,20 +50,24 @@ export function mapRawReview(r: Record<string, unknown>): RawGoogleReview {
     comment: (r.comment as string) || null,
     createTime: String(r.createTime),
     updateTime: (r.updateTime as string) || null,
-    alreadyReplied: Boolean((r.reviewReply as { comment?: string } | undefined)?.comment),
+    alreadyReplied: Boolean(replyObj?.comment),
+    replyComment: replyObj?.comment || null,
   }
 }
 
 async function failure(response: Response, context: string): Promise<ApiFailure> {
   const detail = await response.text().catch(() => "")
-  const pending = isPendingApproval(response.status)
+  const isServiceDisabled = response.status === 403 && detail.includes("SERVICE_DISABLED")
+  const pending = isPendingApproval(response.status) && !isServiceDisabled
   return {
     ok: false,
     status: response.status,
     pendingApproval: pending,
-    error: pending
-      ? "Google has not yet approved this platform's Business Profile API access request."
-      : `${context}: Google returned ${response.status}: ${detail.slice(0, 200)}`,
+    error: isServiceDisabled
+      ? "Google My Business API is not enabled yet in your Google Cloud Project. Please enable it in Google Cloud Console."
+      : pending
+        ? "Google has not yet approved this platform's Business Profile API access request."
+        : `${context}: Google returned ${response.status}: ${detail.slice(0, 200)}`,
   }
 }
 
@@ -76,11 +82,24 @@ export async function listLocationReviews(locationResourceName: string, pageToke
   const token = await businessAccessToken()
   if (!token) return { ok: false, status: 0, pendingApproval: false, error: "No connected Google account" }
 
+  let fullResourceName = locationResourceName
+  if (!fullResourceName.startsWith("accounts/")) {
+    const { currentTenant } = await import("@/lib/tenant")
+    const tenant = currentTenant()
+    if (tenant?.tenantId) {
+      const { db } = await import("@/lib/db")
+      const integration = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
+      if (integration?.googleAccountId) {
+        fullResourceName = `${integration.googleAccountId.replace(/\/$/, "")}/${locationResourceName.replace(/^\//, "")}`
+      }
+    }
+  }
+
   const params = new URLSearchParams({ pageSize: "50" })
   if (pageToken) params.set("pageToken", pageToken)
 
   try {
-    const response = await fetch(`${LEGACY_API}/${locationResourceName}/reviews?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+    const response = await fetch(`${LEGACY_API}/${fullResourceName}/reviews?${params}`, { headers: { Authorization: `Bearer ${token}` } })
     if (!response.ok) return await failure(response, "Listing reviews")
     const body = await response.json()
     const reviews: RawGoogleReview[] = (body.reviews || []).map(mapRawReview)
@@ -99,8 +118,21 @@ export async function publishReviewReply(reviewResourceName: string, comment: st
   const token = await businessAccessToken()
   if (!token) return { ok: false, status: 0, pendingApproval: false, error: "No connected Google account" }
 
+  let fullReviewName = reviewResourceName
+  if (!fullReviewName.startsWith("accounts/")) {
+    const { currentTenant } = await import("@/lib/tenant")
+    const tenant = currentTenant()
+    if (tenant?.tenantId) {
+      const { db } = await import("@/lib/db")
+      const integration = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
+      if (integration?.googleAccountId) {
+        fullReviewName = `${integration.googleAccountId.replace(/\/$/, "")}/${reviewResourceName.replace(/^\//, "")}`
+      }
+    }
+  }
+
   try {
-    const response = await fetch(`${LEGACY_API}/${reviewResourceName}/reply`, {
+    const response = await fetch(`${LEGACY_API}/${fullReviewName}/reply`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ comment }),

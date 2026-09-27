@@ -22,6 +22,7 @@ import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 import { listLocationReviews, publishReviewReply, isApiFailure } from "@/lib/google-business-reviews"
+import { listGoogleLocations } from "@/lib/google-business-sync"
 import { generateReply, detectEscalation, decideRoute, nextRetryDelayMinutes, type ReplyMode, type Tone, type ReplyLength } from "@/lib/review-reply-ai"
 import { computeScheduledFor } from "@/lib/review-reply-schedule"
 
@@ -41,14 +42,60 @@ async function loadSettings() {
   return db.reviewReplySettings.findUnique({ where: { tenantId: tenant.tenantId } })
 }
 
-/** Every distinct Google location this tenant has connected via a campaign — see CampaignGoogleLink. No separate "connected locations" concept exists or is needed. */
-async function connectedLocations(): Promise<string[]> {
+/**
+ * Returns distinct Google locations connected via campaigns or the tenant's Google Integration.
+ * If targetLocationId is provided, returns [targetLocationId].
+ */
+async function connectedLocations(targetLocationId?: string): Promise<string[]> {
+  if (targetLocationId) return [targetLocationId]
+
+  const locSet = new Set<string>()
+
+  // 1. Locations from QR campaigns
   const rows = await db.qrCampaign.findMany({
     where: { googleLocationId: { not: null } },
     select: { googleLocationId: true },
     distinct: ["googleLocationId"],
   })
-  return rows.map(r => r.googleLocationId).filter((v): v is string => Boolean(v))
+  for (const r of rows) {
+    if (r.googleLocationId) locSet.add(r.googleLocationId)
+  }
+
+  // 2. Also query all locations under the connected Google Business account
+  const tenant = currentTenant()
+  if (tenant?.tenantId) {
+    const integration = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
+    if (integration?.googleAccountId) {
+      const res = await listGoogleLocations(integration.googleAccountId)
+      if (res.ok && res.locations) {
+        for (const loc of res.locations) {
+          locSet.add(loc.id)
+        }
+      }
+    }
+  }
+
+  return Array.from(locSet)
+}
+
+interface ReviewReplySettingsLike {
+  enabled: boolean
+  mode: string
+  tone: string
+  customTone: string | null
+  replyLength: string
+  delayMode: string
+  delayMinutes: number | null
+  businessHoursStart: string | null
+  businessHoursEnd: string | null
+  timezone: string
+  autoPublishMinRating: number
+  requireApprovalBelow: number
+  escalationKeywords?: unknown
+  signature: string | null
+  languages?: unknown
+  excludedWords?: unknown
+  maxRepliesPerDay: number
 }
 
 async function ingestReviews(locationId: string): Promise<number> {
@@ -61,8 +108,16 @@ async function ingestReviews(locationId: string): Promise<number> {
       break
     }
     for (const raw of result.reviews) {
-      const existing = await db.googleReview.findUnique({ where: { googleReviewName: raw.name } })
-      if (existing) continue // already ingested — never duplicated, never re-created
+      const existing = await db.googleReview.findUnique({ where: { googleReviewName: raw.name }, include: { reply: true } })
+      if (existing) {
+        if (raw.alreadyReplied && raw.replyComment && existing.reply && !existing.reply.finalText) {
+          await db.replyLog.update({
+            where: { id: existing.reply.id },
+            data: { finalText: raw.replyComment },
+          })
+        }
+        continue // already ingested — never duplicated, never re-created
+      }
 
       const tenant = currentTenant()
       if (!tenant?.tenantId) break
@@ -85,6 +140,7 @@ async function ingestReviews(locationId: string): Promise<number> {
           reviewId: review.id,
           status: raw.alreadyReplied ? "SKIPPED" : "NEW",
           skipReason: raw.alreadyReplied ? "This review already has a reply on Google, made outside this platform." : null,
+          finalText: raw.alreadyReplied && raw.replyComment ? raw.replyComment : null,
         },
       })
       fetched++
@@ -101,7 +157,7 @@ async function publishedToday(): Promise<number> {
   return db.replyLog.count({ where: { status: "PUBLISHED", publishedAt: { gte: start, lt: end } } })
 }
 
-async function generateForNewReviews(settings: NonNullable<Awaited<ReturnType<typeof loadSettings>>>, businessName: string): Promise<{ generated: number; published: number; failed: number }> {
+async function generateForNewReviews(settings: ReviewReplySettingsLike, businessName: string): Promise<{ generated: number; published: number; failed: number }> {
   const pending = await db.replyLog.findMany({
     where: { status: "NEW" },
     include: { review: true },
@@ -235,20 +291,46 @@ async function publishDueApprovals(): Promise<{ published: number; failed: numbe
   return { published, failed }
 }
 
-/** The full per-tenant sweep — safe to call even for a tenant with auto-reply disabled (it just does nothing). */
-export async function runReviewAutoReplyForTenant(): Promise<SweepStats> {
+/** The full per-tenant sweep — fetches reviews, generates AI replies, and publishes/schedules per settings. */
+export async function runReviewAutoReplyForTenant(targetLocationId?: string): Promise<SweepStats> {
   const settings = await loadSettings()
-  if (!settings?.enabled) return { fetched: 0, generated: 0, published: 0, failed: 0, skipped: 0 }
 
   const tenant = currentTenant()
   const tenantRow = tenant?.tenantId ? await db.tenant.findUnique({ where: { id: tenant.tenantId }, select: { name: true } }) : null
 
   let fetched = 0
-  for (const locationId of await connectedLocations()) {
+  const locations = await connectedLocations(targetLocationId)
+  for (const locationId of locations) {
     fetched += await ingestReviews(locationId)
   }
 
-  const { generated, published: publishedNow, failed: failedNow } = await generateForNewReviews(settings, tenantRow?.name || "")
+  // If user explicitly disabled auto-reply in settings, reviews are fetched and shown, but we don't generate/publish
+  if (settings && !settings.enabled) {
+    return { fetched, generated: 0, published: 0, failed: 0, skipped: 0 }
+  }
+
+  // Safe fallback settings if tenant hasn't saved the settings form yet
+  const effectiveSettings: ReviewReplySettingsLike = settings ?? {
+    enabled: true,
+    mode: "MANUAL_APPROVAL",
+    tone: "professional",
+    customTone: null,
+    replyLength: "medium",
+    delayMode: "immediate",
+    delayMinutes: null,
+    businessHoursStart: "09:00",
+    businessHoursEnd: "18:00",
+    timezone: "Asia/Muscat",
+    autoPublishMinRating: 5,
+    requireApprovalBelow: 5, // Requires approval so nothing publishes automatically without human click
+    escalationKeywords: [],
+    signature: tenantRow?.name ? `— The ${tenantRow.name} Team` : null,
+    languages: ["en"],
+    excludedWords: [],
+    maxRepliesPerDay: 50,
+  }
+
+  const { generated, published: publishedNow, failed: failedNow } = await generateForNewReviews(effectiveSettings, tenantRow?.name || "")
   const dueApprovals = await publishDueApprovals()
   const retried = await retryDueFailures()
 
@@ -265,7 +347,7 @@ export async function runReviewAutoReplyForTenant(): Promise<SweepStats> {
 export async function approveAndPublish(replyLogId: string, staffId: string, textOverride?: string): Promise<{ ok: boolean; error?: string }> {
   const row = await db.replyLog.findUnique({ where: { id: replyLogId }, include: { review: true } })
   if (!row) return { ok: false, error: "No such reply" }
-  if (row.status === "PUBLISHED") return { ok: true } // already done — idempotent, not an error
+  if (row.status === "PUBLISHED" && !textOverride) return { ok: true } // already done — idempotent, not an error
 
   const text = textOverride?.trim() || row.finalText || row.generatedText
   if (!text) return { ok: false, error: "No reply text to publish" }

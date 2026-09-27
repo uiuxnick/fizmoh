@@ -28,7 +28,6 @@ export const PATCH = withErrors(withModule("DIGITAL_QR", async (
 
   const row = await db.replyLog.findUnique({ where: { id } })
   if (!row) return NextResponse.json({ error: "No such reply" }, { status: 404 })
-  if (row.status === "PUBLISHED") return NextResponse.json({ error: "This reply was already published and cannot be edited" }, { status: 409 })
 
   const body = await request.json().catch(() => ({}))
   const text = String(body?.text || "").trim().slice(0, 4000)

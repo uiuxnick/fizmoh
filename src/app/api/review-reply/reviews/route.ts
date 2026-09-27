@@ -11,6 +11,7 @@ export const GET = withErrors(withModule("DIGITAL_QR", async (request: NextReque
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
   const rating = searchParams.get("rating")
+  const locationId = searchParams.get("locationId")?.trim()
   const search = searchParams.get("search")?.trim()
   const page = Math.max(1, Number(searchParams.get("page")) || 1)
 
@@ -18,6 +19,10 @@ export const GET = withErrors(withModule("DIGITAL_QR", async (request: NextReque
   if (status && STATUSES.includes(status)) where.status = status
   const reviewWhere: Record<string, unknown> = {}
   if (rating && [1, 2, 3, 4, 5].includes(Number(rating))) reviewWhere.rating = Number(rating)
+  if (locationId) {
+    const locClean = locationId.replace(/^accounts\/[^\/]+\//, "")
+    reviewWhere.googleLocationId = { contains: locClean }
+  }
   if (search) reviewWhere.comment = { contains: search, mode: "insensitive" }
   if (Object.keys(reviewWhere).length) where.review = reviewWhere
 
@@ -40,6 +45,7 @@ export const GET = withErrors(withModule("DIGITAL_QR", async (request: NextReque
       reviewerName: r.review.reviewerName,
       comment: r.review.comment,
       createTime: r.review.createTime,
+      googleLocationId: r.review.googleLocationId,
       generatedText: r.generatedText,
       editedText: r.editedText,
       finalText: r.finalText,

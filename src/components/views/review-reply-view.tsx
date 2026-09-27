@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import {
   Loader2, Save, Sparkles, AlertTriangle, Check, RefreshCw, X, Pencil,
-  Star, Clock, TrendingUp,
+  Star, Clock, TrendingUp, Store, MessageSquare,
 } from "lucide-react"
 
 /**
@@ -49,6 +49,7 @@ export default function ReviewReplyView() {
 function SettingsTab() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [previewText, setPreviewText] = useState("Amazing service, the staff were so friendly and the food was great!")
   const [previewRating, setPreviewRating] = useState(5)
   const [previewResult, setPreviewResult] = useState<{ reply?: string; escalation?: { escalate: boolean; reason: string | null }; error?: string } | null>(null)
@@ -61,6 +62,22 @@ function SettingsTab() {
 
   function patch(p: Partial<Settings>) {
     setSettings(s => s ? { ...s, ...p } : s)
+  }
+
+  async function syncNow() {
+    setSyncing(true)
+    toast.info("Fetching latest reviews and running AI auto-reply...")
+    try {
+      const res = await fetch("/api/review-reply/sync", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Sync failed")
+      const s = data.stats || {}
+      toast.success(`Done! Fetched ${s.fetched || 0} reviews, generated ${s.generated || 0} AI replies, published ${s.published || 0}.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Sync failed")
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function save() {
@@ -216,9 +233,15 @@ function SettingsTab() {
           </CardContent>
         </Card>
 
-        <Button onClick={save} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save settings
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={save} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save settings
+          </Button>
+          <Button variant="outline" onClick={syncNow} disabled={syncing} className="gap-1.5 text-xs">
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sync &amp; Auto-Reply Now
+          </Button>
+        </div>
       </div>
 
       <Card className="h-fit">
@@ -247,9 +270,15 @@ function SettingsTab() {
 
 interface ReviewRow {
   id: string; status: string; rating: number; reviewerName: string | null; comment: string | null
-  createTime: string; generatedText: string | null; editedText: string | null; finalText: string | null
+  createTime: string; googleLocationId?: string; generatedText: string | null; editedText: string | null; finalText: string | null
   escalationReason: string | null; skipReason: string | null; failReason: string | null; retryCount: number
   publishedAt: string | null; alreadyRepliedOnGoogle: boolean
+}
+
+interface LocationOption {
+  id: string
+  name: string
+  address: string | null
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -259,6 +288,8 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 function InboxTab() {
+  const [locations, setLocations] = useState<LocationOption[]>([])
+  const [selectedLocation, setSelectedLocation] = useState("")
   const [status, setStatus] = useState("")
   const [rows, setRows] = useState<ReviewRow[] | null>(null)
   const [page, setPage] = useState(1)
@@ -266,13 +297,30 @@ function InboxTab() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [generatingAi, setGeneratingAi] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/google-business/locations")
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.locations)) {
+          setLocations(d.locations)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   function load() {
     const params = new URLSearchParams({ page: String(page) })
     if (status) params.set("status", status)
-    fetch(`/api/review-reply/reviews?${params}`).then(r => r.json()).then(d => { setRows(d.reviews || []); setTotalPages(d.totalPages || 1) })
+    if (selectedLocation) params.set("locationId", selectedLocation)
+    fetch(`/api/review-reply/reviews?${params}`).then(r => r.json()).then(d => {
+      setRows(d.reviews || [])
+      setTotalPages(d.totalPages || 1)
+    }).catch(() => setRows([]))
   }
-  useEffect(() => { load() }, [status, page])
+  useEffect(() => { load() }, [status, selectedLocation, page])
 
   async function act(id: string, action: "approve" | "retry" | "skip", text?: string) {
     setBusyId(id)
@@ -283,6 +331,7 @@ function InboxTab() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Action failed")
       toast.success(action === "approve" ? "Published to Google" : action === "retry" ? "Retried" : "Skipped")
+      setEditingId(null)
       load()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action failed")
@@ -299,7 +348,7 @@ function InboxTab() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Could not save edit")
-      toast.success("Reply updated")
+      toast.success("Reply saved as draft")
       setEditingId(null)
       load()
     } catch (e) {
@@ -309,72 +358,229 @@ function InboxTab() {
     }
   }
 
+  async function generateAiForReview(r: ReviewRow) {
+    setGeneratingAi(true)
+    try {
+      const res = await fetch("/api/review-reply/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reviewText: r.comment || "Great experience",
+          rating: r.rating || 5,
+        }),
+      })
+      const data = await res.json()
+      if (data.reply) {
+        setEditText(data.reply)
+        toast.success("AI draft generated")
+      } else {
+        toast.error(data.error || "Could not generate AI reply")
+      }
+    } catch {
+      toast.error("AI generation failed")
+    } finally {
+      setGeneratingAi(false)
+    }
+  }
+
+  async function syncNow() {
+    setSyncing(true)
+    const locObj = locations.find(l => l.id === selectedLocation)
+    const locLabel = locObj ? locObj.name : "all locations"
+    toast.info(`Fetching latest reviews for ${locLabel} and running AI auto-reply...`)
+    try {
+      const res = await fetch("/api/review-reply/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: selectedLocation || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Sync failed")
+      const s = data.stats || {}
+      toast.success(`Done! Fetched ${s.fetched || 0} reviews, generated ${s.generated || 0} AI replies, published ${s.published || 0}.`)
+      load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Sync failed")
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {["", "PENDING_APPROVAL", "ESCALATED", "DRAFT", "APPROVED", "PUBLISHED", "FAILED", "SKIPPED"].map(s => (
-          <Button key={s} size="sm" variant={status === s ? "default" : "outline"} className={status === s ? "bg-emerald-600 hover:bg-emerald-700" : ""} onClick={() => { setStatus(s); setPage(1) }}>
-            {s || "All"}
-          </Button>
-        ))}
+    <div className="space-y-4">
+      {/* Location Filter & Sync Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <Store className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="text-xs font-semibold text-stone-700 whitespace-nowrap">Google Profile:</span>
+          <select
+            value={selectedLocation}
+            onChange={e => { setSelectedLocation(e.target.value); setPage(1) }}
+            className="h-9 text-xs rounded-lg border border-stone-200 bg-white px-3 py-1 font-medium text-stone-800 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none flex-1 max-w-md truncate"
+          >
+            <option value="">All Connected Locations {locations.length ? `(${locations.length})` : ""}</option>
+            {locations.map(loc => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name} {loc.address ? `(${loc.address})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing} className="gap-1.5 text-xs h-9 shrink-0">
+          {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Sync &amp; Auto-Reply Now
+        </Button>
+      </div>
+
+      {/* Status Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {["", "PENDING_APPROVAL", "ESCALATED", "DRAFT", "APPROVED", "PUBLISHED", "FAILED", "SKIPPED"].map(s => (
+            <Button key={s} size="sm" variant={status === s ? "default" : "outline"} className={status === s ? "bg-emerald-600 hover:bg-emerald-700" : ""} onClick={() => { setStatus(s); setPage(1) }}>
+              {s || "All"}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {!rows ? <Skeleton className="h-64 rounded-xl" /> : rows.length === 0 ? (
         <p className="text-sm text-stone-500 py-10 text-center">No reviews here.</p>
       ) : (
-        <div className="space-y-2">
-          {rows.map(r => (
-            <Card key={r.id}>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-0.5 text-amber-500">
-                      {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400" : "text-stone-200"}`} />)}
-                    </span>
-                    <span className="text-xs text-stone-500">{r.reviewerName || "Anonymous"} · {new Date(r.createTime).toLocaleDateString()}</span>
-                  </div>
-                  <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[r.status] || ""}`}>{r.status.replace(/_/g, " ")}</Badge>
-                </div>
-
-                {r.comment && <p className="text-sm text-stone-700">{r.comment}</p>}
-                {(r.escalationReason || r.skipReason || r.failReason) && (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                    {r.escalationReason || r.skipReason || r.failReason}{r.retryCount ? ` · retried ${r.retryCount}x` : ""}
-                  </p>
-                )}
-
-                {editingId === r.id ? (
-                  <div className="space-y-1.5">
-                    <textarea value={editText} onChange={e => setEditText(e.target.value)} className="w-full text-sm border border-stone-200 rounded-lg p-2" rows={3} />
-                    <div className="flex gap-1.5">
-                      <Button size="sm" onClick={() => saveEdit(r.id)} disabled={busyId === r.id} className="bg-emerald-600 hover:bg-emerald-700"><Check className="h-3.5 w-3.5 mr-1" />Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}><X className="h-3.5 w-3.5 mr-1" />Cancel</Button>
+        <div className="space-y-3">
+          {rows.map(r => {
+            const locName = locations.find(l => l.id.includes(r.googleLocationId || "") || (r.googleLocationId || "").includes(l.id))?.name
+            return (
+              <Card key={r.id}>
+                <CardContent className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-0.5 text-amber-500">
+                        {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-amber-400" : "text-stone-200"}`} />)}
+                      </span>
+                      <span className="text-xs text-stone-600 font-medium">{r.reviewerName || "Anonymous"} · {new Date(r.createTime).toLocaleDateString()}</span>
+                      {locName && (
+                        <Badge variant="outline" className="text-[10px] text-stone-500 border-stone-200 bg-stone-50">
+                          {locName}
+                        </Badge>
+                      )}
                     </div>
+                    <Badge variant="outline" className={`text-[10px] ${STATUS_STYLE[r.status] || ""}`}>{r.status.replace(/_/g, " ")}</Badge>
                   </div>
-                ) : (
-                  (r.finalText || r.generatedText) && (
-                    <p className="text-sm bg-stone-50 border border-stone-200 rounded-lg p-2.5 whitespace-pre-wrap">{r.finalText || r.generatedText}</p>
-                  )
-                )}
 
-                {editingId !== r.id && !["PUBLISHED", "SKIPPED"].includes(r.status) && (r.finalText || r.generatedText) && (
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button size="sm" variant="outline" onClick={() => { setEditingId(r.id); setEditText(r.finalText || r.generatedText || "") }}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
-                    {r.status === "FAILED" ? (
-                      <Button size="sm" onClick={() => act(r.id, "retry")} disabled={busyId === r.id} className="bg-emerald-600 hover:bg-emerald-700"><RefreshCw className="h-3.5 w-3.5 mr-1" />Retry</Button>
-                    ) : (
-                      <Button size="sm" onClick={() => act(r.id, "approve")} disabled={busyId === r.id} className="bg-emerald-600 hover:bg-emerald-700">
-                        {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}Approve &amp; publish
+                  {r.comment ? (
+                    <p className="text-sm text-stone-700 whitespace-pre-wrap">{r.comment}</p>
+                  ) : (
+                    <p className="text-xs italic text-stone-400">(Customer left a star rating with no comment)</p>
+                  )}
+
+                  {(r.escalationReason || r.skipReason || r.failReason) && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      {r.escalationReason || r.skipReason || r.failReason}{r.retryCount ? ` · retried ${r.retryCount}x` : ""}
+                    </p>
+                  )}
+
+                  {editingId === r.id ? (
+                    <div className="space-y-2 pt-2 border-t border-stone-100">
+                      <div className="flex items-center justify-between text-xs text-stone-500">
+                        <span className="font-medium">Write or edit response:</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => generateAiForReview(r)}
+                          disabled={generatingAi}
+                          className="h-7 text-xs text-emerald-700 hover:text-emerald-800 gap-1"
+                        >
+                          {generatingAi ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          Generate with AI
+                        </Button>
+                      </div>
+                      <textarea
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        className="w-full text-sm border border-stone-200 rounded-lg p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        rows={3}
+                        placeholder="Write your custom reply to this customer..."
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          onClick={() => act(r.id, "approve", editText)}
+                          disabled={busyId === r.id || !editText.trim()}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-xs gap-1"
+                        >
+                          {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          Save &amp; Publish to Google
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => saveEdit(r.id)}
+                          disabled={busyId === r.id || !editText.trim()}
+                          className="text-xs"
+                        >
+                          Save Draft
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingId(null)}
+                          className="text-xs text-stone-500"
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" />Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    (r.finalText || r.generatedText) ? (
+                      <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 space-y-1">
+                        <div className="flex items-center justify-between text-[11px] font-medium text-stone-500">
+                          <span className="flex items-center gap-1 text-emerald-700">
+                            <MessageSquare className="h-3 w-3" />
+                            {r.status === "PUBLISHED" ? "Published Response on Google" : r.alreadyRepliedOnGoogle ? "Response on Google" : "AI Reply Draft"}
+                          </span>
+                          {r.publishedAt && <span>{new Date(r.publishedAt).toLocaleString()}</span>}
+                        </div>
+                        <p className="text-sm text-stone-800 whitespace-pre-wrap">{r.finalText || r.generatedText}</p>
+                      </div>
+                    ) : null
+                  )}
+
+                  {editingId !== r.id && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setEditingId(r.id); setEditText(r.finalText || r.generatedText || "") }}
+                        className="gap-1 text-xs"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        {(r.finalText || r.generatedText) ? (r.publishedAt || r.alreadyRepliedOnGoogle ? "Update Google Reply" : "Edit Reply") : "Write Manual Reply"}
                       </Button>
-                    )}
-                    <Button size="sm" variant="ghost" onClick={() => act(r.id, "skip")} disabled={busyId === r.id}>Skip</Button>
-                  </div>
-                )}
-                {r.publishedAt && <p className="text-[11px] text-stone-400">Published to Google {new Date(r.publishedAt).toLocaleString()}</p>}
-                {r.alreadyRepliedOnGoogle && <p className="text-[11px] text-stone-400">Already had a reply on Google before this platform saw it.</p>}
-              </CardContent>
-            </Card>
-          ))}
+                      {r.status === "FAILED" && (
+                        <Button size="sm" onClick={() => act(r.id, "retry")} disabled={busyId === r.id} className="bg-emerald-600 hover:bg-emerald-700 text-xs">
+                          <RefreshCw className="h-3.5 w-3.5 mr-1" />Retry
+                        </Button>
+                      )}
+                      {!["PUBLISHED", "SKIPPED", "FAILED"].includes(r.status) && (r.finalText || r.generatedText) && (
+                        <Button size="sm" onClick={() => act(r.id, "approve")} disabled={busyId === r.id} className="bg-emerald-600 hover:bg-emerald-700 text-xs">
+                          {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}
+                          Approve &amp; publish
+                        </Button>
+                      )}
+                      {!["PUBLISHED", "SKIPPED"].includes(r.status) && (
+                        <Button size="sm" variant="ghost" onClick={() => act(r.id, "skip")} disabled={busyId === r.id} className="text-xs text-stone-500">
+                          Skip
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {r.publishedAt && <p className="text-[11px] text-stone-400">Published to Google {new Date(r.publishedAt).toLocaleString()}</p>}
+                  {r.alreadyRepliedOnGoogle && !r.publishedAt && <p className="text-[11px] text-stone-400">Already had a reply on Google before this platform saw it.</p>}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
