@@ -395,8 +395,8 @@ export function SiteHeader() {
       href: "/whats-new",
       icon: Sparkles,
       color: "text-[#059669] bg-[#059669]/10",
-      badgeEn: "v6.3",
-      badgeAr: "v6.3",
+      badgeEn: "v6.5",
+      badgeAr: "v6.5",
     },
     {
       titleEn: "WooCommerce Plugin",
@@ -440,27 +440,28 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-stone-200/90 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-18 sm:h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" ref={dropdownRef}>
+      <div className="mx-auto flex h-20 w-full max-w-[1600px] 2xl:max-w-[1740px] items-center justify-between px-4 sm:px-8 lg:px-12" ref={dropdownRef}>
         {/* 1. Left: Brand Logo & Verified Partner Badge */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-3 xl:gap-4 shrink-0">
           <Brand size="md" className="text-[#1D1D1D] transition-transform hover:scale-[1.02]" />
+          <div className="hidden sm:block h-6 w-px bg-stone-200" />
           <div
-            className="hidden sm:inline-flex items-center rounded-xl bg-white border-2 border-emerald-600/30 px-2.5 py-1 shadow-xs ring-2 ring-emerald-500/10"
-            title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+            className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-white border border-emerald-600/35 px-3 py-1.5 shadow-2xs hover:border-emerald-600 transition"
+            title={isAr ? "شريك أعمال ميتا الرسمي المعتمد" : "Official Meta Business Partner"}
           >
             <Image
               src="/meta_business_partner.webp"
               alt="Official Meta Business Partner"
-              width={110}
-              height={32}
-              className="h-7 w-auto object-contain"
+              width={140}
+              height={36}
+              className="h-8 sm:h-8.5 w-auto object-contain"
               priority
             />
           </div>
         </div>
 
-        {/* 2. Center: BotSailor-Style Harmonious Nav Bar */}
-        <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+        {/* 2. Center: Professional Nav Bar */}
+        <nav className="hidden lg:flex items-center gap-1.5 xl:gap-2.5">
           {/* Platforms ▾ */}
           <div
             className="relative"
@@ -472,10 +473,10 @@ export function SiteHeader() {
               aria-expanded={activeDropdown === "platforms"}
               aria-controls="platforms-dropdown"
               onClick={() => toggleDropdown("platforms")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[14px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeDropdown === "platforms"
-                  ? "bg-stone-100 text-stone-900 font-bold"
-                  : "text-stone-700 hover:text-stone-950 hover:bg-stone-50"
+                  ? "bg-stone-100 text-stone-900 font-bold shadow-2xs"
+                  : "text-stone-700 hover:text-stone-950 hover:bg-stone-100/70"
               }`}
             >
               <span>{isAr ? "المنصات" : "Platforms"}</span>
@@ -532,7 +533,7 @@ export function SiteHeader() {
                       className="inline-flex items-center gap-1.5 font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>{isAr ? "ما الجديد في التحديث v6.3" : "Explore What's New in v6.3"}</span>
+                      <span>{isAr ? "ما الجديد في التحديث v6.5" : "Explore What's New in v6.5"}</span>
                     </Link>
                     <div className="flex items-center gap-3">
                       <a
@@ -561,18 +562,19 @@ export function SiteHeader() {
           {/* AI Agents (Direct Nav Item) */}
           <Link
             href="/product/botflow-studio"
-            className="px-3 py-1.5 rounded-lg text-[13.5px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-50 transition-colors whitespace-nowrap"
+            className="px-3.5 py-2 rounded-xl text-[14px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-100/70 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           >
-            {isAr ? "الوكلاء الأذكياء" : "AI Agents"}
+            <Sparkles className="h-3.5 w-3.5 text-purple-600" />
+            <span>{isAr ? "الوكلاء الأذكياء" : "AI Agents"}</span>
           </Link>
 
           {/* Templates (Direct Nav Item) */}
           <Link
             href="/templates"
-            className="px-3 py-1.5 rounded-lg text-[13.5px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-50 transition-colors whitespace-nowrap flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl text-[14px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-100/70 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer group"
           >
             <span>{isAr ? "القوالب" : "Templates"}</span>
-            <span className="hidden xl:inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+            <span className="px-2 py-0.5 rounded-full text-[10.5px] font-black bg-gradient-to-r from-amber-500 to-emerald-500 text-white shadow-2xs group-hover:scale-105 transition-transform">
               44+
             </span>
           </Link>
@@ -588,10 +590,10 @@ export function SiteHeader() {
               aria-expanded={activeDropdown === "industries"}
               aria-controls="industries-dropdown"
               onClick={() => toggleDropdown("industries")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13.5px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[14px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                 activeDropdown === "industries"
-                  ? "bg-stone-100 text-stone-900 font-bold"
-                  : "text-stone-700 hover:text-stone-950 hover:bg-stone-50"
+                  ? "bg-stone-100 text-stone-900 font-bold shadow-2xs"
+                  : "text-stone-700 hover:text-stone-950 hover:bg-stone-100/70"
               }`}
             >
               <span>{isAr ? "القطاعات" : "Industries"}</span>
@@ -745,41 +747,51 @@ export function SiteHeader() {
         </nav>
 
         {/* 3. Right: Action Controls */}
-        <div className="hidden md:flex items-center gap-2.5">
+        <div className="hidden md:flex items-center gap-2 sm:gap-2.5">
           {/* Language Switcher */}
           <button
+            type="button"
             onClick={toggleLang}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-stone-800 bg-stone-100 border border-stone-200 hover:bg-stone-200 transition-colors"
+            className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] font-semibold text-stone-700 bg-stone-50 border border-stone-200/80 hover:bg-stone-100 transition-colors shadow-2xs cursor-pointer"
             title={isAr ? "Switch to English" : "التحويل إلى العربية"}
           >
-            <Globe className="h-3.5 w-3.5 text-emerald-600" />
+            <Globe className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
             <span>{isAr ? "English" : "العربية"}</span>
           </button>
 
           <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-800 text-[12px] font-semibold px-3 shadow-2xs"
-             asChild><Link href="/book-demo">
-              <Video className="h-3.5 w-3.5 text-emerald-600 mr-1" />
-              {isAr ? "عرض Meet" : "Demo"}
-            </Link></Button>
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl border-stone-200/90 bg-white hover:bg-stone-50 text-stone-800 text-[13px] font-semibold px-3.5 shadow-2xs cursor-pointer"
+            asChild
+          >
+            <Link href="/book-demo" className="flex items-center gap-1.5">
+              <Video className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>{isAr ? "احجز تجربة" : "Book Demo"}</span>
+            </Link>
+          </Button>
 
           <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 rounded-lg text-[12.5px] text-stone-600 hover:text-stone-900 hover:bg-stone-100 font-semibold px-3"
-             asChild><Link href="/admin">
-              {isAr ? "دخول" : "Sign In"}
-            </Link></Button>
+            variant="ghost"
+            size="sm"
+            className="h-9 rounded-xl text-[13.5px] text-stone-700 hover:text-stone-950 hover:bg-stone-100 font-semibold px-3 cursor-pointer"
+            asChild
+          >
+            <Link href="/admin">
+              {isAr ? "تسجيل الدخول" : "Sign In"}
+            </Link>
+          </Button>
 
           <Button
-              size="sm"
-              className="h-9 rounded-lg bg-[#047857] hover:bg-[#065f46] text-white text-[12.5px] font-bold px-4 transition shadow-xs flex items-center gap-1.5"
-             asChild><Link href="/signup">
-              <span>{isAr ? "ابدأ مجاناً" : "Sign Up Free"}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link></Button>
+            size="sm"
+            className="h-9.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-[13.5px] font-bold px-4 sm:px-5 transition-all shadow-sm shadow-emerald-700/20 flex items-center gap-1.5 cursor-pointer"
+            asChild
+          >
+            <Link href="/signup">
+              <span>{isAr ? "ابدأ مجاناً" : "Start Free"}</span>
+              <ArrowRight className={`h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 ${isAr ? "rotate-180" : ""}`} />
+            </Link>
+          </Button>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -886,7 +898,7 @@ export function SiteHeader() {
                 <Sparkles className="h-4 w-4 text-emerald-600" />
                 {isAr ? "ما الجديد" : "What's New"}
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10.5px] font-bold">v6.3</span>
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10.5px] font-bold">v6.5</span>
             </Link>
           </div>
 

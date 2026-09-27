@@ -25,6 +25,7 @@ import { Brand } from "@/components/brand"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { GuideTourOverlay } from "@/components/guide-tour/guide-tour-overlay"
 import { GuideTourModal } from "@/components/guide-tour/guide-tour-modal"
+import { NewUpdateModal } from "@/components/dashboard/new-update-modal"
 import { useTourStore } from "@/lib/tour-store"
 import { getTourForView } from "@/lib/guide-tour-data"
 
@@ -652,20 +653,18 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
             Interactive
           </span>
         </button>
-        <a
-          href="/whats-new"
-          target="_blank"
-          rel="noreferrer"
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors"
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-whats-new-modal"))}
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2 truncate">
             <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
             <span className="truncate">What&apos;s New</span>
           </div>
           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
-            v3.0
+            v6.5
           </span>
-        </a>
+        </button>
         <button
           onClick={onLogout}
           className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-rose-950/40 hover:text-rose-300 transition-colors"
@@ -1214,6 +1213,7 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
         </div>
         <GuideTourOverlay />
         <GuideTourModal />
+        <NewUpdateModal />
       </div>
     )
   }
