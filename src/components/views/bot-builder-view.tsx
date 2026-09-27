@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
-import { Workflow, Plus, Zap, Clock, Bot, GitBranch, Pencil, Trash2, Activity } from "lucide-react"
+import { Workflow, Plus, Zap, Clock, Bot, GitBranch, Pencil, Trash2, Activity, Boxes } from "lucide-react"
 import { BotMessagesEditor } from "@/components/views/bot-messages-editor"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { FlowEditor, type BotFlowRecord } from "@/components/views/flow-editor"
@@ -49,6 +49,7 @@ export default function BotBuilderView() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<BotFlowRecord | null>(null)
   const [creating, setCreating] = useState(false)
+  const [openWithTemplates, setOpenWithTemplates] = useState(false)
   const [runs, setRuns] = useState<any[]>([])
   const [aiOn, setAiOn] = useState(true)
   const [aiName, setAiName] = useState("")
@@ -142,9 +143,16 @@ export default function BotBuilderView() {
           </h2>
           <p className="text-sm text-stone-500 mt-0.5">Visual conversation flows &amp; AI automation rules</p>
         </div>
-        <div data-tour="bot-create-btn" className="flex gap-2">
+        <div data-tour="bot-create-btn" className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="border-amber-300 bg-amber-50/80 text-amber-900 hover:bg-amber-100 font-semibold text-xs h-9 px-3"
+            onClick={() => { setEditing(null); setOpenWithTemplates(true); setCreating(true) }}
+          >
+            <Boxes className="h-4 w-4 mr-1.5 text-amber-600" /> Templates Library
+          </Button>
           <AIDraftButton kind="flow" channel={channel} onCreated={load} />
-          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setEditing(null); setCreating(true) }}>
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-xs h-9 px-3 font-semibold" onClick={() => { setEditing(null); setOpenWithTemplates(false); setCreating(true) }}>
             <Plus className="h-4 w-4 mr-1.5" /> New Flow
           </Button>
         </div>
@@ -376,7 +384,8 @@ export default function BotBuilderView() {
         <FlowEditor
           flow={editing}
           defaultChannel={channel}
-          onClose={() => { setEditing(null); setCreating(false) }}
+          initialShowTemplates={openWithTemplates}
+          onClose={() => { setEditing(null); setCreating(false); setOpenWithTemplates(false) }}
           onSaved={load}
         />
       )}

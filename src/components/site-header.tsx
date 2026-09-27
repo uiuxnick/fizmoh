@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Brand } from "@/components/brand"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/context/language-context"
@@ -121,7 +122,7 @@ export function SiteHeader() {
       titleAr: "فيسبوك",
       descEn: "Facebook Messenger automation for ads, comments & sales.",
       descAr: "أتمتة فيسبوك ماسنجر للإعلانات والتعليقات والمبيعات.",
-      href: "/product/facebook-instagram-automation",
+      href: "/product/facebook-automation",
       icon: FacebookBrandIcon,
       color: "text-[#1877F2] bg-[#1877F2]/10",
     },
@@ -130,7 +131,7 @@ export function SiteHeader() {
       titleAr: "إنستغرام",
       descEn: "Instagram DM automation for Reels, Stories & lead capture.",
       descAr: "أتمتة رسائل إنستغرام للريلز والقصص والتقاط العملاء.",
-      href: "/product/facebook-instagram-automation",
+      href: "/product/instagram-automation",
       icon: InstagramBrandIcon,
       color: "text-[#E1306C] bg-[#E1306C]/10",
     },
@@ -313,6 +314,17 @@ export function SiteHeader() {
   // ─── 3. Resources ───
   const resourceItems = [
     {
+      titleEn: "Bot Templates",
+      titleAr: "قوالب البوتات الجاهزة",
+      descEn: "44+ turnkey chatbot templates with 1-click install.",
+      descAr: "أكثر من 44 قالب بوت وسيناريو جاهز للاستخدام الفوري بنقرة واحدة.",
+      href: "/templates",
+      icon: Layers,
+      color: "text-[#D97706] bg-[#D97706]/10",
+      badgeEn: "44+ Flows",
+      badgeAr: "٤٤+ مسار",
+    },
+    {
       titleEn: "Knowledgebase",
       titleAr: "قاعدة المعرفة",
       descEn: "Find answers, guides, and resources all in one place.",
@@ -429,9 +441,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-stone-200/90 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-18 sm:h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" ref={dropdownRef}>
-        {/* 1. Left: Brand Logo */}
-        <div className="flex items-center">
+        {/* 1. Left: Brand Logo & Verified Partner Badge */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <Brand size="md" className="text-[#1D1D1D] transition-transform hover:scale-[1.02]" />
+          <div
+            className="hidden sm:inline-flex items-center rounded-xl bg-white border-2 border-emerald-600/30 px-2.5 py-1 shadow-xs ring-2 ring-emerald-500/10"
+            title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+          >
+            <Image
+              src="/meta_business_partner.webp"
+              alt="Official Meta Business Partner"
+              width={110}
+              height={32}
+              className="h-7 w-auto object-contain"
+              priority
+            />
+          </div>
         </div>
 
         {/* 2. Center: BotSailor-Style Harmonious Nav Bar */}
@@ -539,6 +564,17 @@ export function SiteHeader() {
             className="px-3 py-1.5 rounded-lg text-[13.5px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-50 transition-colors whitespace-nowrap"
           >
             {isAr ? "الوكلاء الأذكياء" : "AI Agents"}
+          </Link>
+
+          {/* Templates (Direct Nav Item) */}
+          <Link
+            href="/templates"
+            className="px-3 py-1.5 rounded-lg text-[13.5px] font-semibold text-stone-700 hover:text-stone-950 hover:bg-stone-50 transition-colors whitespace-nowrap flex items-center gap-1.5"
+          >
+            <span>{isAr ? "القوالب" : "Templates"}</span>
+            <span className="hidden xl:inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+              44+
+            </span>
           </Link>
 
           {/* Industries ▾ */}
@@ -797,6 +833,16 @@ export function SiteHeader() {
               <span>{isAr ? "الوكلاء الأذكياء" : "AI Agents"}</span>
             </Link>
             <Link
+              href="/templates"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center justify-between px-3 py-2 rounded-lg text-[13.5px] font-medium text-stone-700 hover:text-stone-900"
+            >
+              <span className="flex items-center gap-1.5">
+                <span>{isAr ? "قوالب البوتات الجاهزة" : "Bot Templates"}</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800">44+</span>
+              </span>
+            </Link>
+            <Link
               href="/features"
               onClick={() => setMobileOpen(false)}
               className="flex items-center justify-between px-3 py-2 rounded-lg text-[13.5px] font-medium text-stone-700 hover:text-stone-900"
@@ -895,6 +941,22 @@ export function SiteFooter() {
                 <ShieldCheck className="h-4 w-4 text-[#047857]" />
                 {isAr ? "Meta Cloud Provider" : "Meta Cloud Provider"}
               </span>
+            </div>
+            {/* Highlighted Meta Business Partner Badge */}
+            <div className="pt-1.5">
+              <div
+                className="inline-flex items-center gap-3 rounded-2xl bg-white border-2 border-emerald-600/40 px-4 py-2.5 shadow-sm ring-4 ring-emerald-500/10"
+                title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+              >
+                <Image
+                  src="/meta_business_partner.webp"
+                  alt="Official Meta Business Partner"
+                  width={180}
+                  height={58}
+                  className="h-11 sm:h-12 w-auto object-contain"
+                  priority={false}
+                />
+              </div>
             </div>
           </div>
 

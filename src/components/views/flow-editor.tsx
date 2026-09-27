@@ -137,6 +137,21 @@ const PALETTE: { group: string; items: PaletteItem[] }[] = [
     group: "AI & Smart",
     items: [
       { type: "AI", label: "AI Smart Assistant", emoji: "🤖", color: "violet", defaultData: { instruction: "Answer the customer's question naturally and helpfully using our business knowledge base.", useKnowledge: true } },
+      {
+        type: "AI_KNOWLEDGE",
+        label: "AI Knowledge (RAG)",
+        emoji: "🧠",
+        color: "violet",
+        defaultData: {
+          query: "{{last_message}}",
+          instruction: "Answer the customer's question directly and helpfully using the business knowledge base facts.",
+          maxPassages: 4,
+          fallbackThreshold: 0.1,
+          fallbackText: "I'm sorry, I don't have accurate information regarding that right now. Let me connect you with a team member.",
+          saveToVariable: "ai_knowledge_answer",
+          sendReply: true,
+        },
+      },
       { type: "QUESTION", label: "Ask Question / Input", emoji: "❓", color: "violet", defaultData: { text: "", name: "answer", inputType: "text", options: [], required: true } },
     ],
   },
@@ -173,6 +188,7 @@ const NODE_COLORS: Record<string, string> = {
   MEDIA: "border-blue-400 bg-blue-50",
   TEMPLATE: "border-blue-400 bg-blue-50",
   AI: "border-violet-400 bg-violet-50",
+  AI_KNOWLEDGE: "border-purple-500 bg-purple-50",
   QUESTION: "border-violet-400 bg-violet-50",
   CONDITION: "border-orange-400 bg-orange-50",
   HOURS: "border-orange-400 bg-orange-50",
@@ -211,7 +227,7 @@ const NODE_COLORS: Record<string, string> = {
 
 const NODE_EMOJI: Record<string, string> = {
   TRIGGER: "⚡", MESSAGE: "💬", BUTTONS: "📲", LIST: "📋", CTA_URL: "🔗", LOCATION: "📍",
-  MEDIA: "📎", TEMPLATE: "📨", AI: "🤖", QUESTION: "❓", CONDITION: "⚡", HOURS: "🕐",
+  MEDIA: "📎", TEMPLATE: "📨", AI: "🤖", AI_KNOWLEDGE: "🧠", QUESTION: "❓", CONDITION: "⚡", HOURS: "🕐",
   SPLIT: "🔀", DELAY: "⏱️", SET: "📝", TAG: "🏷️", HTTP: "🌐",
   SAVE: "💾", HANDOFF: "👤", END: "🔴", APPOINTMENT: "📅", APT_RESCHEDULE: "🔄",
   HOSPITAL: "🏥", HOSP_CHEMO: "💊", HOSP_DOCTOR: "🩺", HOSP_BED_MAP: "🛏️",
@@ -226,7 +242,7 @@ const NODE_LABEL: Record<string, string> = {
   TRIGGER: "Trigger", MESSAGE: "Send Message", BUTTONS: "Quick Buttons",
   LIST: "List Menu", CTA_URL: "CTA Link/Call", LOCATION: "Map Location",
   MEDIA: "Send Media", TEMPLATE: "Template",
-  AI: "AI Reply", QUESTION: "Ask & Remember", CONDITION: "Condition",
+  AI: "AI Reply", AI_KNOWLEDGE: "AI Knowledge (RAG)", QUESTION: "Ask & Remember", CONDITION: "Condition",
   HOURS: "Business Hours", SPLIT: "A/B Split", DELAY: "Wait",
   SET: "Set Variable", TAG: "Tag Customer", HTTP: "API Call",
   SAVE: "Save Lead", HANDOFF: "Hand to Agent", END: "End Flow",
@@ -248,6 +264,7 @@ function nodePreview(type: string, data: Record<string, unknown>): string {
   if (type === "MESSAGE" || type === "BUTTONS") return String(data.text || "").slice(0, 50) || "No message set"
   if (type === "QUESTION") return String(data.text || "").slice(0, 50) || "No question set"
   if (type === "AI") return String(data.instruction || "").slice(0, 50) || "AI will reply naturally"
+  if (type === "AI_KNOWLEDGE") return `🧠 RAG: ${String(data.query || "{{last_message}}").slice(0, 35)}`
   if (type === "CONDITION") return `If ${data.field} ${data.op} "${data.value}"`
   if (type === "HOURS") return `Open ${data.from} – ${data.to}`
   if (type === "CTA_URL") return `🔗 ${data.buttonText || "Website"}`
@@ -291,6 +308,7 @@ function nodeBranches(type: string): string[] {
   if (type === "HOURS") return ["open", "closed"]
   if (type === "SPLIT") return ["a", "b"]
   if (type === "AI") return ["ok", "failed"]
+  if (type === "AI_KNOWLEDGE") return ["answered", "fallback"]
   if (type === "HTTP") return ["ok", "failed"]
   return []
 }
@@ -333,12 +351,14 @@ function toApiNodes(nodes: CanvasNode[], edges: CanvasEdge[]) {
 // ─── Main FlowEditor ──────────────────────────────────────────────────────────
 
 export function FlowEditor({
-  flow, onClose, onSaved, defaultChannel = "WHATSAPP",
+  flow, onClose, onSaved, defaultChannel = "WHATSAPP", initialShowTemplates = false, initialTemplateId,
 }: {
   defaultChannel?: FlowChannel
   flow: BotFlowRecord | null
   onClose: () => void
   onSaved: () => void
+  initialShowTemplates?: boolean
+  initialTemplateId?: string
 }) {
   const editing = Boolean(flow?.id)
   const config = parseJson<{ keywords?: string[]; intents?: string[]; matchType?: string }>(flow?.triggerConfig, {})
@@ -382,7 +402,7 @@ export function FlowEditor({
   const [aiImage, setAiImage] = useState<string | null>(null)
   const [drafting, setDrafting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [showTemplates, setShowTemplates] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(initialShowTemplates)
   const [tplCategory, setTplCategory] = useState("All")
   const [tplSearch, setTplSearch] = useState("")
   const [showSimulator, setShowSimulator] = useState(false)
@@ -391,6 +411,28 @@ export function FlowEditor({
   const [paletteOpen, setPaletteOpen] = useState<Record<string, boolean>>({ Messages: true, "AI & Smart": true, Logic: false, Actions: false, Commerce: false })
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [wcProducts, setWcProducts] = useState<any[]>([])
+
+  // Analytics overlay state
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+
+  const loadAnalytics = useCallback(async (flowId: string) => {
+    setLoadingAnalytics(true)
+    try {
+      const res = await fetch(`/api/botflows/${flowId}/analytics`)
+      if (res.ok) {
+        const json = await res.json()
+        setAnalyticsData(json.analytics)
+      } else {
+        toast.error("Could not fetch flow analytics")
+      }
+    } catch {
+      toast.error("Error loading analytics")
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }, [])
 
   // Importer state
   const [showImporter, setShowImporter] = useState(false)
@@ -670,6 +712,13 @@ export function FlowEditor({
     toast.success(`Template "${tpl.name}" loaded — customise and save!`)
   }
 
+  useEffect(() => {
+    if (initialTemplateId) {
+      const match = BOT_TEMPLATES.find(t => t.id === initialTemplateId)
+      if (match) applyTemplate(match)
+    }
+  }, [initialTemplateId])
+
   // ── AI draft ──────────────────────────────────────────────────────────────
 
   const askAI = async () => {
@@ -760,6 +809,11 @@ export function FlowEditor({
           break
         } else if (cur.type === "AI") {
           newLines.push({ from: "bot", text: `🤖 AI replies naturally using knowledge base\n  Instruction: "${String(d.instruction || "").slice(0, 80)}"` })
+        } else if (cur.type === "AI_KNOWLEDGE") {
+          newLines.push({
+            from: "bot",
+            text: `🧠 AI Knowledge Query: "${String(d.query || "{{last_message}}")}"\n  → Searches business knowledge base & routes to [answered] or [fallback]`,
+          })
         } else if (cur.type === "CONDITION") {
           newLines.push({ from: "bot", text: `⚡ Branch: if ${d.field} ${d.op} "${d.value}"` })
         } else if (cur.type === "HOURS") {
@@ -907,6 +961,25 @@ export function FlowEditor({
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setSettingsOpen(!settingsOpen)}>
               <Settings className="h-3.5 w-3.5" /> Settings
+            </Button>
+            <Button
+              variant={showAnalytics ? "default" : "outline"}
+              size="sm"
+              className={`h-8 text-xs gap-1 font-medium transition-all ${
+                showAnalytics
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                  : "border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70"
+              }`}
+              onClick={() => {
+                const next = !showAnalytics
+                setShowAnalytics(next)
+                if (next && flow?.id) {
+                  loadAnalytics(flow.id)
+                }
+              }}
+            >
+              {loadingAnalytics ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />}
+              Analytics
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowSimulator(!showSimulator)}>
               <Play className="h-3.5 w-3.5" /> Simulate
@@ -1074,6 +1147,52 @@ export function FlowEditor({
               </Badge>
             </div>
 
+            {/* Analytics Floating Top Banner */}
+            {showAnalytics && (
+              <div className="absolute top-2 left-44 right-24 z-20 p-2.5 rounded-xl bg-white/95 backdrop-blur-md border border-indigo-200 shadow-lg flex items-center justify-between text-xs">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700">
+                      <BarChart3 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-stone-900 text-xs">Funnel Drop-off Performance</div>
+                      <div className="text-[10px] text-stone-500">Node conversion & bottleneck detection</div>
+                    </div>
+                  </div>
+                  <div className="h-6 w-[1px] bg-stone-200" />
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-semibold">TOTAL SESSIONS</span>
+                    <span className="text-xs font-bold text-stone-800">{analyticsData?.totalRuns ?? 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-semibold">COMPLETED</span>
+                    <span className="text-xs font-bold text-emerald-600">
+                      {analyticsData?.completedRuns ?? 0} ({analyticsData?.overallCompletionRate ?? 0}%)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-semibold">OVERALL DROP-OFF</span>
+                    <span className="text-xs font-bold text-rose-600">{analyticsData?.overallDropOffRate ?? 0}%</span>
+                  </div>
+                  {analyticsData?.topDropOffNodes?.length > 0 && (
+                    <div className="flex items-center gap-1.5 pl-2 text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      <span className="font-bold">⚠️ Top Bottleneck:</span>
+                      <span>Node &quot;{analyticsData.topDropOffNodes[0].nodeId}&quot; ({analyticsData.topDropOffNodes[0].dropOffRate}% drop)</span>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-[11px] text-stone-500 hover:text-stone-900"
+                  onClick={() => setShowAnalytics(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            )}
+
             {/* Canvas SVG (edges) + Nodes (div) */}
             <div className="absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: "0 0" }}>
               {/* SVG edges */}
@@ -1180,6 +1299,37 @@ export function FlowEditor({
                     <div className="px-2.5 pb-2 text-[10px] text-stone-500 leading-tight truncate">
                       {nodePreview(node.type, node.data)}
                     </div>
+
+                    {/* Analytics Overlay Badge */}
+                    {showAnalytics && (() => {
+                      const stat = analyticsData?.nodeStats?.[node.id]
+                      const impressions = stat?.impressions ?? 0
+                      const dropOffs = stat?.dropOffs ?? 0
+                      const passThrough = stat ? stat.passThroughRate : 100
+                      const dropOffRate = stat ? stat.dropOffRate : 0
+                      return (
+                        <div className="mx-2 mb-2 p-1.5 rounded-lg bg-stone-900/95 text-white text-[10px] space-y-1 shadow-inner border border-stone-800">
+                          <div className="flex items-center justify-between">
+                            <span className="text-stone-400">Visitors:</span>
+                            <span className="font-bold text-white">{impressions}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-stone-400">Throughput:</span>
+                            <span className="font-semibold text-emerald-400">
+                              {passThrough}%
+                            </span>
+                          </div>
+                          {dropOffs > 0 && (
+                            <div className="flex items-center justify-between text-rose-300 pt-0.5 border-t border-stone-800">
+                              <span className="font-medium text-stone-400">Drop-off:</span>
+                              <span className="font-bold text-rose-400">
+                                {dropOffRate}% ({dropOffs})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {/* Output ports */}
                     <div className="absolute -bottom-3 left-0 right-0 flex justify-center gap-4">
@@ -1328,7 +1478,7 @@ export function FlowEditor({
             <div className="px-6 py-3 border-b bg-white flex flex-col sm:flex-row gap-3 items-center justify-between">
               {/* Category Chips */}
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
-                {["All", "Healthcare", "Tours & Travel", "Appointments", "E-Commerce", "Dining & Hospitality", "CRM & AI"].map(cat => {
+                {["All", "E-Commerce", "CRM & AI", "Appointments", "Healthcare", "Tours & Travel", "Dining & Hospitality", "Corporate & Architectural"].map(cat => {
                   const count = cat === "All" ? BOT_TEMPLATES.length : BOT_TEMPLATES.filter(t => t.category === cat).length
                   const active = tplCategory === cat
                   return (
@@ -1728,6 +1878,96 @@ function NodeInspector({
               <span className="text-xs text-stone-600">Use knowledge base</span>
             </div>
             <p className="text-[10px] text-stone-400 leading-relaxed">The AI will read relevant passages from your knowledge base and craft a natural reply. Use {"{{variables}}"} from earlier steps in the instruction.</p>
+          </>
+        )}
+
+        {/* AI_KNOWLEDGE (RAG) */}
+        {node.type === "AI_KNOWLEDGE" && (
+          <>
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Search Query / Prompt
+              <Input
+                className="mt-1 h-7 text-xs font-mono"
+                value={String(d.query || "{{last_message}}")}
+                placeholder="{{last_message}}"
+                onChange={e => onUpdate({ query: e.target.value })}
+              />
+            </label>
+            <p className="text-[10px] text-stone-400">Use <span className="font-mono">{"{{last_message}}"}</span> or any variable collected from previous steps.</p>
+
+            <label className="text-[11px] font-medium text-stone-600 block">
+              System Instruction
+              <Textarea
+                rows={3}
+                className="mt-1 text-xs"
+                value={String(d.instruction || "")}
+                placeholder="Answer the customer's question directly and helpfully using the business knowledge base facts…"
+                onChange={e => onUpdate({ instruction: e.target.value })}
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[11px] font-medium text-stone-600 block">
+                Max Passages
+                <Input
+                  type="number"
+                  min={1}
+                  max={8}
+                  className="mt-1 h-7 text-xs"
+                  value={Number(d.maxPassages ?? 4)}
+                  onChange={e => onUpdate({ maxPassages: Math.max(1, Math.min(8, parseInt(e.target.value) || 4)) })}
+                />
+              </label>
+              <label className="text-[11px] font-medium text-stone-600 block">
+                Min Score (0-1)
+                <Input
+                  type="number"
+                  step="0.05"
+                  min={0}
+                  max={1}
+                  className="mt-1 h-7 text-xs"
+                  value={Number(d.fallbackThreshold ?? 0.1)}
+                  onChange={e => onUpdate({ fallbackThreshold: parseFloat(e.target.value) || 0.1 })}
+                />
+              </label>
+            </div>
+
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Fallback Text (if no knowledge found)
+              <Textarea
+                rows={2}
+                className="mt-1 text-xs"
+                value={String(d.fallbackText || "")}
+                placeholder="I don't have enough details on that yet..."
+                onChange={e => onUpdate({ fallbackText: e.target.value })}
+              />
+            </label>
+
+            <label className="text-[11px] font-medium text-stone-600 block">
+              Save Answer to Variable
+              <Input
+                className="mt-1 h-7 text-xs font-mono"
+                value={String(d.saveToVariable || "ai_knowledge_answer")}
+                placeholder="ai_knowledge_answer"
+                onChange={e => onUpdate({ saveToVariable: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })}
+              />
+            </label>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Switch
+                checked={d.sendReply !== false}
+                onCheckedChange={v => onUpdate({ sendReply: v })}
+              />
+              <span className="text-xs text-stone-600">Send WhatsApp reply directly</span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-violet-50/70 border border-violet-100 text-[10px] text-violet-800 space-y-1">
+              <div className="font-semibold flex items-center gap-1">
+                <span>⚡ Dual Branch Routing:</span>
+              </div>
+              <p>• <strong>answered</strong>: Facts found in knowledge base and answer generated.</p>
+              <p>• <strong>fallback</strong>: No matching facts found. Route to Live Agent Handoff or alternate flow.</p>
+            </div>
           </>
         )}
 

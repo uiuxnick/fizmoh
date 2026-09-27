@@ -8,7 +8,7 @@ export interface FlowTemplate {
   name: string
   description: string
   emoji: string
-  category: "Healthcare" | "Tours & Travel" | "Appointments" | "E-Commerce" | "Dining & Hospitality" | "CRM & AI"
+  category: "Healthcare" | "Tours & Travel" | "Appointments" | "E-Commerce" | "Dining & Hospitality" | "CRM & AI" | "Corporate & Architectural"
   trigger: string
   triggerConfig: Record<string, unknown>
   nodes: unknown[]
@@ -1003,4 +1003,556 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
       e("e17", "avail", "desk"),
     ],
   },
+  // ════════════════════════════════════════════════════════════════════════════
+  // EMADI ARCHITECTURAL SYSTEMS — 10-STEP CORPORATE BUSINESS WORKFLOW
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "emadi_corporate_architectural_flow",
+    name: "EMADI — Aluminium, Glass & Architectural Systems",
+    description: "Customized 10-step quotation & project workflow: Request a Quotation, Products & Services, Product Selection, Project Details, Name & Phone, Project Location, Media & Drawing Uploads, Factory & Showrooms, Sales Team Contact, and FAQs.",
+    emoji: "🏢",
+    category: "Corporate & Architectural",
+    trigger: "KEYWORD",
+    triggerConfig: {
+      keywords: [
+        "quote", "quotation", "aluminium", "glass", "emadi", "facade", "project", 
+        "عمارة", "ألمنيوم", "زجاج", "عرض سعر", "تأثيث", "نوافذ", "أبواب",
+        "hi", "hello", "hey", "start", "menu", "help", "test", "flow",
+        "مرحبا", "سلام", "السلام عليكم", "هلا"
+      ],
+      matchType: "contains",
+    },
+    nodes: [
+      n("trigger", "TRIGGER", {}, 500, 40),
+      n("main_menu", "LIST", {
+        text: "🏢 *Welcome to EMADI Architectural Systems*\n\nSpecialized in Premium Architectural Aluminium, Structural Glass & Modern Facade Solutions in Oman 🇴🇲.\n\nPlease choose an option below to proceed:",
+        listButton: "Select Option",
+        rows: [
+          { id: "opt_quote", title: "📋 Request a Quotation", description: "Submit your project specs & drawings" },
+          { id: "opt_products", title: "🏗️ Products & Services", description: "Aluminium, glass, facades & pergolas" },
+          { id: "opt_showrooms", title: "🏭 Factory & Showrooms", description: "Visit our facilities in Oman" },
+          { id: "opt_sales", title: "📞 Contact Sales Team", description: "Direct engineering consultation" },
+          { id: "opt_faq", title: "❓ Architectural FAQs", description: "Warranties, glass specs & timelines" },
+        ],
+      }, 500, 180),
+
+      // ── 1. Products & Services ──
+      n("products_services", "LIST", {
+        text: "🏗️ *EMADI Products & Architectural Services*\n\nEngineered for exceptional durability and thermal comfort in the Gulf climate:\n\n• *Aluminium Windows & Doors*: Thermal break sliding, pivot, slim casements & folding doors.\n• *Structural Glazing & Facades*: Curtain walls, spider glass & architectural canopies.\n• *Glass Systems*: Double & triple insulated, low-E solar control & acoustic laminated.\n• *Outdoor Architectural*: Aluminium pergolas, motorized louvers, skylights & balustrades.",
+        listButton: "Select Product",
+        rows: [
+          { id: "prod_alum", title: "Aluminium Windows & Doors", description: "Thermal break, slim profiles & folding doors" },
+          { id: "prod_glass", title: "Glass & Structural Glazing", description: "Double/triple glazed, acoustic & solar control" },
+          { id: "prod_facade", title: "Curtain Walls & Facades", description: "Commercial & residential building envelopes" },
+          { id: "prod_pergola", title: "Pergolas & Skylights", description: "Motorized louvers & outdoor living systems" },
+          { id: "prod_balustrade", title: "Balustrades & Partitions", description: "Frameless glass rails & shower enclosures" },
+        ],
+      }, 220, 360),
+
+      // ── 2. Select Required Product ──
+      n("select_product", "LIST", {
+        text: "📐 *Step 1: Select Required System*\n\nPlease select the primary architectural system required for your project:",
+        listButton: "Choose System",
+        rows: [
+          { id: "sel_alum", title: "Aluminium Windows & Doors", description: "Thermal Break, Sliding, Folding, Casement" },
+          { id: "sel_glass", title: "Glass & Structural Glazing", description: "Tempered, Laminated, Double/Triple Glazed" },
+          { id: "sel_facade", title: "Curtain Wall & Facade Systems", description: "Stick or Unitized Structural Facades" },
+          { id: "sel_pergola", title: "Pergolas & Skylights", description: "Architectural Louvers & Canopies" },
+          { id: "sel_package", title: "Full Villa / Project Package", description: "Complete exterior & interior glazing package" },
+        ],
+      }, 500, 360),
+
+      // ── 3. Submit Project Details ──
+      n("q_project_details", "QUESTION", {
+        name: "project_details",
+        inputType: "text",
+        required: true,
+        text: "📋 *Step 2: Submit Project Details*\n\nPlease describe your project:\n• Project Type: (Private Villa, Commercial Building, Residential Compound, or Renovation)?\n• Approximate number of openings or total area (sqm)?\n• Any preferred profile series (e.g. Technal, Schuco, Gutmann, or Omani profiles)?",
+      }, 500, 520),
+
+      // ── 4. Customer Name and Phone Number ──
+      n("q_contact_info", "QUESTION", {
+        name: "customer_name_phone",
+        inputType: "text",
+        required: true,
+        text: "👤 *Step 3: Customer Information*\n\nPlease share your *Full Name* and best *Contact Number* so our Senior Estimation Engineers can address your quotation file:",
+      }, 500, 680),
+
+      // ── 5. Project Location ──
+      n("q_project_location", "LIST", {
+        text: "📍 *Step 4: Project Location in Oman*\nWhere is your project site located?",
+        listButton: "Select Wilayat",
+        rows: [
+          { id: "loc_muscat", title: "Muscat Governorate", description: "Seeb, Bausher, Al Amrat, Muttrah, Qurum" },
+          { id: "loc_batinah", title: "Al Batinah (Sohar / Barka)", description: "Sohar, Barka, Rustaq, Saham, Suwaiq" },
+          { id: "loc_dakhiliyah", title: "Ad Dakhiliyah (Nizwa)", description: "Nizwa, Bahla, Izki, Samail" },
+          { id: "loc_dhofar", title: "Dhofar (Salalah)", description: "Salalah, Taqah, Mirbat" },
+          { id: "loc_other", title: "Other Oman Wilayat", description: "Sharqiyah, Dhahirah, Buraimi, Musandam" },
+        ],
+      }, 500, 840),
+
+      // ── 6. Upload Photos, Drawings and Measurements ──
+      n("q_upload_drawings", "QUESTION", {
+        name: "drawings_and_measurements",
+        inputType: "text",
+        required: false,
+        text: "📐 *Step 5: Upload Photos, Drawings & Measurements*\n\nPlease upload or share any architectural blueprints, elevation drawings, AutoCAD/PDF files, opening schedules, or photos of the site.\n\n📎 *You can send them right here in WhatsApp as photos or documents.*\n\nType *\"Uploaded\"* or *\"Will send later\"* to confirm your request submission.",
+      }, 500, 1000),
+
+      // ── 7. Save Quotation Lead & Notify ──
+      n("save_quote_rfq", "SAVE", {
+        text: "✅ *Quotation Request Successfully Registered!*\n\nThank you for choosing EMADI Architectural Systems.\n\nOur Senior Architectural Estimation Engineers have received your project details and attached specifications. We are reviewing the scope and will provide your preliminary estimate or official quotation within 24–48 hours.\n\nWould you like to speak directly with an engineer or visit our factory & showroom?",
+        action: "SAVE_LEAD",
+      }, 500, 1160),
+
+      // ── 8. Factory and Showroom Locations ──
+      n("factory_showroom", "MESSAGE", {
+        text: "🏭 *EMADI Factory & Architectural Showrooms in Oman*\n\n📍 *Main Manufacturing & Fabrication Plant:*\nRusayl Industrial City, Muscat Governorate, Sultanate of Oman 🇴🇲\n• State-of-the-art CNC European cutting & milling centers\n• Automated double & triple glazing IG unit assembly line\n• Certified architectural powder coating & thermal break crimping\n\n📍 *Architectural Experience Centre:*\nSultan Qaboos Highway, Al Ghubrah / Azaiba, Muscat 🇴🇲\n• Full-scale working mockups of slim sliding systems, motorized pergolas, minimalist pivot doors, and spider curtain walls.\n\n⏰ *Working Hours:*\nSaturday – Thursday: 8:00 AM – 1:00 PM & 4:00 PM – 8:30 PM\nFriday: Closed\n\n📌 *Location Pin:* https://maps.google.com/?q=Muscat,Oman",
+      }, 820, 360),
+
+      // ── 9. Contact the Sales Team ──
+      n("contact_sales", "HANDOFF", {
+        text: "📞 *Contact the EMADI Sales & Projects Team*\n\nOur Senior Architectural Consultants are at your service for site visits, technical consultations, and BOQ reviews:\n\n📱 *Direct Project Line:* +968 7902 9721 / +968 9768 4646\n📧 *Email:* sales@emadi.om\n🌐 *Website:* https://emadi.om\n\nA senior sales engineer has been notified and will attend to your message shortly!",
+      }, 820, 540),
+
+      // ── 10. Frequently Asked Questions (FAQ) ──
+      n("faq_menu", "LIST", {
+        text: "❓ *Frequently Asked Questions (FAQ)*\nKey architectural guidance for aluminium and glass installations in Oman:",
+        listButton: "Select Question",
+        rows: [
+          { id: "faq_thermal", title: "1. Thermal Break Profiles", description: "Why are they essential for Oman's summer heat?" },
+          { id: "faq_glazing", title: "2. Glazing & U-Values", description: "Double vs triple glazing insulation specs" },
+          { id: "faq_coating", title: "3. Warranty & Coatings", description: "Powder coating protection against salinity & UV" },
+          { id: "faq_leadtime", title: "4. Production & Lead Time", description: "Fabrication timelines and site installation" },
+        ],
+      }, 820, 720),
+
+      n("faq_ans_thermal", "MESSAGE", {
+        text: "❄️ *Thermal Break Aluminium Profiles:*\n\nIn Oman's extreme climate (temperatures exceeding 45°C), standard aluminium conducts heat straight indoors. A **Thermal Break** incorporates a reinforced polyamide insulation barrier between exterior and interior aluminium profiles. This dramatically cuts AC energy loss, eliminates interior frame condensation, and keeps your rooms comfortably cool.",
+      }, 1080, 580),
+
+      n("faq_ans_glazing", "MESSAGE", {
+        text: "🪟 *Glazing & Solar Control:*\n\nWe fabricate our double and triple insulated glass units (IGU) using certified low-E solar control glass filled with Argon gas and warm-edge spacers. This provides superior acoustic soundproofing (36dB+ reduction) and thermal U-values below 1.4 W/m²K.",
+      }, 1080, 720),
+
+      n("faq_ans_coating", "MESSAGE", {
+        text: "🛡️ *Warranty & Coastal Durability:*\n\nAll EMADI architectural aluminium systems come with up to a **15 to 20-Year Warranty** on powder coating (Qualicoat Class 2 Architectural Grade) specifically formulated to resist UV breakdown and high coastal salinity in Oman.",
+      }, 1080, 860),
+
+      n("faq_ans_leadtime", "MESSAGE", {
+        text: "⏱️ *Production & Installation Timelines:*\n\n• Standard Residential Villas: 3 to 4 weeks from final site measurement approval.\n• Commercial & Curtain Wall Projects: Scheduled according to main contractor milestones.\n• Dedicated site installation team ensuring certified waterproofing, silicone sealant, and structural alignment.",
+      }, 1080, 1000),
+    ],
+    edges: [
+      e("e_start", "trigger", "main_menu"),
+      e("e_menu_quote", "main_menu", "select_product", "Request a Quotation"),
+      e("e_menu_prod", "main_menu", "products_services", "Products & Services"),
+      e("e_menu_show", "main_menu", "factory_showroom", "Factory & Showrooms"),
+      e("e_menu_sales", "main_menu", "contact_sales", "Contact Sales Team"),
+      e("e_menu_faq", "main_menu", "faq_menu", "Architectural FAQs"),
+
+      // From products to quote selection
+      e("e_prod_to_quote", "products_services", "select_product"),
+
+      // Quotation sequence (100% structured)
+      e("e_q1", "select_product", "q_project_details"),
+      e("e_q2", "q_project_details", "q_contact_info"),
+      e("e_q3", "q_contact_info", "q_project_location"),
+      e("e_q4", "q_project_location", "q_upload_drawings"),
+      e("e_q5", "q_upload_drawings", "save_quote_rfq"),
+
+      // FAQs
+      e("e_faq_1", "faq_menu", "faq_ans_thermal", "Thermal Break"),
+      e("e_faq_2", "faq_menu", "faq_ans_glazing", "Glazing"),
+      e("e_faq_3", "faq_menu", "faq_ans_coating", "Warranty"),
+      e("e_faq_4", "faq_menu", "faq_ans_leadtime", "Lead Time"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 1. WATI / INTERAKT KILLER TEMPLATE: ABANDONED CART RECOVERY & DISCOUNT
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_abandoned_cart_recovery",
+    name: "E-Commerce — Abandoned Cart Recovery & 10% Voucher",
+    emoji: "🛒",
+    category: "E-Commerce",
+    description: "Automated cart recovery trigger with dynamic product recap, 10% instant promo code voucher, and 1-click checkout link.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["cart", "checkout", "abandoned", "discount", "سلة", "خصم", "شراء"], matchType: "contains" },
+    nodes: [
+      n("t_cart", "TRIGGER", {}, 400, 40),
+      n("cart_greet", "SEND_TEXT", {
+        text: "👋 *Hi there!*\n\nWe noticed you left some amazing items in your shopping cart 🛍️\n\nThey are in high demand and reserved for a limited time. Would you like an instant *10% discount* to complete your order today?",
+      }, 400, 160),
+      n("cart_options", "QUICK_REPLY", {
+        text: "Choose an option below to continue 👇",
+        buttons: ["Claim 10% Off", "View My Cart", "Talk to Team"],
+      }, 400, 280),
+      n("cart_b1", "SEND_TEXT", {
+        text: "🎉 *Here is your exclusive voucher code: SAVE10*\n\nTap the secure link below to apply your discount automatically:\n👉 https://app.fizmoh.cloud/shop/checkout?coupon=SAVE10",
+      }, 150, 420),
+      n("cart_b2", "SEND_TEXT", {
+        text: "🛒 Here is your direct shopping cart link:\n👉 https://app.fizmoh.cloud/shop/cart\n\nNeed to add, remove, or modify anything? Let us know!",
+      }, 400, 420),
+      n("cart_b3", "HANDOFF", {
+        message: "Customer requested live support regarding their shopping cart.",
+      }, 650, 420),
+      n("cart_end", "END", {}, 300, 560),
+    ],
+    edges: [
+      e("e_c1", "t_cart", "cart_greet"),
+      e("e_c2", "cart_greet", "cart_options"),
+      e("e_c3", "cart_options", "cart_b1", "Claim 10% Off"),
+      e("e_c4", "cart_options", "cart_b2", "View My Cart"),
+      e("e_c5", "cart_options", "cart_b3", "Talk to Team"),
+      e("e_c6", "cart_b1", "cart_end"),
+      e("e_c7", "cart_b2", "cart_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 2. WATI / INTERAKT KILLER TEMPLATE: CASH ON DELIVERY (COD) ANTI-RTO SHIELD
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_cod_order_verification",
+    name: "E-Commerce — Cash on Delivery (COD) Address Confirmation",
+    emoji: "📦",
+    category: "E-Commerce",
+    description: "Anti-RTO verification: customer confirms delivery address and phone number for COD orders, slashing courier return rates by 40%.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["cod", "order", "confirm", "dispatch", "تأكيد", "توصيل", "طلب"], matchType: "contains" },
+    nodes: [
+      n("t_cod", "TRIGGER", {}, 400, 40),
+      n("cod_greet", "SEND_TEXT", {
+        text: "📦 *Order Dispatch Verification*\n\nHello! Thank you for ordering with us. Your Cash on Delivery order is queued for packaging.\n\nTo ensure our courier delivers to your exact doorstep without delays, please verify your details:",
+      }, 400, 160),
+      n("cod_options", "QUICK_REPLY", {
+        text: "Is your delivery address and contact number correct?",
+        buttons: ["✅ Confirm & Ship", "✏️ Update Address", "❌ Cancel Order"],
+      }, 400, 280),
+      n("cod_confirm", "SEND_TEXT", {
+        text: "🎉 *Order Approved!* Your parcel has been dispatched to express courier. You will receive an SMS/WhatsApp tracking link with driver contact upon arrival.",
+      }, 150, 420),
+      n("cod_edit", "QUESTION", {
+        name: "updated_address",
+        text: "Please reply with your updated building number, street, landmark, and wilayat / city:",
+        inputType: "text",
+        required: true,
+      }, 400, 420),
+      n("cod_edit_done", "SEND_TEXT", {
+        text: "✅ Address updated successfully! Our dispatch team will deliver to your new location.",
+      }, 400, 540),
+      n("cod_cancel", "SEND_TEXT", {
+        text: "⚠️ Order cancelled as requested. If you change your mind, we are always here to help!",
+      }, 650, 420),
+      n("cod_end", "END", {}, 300, 660),
+    ],
+    edges: [
+      e("e_cod1", "t_cod", "cod_greet"),
+      e("e_cod2", "cod_greet", "cod_options"),
+      e("e_cod3", "cod_options", "cod_confirm", "Confirm & Ship"),
+      e("e_cod4", "cod_options", "cod_edit", "Update Address"),
+      e("e_cod5", "cod_options", "cod_cancel", "Cancel Order"),
+      e("e_cod6", "cod_confirm", "cod_end"),
+      e("e_cod7", "cod_edit", "cod_edit_done"),
+      e("e_cod8", "cod_edit_done", "cod_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 3. WATI / INTERAKT KILLER TEMPLATE: GOOGLE REVIEWS 5-STAR AI SHIELD
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_google_reviews_booster",
+    name: "Reputation — Google Reviews 5-Star Shield & CSAT",
+    emoji: "⭐",
+    category: "CRM & AI",
+    description: "Routes happy clients directly to Google Maps for 5-star reviews, while intercepting unhappy feedback for private management resolution.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["review", "rate", "feedback", "rating", "csat", "تقييم", "رأي", "ملاحظة"], matchType: "contains" },
+    nodes: [
+      n("t_rev", "TRIGGER", {}, 400, 40),
+      n("rev_greet", "SEND_TEXT", {
+        text: "🌟 *Thank you for your visit today!*\n\nOur team strives to provide 5-star service every single day. How was your experience with us?",
+      }, 400, 160),
+      n("rev_stars", "QUICK_REPLY", {
+        text: "Please tap your rating below 👇",
+        buttons: ["⭐⭐⭐⭐⭐ Excellent", "⭐⭐⭐⭐ Good", "⭐⭐ Needs Work"],
+      }, 400, 280),
+      n("rev_happy", "SEND_TEXT", {
+        text: "❤️ *Thank you so much!* Your satisfaction makes our day.\n\nCould you please take 15 seconds to support our local team on Google Maps? It helps others discover us:\n\n👉 https://maps.google.com/?cid=sample_business",
+      }, 200, 420),
+      n("rev_unhappy", "QUESTION", {
+        name: "complaint_feedback",
+        text: "We sincerely apologize that your experience was not perfect! 😔\n\nPlease let us know what went wrong so we can make it right for you:",
+        inputType: "text",
+        required: true,
+      }, 600, 420),
+      n("rev_escalate", "SEND_TEXT", {
+        text: "🙏 Thank you for sharing your feedback. Your message was escalated directly to our Operations Director, who will reach out to you within 2 hours.",
+      }, 600, 540),
+      n("rev_handoff", "HANDOFF", {
+        message: "Customer reported issue via Google Review Shield flow.",
+      }, 600, 660),
+      n("rev_end", "END", {}, 300, 660),
+    ],
+    edges: [
+      e("e_rev1", "t_rev", "rev_greet"),
+      e("e_rev2", "rev_greet", "rev_stars"),
+      e("e_rev3", "rev_stars", "rev_happy", "⭐⭐⭐⭐⭐ Excellent"),
+      e("e_rev4", "rev_stars", "rev_happy", "⭐⭐⭐⭐ Good"),
+      e("e_rev5", "rev_stars", "rev_unhappy", "⭐⭐ Needs Work"),
+      e("e_rev6", "rev_happy", "rev_end"),
+      e("e_rev7", "rev_unhappy", "rev_escalate"),
+      e("e_rev8", "rev_escalate", "rev_handoff"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 4. WATI / INTERAKT KILLER TEMPLATE: LEAD MAGNET & BROCHURE DELIVERY
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_lead_magnet_delivery",
+    name: "Growth — Lead Magnet & PDF Brochure Delivery",
+    emoji: "📥",
+    category: "CRM & AI",
+    description: "Instant WhatsApp delivery of PDF brochures, company profiles, and price lists with lead qualification questions and CRM tagging.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["guide", "pdf", "brochure", "catalog", "download", "دليل", "كتالوج", "تحميل"], matchType: "contains" },
+    nodes: [
+      n("t_lead", "TRIGGER", {}, 400, 40),
+      n("lead_intro", "SEND_TEXT", {
+        text: "👋 *Welcome!* Here is your requested 2026 Business Solutions Catalogue & Pricing Guide.",
+      }, 400, 160),
+      n("lead_company", "QUESTION", {
+        name: "company_name",
+        text: "Before we generate your link, what is your Company Name or Website?",
+        inputType: "text",
+        required: true,
+      }, 400, 280),
+      n("lead_pdf", "SEND_TEXT", {
+        text: "✅ *Here is your official PDF guide:*\n👉 https://app.fizmoh.cloud/resources/fizmoh-solutions-2026.pdf\n\nFeel free to download, bookmark, or share it with your colleagues!",
+      }, 400, 400),
+      n("lead_cta", "QUICK_REPLY", {
+        text: "Would you like a customized ROI estimate or a live 1-on-1 walkthrough for your team?",
+        buttons: ["Book Free Demo", "Ask a Question", "Just Browsing"],
+      }, 400, 520),
+      n("lead_demo", "SEND_TEXT", {
+        text: "🚀 Great! Book a 20-minute Google Meet session with our growth strategist:\n👉 https://app.fizmoh.cloud/book-demo",
+      }, 200, 640),
+      n("lead_ai", "AI", {
+        instruction: "Professionally answer prospect questions about Fizmoh products, integration features, and pricing packages.",
+      }, 600, 640),
+      n("lead_end", "END", {}, 400, 760),
+    ],
+    edges: [
+      e("e_lm1", "t_lead", "lead_intro"),
+      e("e_lm2", "lead_intro", "lead_company"),
+      e("e_lm3", "lead_company", "lead_pdf"),
+      e("e_lm4", "lead_pdf", "lead_cta"),
+      e("e_lm5", "lead_cta", "lead_demo", "Book Free Demo"),
+      e("e_lm6", "lead_cta", "lead_ai", "Ask a Question"),
+      e("e_lm7", "lead_cta", "lead_end", "Just Browsing"),
+      e("e_lm8", "lead_demo", "lead_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 5. WATI / INTERAKT KILLER TEMPLATE: 24/7 AFTER-HOURS AUTO-RESPONDER
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_after_hours_auto_reply",
+    name: "Support — 24/7 After-Hours Auto-Responder & Morning Queue",
+    emoji: "🌙",
+    category: "CRM & AI",
+    description: "Auto-replies outside business hours, shares instant self-service menus, and reserves priority callback spots for next morning.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["hello", "hi", "support", "help", "contact", "مرحبا", "سلام", "مساعدة"], matchType: "contains" },
+    nodes: [
+      n("t_ah", "TRIGGER", {}, 400, 40),
+      n("ah_msg", "SEND_TEXT", {
+        text: "🌙 *Thank you for reaching out!*\n\nOur office is currently closed for the evening. Our business hours are:\n📅 Saturday – Thursday: 8:30 AM – 6:00 PM (Gulf Time)",
+      }, 400, 160),
+      n("ah_list", "LIST", {
+        text: "While our team is offline, here are instant self-service options:",
+        listButton: "Select Option",
+        rows: [
+          { id: "opt_status", title: "1. Track My Order / Booking", description: "Get real-time delivery and fulfillment status" },
+          { id: "opt_faq", title: "2. Ask AI Knowledge Base", description: "Instant answers grounded in business facts" },
+          { id: "opt_callback", title: "3. Priority Morning Callback", description: "First in queue when our agents open at 8:30 AM" },
+        ],
+      }, 400, 280),
+      n("ah_track", "QUESTION", {
+        name: "track_id",
+        text: "Please enter your Order or Booking Reference Number:",
+        inputType: "text",
+        required: true,
+      }, 100, 440),
+      n("ah_track_res", "SEND_TEXT", {
+        text: "📦 Tracking inquiry received! A full status report has been sent to your WhatsApp conversation.",
+      }, 100, 560),
+      n("ah_ai", "AI_KNOWLEDGE", {
+        query: "{{last_message}}",
+      }, 400, 440),
+      n("ah_call", "QUESTION", {
+        name: "call_details",
+        text: "Please enter your name and a brief summary of what you need help with:",
+        inputType: "text",
+        required: true,
+      }, 700, 440),
+      n("ah_call_res", "SEND_TEXT", {
+        text: "✅ Priority booked! Our duty supervisor will call your WhatsApp first thing tomorrow at 8:30 AM.",
+      }, 700, 560),
+      n("ah_end", "END", {}, 400, 700),
+    ],
+    edges: [
+      e("e_ah1", "t_ah", "ah_msg"),
+      e("e_ah2", "ah_msg", "ah_list"),
+      e("e_ah3", "ah_list", "ah_track"),
+      e("e_ah4", "ah_track", "ah_track_res"),
+      e("e_ah5", "ah_list", "ah_ai"),
+      e("e_ah6", "ah_list", "ah_call"),
+      e("e_ah7", "ah_call", "ah_call_res"),
+      e("e_ah8", "ah_track_res", "ah_end"),
+      e("e_ah9", "ah_call_res", "ah_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 6. WATI / INTERAKT KILLER TEMPLATE: VIP CUSTOMER LOYALTY & REWARDS
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_vip_loyalty_rewards",
+    name: "Growth — VIP Loyalty Rewards & Birthday Perks",
+    emoji: "🎁",
+    category: "E-Commerce",
+    description: "Engages returning customers with points balance lookups, birthday treats, and 5 OMR instant redeem vouchers.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["vip", "loyalty", "points", "rewards", "birthday", "نقاط", "مكافآت", "ولاء"], matchType: "contains" },
+    nodes: [
+      n("t_vip", "TRIGGER", {}, 400, 40),
+      n("vip_greet", "SEND_TEXT", {
+        text: "👑 *VIP Member Club*\n\nHello! Thank you for being a valued member of our customer loyalty program. Here is your account snapshot:",
+      }, 400, 160),
+      n("vip_menu", "QUICK_REPLY", {
+        text: "Choose what you would like to do 👇",
+        buttons: ["Check Points", "Redeem 5 OMR", "VIP Benefits"],
+      }, 400, 280),
+      n("vip_pts", "SEND_TEXT", {
+        text: "✨ *Your Current Balance: 240 Points*\n\nYou earn 10 points for every 1 OMR spent. You are only 60 points away from Gold VIP Status!",
+      }, 150, 420),
+      n("vip_redeem", "SEND_TEXT", {
+        text: "🎁 *5 OMR Voucher Unlocked!*\nUse code: *VIP5OMR* on your next purchase above 20 OMR.\n\nShop online now:\n👉 https://app.fizmoh.cloud/shop",
+      }, 400, 420),
+      n("vip_perks", "SEND_TEXT", {
+        text: "🌟 *Your VIP Perks:*\n• Free express shipping on all orders\n• Early VIP access to seasonal flash sales\n• Priority 24/7 dedicated support agent",
+      }, 650, 420),
+      n("vip_end", "END", {}, 400, 560),
+    ],
+    edges: [
+      e("e_v1", "t_vip", "vip_greet"),
+      e("e_v2", "vip_greet", "vip_menu"),
+      e("e_v3", "vip_menu", "vip_pts", "Check Points"),
+      e("e_v4", "vip_menu", "vip_redeem", "Redeem 5 OMR"),
+      e("e_v5", "vip_menu", "vip_perks", "VIP Benefits"),
+      e("e_v6", "vip_pts", "vip_end"),
+      e("e_v7", "vip_redeem", "vip_end"),
+      e("e_v8", "vip_perks", "vip_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 7. WATI / INTERAKT KILLER TEMPLATE: WEBINAR & EVENT RSVP WITH DIGITAL PASS
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_event_webinar_registration",
+    name: "Appointments — Webinar & Event RSVP with WhatsApp Pass",
+    emoji: "🎟️",
+    category: "Appointments",
+    description: "Automated event RSVP collecting attendee details and issuing digital WhatsApp ticket pass with 1-hour prior reminders.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["event", "webinar", "rsvp", "ticket", "register", "تسجيل", "ندوة", "تذكرة", "فعالية"], matchType: "contains" },
+    nodes: [
+      n("t_rsvp", "TRIGGER", {}, 400, 40),
+      n("rsvp_intro", "SEND_TEXT", {
+        text: "🎟️ *Live Masterclass Registration*\n\n'Scaling GCC Businesses with WhatsApp Automation 2026'\n📅 This Thursday at 7:00 PM (Gulf Time)\n🌐 Live Interactive Session on Google Meet",
+      }, 400, 160),
+      n("rsvp_name", "QUESTION", {
+        name: "attendee_name",
+        text: "What is your Full Name?",
+        inputType: "text",
+        required: true,
+      }, 400, 280),
+      n("rsvp_email", "QUESTION", {
+        name: "attendee_email",
+        text: "What is your Business Email Address?",
+        inputType: "text",
+        required: true,
+      }, 400, 400),
+      n("rsvp_ticket", "SEND_TEXT", {
+        text: "🎉 *You're Confirmed, {{attendee_name}}!*\n\n🎫 *Ticket ID:* #WB-77291\n📅 Time: Thursday, 7:00 PM GST\n🔗 Meeting Link: https://meet.google.com/fiz-automation-masterclass\n\nWe will send you a calendar reminder 1 hour before the start!",
+      }, 400, 520),
+      n("rsvp_cal", "QUICK_REPLY", {
+        text: "Would you like to invite a colleague or add this to your calendar?",
+        buttons: ["Add to Calendar", "Invite Colleague", "Done"],
+      }, 400, 640),
+      n("rsvp_end", "END", {}, 400, 760),
+    ],
+    edges: [
+      e("e_ev1", "t_rsvp", "rsvp_intro"),
+      e("e_ev2", "rsvp_intro", "rsvp_name"),
+      e("e_ev3", "rsvp_name", "rsvp_email"),
+      e("e_ev4", "rsvp_email", "rsvp_ticket"),
+      e("e_ev5", "rsvp_ticket", "rsvp_cal"),
+      e("e_ev6", "rsvp_cal", "rsvp_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // 8. WATI / INTERAKT KILLER TEMPLATE: MULTI-BRANCH LOCATOR & HOURS
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "wati_multi_branch_locator",
+    name: "Dining & Retail — Multi-Branch Locator & Google Maps",
+    emoji: "📍",
+    category: "Dining & Hospitality",
+    description: "Interactive branch and store locator for restaurants, clinics, and retail chains across Oman. Shares Google Maps pins and working hours.",
+    trigger: "KEYWORD",
+    triggerConfig: { keywords: ["branch", "location", "address", "map", "hours", "فرع", "فروع", "موقع"], matchType: "contains" },
+    nodes: [
+      n("t_loc", "TRIGGER", {}, 400, 40),
+      n("loc_intro", "SEND_TEXT", {
+        text: "📍 *Store & Branch Locator*\n\nWelcome! Please select your area to view branch open hours, phone number, and Google Maps directions:",
+      }, 400, 160),
+      n("loc_list", "LIST", {
+        text: "Select your nearest branch 👇",
+        listButton: "Choose Branch",
+        rows: [
+          { id: "b_mouj", title: "1. Muscat — Al Mouj Marina", description: "Marina Walk, Street 6" },
+          { id: "b_qurum", title: "2. Muscat — Qurum Commercial", description: "Near City Centre Qurum" },
+          { id: "b_sohar", title: "3. Al Batinah — Sohar Corniche", description: "Coastal Road, Near Port" },
+          { id: "b_salalah", title: "4. Dhofar — Salalah Al Saada", description: "Sultan Qaboos Hospital Road" },
+        ],
+      }, 400, 280),
+      n("loc_mouj", "SEND_TEXT", {
+        text: "📍 *Al Mouj Branch*\n⏰ Daily: 8:00 AM – 11:30 PM\n📞 Tel: +968 2453 4400\n🗺️ Google Maps: https://maps.app.goo.gl/sample-mouj",
+      }, 100, 440),
+      n("loc_qurum", "SEND_TEXT", {
+        text: "📍 *Qurum Branch*\n⏰ Daily: 9:00 AM – 11:00 PM\n📞 Tel: +968 2456 8800\n🗺️ Google Maps: https://maps.app.goo.gl/sample-qurum",
+      }, 300, 440),
+      n("loc_sohar", "SEND_TEXT", {
+        text: "📍 *Sohar Branch*\n⏰ Daily: 9:00 AM – 10:30 PM\n📞 Tel: +968 2684 1100\n🗺️ Google Maps: https://maps.app.goo.gl/sample-sohar",
+      }, 500, 440),
+      n("loc_salalah", "SEND_TEXT", {
+        text: "📍 *Salalah Branch*\n⏰ Daily: 10:00 AM – 12:00 Midnight\n📞 Tel: +968 2329 5500\n🗺️ Google Maps: https://maps.app.goo.gl/sample-salalah",
+      }, 700, 440),
+      n("loc_end", "END", {}, 400, 600),
+    ],
+    edges: [
+      e("e_loc1", "t_loc", "loc_intro"),
+      e("e_loc2", "loc_intro", "loc_list"),
+      e("e_loc3", "loc_list", "loc_mouj"),
+      e("e_loc4", "loc_list", "loc_qurum"),
+      e("e_loc5", "loc_list", "loc_sohar"),
+      e("e_loc6", "loc_list", "loc_salalah"),
+      e("e_loc7", "loc_mouj", "loc_end"),
+      e("e_loc8", "loc_qurum", "loc_end"),
+      e("e_loc9", "loc_sohar", "loc_end"),
+      e("e_loc10", "loc_salalah", "loc_end"),
+    ],
+  },
 ]
+

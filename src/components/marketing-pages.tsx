@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowRight,
   Check,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Workflow,
   Video,
+  Boxes,
   Inbox,
   Megaphone,
   ShoppingBag,
@@ -47,6 +49,7 @@ import { Badge } from "@/components/ui/badge"
 import { WhatsAppDemo } from "@/components/whatsapp-demo"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
 import { useLanguage } from "@/context/language-context"
+import { TemplatesShowcase } from "@/components/marketing/templates-showcase"
 
 type PageKind = "features" | "pricing" | "simulator" | "templates" | "appointments" | "tours" | "woocommerce" | "restaurant" | "payments" | "crm"
 
@@ -479,6 +482,7 @@ interface PublicPlan {
 export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; initialPlans?: PublicPlan[] }) {
   const content = CONTENT[kind] || CONTENT.features
   const [plans, setPlans] = useState<PublicPlan[]>(initialPlans)
+  const [addons, setAddons] = useState<any[]>([])
   const [plansError, setPlansError] = useState(false)
   const [plansAttempt, setPlansAttempt] = useState(0)
   const [annual, setAnnual] = useState(false)
@@ -487,11 +491,15 @@ export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; ini
   useEffect(() => {
     if (kind === "pricing") {
       setPlansError(false)
-      fetch("/api/plans/public")
-        .then((res) => { if (!res.ok) throw new Error("Plan catalogue unavailable"); return res.json() })
-        .then((data) => {
-          if (!Array.isArray(data.plans) || !data.plans.length) throw new Error("No public plans available")
-          setPlans(data.plans)
+      Promise.all([
+        fetch("/api/plans/public").then((res) => { if (!res.ok) throw new Error("Plan catalogue unavailable"); return res.json() }),
+        fetch("/api/plans/addons").then((res) => res.json()).catch(() => ({ addons: [] })),
+      ])
+        .then(([planData, addonData]) => {
+          if (!Array.isArray(planData.plans) || !planData.plans.length) throw new Error("No public plans available")
+          setPlans(planData.plans)
+          const allAddons = (addonData.addons && addonData.addons.length > 0) ? addonData.addons : (planData.addons || [])
+          setAddons(allAddons)
         })
         .catch(() => setPlansError(true))
     }
@@ -511,9 +519,23 @@ export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; ini
               <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
                 {/* Left Column: Information, Guidance & Interactive Controls */}
                 <div className="lg:col-span-7 space-y-4">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-[#F2F2F2] border border-[var(--mk-line)] text-[var(--mk-ink)] text-[12px] font-semibold">
-                    <Sparkles className="h-3.5 w-3.5 text-[#00B96A]" />
-                    <span>{isAr ? content.eyebrowAr : content.eyebrowEn}</span>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-[#F2F2F2] border border-[var(--mk-line)] text-[var(--mk-ink)] text-[12px] font-semibold">
+                      <Sparkles className="h-3.5 w-3.5 text-[#00B96A]" />
+                      <span>{isAr ? content.eyebrowAr : content.eyebrowEn}</span>
+                    </div>
+                    <div
+                      className="inline-flex items-center rounded-xl bg-white border-2 border-emerald-600/35 px-2.5 py-0.5 shadow-xs ring-2 ring-emerald-500/10"
+                      title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+                    >
+                      <Image
+                        src="/meta_business_partner.webp"
+                        alt="Official Meta Business Partner"
+                        width={110}
+                        height={32}
+                        className="h-6 w-auto object-contain"
+                      />
+                    </div>
                   </div>
 
                   <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-extrabold tracking-tight text-[var(--mk-ink)] leading-[1.1]">
@@ -611,7 +633,46 @@ export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; ini
                 </div>
               </div>
             </section>
-            <Pricing plansError={plansError} onRetry={() => setPlansAttempt(value => value + 1)} plans={plans} annual={annual} setAnnual={setAnnual} isAr={isAr} />
+            <Pricing plansError={plansError} onRetry={() => setPlansAttempt(value => value + 1)} plans={plans} addons={addons} annual={annual} setAnnual={setAnnual} isAr={isAr} />
+          </>
+        ) : kind === "templates" ? (
+          /* ========================================================================= */
+          /* 3.5. DEDICATED TEMPLATES LIBRARY SHOWCASE (44+ FLOWS) */
+          /* ========================================================================= */
+          <>
+            <section className="relative pt-10 pb-12 px-4 sm:px-6 bg-gradient-to-b from-amber-50/40 via-white to-white border-b border-[var(--mk-line)]">
+              <div className="relative mx-auto max-w-7xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center px-3 py-1 rounded-[6px] bg-amber-100/60 border border-amber-200 text-amber-900 text-[12px] font-semibold">
+                    {isAr ? content.eyebrowAr : content.eyebrowEn}
+                  </span>
+                </div>
+
+                <div className="max-w-3xl space-y-3">
+                  <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-[46px] text-[var(--mk-ink)] leading-tight">
+                    {isAr ? content.titleAr : content.titleEn}
+                  </h1>
+                  <p className="text-[15px] text-[#717680] leading-relaxed max-w-2xl">
+                    {isAr ? content.descriptionAr : content.descriptionEn}
+                  </p>
+
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button size="lg" className="bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] px-6 h-10.5 border border-[#00B96A]/20" asChild>
+                      <Link href="/signup">
+                        {isAr ? "ابدأ التجربة المجانية (14 يوماً)" : "Start 14-Day Free Trial"}
+                        <ArrowRight className={`ml-1.5 h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
+                      </Link>
+                    </Button>
+                    <Button size="lg" variant="outline" className="border-[#1D1D1D] bg-white text-[var(--mk-ink)] hover:bg-[#F2F2F2] rounded-[8px] px-5 h-10.5 text-[13px] font-semibold" asChild>
+                      <Link href="/book-demo">
+                        {isAr ? "طلب عرض توضيحي" : "Book Google Meet Demo"}
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <TemplatesShowcase />
           </>
         ) : (
           /* ========================================================================= */
@@ -620,10 +681,22 @@ export function MarketingPage({ kind, initialPlans = [] }: { kind: PageKind; ini
           <>
             <section className="relative pt-10 pb-12 px-4 sm:px-6 bg-gradient-to-b from-[#FFF6DA]/40 via-white to-white border-b border-[var(--mk-line)]">
               <div className="relative mx-auto max-w-7xl">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <span className="inline-flex items-center px-3 py-1 rounded-[6px] bg-[#F2F2F2] border border-[var(--mk-line)] text-[var(--mk-ink)] text-[12px] font-semibold">
                     {isAr ? content.eyebrowAr : content.eyebrowEn}
                   </span>
+                  <div
+                    className="inline-flex items-center rounded-xl bg-white border-2 border-emerald-600/35 px-2.5 py-0.5 shadow-xs ring-2 ring-emerald-500/10"
+                    title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+                  >
+                    <Image
+                      src="/meta_business_partner.webp"
+                      alt="Official Meta Business Partner"
+                      width={110}
+                      height={32}
+                      className="h-6 w-auto object-contain"
+                    />
+                  </div>
                 </div>
 
                 <div className="max-w-3xl space-y-3">
@@ -1302,6 +1375,7 @@ function ProductDetail({
 function Pricing({
   plansError, onRetry,
   plans,
+  addons = [],
   annual,
   setAnnual,
   isAr,
@@ -1309,6 +1383,7 @@ function Pricing({
   plansError: boolean
   onRetry: () => void
   plans: PublicPlan[]
+  addons?: any[]
   annual: boolean
   setAnnual: (value: boolean) => void
   isAr: boolean
@@ -1317,6 +1392,19 @@ function Pricing({
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 space-y-10">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
+          <div className="mb-3.5 inline-flex items-center gap-3 rounded-2xl bg-white border-2 border-emerald-600/35 px-4 py-2 shadow-sm ring-4 ring-emerald-500/10">
+            <Image
+              src="/meta_business_partner.webp"
+              alt="Official Meta Business Partner"
+              width={160}
+              height={48}
+              className="h-9 sm:h-10 w-auto object-contain"
+              priority
+            />
+            <span className="hidden sm:inline-block border-l border-emerald-200 pl-3 text-[12px] font-bold text-emerald-900">
+              {isAr ? "شريك معتمد · 0% عمولة على رسائل ميتا" : "Official Meta Partner · 0% Markup on Meta Fees"}
+            </span>
+          </div>
           <p className="text-[12px] font-bold uppercase tracking-wider text-[#00B96A]">
             {isAr ? "باقات واضحة بدون عمولات مخفية" : "Pricing Catalogue"}
           </p>
@@ -1503,6 +1591,94 @@ function Pricing({
           </div>
         )}
       </div>
+
+      {/* Modular Add-Ons & Extensibility Showcase */}
+      {addons && addons.length > 0 && (
+        <div className="pt-10 border-t border-[var(--mk-line)] space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-[#00B96A]">
+                <Boxes className="h-4 w-4" />
+                <span>{isAr ? "إضافات معيارية وحلول توسع" : "Modular Add-Ons & Extensions"}</span>
+              </div>
+              <h3 className="mt-1 text-2xl sm:text-3xl font-extrabold text-[var(--mk-ink)]">
+                {isAr ? "عزز منصتك بحلول التجارة والأتمتة والذكاء الاصطناعي" : "Power-Up With Turnkey Connectors & AI Modules"}
+              </h3>
+              <p className="text-[13.5px] text-[#717680] mt-1.5 max-w-2xl leading-relaxed">
+                {isAr
+                  ? "قم بربط قنواتك بمتاجر سلة وشوبيفاي وجوجل شيتس والذكاء الاصطناعي الصوتي دون الحاجة لترقية باقتك الأساسية."
+                  : "Attach turnkey connectors for Shopify, Salla, Google Sheets, Voice AI, CRM, and Google Reviews without upgrading your base plan."}
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-stone-600 bg-[#F2F2F2] px-3.5 py-2 rounded-xl border border-[var(--mk-line)] self-start md:self-auto">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{addons.length} {isAr ? "إضافة معتمدة" : "Turnkey Add-ons"}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {addons.map((addon) => {
+              const price = annual ? addon.priceYearly : addon.priceMonthly
+              return (
+                <div
+                  key={addon.slug}
+                  className="rounded-[16px] border border-[var(--mk-line)] bg-white p-5.5 flex flex-col justify-between hover:border-[#1D1D1D] hover:shadow-md transition shadow-xs"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#F4F4F4] text-[var(--mk-ink)] border border-[var(--mk-line)]">
+                        {addon.module}
+                      </span>
+                      <span className="text-[12px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        {addon.currency} {price} / {annual ? (isAr ? "سنة" : "yr") : (isAr ? "شهر" : "mo")}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-[15px] text-[var(--mk-ink)] leading-snug">{addon.name}</h4>
+                    <p className="text-[12.5px] text-[#717680] mt-2 leading-relaxed">{addon.description}</p>
+
+                    {addon.limits && Object.keys(addon.limits).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {addon.limits.voiceNotesPerMonth && (
+                          <span className="text-[10.5px] bg-[#F8F9FA] text-stone-600 px-2 py-0.5 rounded border border-[var(--mk-line)]">
+                            {addon.limits.voiceNotesPerMonth.toLocaleString()} voice notes/mo
+                          </span>
+                        )}
+                        {addon.limits.sheetsLimit && (
+                          <span className="text-[10.5px] bg-[#F8F9FA] text-stone-600 px-2 py-0.5 rounded border border-[var(--mk-line)]">
+                            {addon.limits.sheetsLimit} Google Sheets
+                          </span>
+                        )}
+                        {addon.limits.subWorkspaces && (
+                          <span className="text-[10.5px] bg-[#F8F9FA] text-stone-600 px-2 py-0.5 rounded border border-[var(--mk-line)]">
+                            {addon.limits.subWorkspaces} Sub-Accounts
+                          </span>
+                        )}
+                        {addon.limits.platforms && Array.isArray(addon.limits.platforms) && (
+                          <span className="text-[10.5px] bg-[#F8F9FA] text-stone-600 px-2 py-0.5 rounded border border-[var(--mk-line)]">
+                            {addon.limits.platforms.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 pt-3.5 border-t border-[var(--mk-line)] flex items-center justify-between">
+                    <span className="text-[11px] text-[#717680] font-medium flex items-center gap-1">
+                      <Check className="h-3 w-3 text-emerald-600" />
+                      {isAr ? "تفعيل فوري" : "Instant Activation"}
+                    </span>
+                    <Button size="sm" variant="outline" className="h-8 px-3 text-[12px] font-bold rounded-lg border-[#1D1D1D] hover:bg-stone-900 hover:text-white transition" asChild>
+                      <Link href={`/signup?addon=${addon.slug}`}>
+                        {isAr ? "تجربة الإضافة" : "Add to Trial"}
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Book Demo Banner */}
       <div className="rounded-[16px] border border-[var(--mk-line)] bg-[#F2F2F2] p-7 text-[var(--mk-ink)] flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
