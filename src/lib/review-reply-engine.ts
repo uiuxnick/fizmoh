@@ -36,10 +36,11 @@ function todayRange(now: Date) {
   return { start, end }
 }
 
-async function loadSettings() {
+async function loadSettings(explicitTenantId?: string) {
   const tenant = currentTenant()
-  if (!tenant?.tenantId) return null
-  return db.reviewReplySettings.findUnique({ where: { tenantId: tenant.tenantId } })
+  const tenantId = explicitTenantId || tenant?.tenantId
+  if (!tenantId) return null
+  return db.reviewReplySettings.findUnique({ where: { tenantId } })
 }
 
 /**
@@ -94,6 +95,7 @@ interface ReviewReplySettingsLike {
   escalationKeywords?: unknown
   signature: string | null
   languages?: unknown
+  templates?: unknown
   excludedWords?: unknown
   maxRepliesPerDay: number
 }
@@ -169,6 +171,31 @@ async function generateForNewReviews(settings: ReviewReplySettingsLike, business
   const excludedWords = Array.isArray(settings.excludedWords) ? (settings.excludedWords as string[]) : []
   const extraKeywords = Array.isArray(settings.escalationKeywords) ? (settings.escalationKeywords as string[]) : []
 
+  // Build map of location resource names to clean human-readable business titles
+  const locationNameMap = new Map<string, string>()
+  const tenant = currentTenant()
+  if (tenant?.tenantId) {
+    const integration = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
+    if (integration?.googleAccountId) {
+      const res = await listGoogleLocations(integration.googleAccountId)
+      if (res.ok && res.locations) {
+        for (const loc of res.locations) {
+          locationNameMap.set(loc.id, loc.name)
+          const shortId = loc.id.replace(/^accounts\/[^\/]+\//, "")
+          locationNameMap.set(shortId, loc.name)
+        }
+      }
+    }
+  }
+
+  // Parse custom prompt and SEO keyword replacement rules from templates settings
+  const templatesObj = (settings.templates && typeof settings.templates === "object") ? (settings.templates as Record<string, unknown>) : {}
+  const customPrompt = typeof templatesObj.customPrompt === "string" ? templatesObj.customPrompt : null
+  const premiumKeywords = Array.isArray(templatesObj.premiumKeywords) ? templatesObj.premiumKeywords.map(String) : []
+  const keywordReplacements = Array.isArray(templatesObj.keywordReplacements) 
+    ? (templatesObj.keywordReplacements as Array<{ search: string; replace: string }>)
+    : []
+
   for (const row of pending) {
     const escalation = detectEscalation(row.review.comment, extraKeywords)
     const route = decideRoute({
@@ -181,19 +208,34 @@ async function generateForNewReviews(settings: ReviewReplySettingsLike, business
       maxRepliesPerDay: settings.maxRepliesPerDay,
     })
 
+    const effectiveLocationName = locationNameMap.get(row.review.googleLocationId)
+      || locationNameMap.get(row.review.googleLocationId.replace(/^accounts\/[^\/]+\//, ""))
+      || businessName
+
+    let sig = settings.signature
+    if (sig && (sig.includes("Fizmoh") || sig.includes("Support Team"))) {
+      sig = `— The ${effectiveLocationName} Team`
+    } else if (!sig) {
+      sig = `— The ${effectiveLocationName} Team`
+    }
+
     let text = ""
     try {
       text = await generateReply({
         reviewText: row.review.comment,
         rating: row.review.rating,
         reviewerName: row.review.reviewerName,
-        businessName,
+        businessName: effectiveLocationName,
+        locationName: effectiveLocationName,
         tone: settings.tone as Tone,
         customTone: settings.customTone,
         replyLength: settings.replyLength as ReplyLength,
         language: languages[0] || "en",
-        signature: settings.signature,
+        signature: sig,
         excludedWords,
+        customPrompt,
+        premiumKeywords,
+        keywordReplacements,
       })
     } catch (error) {
       console.error("Reply generation failed for review", row.review.id, "-", error)
@@ -292,7 +334,7 @@ async function publishDueApprovals(): Promise<{ published: number; failed: numbe
 }
 
 /** The full per-tenant sweep — fetches reviews, generates AI replies, and publishes/schedules per settings. */
-export async function runReviewAutoReplyForTenant(targetLocationId?: string): Promise<SweepStats> {
+export async function runReviewAutoReplyForTenant(targetLocationId?: string, forceRegenerateDrafts?: boolean): Promise<SweepStats> {
   const settings = await loadSettings()
 
   const tenant = currentTenant()
@@ -302,6 +344,21 @@ export async function runReviewAutoReplyForTenant(targetLocationId?: string): Pr
   const locations = await connectedLocations(targetLocationId)
   for (const locationId of locations) {
     fetched += await ingestReviews(locationId)
+  }
+
+  if (forceRegenerateDrafts && tenant?.tenantId) {
+    const whereDrafts: Record<string, unknown> = {
+      tenantId: tenant.tenantId,
+      status: { in: ["NEW", "DRAFT", "PENDING_APPROVAL", "ESCALATED"] },
+    }
+    if (targetLocationId) {
+      const locClean = targetLocationId.replace(/^accounts\/[^\/]+\//, "")
+      whereDrafts.review = { googleLocationId: { contains: locClean } }
+    }
+    await db.replyLog.updateMany({
+      where: whereDrafts,
+      data: { status: "NEW" },
+    })
   }
 
   // If user explicitly disabled auto-reply in settings, reviews are fetched and shown, but we don't generate/publish
@@ -340,6 +397,82 @@ export async function runReviewAutoReplyForTenant(targetLocationId?: string): Pr
     published: publishedNow + dueApprovals.published + retried.published,
     failed: failedNow + dueApprovals.failed + retried.failed,
     skipped: 0,
+  }
+}
+
+/** Re-generate AI reply draft for a single review, with optional custom prompt or keyword overrides. */
+export async function regenerateReviewReply(replyLogId: string, overrides?: {
+  customPrompt?: string
+  premiumKeywords?: string[]
+  keywordReplacements?: Array<{ search: string; replace: string }>
+  tone?: Tone
+  locationName?: string
+}): Promise<{ ok: boolean; reply?: string; status?: string; error?: string }> {
+  const row = await db.replyLog.findUnique({ where: { id: replyLogId }, include: { review: true } })
+  if (!row) return { ok: false, error: "No such review" }
+  if (row.status === "PUBLISHED") return { ok: false, error: "Cannot regenerate an already published reply" }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId || row.tenantId
+  const settings = await loadSettings(tenantId)
+  const tenantRow = tenantId ? await db.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }) : null
+
+  // Lookup location name
+  let locationName = overrides?.locationName?.trim() || ""
+  if (!locationName && tenantId) {
+    const integration = await db.googleIntegration.findUnique({ where: { tenantId } })
+    if (integration?.googleAccountId) {
+      const res = await listGoogleLocations(integration.googleAccountId)
+      if (res.ok && res.locations) {
+        const found = res.locations.find(l => l.id.includes(row.review.googleLocationId) || row.review.googleLocationId.includes(l.id))
+        if (found) locationName = found.name
+      }
+    }
+  }
+  if (!locationName) {
+    locationName = tenantRow?.name || "the business"
+  }
+
+  const templatesObj = (settings?.templates && typeof settings.templates === "object") ? (settings.templates as Record<string, unknown>) : {}
+  const customPrompt = overrides?.customPrompt ?? (typeof templatesObj.customPrompt === "string" ? templatesObj.customPrompt : null)
+  const premiumKeywords = overrides?.premiumKeywords ?? (Array.isArray(templatesObj.premiumKeywords) ? templatesObj.premiumKeywords.map(String) : [])
+  const keywordReplacements = overrides?.keywordReplacements ?? (Array.isArray(templatesObj.keywordReplacements) ? (templatesObj.keywordReplacements as Array<{ search: string; replace: string }>) : [])
+
+  const tone = overrides?.tone ?? (settings?.tone as Tone) ?? "professional"
+  const sig = (settings?.signature && settings.signature.includes("{{location_name}}"))
+    ? settings.signature.replace(/\{\{\s*location_name\s*\}\}/g, locationName)
+    : (settings?.signature && !settings.signature.includes("Fizmoh") ? settings.signature : `— The ${locationName} Team`)
+
+  try {
+    const text = await generateReply({
+      reviewText: row.review.comment,
+      rating: row.review.rating,
+      reviewerName: row.review.reviewerName,
+      businessName: locationName,
+      locationName,
+      tone,
+      customTone: settings?.customTone || null,
+      replyLength: (settings?.replyLength as ReplyLength) || "medium",
+      language: "en",
+      signature: sig,
+      excludedWords: Array.isArray(settings?.excludedWords) ? (settings.excludedWords as string[]) : [],
+      customPrompt,
+      premiumKeywords,
+      keywordReplacements,
+    })
+
+    const updated = await db.replyLog.update({
+      where: { id: replyLogId },
+      data: {
+        generatedText: text,
+        finalText: text,
+        status: row.status === "ESCALATED" ? "ESCALATED" : "PENDING_APPROVAL",
+      },
+    })
+
+    return { ok: true, reply: text, status: updated.status }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Regeneration failed" }
   }
 }
 

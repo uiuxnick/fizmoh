@@ -137,17 +137,26 @@ export function nextRetryDelayMinutes(retryCount: number): number | null {
 
 // ── Generation ──────────────────────────────────────────────────────────────
 
+export interface KeywordReplacementRule {
+  search: string
+  replace: string
+}
+
 export interface GenerateReplyInput {
   reviewText: string | null
   rating: number
   reviewerName: string | null
   businessName: string
+  locationName?: string | null
   tone: Tone
   customTone: string | null
   replyLength: ReplyLength
   language: string // e.g. "en" — reply in this language
   signature: string | null
   excludedWords: string[]
+  customPrompt?: string | null
+  premiumKeywords?: string[]
+  keywordReplacements?: KeywordReplacementRule[]
 }
 
 const LENGTH_GUIDE: Record<ReplyLength, string> = {
@@ -180,15 +189,91 @@ const SYSTEM_PROMPT = `You write a business's public reply to one Google custome
 - Keep it concise and natural — never robotic, exaggerated, or promotional.
 - Respond with strict JSON only: {"reply":"..."}. No markdown, no explanation.`
 
+/** Interpolates template variables {{variable}} into prompt */
+export function interpolatePrompt(template: string, vars: {
+  business_name?: string | null
+  location_name?: string | null
+  reviewer_name?: string | null
+  rating?: number | null
+  review_text?: string | null
+  premium_keywords?: string | null
+}): string {
+  return template
+    .replace(/\{\{\s*business_name\s*\}\}/gi, vars.business_name || "the business")
+    .replace(/\{\{\s*location_name\s*\}\}/gi, vars.location_name || vars.business_name || "our location")
+    .replace(/\{\{\s*reviewer_name\s*\}\}/gi, vars.reviewer_name || "valued customer")
+    .replace(/\{\{\s*rating\s*\}\}/gi, String(vars.rating ?? 5))
+    .replace(/\{\{\s*review_text\s*\}\}/gi, vars.review_text || "")
+    .replace(/\{\{\s*premium_keywords\s*\}\}/gi, vars.premium_keywords || "")
+}
+
+/** Case-preserving whole-word replacement using single-pass alternation (prevents cascading re-replacements) */
+export function applyKeywordReplacements(text: string, rules: KeywordReplacementRule[]): string {
+  if (!text || !Array.isArray(rules) || rules.length === 0) return text
+
+  const validRules = rules.filter(r => r.search?.trim() && r.replace?.trim())
+  if (validRules.length === 0) return text
+
+  // Sort longest search term first so "perfumes" matches before "perfume"
+  const sortedRules = [...validRules].sort((a, b) => b.search.trim().length - a.search.trim().length)
+  const ruleMap = new Map<string, string>()
+  const escapedPatterns: string[] = []
+
+  for (const rule of sortedRules) {
+    const s = rule.search.trim()
+    const lower = s.toLowerCase()
+    if (!ruleMap.has(lower)) {
+      ruleMap.set(lower, rule.replace.trim())
+      escapedPatterns.push(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    }
+  }
+
+  if (escapedPatterns.length === 0) return text
+
+  const combinedRegex = new RegExp(`\\b(?:${escapedPatterns.join("|")})\\b`, "gi")
+
+  return text.replace(combinedRegex, (match) => {
+    const replaceWith = ruleMap.get(match.toLowerCase())
+    if (!replaceWith) return match
+
+    // Preserve TitleCase (e.g. "Product" -> "Luxury fragrance")
+    if (match[0] === match[0].toUpperCase() && match.slice(1) === match.slice(1).toLowerCase()) {
+      return replaceWith.charAt(0).toUpperCase() + replaceWith.slice(1)
+    }
+    // Preserve UPPERCASE (e.g. "PRODUCT" -> "LUXURY FRAGRANCE")
+    if (match === match.toUpperCase()) {
+      return replaceWith.toUpperCase()
+    }
+    // Default lowercase / match case
+    return replaceWith
+  })
+}
+
 export async function generateReply(input: GenerateReplyInput): Promise<string> {
   const config = await getAIConfig()
   const toneLine = input.tone === "custom" && input.customTone ? input.customTone.slice(0, 300) : TONE_GUIDE[input.tone as Exclude<Tone, "custom">] || TONE_GUIDE.professional
 
+  const premiumKeywordsList = Array.isArray(input.premiumKeywords) ? input.premiumKeywords.filter(Boolean) : []
+  const premiumKeywordsStr = premiumKeywordsList.join(", ")
+
+  const customPromptInterpolated = input.customPrompt?.trim()
+    ? interpolatePrompt(input.customPrompt, {
+        business_name: input.businessName,
+        location_name: input.locationName || input.businessName,
+        reviewer_name: input.reviewerName || "valued customer",
+        rating: input.rating,
+        review_text: input.reviewText || "(rating only, no comment)",
+        premium_keywords: premiumKeywordsStr,
+      })
+    : ""
+
   const userPrompt = [
-    `Business: ${input.businessName || "the business"}`,
+    `Business / Location: ${input.locationName || input.businessName || "the business"}`,
     `Reviewer: ${input.reviewerName || "a customer"}`,
     `Star rating: ${input.rating || "not given"} / 5`,
     `Review text: ${input.reviewText ? `"${input.reviewText.slice(0, 1000)}"` : "(no text — rating only, or emoji only)"}`,
+    customPromptInterpolated ? `Special instructions / brand prompt:\n${customPromptInterpolated}` : "",
+    premiumKeywordsStr ? `Premium SEO & Brand Keywords to naturally weave in (use 1 or 2 naturally if fitting, do not force or sound spammy): ${premiumKeywordsStr}` : "",
     `Tone: ${toneLine}`,
     `Length: ${LENGTH_GUIDE[input.replyLength]}`,
     `Reply language: ${input.language}`,
@@ -217,7 +302,12 @@ export async function generateReply(input: GenerateReplyInput): Promise<string> 
 
   const cleaned = raw.trim().replace(/^```(?:json)?\n?/i, "").replace(/```$/, "").trim()
   const parsed = JSON.parse(cleaned) as { reply?: string }
-  const reply = String(parsed.reply || "").trim()
+  let reply = String(parsed.reply || "").trim()
   if (!reply) throw new Error("AI returned an empty reply")
+
+  if (Array.isArray(input.keywordReplacements) && input.keywordReplacements.length > 0) {
+    reply = applyKeywordReplacements(reply, input.keywordReplacements)
+  }
+
   return reply.slice(0, 4000)
 }

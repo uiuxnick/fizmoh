@@ -4,7 +4,7 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
-import { approveAndPublish, retryReply } from "@/lib/review-reply-engine"
+import { approveAndPublish, retryReply, regenerateReviewReply } from "@/lib/review-reply-engine"
 
 const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
 
@@ -62,6 +62,17 @@ export const POST = withErrors(withModule("DIGITAL_QR", async (
     const result = await retryReply(id)
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 })
     return NextResponse.json({ ok: true })
+  }
+  if (action === "regenerate") {
+    const result = await regenerateReviewReply(id, {
+      customPrompt: typeof body?.customPrompt === "string" ? body.customPrompt : undefined,
+      premiumKeywords: Array.isArray(body?.premiumKeywords) ? body.premiumKeywords.map(String) : undefined,
+      keywordReplacements: Array.isArray(body?.keywordReplacements) ? body.keywordReplacements : undefined,
+      tone: body?.tone,
+      locationName: typeof body?.locationName === "string" ? body.locationName : undefined,
+    })
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 })
+    return NextResponse.json({ ok: true, reply: result.reply, status: result.status })
   }
   if (action === "skip") {
     const row = await db.replyLog.findUnique({ where: { id } })
