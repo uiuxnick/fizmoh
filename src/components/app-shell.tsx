@@ -17,7 +17,7 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers,
 } from "lucide-react"
 
 import { SessionGuard } from "@/components/session-guard"
@@ -74,7 +74,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website"
   badge?: string
   accent?: string
   hash?: string
@@ -84,7 +84,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
-  { key: "customer-site", label: "Customer Website", icon: Globe, group: "Overview", accent: "text-teal-600" },
+  { key: "customer-site", label: "Customer Website", icon: Globe, group: "Overview", accent: "text-teal-600", feature: "website" },
+  { key: "website-builder", label: "Website Builder", icon: Layers, group: "Overview", accent: "text-violet-600", badge: "New", feature: "website" },
   { key: "tours", label: "Tours & Slots", icon: Map, group: "Operations", feature: "tours" },
   {
     key: "restaurant",
@@ -537,14 +538,10 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
     : NAV_ITEMS.filter(i => {
         if (i.key === "platform") return false
         if (features?.corporate) {
-          // Corporate Addon: No customer website and no unrelated addon dashboards
+          // Corporate Addon: hide customer website and tour-centric views
           if (i.key === "customer-site") return false
           if (i.key === "tours" || i.key === "bookings" || i.key === "calendar" || i.key === "coupons") return false
           if (i.key === "restaurant" && !features?.restaurant) return false
-        }
-        if (i.key === "customer-site") {
-          if (!features) return false
-          if (!features.tours && !features.restaurant) return false
         }
         if (i.key === "templates") {
           if (!features) return false
@@ -556,7 +553,7 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
         }
         return true
       }).map(i => {
-        if (i.key === "customer-site" && features?.restaurant) {
+        if (i.key === "customer-site" && features?.restaurant && !features?.tours) {
           return { ...i, label: "Restaurant Website", accent: "text-amber-400" }
         }
         return i

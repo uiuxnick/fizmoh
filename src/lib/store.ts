@@ -36,6 +36,8 @@ export type ViewKey =
   | "digital-vcard"
   | "social-channels"
   | "live-chat"
+  | "corporate"
+  | "website-builder"
 
 type AuthMode = "login" | "admin" | "customer" | null
 

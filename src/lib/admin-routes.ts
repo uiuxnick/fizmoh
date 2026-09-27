@@ -35,9 +35,14 @@ export const VIEW_PATHS: Record<ViewKey, string> = {
   woocommerce: "woocommerce",
   hospital: "hospital",
   "live-chat": "live-chat",
+  corporate: "corporate",
+  "website-builder": "website-builder",
 }
 
 const ALIASES: Record<string, ViewKey> = {
+  corporate: "corporate",
+  emadi: "corporate",
+  architectural: "corporate",
   livechat: "live-chat",
   webchat: "live-chat",
   widget: "live-chat",

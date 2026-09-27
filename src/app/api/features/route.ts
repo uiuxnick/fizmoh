@@ -42,6 +42,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     social_inbox: has("SOCIAL_INBOX"),
     live_chat: has("LIVE_CHAT"),
     corporate: has("CORPORATE"),
+    website: has("WEBSITE") || has("TOURS") || has("RESTAURANT"),
     modules,
     platform: !currentTenant()?.tenantId && !!(await requirePlatformAdmin(request)),
   })

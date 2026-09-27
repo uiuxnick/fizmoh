@@ -622,10 +622,9 @@ export async function sendCtaUrlMessage(params: {
   }
 
   try {
-    const rawBody = (params.body || "").trim()
-    const finalBody = rawBody.includes(params.url)
-      ? rawBody
-      : `${rawBody}\n\n👉 *${params.buttonText || "Open"}:*\n${params.url}`
+    // Keep clean body text without appending the plain URL so WhatsApp opens
+    // the destination directly inside the WhatsApp in-app browser via the CTA button.
+    const finalBody = (params.body || "").trim()
 
     const interactive: Record<string, unknown> = {
       type: "cta_url",
@@ -1118,7 +1117,39 @@ export async function sendLocationMessage(params: {
  * Meta clears the indicator when the reply arrives, or after about 25 seconds.
  * Deliberately best-effort: a courtesy that fails must never stop the reply.
  */
-export async function showTyping(messageId: string): Promise<void> {
+/**
+ * Marks a message as read (blue double-tick) without showing a typing indicator.
+ * Use when a human agent is handling the conversation — we want the customer
+ * to know their message was seen, but we don't want to imply a bot is replying.
+ */
+export async function markMessageRead(messageId: string): Promise<void> {
+  if (!(await isWhatsAppConfigured())) return
+  const config = await getWhatsAppConfig()
+
+  try {
+    await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.accessToken}`,
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: messageId,
+      }),
+    })
+  } catch (error) {
+    console.error("Mark read failed:", error)
+  }
+}
+
+/**
+ * Marks a message as read (blue ticks) AND shows a typing animation.
+ * Only call this when the AI/bot is active and will actually send a reply —
+ * otherwise the customer sees "typing…" and then nothing arrives.
+ */
+export async function showTypingWithReadReceipt(messageId: string): Promise<void> {
   if (!(await isWhatsAppConfigured())) return
   const config = await getWhatsAppConfig()
 
@@ -1140,6 +1171,9 @@ export async function showTyping(messageId: string): Promise<void> {
     console.error("Typing indicator failed:", error)
   }
 }
+
+/** @deprecated Use showTypingWithReadReceipt (when bot is active) or markMessageRead (when human-only). */
+export const showTyping = showTypingWithReadReceipt
 
 /**
  * Sends a Meta WhatsApp Single Product Message (SPM).

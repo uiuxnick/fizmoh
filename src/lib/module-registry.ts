@@ -30,6 +30,12 @@ export const MODULE_REGISTRY = [
   { key: "DIGITAL_VCARD", label: "Digital Business Card", description: "Smart digital business card with vCard, WhatsApp, QR, services, payments and analytics", group: "Growth", alwaysIncluded: true },
   { key: "SOCIAL_INBOX", label: "Facebook & Instagram Automation", description: "Messenger and Instagram DMs, comments, unified inbox and AI auto-reply", group: "Growth", alwaysIncluded: false },
   { key: "LIVE_CHAT", label: "Website Chat & WhatsApp Widget", description: "Embeddable dual-mode website chat widget, WhatsApp direct chat, AI smart replies, lead capture and live team inbox sync", group: "Growth", alwaysIncluded: true },
+  { key: "CORPORATE", label: "Corporate & Architectural Systems", description: "Specialized quotation requests, architectural aluminium, glass, factory & showroom locations, and project submissions", group: "Commerce", alwaysIncluded: false },
+  { key: "ECOMMERCE", label: "E-Commerce & Store Sync", description: "Shopify, Salla & Zid store sync, abandoned cart recovery, order dispatch alerts and COD verification", group: "Commerce", alwaysIncluded: false },
+  { key: "INTEGRATION", label: "Cloud & Sheet Bridges", description: "Real-time Google Sheets sync, custom webhooks, and bidirectional database bridges", group: "Automation", alwaysIncluded: false },
+  { key: "REPUTATION", label: "Google Review AI Shield", description: "Google Maps 5-star review collector, AI draft generation, and negative feedback private routing", group: "Growth", alwaysIncluded: false },
+  { key: "WEBSITE", label: "Website Builder", description: "Drag-and-drop website and landing page builder with 50+ elements, e-commerce store, and publish to your domain", group: "Growth", alwaysIncluded: false },
+  { key: "WHITE_LABEL", label: "Agency White-Label Reseller", description: "Custom agency branding, sub-account workspace creation, custom domain mapping and margin billing", group: "Growth", alwaysIncluded: false },
 ] as const
 
 export type Module = typeof MODULE_REGISTRY[number]["key"]

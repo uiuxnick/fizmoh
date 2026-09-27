@@ -920,7 +920,7 @@ export default function BillingView() {
                 if (addonFilter === "ECOMMERCE") return ["RESTAURANT", "WOOCOMMERCE", "ECOMMERCE", "CORPORATE"].includes(addon.module)
                 if (addonFilter === "AI") return ["AI", "FLOWS"].includes(addon.module)
                 if (addonFilter === "INTEGRATION") return ["INTEGRATION", "CRM"].includes(addon.module)
-                if (addonFilter === "GROWTH") return ["BROADCAST", "REPUTATION", "WHITE_LABEL", "DIGITAL_QR", "DIGITAL_VCARD", "SOCIAL_INBOX", "LIVE_CHAT"].includes(addon.module)
+                if (addonFilter === "GROWTH") return ["BROADCAST", "REPUTATION", "WHITE_LABEL", "DIGITAL_QR", "DIGITAL_VCARD", "SOCIAL_INBOX", "LIVE_CHAT", "WEBSITE"].includes(addon.module)
                 if (addonFilter === "CORE") return ["STAFF", "INBOX", "HOSPITAL"].includes(addon.module)
                 return true
               })

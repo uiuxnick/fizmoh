@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { after } from "next/server"
 import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { verifyWebhookSignature, downloadMedia, downloadMediaBytes, sendInteractiveMessage, getWhatsAppConfig, showTyping } from "@/lib/whatsapp"
+import { verifyWebhookSignature, downloadMedia, downloadMediaBytes, sendInteractiveMessage, sendCtaUrlMessage, getWhatsAppConfig, showTyping, showTypingWithReadReceipt } from "@/lib/whatsapp"
 import { aiChat, detectIntent, analyzePaymentScreenshot, transcribeAudio } from "@/lib/ai"
 import { sendWhatsApp } from "@/lib/notifications"
 import { formatCurrency, formatDate } from "@/lib/helpers"
@@ -206,7 +206,7 @@ async function resolveConversation(from: string, customerName: string, customerI
         })
       }
     }
-    if (existing.status === "CLOSED" || existing.status === "RESOLVED") {
+    if (existing.status === "CLOSED" || existing.status === "RESOLVED" || existing.status === "SNOOZED") {
       return db.conversation.update({
         where: { id: existing.id },
         data: { status: "OPEN", botActive: isBotActive, automationPaused: !isBotActive },
@@ -590,9 +590,11 @@ async function processMessage(msg: any, contact: any) {
 
   const conversation = await resolveConversation(from, customerName, customer.id)
 
-  // Blue ticks and "typing…" as soon as the message lands, so the customer can
-  // see they have been heard while the assistant works.
-  if (msg.id) void showTyping(msg.id)
+  // Only show blue ticks + typing animation when the AI/bot will actually reply.
+  // When AI is disabled, a human agent will respond — we must not send fake typing cues.
+  if (msg.id && conversation.botActive && !conversation.automationPaused) {
+    void showTypingWithReadReceipt(msg.id)
+  }
 
   // Meta's media id is not a URL and its download link expires within minutes,
   // so storing the id meant nothing could ever render what a customer sent —
@@ -820,14 +822,30 @@ async function processMessage(msg: any, contact: any) {
       return
     }
 
-    if (type === "image" && mediaId) {
-      await handlePaymentScreenshot({
+    if ((type === "image" || type === "document") && mediaId) {
+      // ── Check if an active bot-flow is waiting at an upload/drawing node ──
+      // If yes, treat the media as the answer to that QUESTION and advance the
+      // flow. Only fall through to payment-screenshot logic if no flow is waiting.
+      const flowHandled = await handleFlowMediaUpload({
         from,
-        customerName,
         mediaId,
+        mediaType: type as "image" | "document",
+        mimeType: msg.image?.mime_type || msg.document?.mime_type || "image/jpeg",
+        filename: msg.document?.filename || undefined,
         customerId: customer.id,
         conversationId: conversation.id,
       })
+      if (flowHandled) return
+
+      if (type === "image") {
+        await handlePaymentScreenshot({
+          from,
+          customerName,
+          mediaId,
+          customerId: customer.id,
+          conversationId: conversation.id,
+        })
+      }
       return
     }
 
@@ -874,10 +892,401 @@ async function processMessage(msg: any, contact: any) {
         return
       }
 
+      // ─── Restaurant Interactive Button Handlers ───
+      if (replyId?.startsWith("call_waiter_") || replyId === "rest_waiter") {
+        const orderId = replyId.startsWith("call_waiter_") ? replyId.replace(/^call_waiter_/, "").trim() : null
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { name: true, slug: true } })
+        const businessName = tenant?.name || "Restaurant"
+        const slug = tenant?.slug || "kitchen"
+
+        let tableNumber: string | null = null
+        let tableId: string | null = null
+        let branchId: string | null = null
+
+        if (orderId) {
+          const order = await db.kitchenOrder.findUnique({ where: { id: orderId } })
+          if (order) {
+            tableNumber = order.tableNumber || null
+            tableId = order.tableId || null
+            branchId = order.branchId || null
+          }
+        }
+
+        if (!tableNumber && customer.notes?.includes("table:")) {
+          const m = customer.notes.match(/table:([^\s,;]+)/)
+          if (m) tableNumber = m[1]
+        }
+
+        if (!tableNumber) {
+          const recentOrder = await db.kitchenOrder.findFirst({
+            where: { tenantId, customerPhone: from, status: { not: "CANCELLED" } },
+            orderBy: { createdAt: "desc" },
+          })
+          if (recentOrder?.tableNumber) {
+            tableNumber = recentOrder.tableNumber
+            tableId = recentOrder.tableId || null
+            branchId = recentOrder.branchId || null
+          }
+        }
+
+        if (tableNumber) {
+          const { callWaiter } = await import("@/lib/restaurant")
+          await callWaiter({
+            tenantId,
+            branchId,
+            tableId,
+            tableNumber,
+            requestType: "ASSISTANCE",
+            message: `Customer ${from} called waiter via WhatsApp`,
+          }).catch(e => console.error("Call waiter failed:", e))
+
+          const body = `🔔 *Staff Notified!*\n\nOur restaurant team has been notified for Table *${tableNumber}*. A server will assist you shortly!\n\nThank you for dining at ${businessName}.`
+          await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+          await db.message.create({
+            data: {
+              conversationId: conversation.id,
+              customerId: customer.id,
+              direction: "BOT",
+              type: "TEXT",
+              content: body,
+              status: "SENT",
+            },
+          }).catch(() => {})
+          return
+        } else {
+          // Table unknown: prompt for table number
+          const prompt = `🔔 *Call Waiter (${businessName})*\n\nPlease reply with your *table number* so our staff can assist you immediately:`
+          await db.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              flowState: JSON.stringify({
+                waitingFor: "WAITER_TABLE_NUMBER",
+                tenantId,
+                slug,
+                businessName,
+                startedAt: new Date().toISOString(),
+              }),
+            },
+          }).catch(() => {})
+          await sendWhatsApp({ to: from, body: prompt, allowOutsideSession: true })
+          return
+        }
+      }
+
+      if (replyId?.startsWith("request_bill_")) {
+        const orderId = replyId.replace(/^request_bill_/, "").trim()
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { name: true } })
+        const businessName = tenant?.name || "Restaurant"
+
+        let tableNumber: string | null = null
+        let tableId: string | null = null
+        let branchId: string | null = null
+
+        if (orderId) {
+          const order = await db.kitchenOrder.findUnique({ where: { id: orderId } })
+          if (order) {
+            tableNumber = order.tableNumber || null
+            tableId = order.tableId || null
+            branchId = order.branchId || null
+          }
+        }
+
+        if (!tableNumber && customer.notes?.includes("table:")) {
+          const m = customer.notes.match(/table:([^\s,;]+)/)
+          if (m) tableNumber = m[1]
+        }
+
+        const { callWaiter } = await import("@/lib/restaurant")
+        await callWaiter({
+          tenantId,
+          branchId,
+          tableId,
+          tableNumber,
+          requestType: "BILL",
+          message: `Customer ${from} requested bill via WhatsApp`,
+        }).catch(e => console.error("Request bill failed:", e))
+
+        const body = `🧾 *Bill Requested!*\n\nOur staff has been notified to bring the bill${tableNumber ? ` to Table *${tableNumber}*` : ""}.\n\nThank you for dining with us at ${businessName}!`
+        await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+        return
+      }
+
+      if (replyId?.startsWith("pay_order_") || replyId === "rest_pay") {
+        const orderId = replyId.startsWith("pay_order_") ? replyId.replace(/^pay_order_/, "").trim() : null
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const order = orderId
+          ? await db.kitchenOrder.findUnique({ where: { id: orderId } })
+          : await db.kitchenOrder.findFirst({
+              where: { tenantId, customerPhone: from, paymentStatus: { not: "PAID" }, status: { not: "CANCELLED" } },
+              orderBy: { createdAt: "desc" },
+            })
+
+        if (order) {
+          const payUrl = `https://app.fizmoh.cloud/api/amwalpay/create-session?orderId=KIT-${order.id}`
+          const body =
+            `💳 *Pay Restaurant Order #${order.orderNumber || order.id.slice(-6).toUpperCase()}*\n\n` +
+            `Order: ${order.orderType}${order.tableNumber ? ` (Table #${order.tableNumber})` : ""}\n` +
+            `Total Amount: *${order.totalAmount.toFixed(3)} ${order.currency || "OMR"}*\n\n` +
+            `Tap below to complete payment securely with card:`
+
+          const cta = await sendCtaUrlMessage({
+            to: from,
+            body,
+            buttonText: "Pay Online Now",
+            url: payUrl,
+          })
+          if (!cta.success) {
+            await sendWhatsApp({ to: from, body: `${body}\n\n👉 ${payUrl}`, allowOutsideSession: true })
+          }
+        } else {
+          await sendWhatsApp({
+            to: from,
+            body: `💳 You have no pending unpaid restaurant bills. If you'd like to order, view our menu online!`,
+            allowOutsideSession: true,
+          })
+        }
+        return
+      }
+
+      if (replyId === "rest_menu") {
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+        const slug = tenant?.slug || "kitchen"
+        let tableNum: string | null = null
+        if (customer.notes?.includes("table:")) {
+          const m = customer.notes.match(/table:([^\s,;]+)/)
+          if (m) tableNum = m[1]
+        }
+
+        if (!tableNum) {
+          const prompt =
+            `🍽️ *${tenant?.name || "Restaurant"} — Welcome!*\n\n` +
+            `To help us serve you better, please reply with your *table number*.\n\n` +
+            `Example: reply *5* if you're sitting at Table 5\n\n` +
+            `_(If you are ordering for Takeaway or Delivery, reply *0*)_`
+
+          await db.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              flowState: JSON.stringify({
+                waitingFor: "TABLE_NUMBER",
+                tenantId,
+                slug,
+                businessName: tenant?.name || "Restaurant",
+                startedAt: new Date().toISOString(),
+              }),
+            },
+          }).catch(() => {})
+          await sendWhatsApp({ to: from, body: prompt, allowOutsideSession: true })
+        } else {
+          const tableParam = tableNum && tableNum !== "0" ? `?table=${encodeURIComponent(tableNum)}` : ""
+          const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+          const body =
+            `🍽️ *${tenant?.name || "Restaurant"} — Menu & Online Ordering*\n\n` +
+            (tableNum && tableNum !== "0" ? `Table *${tableNum}* — ` : "") +
+            `Explore our chef's specialties, fresh dishes, and customize your meal.\n\nTap below to open our interactive digital menu inside WhatsApp:`
+
+          const cta = await sendCtaUrlMessage({
+            to: from,
+            body,
+            buttonText: "Open Digital Menu",
+            url: menuUrl,
+          })
+          if (!cta.success) {
+            await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+          }
+        }
+        return
+      }
+
+      if (replyId === "rest_order") {
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+        const slug = tenant?.slug || "kitchen"
+        let tableNum: string | null = null
+        if (customer.notes?.includes("table:")) {
+          const m = customer.notes.match(/table:([^\s,;]+)/)
+          if (m) tableNum = m[1]
+        }
+        const tableParam = tableNum && tableNum !== "0" ? `?table=${encodeURIComponent(tableNum)}` : ""
+        const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+        const body =
+          `🍽️ *Place an Order (${tenant?.name || "Restaurant"})*\n\n` +
+          `🛵 *Home Delivery* — Fast to your address\n` +
+          `🥡 *Self Pickup* — Fresh and ready\n` +
+          `🍽️ *Dine-In* ${tableNum ? `(Table #${tableNum})` : "— Order to your table"}\n\n` +
+          `Tap below to open interactive menu & order:`
+
+        const cta = await sendCtaUrlMessage({
+          to: from,
+          body,
+          buttonText: "Open Menu & Order",
+          url: menuUrl,
+        })
+        if (!cta.success) {
+          await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+        }
+        return
+      }
+
+      // ─── 0. Restaurant Flow State Resumption ───
+      // Handles multi-step conversational state: TABLE_NUMBER, WAITER_TABLE_NUMBER, SEARCH_QUERY
+      {
+        const conv = await db.conversation.findUnique({
+          where: { id: conversation.id },
+          select: { flowState: true },
+        }).catch(() => null)
+        let fs: any = null
+        try { fs = typeof conv?.flowState === "string" ? JSON.parse(conv.flowState) : conv?.flowState } catch {}
+
+        if (fs?.waitingFor === "TABLE_NUMBER") {
+          const tableNum = content.trim().replace(/[^\d]/g, "") || content.trim().slice(0, 6)
+          const slug = fs.slug || "kitchen"
+          const businessName = fs.businessName || "Restaurant"
+
+          await db.conversation.update({
+            where: { id: conversation.id },
+            data: { flowState: Prisma.DbNull },
+          }).catch(() => {})
+
+          // Store in customer notes for future messages
+          await db.customer.update({
+            where: { id: customer.id },
+            data: { notes: `table:${tableNum}` },
+          }).catch(() => {})
+
+          const tableParam = tableNum && tableNum !== "0"
+            ? `?table=${encodeURIComponent(tableNum)}`
+            : ""
+          const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+          const body =
+            `🍽️ *${businessName} — Menu & Online Ordering*\n\n` +
+            (tableNum && tableNum !== "0" ? `Table *${tableNum}* — ` : "") +
+            `Explore our chef's specialties, fresh dishes, and customize your meal.\n\nTap below to open our interactive digital menu inside WhatsApp:`
+
+          const cta = await sendCtaUrlMessage({
+            to: from,
+            body,
+            buttonText: "Open Digital Menu",
+            url: menuUrl,
+          }).catch(() => ({ success: false }))
+
+          if (!cta.success) {
+            await sendWhatsApp({ to: from, body, allowOutsideSession: true }).catch(() => {})
+          }
+
+          await db.message.create({
+            data: {
+              conversationId: conversation.id,
+              customerId: customer.id,
+              direction: "BOT",
+              type: "TEXT",
+              content: body,
+              status: "SENT",
+            },
+          }).catch(() => {})
+          return
+        }
+
+        if (fs?.waitingFor === "WAITER_TABLE_NUMBER") {
+          const tableNum = content.trim().replace(/[^\d]/g, "") || content.trim().slice(0, 6)
+          const tenantId = fs.tenantId || conversation.tenantId || ""
+          const businessName = fs.businessName || "Restaurant"
+
+          await db.conversation.update({
+            where: { id: conversation.id },
+            data: { flowState: Prisma.DbNull },
+          }).catch(() => {})
+
+          if (tableNum) {
+            await db.customer.update({
+              where: { id: customer.id },
+              data: { notes: `table:${tableNum}` },
+            }).catch(() => {})
+
+            const { callWaiter } = await import("@/lib/restaurant")
+            await callWaiter({
+              tenantId,
+              tableNumber: tableNum,
+              requestType: "ASSISTANCE",
+              message: `Customer ${from} called waiter via WhatsApp (Table ${tableNum})`,
+            }).catch(e => console.error("Call waiter failed:", e))
+
+            const body = `🔔 *Staff Notified!*\n\nOur restaurant team has been notified for Table *${tableNum}*. A waiter will assist you shortly!\n\nThank you for dining at ${businessName}.`
+            await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+          } else {
+            await sendWhatsApp({
+              to: from,
+              body: `Please tell our server or scan the QR code on your table for instant service. 🙏`,
+              allowOutsideSession: true,
+            })
+          }
+          return
+        }
+
+        if (fs?.waitingFor === "SEARCH_QUERY") {
+          const query = content.trim()
+          const tenantId = fs.tenantId || conversation.tenantId || ""
+          const slug = fs.slug || "kitchen"
+
+          await db.conversation.update({
+            where: { id: conversation.id },
+            data: { flowState: Prisma.DbNull },
+          }).catch(() => {})
+
+          const matches = await db.menuItem.findMany({
+            where: {
+              tenantId,
+              isAvailable: true,
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { nameAr: { contains: query, mode: "insensitive" } },
+                { description: { contains: query, mode: "insensitive" } },
+              ],
+            },
+            take: 5,
+            select: { name: true, price: true, currency: true },
+          }).catch(() => [])
+
+          let tableNum: string | null = null
+          if (customer.notes?.includes("table:")) {
+            const m = customer.notes.match(/table:([^\s,;]+)/)
+            if (m) tableNum = m[1]
+          }
+          const tableParam = tableNum && tableNum !== "0" ? `?table=${encodeURIComponent(tableNum)}` : ""
+          const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+
+          let replyMsg = ""
+          if (matches.length > 0) {
+            replyMsg =
+              `🔍 *Dishes matching "${query}":*\n\n` +
+              matches.map((m: any) => `• *${m.name}* — ${m.price.toFixed(3)} ${m.currency || "OMR"}`).join("\n") +
+              `\n\nTap below to customize and order:`
+          } else {
+            replyMsg = `🔍 We couldn't find any dishes matching "${query}".\n\nTap below to browse our full menu:`
+          }
+
+          const cta = await sendCtaUrlMessage({
+            to: from,
+            body: replyMsg,
+            buttonText: "Open Menu & Order",
+            url: menuUrl,
+          }).catch(() => ({ success: false }))
+
+          if (!cta.success) {
+            await sendWhatsApp({ to: from, body: replyMsg, allowOutsideSession: true })
+          }
+          return
+        }
+      }
+
       // ─── 1. Active Visual Flow Session Resumption ───
       // If the customer is mid-flow answering questions, buttons, or list choices, resume it.
       const midFlow = await resumeFlow({
         tenantId: currentTenant()?.tenantId || "",
+
         conversationId: conversation.id,
         customerId: customer.id,
         customerPhone: from,
@@ -923,6 +1332,128 @@ async function processMessage(msg: any, contact: any) {
             await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
           }
           return
+        }
+      }
+
+      // ─── 3.5 Restaurant Keyword Direct Response (Menu, Waiter, Bill) ───
+      const normText = content.trim().toLowerCase()
+      const isMenuQuery = /^(menu|منيو|قائمة|the menu|show menu|digital menu|food|اكل|طعام)$/i.test(normText)
+      const isWaiterQuery = /^(waiter|call waiter|نادل|طلب نادل|خدمة|جرس|احتاج نادل)$/i.test(normText)
+      const isBillQuery = /^(bill|فاتورة|حساب|الحساب|check please|طلب الحساب)$/i.test(normText)
+
+      if (isMenuQuery || isWaiterQuery || isBillQuery) {
+        const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+        const hasRestaurant = await db.menuItem.findFirst({
+          where: { tenantId },
+          select: { id: true },
+        }).catch(() => null)
+
+        if (hasRestaurant) {
+          const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+          const slug = tenant?.slug || "kitchen"
+          const businessName = tenant?.name || "Restaurant"
+
+          let tableNum: string | null = null
+          if (customer.notes?.includes("table:")) {
+            const m = customer.notes.match(/table:([^\s,;]+)/)
+            if (m) tableNum = m[1]
+          }
+          if (!tableNum) {
+            const recentOrder = await db.kitchenOrder.findFirst({
+              where: { tenantId, customerPhone: from, status: { not: "CANCELLED" } },
+              orderBy: { createdAt: "desc" },
+            })
+            if (recentOrder?.tableNumber) tableNum = recentOrder.tableNumber
+          }
+
+          if (isWaiterQuery) {
+            if (tableNum) {
+              const { callWaiter } = await import("@/lib/restaurant")
+              await callWaiter({
+                tenantId,
+                tableNumber: tableNum,
+                requestType: "ASSISTANCE",
+                message: `Customer ${from} called waiter via WhatsApp`,
+              }).catch(() => {})
+
+              const body = `🔔 *Staff Notified!*\n\nOur restaurant team has been notified for Table *${tableNum}*. A server will assist you shortly!\n\nThank you for dining at ${businessName}.`
+              await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+              return
+            } else {
+              const prompt = `🔔 *Call Waiter (${businessName})*\n\nPlease reply with your *table number* so our staff can assist you immediately:`
+              await db.conversation.update({
+                where: { id: conversation.id },
+                data: {
+                  flowState: JSON.stringify({
+                    waitingFor: "WAITER_TABLE_NUMBER",
+                    tenantId,
+                    slug,
+                    businessName,
+                    startedAt: new Date().toISOString(),
+                  }),
+                },
+              }).catch(() => {})
+              await sendWhatsApp({ to: from, body: prompt, allowOutsideSession: true })
+              return
+            }
+          }
+
+          if (isBillQuery) {
+            const { callWaiter } = await import("@/lib/restaurant")
+            await callWaiter({
+              tenantId,
+              tableNumber: tableNum,
+              requestType: "BILL",
+              message: `Customer ${from} requested bill via WhatsApp`,
+            }).catch(() => {})
+
+            const body = `🧾 *Bill Requested!*\n\nOur staff has been notified to bring the bill${tableNum ? ` to Table *${tableNum}*` : ""}.\n\nThank you for dining with us at ${businessName}!`
+            await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+            return
+          }
+
+          if (isMenuQuery) {
+            if (!tableNum) {
+              const prompt =
+                `🍽️ *${businessName} — Welcome!*\n\n` +
+                `To help us serve you better, please reply with your *table number*.\n\n` +
+                `Example: reply *5* if you're sitting at Table 5\n\n` +
+                `_(If you are ordering for Takeaway or Delivery, reply *0*)_`
+
+              await db.conversation.update({
+                where: { id: conversation.id },
+                data: {
+                  flowState: JSON.stringify({
+                    waitingFor: "TABLE_NUMBER",
+                    tenantId,
+                    slug,
+                    businessName,
+                    startedAt: new Date().toISOString(),
+                  }),
+                },
+              }).catch(() => {})
+              await sendWhatsApp({ to: from, body: prompt, allowOutsideSession: true })
+              return
+            } else {
+              const tableParam = tableNum && tableNum !== "0" ? `?table=${encodeURIComponent(tableNum)}` : ""
+              const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
+              const body =
+                `🍽️ *${businessName} — Menu & Online Ordering*\n\n` +
+                (tableNum && tableNum !== "0" ? `Table *${tableNum}* — ` : "") +
+                `Explore our chef's specialties, fresh dishes, and customize your meal.\n\nTap below to open our interactive digital menu inside WhatsApp:`
+
+              const cta = await sendCtaUrlMessage({
+                to: from,
+                body,
+                buttonText: "Open Digital Menu",
+                url: menuUrl,
+              })
+              if (!cta.success) {
+                await sendWhatsApp({ to: from, body, allowOutsideSession: true })
+              }
+              return
+            }
+          }
         }
       }
 
@@ -1027,12 +1558,172 @@ async function handleVoiceNote(
   })
 }
 
+/**
+ * handleFlowMediaUpload
+ *
+ * Called when an inbound WhatsApp message is an image or document AND a bot
+ * flow session is active for that conversation.
+ *
+ * If the current node is a QUESTION whose name contains "drawing", "upload",
+ * "photo", "media", "file", or "attachment" (all the EMADI upload steps), the
+ * media is:
+ *   1. Stored as a message row so the inbox shows the attachment.
+ *   2. The media URL (whatsapp_media://<mediaId>) is saved into the flow
+ *      session answers under the question's `name` key.
+ *   3. The flow is advanced by calling resumeFlow with content "Uploaded",
+ *      which satisfies the (required: false) QUESTION and moves to SAVE_LEAD.
+ *   4. Any open EMADI lead/RFQ for this conversation gets the mediaId appended
+ *      to its attachments list in systemSetting.
+ *
+ * Returns true if the media was handled by the flow; false means fall through
+ * to the normal payment-screenshot handler.
+ */
+async function handleFlowMediaUpload(params: {
+  from: string
+  mediaId: string
+  mediaType: "image" | "document"
+  mimeType: string
+  filename?: string
+  customerId: string
+  conversationId: string
+}): Promise<boolean> {
+  const { from, mediaId, mediaType, mimeType, filename, customerId, conversationId } = params
+
+  // ── 1. Check for an active flow session ──
+  const conv = await db.conversation.findUnique({
+    where: { id: conversationId },
+    select: { flowState: true, tenantId: true, botActive: true },
+  })
+  if (!conv?.flowState || !conv.botActive) return false
+
+  let session: { flowId?: string; nodeId?: string; answers?: Record<string, string>; startedAt?: string } = {}
+  try {
+    session = typeof conv.flowState === "string"
+      ? JSON.parse(conv.flowState as string)
+      : (conv.flowState as any)
+  } catch { return false }
+
+  if (!session?.flowId || !session?.nodeId) return false
+
+  // ── 2. Find the current node ──
+  const flow = await db.botFlow.findFirst({
+    where: { id: session.flowId, tenantId: conv.tenantId || undefined },
+  })
+  if (!flow || !flow.isActive) return false
+
+  const nodes: any[] = Array.isArray(flow.publishedNodes) && (flow.publishedNodes as any[]).length > 0
+    ? flow.publishedNodes as any[]
+    : Array.isArray(flow.nodes) ? flow.nodes as any[] : []
+  const node = nodes.find((n: any) => n.id === session.nodeId)
+  if (!node) return false
+
+  // ── 3. Only intercept QUESTION nodes that expect a file/media upload ──
+  const isUploadNode =
+    node.type === "QUESTION" &&
+    /drawing|upload|photo|media|file|attachment|measurement|blueprint/i.test(
+      (node.data?.name || "") + " " + (node.data?.text || "")
+    )
+
+  if (!isUploadNode) return false
+
+  // ── 4. Build a persistent media URL ──
+  // whatsapp_media:// is recognised by the inbox image renderer. We also try to
+  // download and store the bytes so the backend record is self-contained.
+  let storedUrl = `whatsapp_media://${mediaId}`
+  try {
+    const { downloadMediaBytes } = await import("@/lib/whatsapp")
+    const dl = await downloadMediaBytes(mediaId)
+    if (dl.success && dl.base64 && dl.mimeType) {
+      const { storeMedia } = await import("@/lib/media-store")
+      const buffer = Buffer.from(dl.base64, "base64")
+      const originalName = filename || `drawing-${Date.now()}.${dl.mimeType.split("/")[1] || "jpg"}`
+      const stored = await storeMedia(buffer, dl.mimeType, originalName)
+      if (stored?.url) storedUrl = stored.url
+    }
+  } catch { /* keep whatsapp_media:// fallback */ }
+
+  // ── 5. Save message row so the agent inbox shows the attachment ──
+  await db.message.create({
+    data: {
+      conversationId,
+      customerId,
+      direction: "INBOUND",
+      type: mediaType === "image" ? "IMAGE" : "DOCUMENT",
+      content: filename ? `[Document: ${filename}]` : "[Image attachment]",
+      mediaUrl: storedUrl,
+      caption: filename || undefined,
+      status: "SENT",
+      isAiGenerated: false,
+    },
+  })
+
+  // ── 6. Append the attachment to the EMADI lead if one exists ──
+  try {
+    const tenantId = conv.tenantId || ""
+    const leadKey = `corporate_lead_attachments_${conversationId}`
+    const existingRow = await db.systemSetting.findFirst({ where: { tenantId, key: leadKey } })
+    const existing: string[] = existingRow?.value ? JSON.parse(existingRow.value).urls || [] : []
+    const updated = [...existing, storedUrl]
+    if (existingRow) {
+      await db.systemSetting.update({
+        where: { id: existingRow.id },
+        data: { value: JSON.stringify({ urls: updated }), type: "JSON" },
+      })
+    } else {
+      await db.systemSetting.create({
+        data: { tenantId, key: leadKey, value: JSON.stringify({ urls: updated }), type: "JSON" },
+      })
+    }
+
+    // Also update any lead/rfq record for this conversation
+    const lead = await db.lead.findFirst({ where: { tenantId, conversationId } })
+    if (lead) {
+      const existingAnswers: Record<string, any> =
+        lead.answers && typeof lead.answers === "object" && !Array.isArray(lead.answers)
+          ? (lead.answers as Record<string, any>)
+          : {}
+      const existingAttachments: string[] = Array.isArray(existingAnswers.attachments)
+        ? existingAnswers.attachments
+        : []
+      await db.lead.update({
+        where: { id: lead.id },
+        data: {
+          answers: {
+            ...existingAnswers,
+            attachments: [...existingAttachments, storedUrl],
+            drawings_url: storedUrl, // latest drawing/photo for quick access
+          },
+        },
+      })
+    }
+  } catch { /* non-critical — the message row is still saved */ }
+
+  // ── 7. Advance the flow — treat media receipt as the answer "Uploaded" ──
+  // We call resumeFlow with message = "Uploaded" so the QUESTION (required: false)
+  // is satisfied and the engine walks to the next node (SAVE_LEAD / confirmation).
+  try {
+    const { resumeFlow } = await import("@/lib/botflow-engine")
+    const tenantId = conv.tenantId || ""
+    await resumeFlow({
+      tenantId,
+      conversationId,
+      customerId,
+      customerPhone: from,
+      message: "Uploaded",
+      channel: "WHATSAPP",
+    })
+  } catch { /* if resumeFlow fails, the customer still sees the saved-image confirmation */ }
+
+  return true
+}
+
 async function handlePaymentScreenshot(params: {
   from: string
   customerName: string
   mediaId: string
   customerId: string
   conversationId: string
+
 }) {
   const { from, customerName, mediaId, customerId, conversationId } = params
 
@@ -1303,7 +1994,7 @@ async function handleTextMessage(params: {
     data: {
       intent: intent.intent,
       sentiment: intent.sentiment,
-      ...(intent.needsHumanHandoff ? { botActive: false, status: "PENDING" } : {}),
+      ...(intent.needsHumanHandoff ? { botActive: false, automationPaused: true, status: "PENDING" } : {}),
     },
   })
 

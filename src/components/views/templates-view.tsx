@@ -16,9 +16,12 @@ import { TemplateBuilder, EMPTY_DRAFT, type TemplateDraft } from "@/components/v
 import { WhatsAppPreview, type PreviewButton } from "@/components/whatsapp-preview"
 import { CarouselPreview } from "@/components/views/carousel-editor"
 import { parseCards } from "@/lib/carousel"
-import { FileText, Plus, Search, Mail, CheckCircle, Clock, XCircle, Eye, Send, RefreshCw, Pencil } from "lucide-react"
+import { FileText, Plus, Search, Mail, CheckCircle, Clock, XCircle, Eye, Send, RefreshCw, Pencil, Bot, Sparkles, Workflow, ArrowRight, Layers } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { AIDraftButton } from "@/components/views/ai-draft"
+import { BOT_TEMPLATES, type FlowTemplate } from "@/lib/bot-templates"
+import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
+import { useApp } from "@/lib/store"
 
 interface Template {
   id: string
@@ -57,6 +60,18 @@ const STATUS_ICONS: Record<string, any> = {
 }
 
 export default function TemplatesView() {
+  const { setView } = useApp()
+  const [section, setSection] = useState<"bot-flows" | "meta-templates">("bot-flows")
+  const [botCategory, setBotCategory] = useState<string>("ALL")
+  const [botSearch, setBotSearch] = useState("")
+  const [visualDemoTemplate, setVisualDemoTemplate] = useState<FlowTemplate | null>(null)
+  const [demoIndex, setDemoIndex] = useState(0)
+
+  const openDemo = (t: FlowTemplate, idx: number) => {
+    setVisualDemoTemplate(t)
+    setDemoIndex(idx)
+  }
+
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -148,53 +163,237 @@ export default function TemplatesView() {
     !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.bodyContent.toLowerCase().includes(search.toLowerCase())
   )
 
+  const botCategories = [
+    "ALL",
+    "CRM & AI",
+    "Healthcare",
+    "Tours & Travel",
+    "Appointments",
+    "E-Commerce",
+    "Dining & Hospitality",
+    "Corporate & Architectural",
+  ]
+
+  const filteredBotTemplates = BOT_TEMPLATES.filter(t => {
+    const matchCat = botCategory === "ALL" || t.category === botCategory
+    const q = botSearch.trim().toLowerCase()
+    const matchQuery = !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+    return matchCat && matchQuery
+  })
+
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-none space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-emerald-600" />
-            </div>
-            Templates
-          </h2>
-          <p className="text-sm text-stone-500 mt-0.5">WhatsApp &amp; Email message templates</p>
-        </div>
-        <div className="flex gap-2">
-          <AIDraftButton kind="template" onCreated={load} />
-          <Button variant="outline" onClick={syncFromMeta} disabled={syncing}>
-            <RefreshCw className={"h-4 w-4 mr-1.5 " + (syncing ? "animate-spin" : "")} />
-            {syncing ? "Syncing…" : "Sync from Meta"}
-          </Button>
-          <Button onClick={() => { setBuilderDraft(undefined); setShowNew(true) }} className="bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="h-4 w-4 mr-1.5" /> New Template
-          </Button>
-        </div>
+      {/* Top Section Switcher */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-stone-200/80 pb-3">
+        <button
+          onClick={() => setSection("bot-flows")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            section === "bot-flows"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200"
+          }`}
+        >
+          <Bot className="h-4 w-4" />
+          <span>Turnkey Bot Flow Templates</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${section === "bot-flows" ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-600"}`}>
+            {BOT_TEMPLATES.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setSection("meta-templates")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            section === "meta-templates"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200"
+          }`}
+        >
+          <WhatsAppIcon className="h-4 w-4" />
+          <span>Meta WhatsApp Message Templates</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${section === "meta-templates" ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-600"}`}>
+            {templates.length}
+          </span>
+        </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-          <Input
-            placeholder="Search templates..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-white"
-          />
+      {section === "bot-flows" ? (
+        <div className="space-y-6">
+          {/* Bot Flows Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs">
+            <div>
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-emerald-600" />
+                Turnkey Bot Flow Templates ({BOT_TEMPLATES.length}+ Ready-to-Use Flows)
+              </h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Pre-built automated customer journeys with interactive visual phone simulators. Test and preview in WhatsApp before deploying.
+              </p>
+            </div>
+            <Button
+              onClick={() => setView("bot-builder")}
+              className="bg-stone-900 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold h-9 px-4 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+            >
+              <Workflow className="h-4 w-4" />
+              Open Bot Studio
+            </Button>
+          </div>
+
+          {/* Bot Filters */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              <Input
+                placeholder="Search bot templates by name, keyword, or trigger (e.g., booking, order, review, doctor)..."
+                value={botSearch}
+                onChange={e => setBotSearch(e.target.value)}
+                className="pl-9 bg-white rounded-xl border-stone-200"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {botCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setBotCategory(cat)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    botCategory === cat
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200"
+                  }`}
+                >
+                  {cat === "ALL" ? "All Categories" : cat}
+                  {cat !== "ALL" && (
+                    <span className="ml-1.5 text-[10px] opacity-75">
+                      ({BOT_TEMPLATES.filter(t => t.category === cat).length})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bot Templates Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredBotTemplates.map((t, idx) => {
+              const nodesCount = (t.nodes || []).length
+              const triggerKeywords = (t.triggerConfig as any)?.keywords
+              const keyword = Array.isArray(triggerKeywords) && triggerKeywords.length > 0 ? String(triggerKeywords[0]) : "START"
+              return (
+                <div
+                  key={t.id}
+                  className="rounded-2xl border border-stone-200 bg-white p-5 flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10.5px] font-bold">
+                        {t.category}
+                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-stone-500 font-mono bg-stone-100 px-2 py-0.5 rounded">
+                          {nodesCount} nodes
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] text-[#25D366]">
+                          <WhatsAppIcon className="h-3.5 w-3.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <h3 className="font-bold text-sm text-stone-900 group-hover:text-emerald-700 transition">
+                      {t.name}
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-1 leading-relaxed line-clamp-2">
+                      {t.description}
+                    </p>
+
+                    <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500">
+                      <span className="text-[10.5px] text-stone-600 flex items-center gap-1 truncate max-w-[160px]">
+                        Trigger: <strong className="text-stone-800 font-mono bg-stone-100 px-1.5 py-0.5 rounded">"{keyword}"</strong>
+                      </span>
+                      <span className="text-[10.5px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        WhatsApp Verified
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openDemo(t, idx)}
+                      className="flex-1 text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 h-8 gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-emerald-600" />
+                      Visual Demo
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setView("bot-builder")}
+                      className="flex-1 text-xs font-semibold bg-stone-900 hover:bg-emerald-600 text-white h-8 gap-1 cursor-pointer"
+                    >
+                      <Workflow className="h-3.5 w-3.5" />
+                      Use Flow
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {filteredBotTemplates.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white p-12 text-center">
+              <Bot className="mx-auto h-8 w-8 text-stone-400 mb-2" />
+              <p className="text-sm font-semibold text-stone-700">No bot templates match your filter</p>
+              <p className="text-xs text-stone-400 mt-0.5">Try searching for a different keyword or select All Categories.</p>
+            </div>
+          )}
         </div>
-        <Select value={channel} onValueChange={setChannel}>
-          <SelectTrigger className="w-full sm:w-44 bg-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Channels</SelectItem>
-            <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-            <SelectItem value="EMAIL">Email</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-stone-900 flex items-center gap-2">
+                <div className="h-9 w-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-emerald-600" />
+                </div>
+                Meta WhatsApp Message Templates
+              </h2>
+              <p className="text-sm text-stone-500 mt-0.5">Pre-approved Meta HSM message templates for broadcast campaigns</p>
+            </div>
+            <div className="flex gap-2">
+              <AIDraftButton kind="template" onCreated={load} />
+              <Button variant="outline" onClick={syncFromMeta} disabled={syncing}>
+                <RefreshCw className={"h-4 w-4 mr-1.5 " + (syncing ? "animate-spin" : "")} />
+                {syncing ? "Syncing…" : "Sync from Meta"}
+              </Button>
+              <Button onClick={() => { setBuilderDraft(undefined); setShowNew(true) }} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="h-4 w-4 mr-1.5" /> New Template
+              </Button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              <Input
+                placeholder="Search message templates..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 bg-white"
+              />
+            </div>
+            <Select value={channel} onValueChange={setChannel}>
+              <SelectTrigger className="w-full sm:w-44 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                <SelectItem value="EMAIL">Email</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
       {/* Tabs */}
       <Tabs defaultValue="grid">
@@ -481,6 +680,8 @@ export default function TemplatesView() {
           </Card>
         </div>
       )}
+        </div>
+      )}
 
       <TemplateBuilder
         open={showNew}
@@ -488,6 +689,25 @@ export default function TemplatesView() {
         initial={builderDraft}
         onSaved={load}
       />
+
+      {/* Interactive WhatsApp Visual Simulator Demo */}
+      {visualDemoTemplate && (
+        <BotTemplateVisualDemo
+          template={visualDemoTemplate}
+          isOpen={!!visualDemoTemplate}
+          onClose={() => setVisualDemoTemplate(null)}
+          onApply={(tpl) => {
+            setVisualDemoTemplate(null)
+            setView("bot-builder")
+          }}
+          allTemplates={filteredBotTemplates}
+          currentIndex={demoIndex}
+          onNavigate={(tpl, idx) => {
+            setVisualDemoTemplate(tpl)
+            setDemoIndex(idx)
+          }}
+        />
+      )}
 
     </div>
   )

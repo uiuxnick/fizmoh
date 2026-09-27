@@ -34,18 +34,22 @@ import { CatalogView } from "@/components/views/catalog-view"
 import { WooCommerceView } from "@/components/views/woocommerce-view"
 import HospitalView from "@/components/views/hospital-view"
 import LiveChatWidgetView from "@/components/views/live-chat-widget-view"
+import CorporateView from "@/components/views/corporate-view"
+import WebsiteBuilderView from "@/components/views/website-builder-view"
 
 export default function ViewRouter() {
   const { view } = useApp()
   switch (view) {
     case "dashboard": return <DashboardView />
     case "customer-site": return <CustomerSiteView />
+    case "website-builder": return <WebsiteBuilderView />
     case "tours": return <ToursView />
     case "bookings": return <BookingsView />
     case "calendar": return <CalendarView />
     case "appointments": return <AppointmentsView />
     case "visa": return <VisaView />
     case "restaurant": return <RestaurantView />
+    case "corporate": return <CorporateView />
     case "knowledge": return <KnowledgeView />
     case "payments": return <PaymentsView />
     case "inbox": return <InboxView />
