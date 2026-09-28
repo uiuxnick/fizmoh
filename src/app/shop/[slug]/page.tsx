@@ -54,11 +54,11 @@ export default async function ShopSlugPage({ params }: { params: Promise<{ slug:
   const publishedSetting = await raw.systemSetting.findUnique({
     where: { tenantId_key: { tenantId: tenant.id, key: "website_published_json" } },
   })
-  let initialPublishedWebsite: any[] | null = null
+  let initialPublishedWebsite: any = null
   if (publishedSetting?.value) {
     try {
       const parsed = JSON.parse(publishedSetting.value)
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed) ? parsed.length > 0 : !!parsed) {
         initialPublishedWebsite = parsed
       }
     } catch {}

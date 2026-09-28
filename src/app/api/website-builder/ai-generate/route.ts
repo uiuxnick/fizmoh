@@ -67,10 +67,11 @@ Supported element types:
 - "contact-info": { phone, email, address }
 - "whatsapp-cta": { text, phone, message }
 - "business-hours": { hours }
-- "map-embed": { label, height }
-- "custom-form": { heading, submitText, fields }
-- "logo-marquee": { logos, colsDesktop, colsTablet, colsMobile }
-- "before-after": { heading, beforeLabel, afterLabel }
+- "video-embed": { url, height }
+- "video-hero": { heading, subtext, videoUrl, videoType, badge, primaryBtnText, secondaryBtnText, overlayOpacity }
+- "countdown-sale": { heading, subtext, discountBadge, primaryCta, bgColor, accentColor }
+- "testimonials-slider": { heading, subtext, reviews, layout, colsDesktop, colsTablet, colsMobile }
+- "faq-accordion": { heading, subtext, items, searchPlaceholder, whatsAppHelpText }
 
 Return ONLY valid JSON matching this schema:
 {
@@ -193,90 +194,74 @@ Return ONLY a JSON object with:
 
   // Add Countdown Timer / Flash Sale Promo
   if (pLower.includes("countdown") || pLower.includes("sale") || pLower.includes("timer") || pLower.includes("promo") || pLower.includes("discount")) {
-    const promoEl: BuilderElement = {
+    const saleEl: BuilderElement = {
       id: uid(),
-      type: "promo-badge",
-      props: { text: "⚡ EXCLUSIVE OFFER: 25% OFF FOR A LIMITED TIME", color: "#DC2626" },
+      type: "countdown-sale",
+      props: {
+        heading: `🔥 Flash Sale: 30% OFF All ${businessName} Bookings`,
+        subtext: "Limited time promotion! Confirm your reservation on WhatsApp before the countdown hits zero.",
+        discountBadge: "EXCLUSIVE DEAL — 30% OFF",
+        endDate: new Date(Date.now() + 86400000 * 3).toISOString(),
+        primaryCta: "Claim 30% Discount on WhatsApp",
+        bgColor: "#0d1520",
+        accentColor: "#10B981",
+      },
     }
-    const timerEl: BuilderElement = {
-      id: uid(),
-      type: "countdown-timer",
-      props: { label: "Special Offer Ends In:", endDate: new Date(Date.now() + 86400000 * 3).toISOString() },
-    }
-    // Insert after hero or at index 1
-    result.splice(1, 0, promoEl, timerEl)
+    result.splice(1, 0, saleEl)
     return result
   }
 
-  // Add Reviews / Testimonials
+  // Add Reviews / Testimonials Slider
   if (pLower.includes("review") || pLower.includes("testimonial") || pLower.includes("rating") || pLower.includes("stars")) {
-    const starsEl: BuilderElement = {
-      id: uid(),
-      type: "rating-stars",
-      props: { rating: "4.9", count: "348", label: "Verified Customer Reviews" },
-    }
-    const reviewEl: BuilderElement = {
-      id: uid(),
-      type: "testimonial",
-      props: {
-        quote: `Unmatched service from ${businessName}! The booking experience was seamless, and the WhatsApp team answered all questions in seconds. Highly recommended!`,
-        author: "Rashid Al-Busaidi",
-        role: "VIP Member",
-        rating: "5",
-      },
-    }
-    result.push(starsEl, reviewEl)
-    return result
-  }
-
-  // Add WhatsApp Form / Inquiry
-  if (pLower.includes("form") || pLower.includes("inquiry") || pLower.includes("contact")) {
-    const formEl: BuilderElement = {
-      id: uid(),
-      type: "custom-form",
-      props: {
-        heading: "Request a Custom Quote & Booking",
-        submitText: "Send Directly to WhatsApp",
-        fields: "Full Name,WhatsApp Phone Number,Preferred Date,Service / Package Required,Special Requests",
-      },
-    }
-    result.push(formEl)
-    return result
-  }
-
-  // Add Image Slider / Carousel
-  if (pLower.includes("slider") || pLower.includes("carousel") || pLower.includes("banner")) {
     const sliderEl: BuilderElement = {
       id: uid(),
-      type: "image-carousel",
+      type: "testimonials-slider",
       props: {
-        slides: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80|https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=80|https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=1200&q=80",
-        height: "440",
+        heading: `What Clients Say About ${businessName}`,
+        subtext: "Over 10,000+ happy customers across the GCC with 5-star verified satisfaction.",
+        layout: "slider",
+        reviews: `Ahmed Al-Harthy|Muscat, Oman|5|The service from ${businessName} was unforgettable! Seamless booking via WhatsApp and incredible local guide.|https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80///Sarah Jenkins|Dubai, UAE|5|Fast response, transparent pricing, and wonderful hospitality. 10/10 experience!|https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80///Rashid Al-Balushi|Salalah, Oman|5|Best corporate retreat we've organized in years. The team handled every detail flawlessly.|https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80///Emily Watson|London, UK|5|Exceptional tour and warm hospitality. Highly recommended!|https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80`,
       },
     }
-    result.splice(1, 0, sliderEl)
+    result.push(sliderEl)
+    return result
+  }
+
+  // Add Video Hero
+  if (pLower.includes("video") || pLower.includes("video hero") || pLower.includes("youtube")) {
+    const videoHeroEl: BuilderElement = {
+      id: uid(),
+      type: "video-hero",
+      props: {
+        heading: `Experience the Magic with ${businessName}`,
+        subtext: "Handcrafted journeys and premium hospitality designed to create lifelong memories.",
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        videoType: "youtube",
+        badge: "⭐ 2026 Premier Experience",
+        primaryBtnText: "Book on WhatsApp",
+        secondaryBtnText: "Explore Packages",
+        minHeight: "540",
+        overlayOpacity: "60",
+      },
+    }
+    result.splice(0, 0, videoHeroEl)
     return result
   }
 
   // Add FAQ Accordion
   if (pLower.includes("faq") || pLower.includes("question") || pLower.includes("accordion")) {
-    const faq1: BuilderElement = {
+    const faqEl: BuilderElement = {
       id: uid(),
-      type: "accordion",
+      type: "faq-accordion",
       props: {
-        question: `How fast can I get confirmation with ${businessName}?`,
-        answer: "Confirmations are issued instantly on WhatsApp with full booking details and digital receipts.",
+        heading: "Frequently Asked Questions",
+        subtext: `Quick answers about booking, cancellations, and custom services with ${businessName}.`,
+        searchPlaceholder: "Search questions (e.g. payment, refund, dates)...",
+        items: `How do I book and pay?:::You can pay securely online via credit/debit card, bank transfer, or confirm instantly on WhatsApp and pay on arrival.///What is your cancellation policy?:::Free cancellation up to 48 hours before your booking date with a 100% full refund guarantee.///Can we request custom VIP packages?:::Yes! We cater to corporate groups, family retreats, and private VIP itineraries throughout the region.///Are guides bilingual?:::All our certified team members speak fluent English and Arabic.`,
+        whatsAppHelpText: "Still have questions? Chat on WhatsApp",
       },
     }
-    const faq2: BuilderElement = {
-      id: uid(),
-      type: "accordion",
-      props: {
-        question: "Can I modify or reschedule my date?",
-        answer: "Yes, you can easily reschedule anytime by messaging our team on WhatsApp.",
-      },
-    }
-    result.push(faq1, faq2)
+    result.push(faqEl)
     return result
   }
 

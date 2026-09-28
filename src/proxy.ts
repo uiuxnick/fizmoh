@@ -39,6 +39,7 @@ const PUBLIC_EXACT = new Set([
   "/api/cron",
   "/api/demo/book",
   "/api/contact",
+  "/api/website-builder/checkout",
 ])
 
 function isPublic(request: NextRequest) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
+import { normalizeWebsiteData } from "@/lib/website-builder-types"
 
 export const dynamic = "force-dynamic"
 
@@ -31,13 +32,14 @@ export async function POST() {
     })
 
     // Timestamp
+    const now = new Date().toISOString()
     await db.systemSetting.upsert({
       where: { tenantId_key: { tenantId: ctx.tenantId, key: PUBLISHED_AT_KEY } },
-      create: { tenantId: ctx.tenantId, key: PUBLISHED_AT_KEY, value: new Date().toISOString(), type: "STRING", category: "GENERAL" },
-      update: { value: new Date().toISOString() },
+      create: { tenantId: ctx.tenantId, key: PUBLISHED_AT_KEY, value: now, type: "STRING", category: "GENERAL" },
+      update: { value: now },
     })
 
-    return NextResponse.json({ ok: true, publishedAt: new Date().toISOString() })
+    return NextResponse.json({ ok: true, publishedAt: now })
   } catch (err) {
     console.error("[website-builder/publish] error", err)
     return NextResponse.json({ error: "Publish failed" }, { status: 500 })
@@ -55,13 +57,18 @@ export async function GET() {
       db.systemSetting.findUnique({ where: { tenantId_key: { tenantId: ctx.tenantId, key: PUBLISHED_AT_KEY } } }),
     ])
 
+    const raw = pub?.value ? JSON.parse(pub.value) : null
+    const normalized = normalizeWebsiteData(raw)
+
     return NextResponse.json({
       published: !!pub,
       publishedAt: ts?.value ?? null,
-      elements: pub?.value ? JSON.parse(pub.value) : [],
+      elements: normalized.elements,
+      pages: normalized.pages,
+      activePageSlug: normalized.activePageSlug,
     })
   } catch {
-    return NextResponse.json({ published: false, publishedAt: null, elements: [] })
+    return NextResponse.json({ published: false, publishedAt: null, elements: [], pages: [] })
   }
 }
 

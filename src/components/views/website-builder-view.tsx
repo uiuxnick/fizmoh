@@ -25,40 +25,20 @@ import {
   Bold, Italic, Underline, AlignRight, Timer, Users, Award,
   FileText, Zap, Heart, Share2, Clock, TrendingUp, Menu,
   ChevronRight, Search, Download, Sliders, Grid, Play, PanelLeft, RotateCcw,
+  CheckCircle2, AlertTriangle, Copy, Loader2, RefreshCw,
 } from "lucide-react"
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 
 // ─── Element Type Catalogue (50+ elements) ───────────────────────────────────
+import {
+  type ElementType,
+  type BuilderElement,
+  type WebsitePage,
+  type WebsiteData,
+  normalizeWebsiteData,
+} from "@/lib/website-builder-types"
 
-export type ElementType =
-  // Text
-  | "heading" | "subheading" | "paragraph" | "caption" | "quote" | "badge-text"
-  // Media
-  | "image" | "video-embed" | "icon" | "logo" | "gallery" | "image-carousel" | "before-after"
-  // Buttons & Links
-  | "button" | "button-outline" | "link" | "whatsapp-cta" | "cta-banner" | "cta-multi"
-  // Forms
-  | "input-field" | "textarea-field" | "select-field" | "checkbox" | "contact-form" | "custom-form"
-  // Layout
-  | "divider" | "spacer" | "container" | "two-column" | "three-column" | "card"
-  // Navigation
-  | "navbar" | "breadcrumb" | "tabs" | "accordion" | "pagination"
-  // Commerce
-  | "product-card" | "product-grid" | "product-carousel" | "price-tag" | "cart-button" | "checkout-form"
-  | "promo-badge" | "countdown-timer"
-  // Social Proof
-  | "testimonial" | "rating-stars" | "review-card" | "trust-badges" | "customer-count"
-  // Marketing
-  | "hero-banner" | "feature-box" | "stat-counter" | "team-member" | "pricing-table"
-  | "faq-item" | "timeline-item" | "newsletter-signup" | "social-links" | "logo-marquee"
-  // Maps & Contact
-  | "map-embed" | "contact-info" | "business-hours"
-
-export interface BuilderElement {
-  id: string
-  type: ElementType
-  props: Record<string, string | number | boolean>
-  children?: BuilderElement[]
-}
+export type { ElementType, BuilderElement, WebsitePage, WebsiteData }
 
 // ─── Element Definitions ────────────────────────────────────────────────────
 
@@ -84,6 +64,7 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "image-carousel", label: "Image Slider", icon: Image, group: "Media", defaultProps: { slides: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80|https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=80", height: "400", autoPlay: true }, preview: "🖼 Slider" },
   { type: "before-after", label: "Before / After", icon: Columns, group: "Media", defaultProps: { beforeLabel: "Before", afterLabel: "After", heading: "Real Results" }, preview: "🌓 Compare" },
   { type: "video-embed", label: "Video", icon: Play, group: "Media", defaultProps: { url: "https://www.youtube.com/embed/dQw4w9WgXcQ", height: "400", caption: "" }, preview: "▶ Video" },
+  { type: "video-hero", label: "Video Hero", icon: Play, group: "Media", defaultProps: { heading: "Discover the Hidden Wonders of Oman", subtext: "Private desert camps, pristine coastal waters, and majestic mountain canyons tailored to your dream getaway.", videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", videoType: "youtube", posterUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&q=80", badge: "⭐ 2026 Premier Host", primaryBtnText: "Book on WhatsApp", secondaryBtnText: "View Packages", minHeight: "540", overlayOpacity: "60" }, preview: "🎬 Video Hero" },
   { type: "gallery", label: "Gallery", icon: Grid, group: "Media", defaultProps: { columns: "3", gap: "8", images: "" }, preview: "🖼 Gallery" },
   { type: "icon", label: "Icon", icon: Star, group: "Media", defaultProps: { name: "star", size: "48", color: "#F59E0B" }, preview: "⭐ Icon" },
   // ── Buttons
@@ -121,9 +102,11 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "cart-button", label: "Add to Cart", icon: ShoppingCart, group: "Commerce", defaultProps: { text: "Add to Cart", productId: "", bgColor: "#10B981" }, preview: "🛒 Add to Cart" },
   { type: "promo-badge", label: "Promo Badge", icon: Award, group: "Commerce", defaultProps: { text: "50% OFF", color: "#DC2626", expiry: "" }, preview: "🔥 SALE" },
   { type: "countdown-timer", label: "Countdown Timer", icon: Timer, group: "Commerce", defaultProps: { endDate: "", label: "Offer ends in:", style: "boxes" }, preview: "⏱ 12:30:00" },
+  { type: "countdown-sale", label: "Countdown Sale", icon: Timer, group: "Commerce", defaultProps: { heading: "🔥 Flash Sale — Limited Time Offer", subtext: "Book before the timer ends to claim 30% OFF all tours & packages!", discountBadge: "FLASH SALE — 30% OFF", endDate: "", primaryCta: "Claim 30% Discount on WhatsApp", secondaryCta: "Explore Tour Packages", bgColor: "#0d1520", accentColor: "#10B981" }, preview: "⏱ Sale Timer" },
   { type: "checkout-form", label: "Checkout Form", icon: ShoppingCart, group: "Commerce", defaultProps: { heading: "Complete Your Order", submitText: "Pay Now", currency: "OMR" }, preview: "💳 Checkout" },
   // ── Social Proof
   { type: "testimonial", label: "Testimonial", icon: Quote, group: "Social Proof", defaultProps: { quote: "This product changed my business completely!", author: "Ahmed Al-Rashidi", role: "CEO, Tech Solutions", avatar: "", rating: "5" }, preview: "⭐ Testimonial" },
+  { type: "testimonials-slider", label: "Reviews Slider", icon: Star, group: "Social Proof", defaultProps: { heading: "What Our Happy Clients Say", subtext: "Real stories from over 10,000+ satisfied customers across Oman and the GCC.", reviews: "Ahmed Al-Harthy|Muscat, Oman|5|The desert safari and private mountain camp was unforgettable! Seamless booking via WhatsApp and incredible local guide.|https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80///Sarah Jenkins|Dubai, UAE|5|Fast response, transparent pricing, and wonderful hospitality in Salalah. 10/10 experience!|https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80///Rashid Al-Balushi|Salalah, Oman|5|Best corporate retreat we've organized in years. The team handled every detail flawlessly.|https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80///Emily Watson|London, UK|5|Exceptional private tour to Wahiba Sands and Wadi Shab. Our guide Ali was so knowledgeable and kind!|https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80", layout: "slider", colsDesktop: "3", colsTablet: "2", colsMobile: "1", autoPlay: true }, preview: "⭐ Reviews Slider" },
   { type: "rating-stars", label: "Star Rating", icon: Star, group: "Social Proof", defaultProps: { rating: "4.8", count: "247", label: "Customer Rating" }, preview: "★★★★★ 4.8" },
   { type: "review-card", label: "Review Card", icon: Star, group: "Social Proof", defaultProps: { reviewer: "Sarah M.", rating: "5", date: "Sep 2025", text: "Absolutely fantastic experience!" }, preview: "⭐ Review" },
   { type: "trust-badges", label: "Trust Badges", icon: CheckSquare, group: "Social Proof", defaultProps: { items: "Secure Payment|24/7 Support|Free Returns|Certified" }, preview: "✓ Trust" },
@@ -135,6 +118,7 @@ const ELEMENT_DEFS: ElementDef[] = [
   { type: "team-member", label: "Team Member", icon: Users, group: "Marketing", defaultProps: { name: "Mohammed Al-Said", role: "Founder & CEO", bio: "10+ years experience in digital innovation.", avatar: "" }, preview: "👤 Team" },
   { type: "pricing-table", label: "Pricing Table", icon: Award, group: "Marketing", defaultProps: { heading: "Simple Pricing", plan1: "Starter", price1: "Free", plan2: "Pro", price2: "29", plan3: "Enterprise", price3: "99", currency: "OMR" }, preview: "💰 Pricing" },
   { type: "faq-item", label: "FAQ Item", icon: MessageSquare, group: "Marketing", defaultProps: { question: "What makes you different?", answer: "We provide AI-powered automation that saves hours of manual work every day." }, preview: "❓ FAQ" },
+  { type: "faq-accordion", label: "FAQ Accordion", icon: MessageSquare, group: "Marketing", defaultProps: { heading: "Frequently Asked Questions", subtext: "Quick answers to help you plan your next booking", searchPlaceholder: "Search questions (e.g. payment, refund, clothes)...", items: "How do I book and pay?:::You can pay securely online via credit/debit card, bank transfer, or confirm instantly on WhatsApp and pay on arrival.///What is your cancellation policy?:::Free cancellation up to 48 hours before your scheduled tour with a 100% full money-back guarantee.///Are hotel transfers included?:::Yes! Complimentary pickup and drop-off from any hotel or residence in Muscat/Salalah is included for all private tours.///Do you accommodate dietary requirements?:::Absolutely. We provide vegetarian, vegan, and halal options for all meals during camping and full-day tours. Please let us know when booking.///What should I wear on a desert safari?:::Lightweight, comfortable clothing, sunscreen, sunglasses, and a warm jacket for evening desert campfire dinners.", showSearch: true, showWhatsAppHelp: true, whatsAppHelpText: "Still have questions? Chat on WhatsApp" }, preview: "❓ FAQ Accordion" },
   { type: "timeline-item", label: "Timeline", icon: Clock, group: "Marketing", defaultProps: { year: "2024", title: "Milestone", description: "Reached 10,000 customers across the GCC." }, preview: "◉ Timeline" },
   { type: "social-links", label: "Social Links", icon: Share2, group: "Marketing", defaultProps: { whatsapp: "", instagram: "", facebook: "", tiktok: "", twitter: "", youtube: "" }, preview: "🔗 Social" },
   { type: "logo-marquee", label: "Brand Logos", icon: LayoutGrid, group: "Marketing", defaultProps: { logos: "Premium Partner|Verified Seller|Official Agency|Secure Checkout|Global Delivery", colsDesktop: "5", colsTablet: "3", colsMobile: "2" }, preview: "🏢 Logos" },
@@ -717,6 +701,98 @@ function ElementPreview({ el, selected, onClick }: { el: BuilderElement; selecte
             </div>
           </div>
         )
+      case "video-hero":
+        return (
+          <div className="relative rounded-2xl overflow-hidden p-6 sm:p-10 bg-stone-950 text-white min-h-[200px] flex flex-col justify-center border border-stone-800 shadow-md">
+            <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900/80 to-stone-950/60" />
+            <div className="relative z-10 space-y-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold uppercase tracking-wider">
+                <Play className="h-2.5 w-2.5 fill-emerald-300" />
+                {String(p.badge || "Video Hero")}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black">{String(p.heading || "Hero Headline")}</h2>
+              <p className="text-xs text-stone-300 max-w-lg line-clamp-2">{String(p.subtext || "Hero descriptive text")}</p>
+              <div className="flex gap-2 pt-2">
+                <div className="px-4 py-2 bg-emerald-500 text-stone-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow">
+                  <WhatsAppIcon className="h-3 w-3 fill-stone-950" />
+                  <span>{String(p.primaryBtnText || "Book on WhatsApp")}</span>
+                </div>
+                <div className="px-3 py-2 bg-white/10 text-white rounded-xl text-xs font-bold border border-white/20">
+                  {String(p.secondaryBtnText || "Explore Packages")}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      case "countdown-sale":
+        return (
+          <div className="p-6 rounded-2xl text-white text-center space-y-3 border border-stone-800 shadow-md" style={{ backgroundColor: String(p.bgColor || "#0d1520") }}>
+            <span className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase">
+              {String(p.discountBadge || "FLASH SALE — 30% OFF")}
+            </span>
+            <h3 className="text-lg sm:text-xl font-black">{String(p.heading || "Limited Time Offer")}</h3>
+            <div className="flex justify-center gap-2 sm:gap-3 py-1">
+              {[["02","Days"],["14","Hrs"],["45","Min"],["30","Sec"]].map(([v,l], i) => (
+                <div key={i} className="w-12 h-14 bg-white/10 rounded-xl flex flex-col items-center justify-center border border-white/15">
+                  <span className="font-mono font-black text-lg text-amber-300">{v}</span>
+                  <span className="text-[8px] uppercase text-stone-400">{l}</span>
+                </div>
+              ))}
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-black text-xs text-stone-950 shadow" style={{ backgroundColor: String(p.accentColor || "#10B981") }}>
+              <WhatsAppIcon className="h-3.5 w-3.5 fill-stone-950" />
+              <span>{String(p.primaryCta || "Claim Discount on WhatsApp")}</span>
+            </div>
+          </div>
+        )
+      case "testimonials-slider":
+        return (
+          <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+            <div className="text-center space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">⭐ 4.9 Verified Reviews</span>
+              <h3 className="font-black text-base text-stone-900">{String(p.heading || "What Our Clients Say")}</h3>
+            </div>
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200/80 space-y-2">
+              <div className="flex gap-1 text-amber-400">
+                {[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
+              </div>
+              <p className="text-xs text-stone-700 italic">"The desert safari and private mountain camp was unforgettable! Seamless booking via WhatsApp."</p>
+              <div className="flex items-center gap-2 pt-2 border-t border-stone-200/60">
+                <div className="w-7 h-7 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-[10px]">A</div>
+                <div>
+                  <p className="font-bold text-[11px] text-stone-900">Ahmed Al-Harthy</p>
+                  <p className="text-[9px] text-stone-400">Muscat, Oman</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-center gap-1.5">
+              {[0,1,2].map(i => <div key={i} className={`h-1.5 rounded-full ${i === 0 ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />)}
+            </div>
+          </div>
+        )
+      case "faq-accordion":
+        return (
+          <div className="p-5 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
+            <div className="text-center space-y-1">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">FAQ Knowledge Base</span>
+              <h4 className="font-black text-sm text-stone-900">{String(p.heading || "Frequently Asked Questions")}</h4>
+            </div>
+            <div className="p-2 bg-stone-50 rounded-lg border border-stone-200 text-xs text-stone-400 flex items-center gap-2">
+              <Search className="h-3 w-3 text-stone-400" />
+              <span>Search questions...</span>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="p-2.5 bg-stone-50 rounded-lg flex items-center justify-between font-semibold text-stone-800 border border-stone-100">
+                <span>How do I book and pay?</span>
+                <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+              </div>
+              <div className="p-2.5 bg-stone-50 rounded-lg flex items-center justify-between font-semibold text-stone-800 border border-stone-100">
+                <span>What is your cancellation policy?</span>
+                <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+              </div>
+            </div>
+          </div>
+        )
       default:
         return (
           <div className="p-4 bg-stone-50 rounded-lg border border-stone-200 text-sm text-stone-500 text-center">
@@ -843,6 +919,30 @@ function PropsPanel({ el, onChange }: { el: BuilderElement | null; onChange: (id
           <ColorField k="bgColor" label="Background Color" />
           <Field k="minHeight" label="Min Height (px)" type="number" />
         </>)
+      case "video-hero":
+        return (<>
+          <Field k="heading" label="Headline" />
+          <Field k="subtext" label="Subtext" type="textarea" rows={3} />
+          <Field k="videoUrl" label="Video URL (YouTube or MP4)" />
+          <SelectField k="videoType" label="Video Type" options={[{value:"youtube",label:"YouTube Embed"},{value:"mp4",label:"Direct MP4 Video"}]} />
+          <Field k="posterUrl" label="Poster Image URL" />
+          <Field k="badge" label="Badge Text" />
+          <Field k="primaryBtnText" label="Primary Button Text" />
+          <Field k="secondaryBtnText" label="Secondary Button Text" />
+          <Field k="minHeight" label="Min Height (px)" type="number" />
+          <Field k="overlayOpacity" label="Dark Overlay % (20-90)" type="number" />
+        </>)
+      case "countdown-sale":
+        return (<>
+          <Field k="heading" label="Sale Headline" />
+          <Field k="subtext" label="Subtext" type="textarea" rows={2} />
+          <Field k="discountBadge" label="Discount Badge Text" />
+          <Field k="endDate" label="End Date/Time (e.g. 2026-10-15T23:59:00)" />
+          <Field k="primaryCta" label="Primary CTA Text" />
+          <Field k="secondaryCta" label="Secondary CTA Text" />
+          <ColorField k="bgColor" label="Background Color" />
+          <ColorField k="accentColor" label="Accent / Button Color" />
+        </>)
       case "feature-box":
         return (<>
           <Field k="icon" label="Emoji Icon" />
@@ -855,6 +955,24 @@ function PropsPanel({ el, onChange }: { el: BuilderElement | null; onChange: (id
           <Field k="author" label="Author Name" />
           <Field k="role" label="Role / Company" />
           <SelectField k="rating" label="Rating" options={[1,2,3,4,5].map(n => ({value: String(n), label: `${n} Stars`}))} />
+        </>)
+      case "testimonials-slider":
+        return (<>
+          <Field k="heading" label="Section Heading" />
+          <Field k="subtext" label="Subtext" />
+          <SelectField k="layout" label="Display Layout" options={[{value:"slider",label:"Interactive Slider"},{value:"grid",label:"Cards Grid"}]} />
+          <SelectField k="colsDesktop" label="Desktop Columns" options={[{value:"1",label:"1 Column"},{value:"2",label:"2 Columns"},{value:"3",label:"3 Columns"},{value:"4",label:"4 Columns"}]} />
+          <SelectField k="colsTablet" label="Tablet Columns" options={[{value:"1",label:"1 Column"},{value:"2",label:"2 Columns"},{value:"3",label:"3 Columns"}]} />
+          <SelectField k="colsMobile" label="Mobile Columns" options={[{value:"1",label:"1 Column"},{value:"2",label:"2 Columns"}]} />
+          <Field k="reviews" label="Reviews (Name|Role|Stars|Text|Avatar separated by ///)" type="textarea" rows={6} />
+        </>)
+      case "faq-accordion":
+        return (<>
+          <Field k="heading" label="Section Heading" />
+          <Field k="subtext" label="Subtext" />
+          <Field k="searchPlaceholder" label="Search Bar Placeholder" />
+          <Field k="whatsAppHelpText" label="WhatsApp CTA Text" />
+          <Field k="items" label="Q&As (Question:::Answer separated by ///)" type="textarea" rows={6} />
         </>)
       case "contact-form": case "newsletter-signup":
         return (<>
@@ -1117,6 +1235,24 @@ function PropsPanel({ el, onChange }: { el: BuilderElement | null; onChange: (id
 
 export default function WebsiteBuilderView() {
   const [elements, setElements] = useState<BuilderElement[]>([])
+  const [pages, setPages] = useState<WebsitePage[]>([
+    { id: "home", title: "Home", slug: "home", elements: [] },
+  ])
+  const [activePageSlug, setActivePageSlug] = useState<string>("home")
+  const [newPageModalOpen, setNewPageModalOpen] = useState(false)
+  const [pageSettingsModalOpen, setPageSettingsModalOpen] = useState(false)
+
+  // New page form state
+  const [newPageTitle, setNewPageTitle] = useState("")
+  const [newPageSlug, setNewPageSlug] = useState("")
+  const [newPageTemplate, setNewPageTemplate] = useState<"blank" | "about" | "services" | "contact" | "sale">("blank")
+
+  // Page settings form state
+  const [editPageTitle, setEditPageTitle] = useState("")
+  const [editPageSlug, setEditPageSlug] = useState("")
+  const [editPageSeoTitle, setEditPageSeoTitle] = useState("")
+  const [editPageSeoDesc, setEditPageSeoDesc] = useState("")
+
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [viewport, setViewport] = useState<"desktop" | "tablet" | "mobile">("desktop")
   const [previewMode, setPreviewMode] = useState(false)
@@ -1127,17 +1263,203 @@ export default function WebsiteBuilderView() {
   const [loaded, setLoaded] = useState(false)
   const [tenantSlug, setTenantSlug] = useState<string>("oman-adventures")
 
-  // ── Save draft to API (with localStorage fallback)
+  // ── Custom Domain State
+  const [customDomain, setCustomDomain] = useState<string>("")
+  const [domainModalOpen, setDomainModalOpen] = useState(false)
+  const [domainInput, setDomainInput] = useState("")
+  const [verifyingDomain, setVerifyingDomain] = useState(false)
+  const [savingDomain, setSavingDomain] = useState(false)
+  const [domainCheckResult, setDomainCheckResult] = useState<any>(null)
+
+  const handleVerifyDomain = async () => {
+    if (!domainInput.trim()) {
+      toast.error("Please enter a domain name first")
+      return
+    }
+    setVerifyingDomain(true)
+    setDomainCheckResult(null)
+    try {
+      const res = await fetch("/api/settings/verify-domain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domainInput.trim() }),
+      })
+      const data = await res.json()
+      setDomainCheckResult(data)
+      if (data.verified) {
+        toast.success(data.message || "DNS verification passed!")
+      } else {
+        toast.error(data.message || data.error || "DNS records not pointing yet")
+      }
+    } catch {
+      toast.error("Failed to check DNS records")
+    } finally {
+      setVerifyingDomain(false)
+    }
+  }
+
+  const handleSaveDomain = async () => {
+    setSavingDomain(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ custom_domain: domainInput.trim() }),
+      })
+      if (!res.ok) throw new Error("Failed to save domain")
+      setCustomDomain(domainInput.trim())
+      toast.success("Custom domain saved successfully!")
+    } catch (err: any) {
+      toast.error(err.message || "Error saving custom domain")
+    } finally {
+      setSavingDomain(false)
+    }
+  }
+
+  // ── Switch between pages
+  const switchPage = (newSlug: string) => {
+    if (newSlug === activePageSlug) return
+    const updated = pages.map((p) => (p.slug === activePageSlug ? { ...p, elements } : p))
+    setPages(updated)
+    const target = updated.find((p) => p.slug === newSlug) || updated[0]
+    setActivePageSlug(target.slug)
+    setElements(target.elements)
+    setHistoryStack([target.elements])
+    setHistoryIdx(0)
+    setSelectedId(null)
+    toast.success(`Switched to page: ${target.title}`)
+  }
+
+  // ── Create new page with pre-filled template
+  const handleCreatePage = () => {
+    const title = newPageTitle.trim() || "New Page"
+    let slug = (newPageSlug.trim() || title).toLowerCase().replace(/[^a-z0-9-]/g, "-")
+    if (pages.some((p) => p.slug === slug)) {
+      slug = `${slug}-${Date.now().toString(36).slice(-3)}`
+    }
+
+    let tplElements: BuilderElement[] = []
+    if (newPageTemplate === "about") {
+      tplElements = [
+        { id: uid(), type: "navbar", props: { logo: "About Us", links: "Home|About|Services|Contact", ctaText: "Book Now" } },
+        { id: uid(), type: "hero-banner", props: { heading: "Our Heritage & Mission", subtext: "Driven by passion for authentic Omani hospitality and world-class excursions.", buttonText: "Chat on WhatsApp", minHeight: "420" } },
+        { id: uid(), type: "feature-box", props: { icon: "🐪", heading: "Authentic Local Guides", text: "Certified local experts with intimate knowledge of Oman's hidden canyons and dunes." } },
+        { id: uid(), type: "stat-counter", props: { value: "10,000+", label: "Happy Guests Welcomed" } },
+        { id: uid(), type: "team-member", props: { name: "Rashid Al-Busaidi", role: "Head of Expeditions", bio: "15+ years leading premier desert and mountain treks." } },
+        { id: uid(), type: "testimonials-slider", props: { heading: "What Our Guests Say", layout: "slider" } },
+        { id: uid(), type: "whatsapp-cta", props: { text: "Connect with Our Team" } },
+      ]
+    } else if (newPageTemplate === "services") {
+      tplElements = [
+        { id: uid(), type: "navbar", props: { logo: "Services", links: "Home|About|Services|Contact", ctaText: "Book Now" } },
+        { id: uid(), type: "subheading", props: { text: "Our Signature Excursions & Services", size: "3xl", align: "center" } },
+        { id: uid(), type: "product-grid", props: { columns: "3", showFilter: true } },
+        { id: uid(), type: "cta-multi", props: { heading: "Need a Tailored Itinerary?", primaryText: "Chat on WhatsApp", secondaryText: "View Packages" } },
+        { id: uid(), type: "faq-accordion", props: { heading: "Frequently Asked Questions", showSearch: true } },
+      ]
+    } else if (newPageTemplate === "contact") {
+      tplElements = [
+        { id: uid(), type: "navbar", props: { logo: "Contact Us", links: "Home|About|Services|Contact", ctaText: "Book Now" } },
+        { id: uid(), type: "heading", props: { text: "Get in Touch With Our Concierge", align: "center" } },
+        { id: uid(), type: "contact-info", props: { phone: "+968 9000 0000", email: "info@omanadventures.com", address: "Muscat, Sultanate of Oman" } },
+        { id: uid(), type: "business-hours", props: { hours: "Mon-Fri: 8am - 8pm\nSat-Sun: 9am - 6pm" } },
+        { id: uid(), type: "custom-form", props: { heading: "Send an Inquiry", fields: "Full Name,WhatsApp Phone,Date,Guests,Notes" } },
+        { id: uid(), type: "whatsapp-cta", props: { text: "Chat on WhatsApp" } },
+      ]
+    } else if (newPageTemplate === "sale") {
+      tplElements = [
+        { id: uid(), type: "promo-badge", props: { text: "FLASH PROMOTION — 30% OFF", color: "#DC2626" } },
+        { id: uid(), type: "countdown-sale", props: { heading: "🔥 Flash Sale Ending Soon", discountBadge: "SAVE 30% TODAY" } },
+        { id: uid(), type: "video-hero", props: { heading: "Unforgettable Expeditions at 30% Off", primaryBtnText: "Claim Deal on WhatsApp" } },
+        { id: uid(), type: "product-carousel", props: { heading: "Promotional Packages", autoPlay: true } },
+        { id: uid(), type: "testimonials-slider", props: { heading: "Client Reviews", layout: "slider" } },
+        { id: uid(), type: "whatsapp-cta", props: { text: "Book with Promo Code" } },
+      ]
+    }
+
+    const newPage: WebsitePage = {
+      id: uid(),
+      title,
+      slug,
+      elements: tplElements,
+    }
+
+    const updated = [...pages.map((p) => (p.slug === activePageSlug ? { ...p, elements } : p)), newPage]
+    setPages(updated)
+    setActivePageSlug(slug)
+    setElements(tplElements)
+    setHistoryStack([tplElements])
+    setHistoryIdx(0)
+    setSelectedId(null)
+    setNewPageModalOpen(false)
+    toast.success(`Created page: ${title}`)
+  }
+
+  // ── Delete page
+  const handleDeletePage = (slug: string) => {
+    if (slug === "home") {
+      toast.error("The Home page cannot be deleted")
+      return
+    }
+    if (!confirm("Are you sure you want to delete this page?")) return
+
+    const remaining = pages.filter((p) => p.slug !== slug)
+    setPages(remaining)
+    setActivePageSlug("home")
+    const home = remaining.find((p) => p.slug === "home") || remaining[0]
+    setElements(home.elements)
+    setHistoryStack([home.elements])
+    setHistoryIdx(0)
+    setSelectedId(null)
+    setPageSettingsModalOpen(false)
+    toast.success("Page deleted!")
+  }
+
+  // ── Save page settings
+  const handleSavePageSettings = () => {
+    const cur = pages.find((p) => p.slug === activePageSlug)
+    if (!cur) return
+
+    const newTitle = editPageTitle.trim() || cur.title
+    const cleanSlug = cur.slug === "home" ? "home" : (editPageSlug.trim() || cur.slug).toLowerCase().replace(/[^a-z0-9-]/g, "-")
+
+    const updated = pages.map((p) => {
+      if (p.slug === activePageSlug) {
+        return {
+          ...p,
+          title: newTitle,
+          slug: cleanSlug,
+          seoTitle: editPageSeoTitle.trim(),
+          seoDescription: editPageSeoDesc.trim(),
+          elements,
+        }
+      }
+      return p
+    })
+
+    setPages(updated)
+    setActivePageSlug(cleanSlug)
+    setPageSettingsModalOpen(false)
+    toast.success("Page settings updated!")
+  }
+
+  // ── Save draft to API
   const save = async () => {
     setSaving(true)
     try {
+      const updatedPages = pages.map((p) => (p.slug === activePageSlug ? { ...p, elements } : p))
       const res = await fetch("/api/website-builder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ elements }),
+        body: JSON.stringify({
+          pages: updatedPages,
+          activePageSlug,
+          elements,
+        }),
       })
       if (!res.ok) throw new Error("API save failed")
-      // Mirror to localStorage for instant reload
+      setPages(updatedPages)
+      localStorage.setItem("wb_pages", JSON.stringify(updatedPages))
       localStorage.setItem("wb_elements", JSON.stringify(elements))
       toast.success("Draft saved!")
     } catch {
@@ -1152,18 +1474,22 @@ export default function WebsiteBuilderView() {
   const publish = async () => {
     setPublishing(true)
     try {
-      // Save draft first
+      const updatedPages = pages.map((p) => (p.slug === activePageSlug ? { ...p, elements } : p))
       await fetch("/api/website-builder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ elements }),
+        body: JSON.stringify({
+          pages: updatedPages,
+          activePageSlug,
+          elements,
+        }),
       })
-      // Then publish
       const res = await fetch("/api/website-builder/publish", { method: "POST" })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Publish failed")
       setPublishedAt(data.publishedAt)
-      toast.success("🎉 Website published! It's now live on your customer site.")
+      setPages(updatedPages)
+      toast.success(`🎉 Website published! All ${updatedPages.length} page(s) are now live on your customer site.`)
     } catch (err: any) {
       toast.error(err?.message || "Publish failed")
     } finally {
@@ -1187,26 +1513,41 @@ export default function WebsiteBuilderView() {
     }
   }
 
-  // ── Load from API on mount (localStorage as instant cache)
+  // ── Load from API on mount
   useEffect(() => {
-    // 1. Show local cache immediately so the canvas isn't blank
+    // 1. Show local cache immediately
     try {
-      const local = localStorage.getItem("wb_elements")
-      if (local) {
-        const parsed = JSON.parse(local) as BuilderElement[]
-        setElements(parsed)
-        setHistoryStack([parsed])
+      const localPages = localStorage.getItem("wb_pages")
+      if (localPages) {
+        const parsedPages = JSON.parse(localPages) as WebsitePage[]
+        if (Array.isArray(parsedPages) && parsedPages.length > 0) {
+          setPages(parsedPages)
+          setElements(parsedPages[0].elements)
+          setHistoryStack([parsedPages[0].elements])
+        }
+      } else {
+        const local = localStorage.getItem("wb_elements")
+        if (local) {
+          const parsed = JSON.parse(local) as BuilderElement[]
+          setElements(parsed)
+          setHistoryStack([parsed])
+        }
       }
     } catch {}
 
     // 2. Fetch from API (authoritative)
     fetch("/api/website-builder")
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data.elements) && data.elements.length > 0) {
-          setElements(data.elements)
-          setHistoryStack([data.elements])
-          localStorage.setItem("wb_elements", JSON.stringify(data.elements))
+      .then((r) => r.json())
+      .then((data) => {
+        const norm = normalizeWebsiteData(data)
+        if (norm.pages.length > 0) {
+          setPages(norm.pages)
+          setActivePageSlug(norm.activePageSlug || "home")
+          const cur = norm.pages.find((p) => p.slug === norm.activePageSlug) || norm.pages[0]
+          setElements(cur.elements)
+          setHistoryStack([cur.elements])
+          localStorage.setItem("wb_pages", JSON.stringify(norm.pages))
+          localStorage.setItem("wb_elements", JSON.stringify(cur.elements))
         }
       })
       .catch(() => {})
@@ -1223,6 +1564,11 @@ export default function WebsiteBuilderView() {
       .then(r => r.json())
       .then(d => {
         if (d.tenant_slug || d.slug) setTenantSlug(d.tenant_slug || d.slug)
+        if (d.custom_domain || d.customDomain) {
+          const dom = d.custom_domain || d.customDomain
+          setCustomDomain(dom)
+          setDomainInput(dom)
+        }
       })
       .catch(() => {})
   }, [])
@@ -1498,7 +1844,55 @@ export default function WebsiteBuilderView() {
           </button>
           <div className="w-px h-5 bg-stone-200 mx-1" />
           <button onClick={undo} disabled={historyIdx <= 0} className="p-1.5 rounded text-stone-500 hover:bg-stone-100 disabled:opacity-30 transition cursor-pointer" title="Undo"><Undo2 className="h-4 w-4" /></button>
-          <button onClick={redo} disabled={historyIdx >= historyStack.length - 1} className="p-1.5 rounded text-stone-500 hover:bg-stone-100 disabled:opacity-30 transition cursor-pointer" title="Redo"><Redo2 className="h-4 w-4" /></button>
+          <div className="w-px h-5 bg-stone-200 mx-1" />
+          {/* Multi-Page Selector */}
+          <div className="flex items-center gap-1.5 bg-stone-100/90 border border-stone-200 rounded-xl px-2 py-1">
+            <FileText className="h-3.5 w-3.5 text-violet-600" />
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider hidden sm:inline">Page:</span>
+            <Select value={activePageSlug} onValueChange={switchPage}>
+              <SelectTrigger className="h-7 border-none bg-white text-xs font-bold px-2 py-0 shadow-2xs text-stone-800 max-w-[130px] truncate">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pages.map((p) => (
+                  <SelectItem key={p.id} value={p.slug} className="text-xs font-semibold">
+                    {p.slug === "home" ? "🏠 " : "📄 "}
+                    {p.title} ({p.elements.length})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <button
+              onClick={() => {
+                const cur = pages.find((p) => p.slug === activePageSlug) || pages[0]
+                setEditPageTitle(cur.title)
+                setEditPageSlug(cur.slug)
+                setEditPageSeoTitle(cur.seoTitle || "")
+                setEditPageSeoDesc(cur.seoDescription || "")
+                setPageSettingsModalOpen(true)
+              }}
+              className="p-1 text-stone-500 hover:text-stone-800 rounded hover:bg-stone-200 transition cursor-pointer"
+              title="Page Settings (Title, URL Slug, SEO)"
+            >
+              <Sliders className="h-3.5 w-3.5" />
+            </button>
+
+            <button
+              onClick={() => {
+                setNewPageTitle("")
+                setNewPageSlug("")
+                setNewPageTemplate("blank")
+                setNewPageModalOpen(true)
+              }}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold shadow-2xs transition cursor-pointer"
+              title="Add new subpage"
+            >
+              <Plus className="h-3 w-3" />
+              <span className="hidden sm:inline">Page</span>
+            </button>
+          </div>
+
           <div className="w-px h-5 bg-stone-200 mx-1" />
           {/* Viewport selector */}
           <div className="flex items-center gap-1 bg-stone-100 rounded-lg p-0.5">
@@ -1515,6 +1909,22 @@ export default function WebsiteBuilderView() {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Custom Domain button */}
+            <Button
+              onClick={() => {
+                setDomainInput(customDomain)
+                setDomainModalOpen(true)
+              }}
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs font-semibold text-stone-700 hover:text-stone-900 border-stone-200 hover:bg-stone-50 gap-1.5 cursor-pointer"
+              title="Manage Custom Domain connection"
+            >
+              <Globe className="h-3.5 w-3.5 text-teal-600" />
+              <span>{customDomain ? customDomain : "Custom Domain"}</span>
+              {customDomain && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+            </Button>
+
             {publishedAt ? (
               <div className="flex items-center gap-1.5">
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-1 rounded-md border border-emerald-200">
@@ -1522,7 +1932,7 @@ export default function WebsiteBuilderView() {
                   Live on Homepage
                 </span>
                 <a
-                  href={`/shop/${tenantSlug}`}
+                  href={customDomain ? `https://${customDomain}` : `/shop/${tenantSlug}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-lg font-bold transition shadow-xs cursor-pointer"
@@ -1877,6 +2287,308 @@ export default function WebsiteBuilderView() {
                 </>
               )}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add New Page Dialog ── */}
+      <Dialog open={newPageModalOpen} onOpenChange={setNewPageModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-stone-900 flex items-center gap-2">
+              <Plus className="h-4 w-4 text-violet-600" />
+              <span>Create New Subpage</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-stone-500">
+              Add a new page to your storefront with linked navigation and customizable layouts.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Page Title</Label>
+              <Input
+                placeholder="e.g. About Us, Tour Packages, Contact Us"
+                value={newPageTitle}
+                onChange={(e) => {
+                  setNewPageTitle(e.target.value)
+                  if (!newPageSlug) {
+                    setNewPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))
+                  }
+                }}
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">URL Slug</Label>
+              <div className="flex items-center text-xs text-stone-400 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 font-mono">
+                <span>/shop/{tenantSlug}?page=</span>
+                <input
+                  value={newPageSlug}
+                  onChange={(e) => setNewPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                  placeholder="about-us"
+                  className="bg-transparent text-stone-800 font-bold outline-none flex-1 ml-0.5"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Starting Template</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "blank", label: "📄 Blank Canvas", desc: "Start completely empty" },
+                  { id: "about", label: "🏛️ About Us", desc: "Story, team, reviews & stats" },
+                  { id: "services", label: "🎒 Services & Catalog", desc: "Product grid & FAQ" },
+                  { id: "contact", label: "📍 Contact & Booking", desc: "Form, hours & map" },
+                  { id: "sale", label: "🔥 Flash Sale Promo", desc: "Countdown sale & video hero" },
+                ].map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setNewPageTemplate(tpl.id as any)}
+                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      newPageTemplate === tpl.id
+                        ? "border-violet-600 bg-violet-50/60 ring-2 ring-violet-500/20"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-stone-900">{tpl.label}</p>
+                    <p className="text-[10px] text-stone-500 mt-0.5">{tpl.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setNewPageModalOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreatePage}
+              disabled={!newPageTitle.trim()}
+              className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs cursor-pointer"
+            >
+              Create Subpage
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Page Settings Dialog ── */}
+      <Dialog open={pageSettingsModalOpen} onOpenChange={setPageSettingsModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-stone-900 flex items-center gap-2">
+              <Sliders className="h-4 w-4 text-violet-600" />
+              <span>Page Settings & SEO</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-stone-500">
+              Configure titles, clean URL routing, and search engine metadata for this page.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Page Navigation Title</Label>
+              <Input
+                value={editPageTitle}
+                onChange={(e) => setEditPageTitle(e.target.value)}
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">URL Route Slug</Label>
+              <div className="flex items-center text-xs text-stone-400 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 font-mono">
+                <span>/shop/{tenantSlug}?page=</span>
+                <input
+                  disabled={activePageSlug === "home"}
+                  value={activePageSlug === "home" ? "home (Default Root)" : editPageSlug}
+                  onChange={(e) => setEditPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                  className="bg-transparent text-stone-800 font-bold outline-none flex-1 ml-0.5 disabled:opacity-50"
+                />
+              </div>
+              {activePageSlug === "home" && (
+                <p className="text-[10px] text-stone-400">The home page is the primary root landing view of your store.</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">SEO Meta Title (Optional)</Label>
+              <Input
+                placeholder="e.g. Best Oman Adventures & Desert Treks | Muscat"
+                value={editPageSeoTitle}
+                onChange={(e) => setEditPageSeoTitle(e.target.value)}
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">SEO Meta Description (Optional)</Label>
+              <Textarea
+                placeholder="Brief summary for Google search results..."
+                rows={2}
+                value={editPageSeoDesc}
+                onChange={(e) => setEditPageSeoDesc(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+
+            {/* Action buttons: delete page if not home */}
+            {activePageSlug !== "home" && (
+              <div className="pt-2 border-t border-stone-100 flex justify-between items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeletePage(activePageSlug)}
+                  className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50 text-xs font-semibold gap-1 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete Page</span>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPageSettingsModalOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSavePageSettings}
+              className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs cursor-pointer"
+            >
+              Save Settings
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Custom Domain Modal ── */}
+      <Dialog open={domainModalOpen} onOpenChange={setDomainModalOpen}>
+        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 sm:p-7 space-y-4">
+          <DialogHeader className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-teal-50 border border-teal-200 text-teal-700">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black text-stone-900">Custom Domain Connection</DialogTitle>
+                <DialogDescription className="text-xs text-stone-500">
+                  Connect your brand's unique web address to your published website.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-stone-700">Your Custom Domain</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. tours.omanadventures.com"
+                  value={domainInput}
+                  onChange={(e) => setDomainInput(e.target.value)}
+                  className="text-xs font-mono h-9"
+                />
+                <Button
+                  type="button"
+                  onClick={handleSaveDomain}
+                  disabled={savingDomain}
+                  size="sm"
+                  className="h-9 px-3 bg-stone-900 hover:bg-black text-white text-xs font-bold shrink-0 cursor-pointer"
+                >
+                  {savingDomain ? "Saving…" : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleVerifyDomain}
+                  disabled={verifyingDomain}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 text-xs font-semibold shrink-0 gap-1 cursor-pointer"
+                >
+                  {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-stone-500" />}
+                  <span>Test DNS</span>
+                </Button>
+              </div>
+            </div>
+
+            {domainCheckResult && (
+              <div className={`p-3.5 rounded-xl border text-xs space-y-1 ${domainCheckResult.verified ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-amber-50 border-amber-200 text-amber-900"}`}>
+                <div className="font-bold flex items-center gap-1.5">
+                  {domainCheckResult.verified ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                  {domainCheckResult.verified ? "DNS Connection Verified & Active!" : "DNS Records Not Pointed Yet"}
+                </div>
+                <p className="text-[11px] leading-relaxed">{domainCheckResult.message}</p>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50 space-y-2.5 text-xs">
+              <div className="font-bold text-stone-800 flex items-center gap-1.5">
+                <span>DNS Configuration Instructions</span>
+              </div>
+              <p className="text-[11px] text-stone-500">
+                Log into your domain registrar (Cloudflare, GoDaddy, Namecheap) and create either:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+                <div className="p-2.5 bg-white border border-stone-200 rounded-lg space-y-0.5">
+                  <span className="font-sans font-bold text-teal-700 block text-[10px] uppercase">Option 1: CNAME (Subdomain)</span>
+                  <div><span className="text-stone-400">Host:</span> shop (or tours)</div>
+                  <div><span className="text-stone-400">Target:</span> cname.fizmoh.cloud</div>
+                </div>
+                <div className="p-2.5 bg-white border border-stone-200 rounded-lg space-y-0.5">
+                  <span className="font-sans font-bold text-stone-700 block text-[10px] uppercase">Option 2: A Record (Apex)</span>
+                  <div><span className="text-stone-400">Host:</span> @</div>
+                  <div><span className="text-stone-400">Target:</span> 187.127.119.207</div>
+                </div>
+              </div>
+              <p className="text-[10px] text-stone-400">
+                🔒 SSL / HTTPS certificates are auto-provisioned within minutes after DNS resolves.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDomainModalOpen(false)}
+              className="text-xs"
+            >
+              Close
+            </Button>
+            {customDomain && (
+              <a
+                href={`https://${customDomain}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                <span>Visit https://{customDomain}</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         </DialogContent>
       </Dialog>

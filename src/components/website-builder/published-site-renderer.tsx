@@ -1,18 +1,20 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
-import { type BuilderElement } from "@/components/views/website-builder-view"
+import React, { useState, useEffect, useMemo, useRef } from "react"
+import { type BuilderElement, type WebsiteData, type WebsitePage } from "@/lib/website-builder-types"
 import {
   ShoppingCart, Star, Phone, Mail, MapPin, Check, Plus, Minus,
-  ChevronDown, ChevronRight, X, ArrowRight, Clock, Shield,
+  ChevronDown, ChevronRight, ChevronLeft, X, ArrowRight, Clock, Shield,
   Award, Sparkles, MessageSquare, Send, Zap, Users, CheckCircle2,
-  ExternalLink, Heart, Share2, AlertCircle
+  ExternalLink, Heart, Share2, AlertCircle, Play, Search,
+  Timer, Menu, Quote, RefreshCw, CreditCard, Lock
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { toast } from "sonner"
 
 interface PublishedSiteRendererProps {
-  elements: BuilderElement[]
+  elements?: BuilderElement[]
+  websiteData?: WebsiteData
   products?: Array<{
     id: string
     name: string
@@ -34,6 +36,7 @@ interface PublishedSiteRendererProps {
     accentColor?: string | null
     currency?: string | null
   }
+  initialPageSlug?: string
   onSwitchToCatalog?: () => void
 }
 
@@ -85,30 +88,127 @@ function getResponsiveGrid(
   return `${mCls} ${tCls} ${dCls}`
 }
 
+/**
+ * Real-time ticking countdown hook for flash sales and limited-time banners
+ */
+function useCountdown(targetDateStr?: string) {
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number
+    hours: number
+    minutes: number
+    seconds: number
+    isExpired: boolean
+  }>({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    isExpired: false,
+  })
+
+  useEffect(() => {
+    let target = targetDateStr ? new Date(targetDateStr).getTime() : 0
+    if (isNaN(target) || target <= Date.now()) {
+      // Default to 48 hours + 12 mins from now
+      target = Date.now() + 48 * 3600 * 1000 + 12 * 60 * 1000
+    }
+
+    const calc = () => {
+      const now = Date.now()
+      const diff = Math.max(0, target - now)
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true })
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
+        const minutes = Math.floor((diff / (1000 * 60)) % 60)
+        const seconds = Math.floor((diff / 1000) % 60)
+        setTimeLeft({ days, hours, minutes, seconds, isExpired: false })
+      }
+    }
+
+    calc()
+    const interval = setInterval(calc, 1000)
+    return () => clearInterval(interval)
+  }, [targetDateStr])
+
+  return timeLeft
+}
+
 export function PublishedSiteRenderer({
-  elements,
+  elements: initialElements,
+  websiteData,
   products = [],
   brand = {},
+  initialPageSlug,
   onSwitchToCatalog,
 }: PublishedSiteRendererProps) {
+  // ── Multi-page normalization ──────────────────────────────────────────────
+  const pages = useMemo<WebsitePage[]>(() => {
+    if (websiteData?.pages && websiteData.pages.length > 0) {
+      return websiteData.pages
+    }
+    if (initialElements && initialElements.length > 0) {
+      return [{ id: "home", title: "Home", slug: "home", elements: initialElements }]
+    }
+    return [{ id: "home", title: "Home", slug: "home", elements: [] }]
+  }, [websiteData, initialElements])
+
+  const [activePageSlug, setActivePageSlug] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      const qPage = sp.get("page")
+      if (qPage && pages.some((p) => p.slug === qPage.toLowerCase())) {
+        return qPage.toLowerCase()
+      }
+    }
+    return initialPageSlug || websiteData?.activePageSlug || pages[0]?.slug || "home"
+  })
+
+  // Navigate between subpages
+  const navigateToPage = (slug: string) => {
+    const cleanSlug = slug.toLowerCase()
+    setActivePageSlug(cleanSlug)
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      if (cleanSlug === "home") {
+        url.searchParams.delete("page")
+      } else {
+        url.searchParams.set("page", cleanSlug)
+      }
+      window.history.pushState({}, "", url.toString())
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
+
+  const currentPage = useMemo(() => {
+    return pages.find((p) => p.slug === activePageSlug) || pages[0]
+  }, [pages, activePageSlug])
+
+  const elementsToRender = currentPage?.elements || []
+
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Interactive element states
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({})
   const [activeTabs, setActiveTabs] = useState<Record<string, number>>({})
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({})
+  const [testimonialIndices, setTestimonialIndices] = useState<Record<string, number>>({})
+  const [faqSearchQueries, setFaqSearchQueries] = useState<Record<string, string>>({})
   const [customFormData, setCustomFormData] = useState<Record<string, Record<string, string>>>({})
   const [customFormSubmitting, setCustomFormSubmitting] = useState<Record<string, boolean>>({})
 
   // Checkout inputs
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
+  const [customerEmail, setCustomerEmail] = useState("")
   const [deliveryAddress, setDeliveryAddress] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState<"whatsapp" | "card">("whatsapp")
+  const [paymentMethod, setPaymentMethod] = useState<"WHATSAPP" | "CARD_ONLINE">("WHATSAPP")
 
   // Cart total calculations
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart])
@@ -153,7 +253,7 @@ export function PublishedSiteRenderer({
     )
   }
 
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerName || !customerPhone) {
       toast.error("Please enter your name and phone number")
@@ -162,37 +262,64 @@ export function PublishedSiteRenderer({
 
     setFormSubmitting(true)
 
-    // Build WhatsApp order message
-    const orderItemsText = cart
-      .map((item) => `• ${item.name} x${item.quantity} (${item.currency} ${(item.price * item.quantity).toFixed(2)})`)
-      .join("\n")
+    // Online Card Checkout via AmwalPay / Oman Net
+    if (paymentMethod === "CARD_ONLINE") {
+      try {
+        const res = await fetch("/api/website-builder/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantSlug: brand.slug,
+            customerName,
+            customerPhone,
+            customerEmail,
+            deliveryAddress,
+            items: cart,
+            totalAmount: cartSubtotal,
+            currency: activeCurrency,
+            paymentMethod: "CARD_ONLINE",
+          }),
+        })
 
-    const orderText = `🛒 *New Order from Website*\n\n*Customer:* ${customerName}\n*Phone:* ${customerPhone}\n${deliveryAddress ? `*Address:* ${deliveryAddress}\n` : ""}*Payment Preference:* ${paymentMethod === "whatsapp" ? "WhatsApp Pay / Cash" : "Card Payment"}\n\n*Items Ordered:*\n${orderItemsText}\n\n*Total:* ${activeCurrency} ${cartSubtotal.toFixed(2)}`
+        const data = await res.json()
+        if (data.ok && data.checkoutUrl) {
+          toast.success("Redirecting to secure card checkout...")
+          window.location.href = data.checkoutUrl
+          return
+        } else {
+          toast.error(data.error || "Card checkout unavailable. Continuing via WhatsApp...")
+        }
+      } catch {
+        toast.error("Could not initiate card payment. Switching to WhatsApp...")
+      }
+    }
 
-    const targetPhone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
-    const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(orderText)}`
+    // Direct WhatsApp Concierge Checkout
+    const phone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
+    const orderItems = cart.map((i) => `• ${i.name} x${i.quantity} = ${i.currency} ${(i.price * i.quantity).toFixed(2)}`).join("\n")
+    const msg = `🛍️ *NEW WEBSITE ORDER*\n\n*Customer Details:*\nName: ${customerName}\nPhone: ${customerPhone}${customerEmail ? `\nEmail: ${customerEmail}` : ""}\nAddress / Notes: ${deliveryAddress || "Not specified"}\n\n*Items Ordered:*\n${orderItems}\n\n*Total Amount:* ${activeCurrency} ${cartSubtotal.toFixed(2)}\n\n*Payment Preference:* ${paymentMethod === "CARD_ONLINE" ? "Online Card Payment" : "WhatsApp Concierge Checkout"}\n\n_Sent directly from ${brand.name || "our website"}_`
 
-    setTimeout(() => {
-      setFormSubmitting(false)
-      setCheckoutOpen(false)
-      setCart([])
-      toast.success("Order initiated! Redirecting to WhatsApp…")
-      window.open(waUrl, "_blank")
-    }, 600)
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    window.open(waUrl, "_blank")
+    setCart([])
+    setCheckoutOpen(false)
+    setCartOpen(false)
+    setFormSubmitting(false)
+    toast.success("Order dispatched to WhatsApp!")
   }
 
   const openWhatsAppInquiry = (customMsg?: string) => {
-    const targetPhone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
-    const text = customMsg || `Hello! I am visiting your website and would like more information.`
-    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`, "_blank")
+    const phone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
+    const msg = customMsg || `Hello! I would like to inquire about your services and book via your official website (${brand.name || "Official Store"}).`
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank")
   }
 
-  // Render individual builder element
-  const renderElement = (el: BuilderElement) => {
+  // ── Render Individual Element ─────────────────────────────────────────────
+  const renderElement = (el: BuilderElement): React.ReactNode => {
     const p = el.props || {}
 
     switch (el.type) {
-      // ─── Text Elements ──────────────────────────────────────
+      // ─── Text Elements ───────────────────────────────────────
       case "heading": {
         const align = p.align === "center" ? "text-center" : p.align === "right" ? "text-right" : "text-left"
         return (
@@ -274,19 +401,470 @@ export function PublishedSiteRenderer({
             />
           </div>
         )
-      case "gallery": {
-        const sampleImages = [
-          "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&q=80",
-          "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&q=80",
-          "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80",
-        ]
+
+      // ─── NEW HIGH-CONVERTING BLOCK: VIDEO HERO ─────────────────────────
+      case "video-hero": {
+        const videoUrl = String(p.videoUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ")
+        const isMp4 = p.videoType === "mp4" || videoUrl.endsWith(".mp4")
+        const opacity = Math.min(95, Math.max(20, parseInt(String(p.overlayOpacity || "60")))) / 100
+        const minH = parseInt(String(p.minHeight || "540"))
+
         return (
-          <div className="my-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {sampleImages.map((img, idx) => (
-              <div key={idx} className="rounded-xl overflow-hidden shadow-sm aspect-4/3 group relative">
-                <img src={img} alt={`Gallery item ${idx}`} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+          <div
+            className="my-6 rounded-3xl relative overflow-hidden flex flex-col justify-center shadow-2xl text-center md:text-left"
+            style={{ minHeight: `${minH}px` }}
+          >
+            {/* Background Video */}
+            <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+              {isMp4 ? (
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  poster={p.posterUrl ? String(p.posterUrl) : undefined}
+                  className="w-full h-full object-cover scale-105"
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <iframe
+                  src={`${videoUrl}${videoUrl.includes("?") ? "&" : "?"}autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0`}
+                  title="Hero video background"
+                  className="w-[120%] h-[120%] -top-[10%] -left-[10%] absolute object-cover border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              )}
+            </div>
+
+            {/* Dark Gradient Overlay */}
+            <div
+              className="absolute inset-0 bg-stone-950 transition"
+              style={{ opacity }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/40 to-transparent" />
+
+            {/* Content Container */}
+            <div className="relative z-10 max-w-3xl p-8 sm:p-14 space-y-5 text-white">
+              {p.badge && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  <span>{String(p.badge)}</span>
+                </div>
+              )}
+
+              <h1 className="text-3xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-md">
+                {String(p.heading || "Discover the Hidden Wonders of Oman")}
+              </h1>
+
+              <p className="text-stone-200 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl drop-shadow-xs">
+                {String(p.subtext || "Private desert camps, pristine coastal waters, and majestic mountain canyons tailored to your dream getaway.")}
+              </p>
+
+              <div className="pt-2 flex flex-wrap gap-3 justify-center md:justify-start">
+                <button
+                  onClick={() => openWhatsAppInquiry(`Hello! I'm interested in booking via your video hero: ${String(p.heading || "Package")}`)}
+                  className="px-7 py-4 rounded-2xl bg-[#00E785] hover:bg-[#00B96A] text-stone-950 font-black text-sm shadow-xl transition flex items-center gap-2.5 cursor-pointer transform hover:scale-[1.02]"
+                >
+                  <WhatsAppIcon className="h-5 w-5 fill-stone-950" />
+                  <span>{String(p.primaryBtnText || "Book on WhatsApp")}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const catalogEl = document.getElementById("website-catalog-section")
+                    if (catalogEl) catalogEl.scrollIntoView({ behavior: "smooth" })
+                    else setCartOpen(true)
+                  }}
+                  className="px-7 py-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm backdrop-blur-md transition border border-white/25 cursor-pointer flex items-center gap-2"
+                >
+                  <span>{String(p.secondaryBtnText || "View Packages")}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
-            ))}
+            </div>
+          </div>
+        )
+      }
+
+      // ─── NEW HIGH-CONVERTING BLOCK: COUNTDOWN FLASH SALE ────────────────
+      case "countdown-sale":
+      case "countdown-timer": {
+        const timer = useCountdown(p.endDate ? String(p.endDate) : undefined)
+        const discountBadge = String(p.discountBadge || p.discount || "FLASH SALE — SAVE 30%")
+        const bg = String(p.bgColor || "#0d1520")
+        const accent = String(p.accentColor || "#10B981")
+
+        return (
+          <div
+            className="my-8 rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden border border-white/10"
+            style={{ backgroundColor: bg, color: "#ffffff" }}
+          >
+            <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+              {/* Left copy */}
+              <div className="space-y-3 text-center lg:text-left max-w-xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-black tracking-wide uppercase">
+                  <Zap className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+                  <span>{discountBadge}</span>
+                </div>
+                <h3 className="text-2xl sm:text-4xl font-black tracking-tight">
+                  {String(p.heading || "🔥 Limited Time Exclusive Offer")}
+                </h3>
+                <p className="text-stone-300 text-xs sm:text-sm leading-relaxed">
+                  {String(p.subtext || "Lock in your dates before this promotional pricing expires. Instant WhatsApp confirmation with full refund flexibility.")}
+                </p>
+              </div>
+
+              {/* Countdown Ticker Cards */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex gap-2.5 sm:gap-4">
+                  {[
+                    { label: "Days", val: timer.days },
+                    { label: "Hours", val: timer.hours },
+                    { label: "Minutes", val: timer.minutes },
+                    { label: "Seconds", val: timer.seconds },
+                  ].map((unit, i) => (
+                    <div
+                      key={i}
+                      className="w-16 sm:w-20 h-20 sm:h-22 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex flex-col items-center justify-center shadow-lg transition-transform hover:scale-105"
+                    >
+                      <span className="font-mono font-black text-2xl sm:text-3xl text-amber-300 tracking-tight">
+                        {String(unit.val).padStart(2, "0")}
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-stone-400 mt-0.5">
+                        {unit.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Primary CTA */}
+                <button
+                  onClick={() => openWhatsAppInquiry(`Hello! I want to claim the ${discountBadge} discount before the countdown timer expires.`)}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black text-sm text-stone-950 transition flex items-center justify-center gap-2 shadow-lg cursor-pointer transform hover:scale-[1.02]"
+                  style={{ backgroundColor: accent }}
+                >
+                  <WhatsAppIcon className="h-4 w-4 fill-stone-950" />
+                  <span>{String(p.primaryCta || p.buttonText || "Claim Deal on WhatsApp")}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      // ─── NEW HIGH-CONVERTING BLOCK: TESTIMONIALS SLIDER ──────────────────
+      case "testimonials-slider": {
+        const rawReviews = String(
+          p.reviews ||
+            "Ahmed Al-Harthy|Muscat, Oman|5|The desert safari and private mountain camp was unforgettable! Seamless booking via WhatsApp and incredible local guide.|https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80///Sarah Jenkins|Dubai, UAE|5|Fast response, transparent pricing, and wonderful hospitality in Salalah. 10/10 experience!|https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80///Rashid Al-Balushi|Salalah, Oman|5|Best corporate retreat we've organized in years. The team handled every detail flawlessly.|https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&q=80///Emily Watson|London, UK|5|Exceptional private tour to Wahiba Sands and Wadi Shab. Our guide Ali was so knowledgeable and kind!|https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=160&q=80"
+        )
+        const reviewList = rawReviews
+          .split("///")
+          .map((item) => {
+            const parts = item.split("|")
+            return {
+              name: parts[0]?.trim() || "Verified Guest",
+              role: parts[1]?.trim() || "Muscat, Oman",
+              rating: parseInt(parts[2]?.trim() || "5"),
+              text: parts[3]?.trim() || "Outstanding service and experience!",
+              avatar: parts[4]?.trim() || "",
+            }
+          })
+          .filter((r) => r.text)
+
+        const currentIndex = testimonialIndices[el.id] || 0
+        const isGrid = p.layout === "grid"
+
+        const nextSlide = () => {
+          setTestimonialIndices((prev) => ({
+            ...prev,
+            [el.id]: (currentIndex + 1) % reviewList.length,
+          }))
+        }
+        const prevSlide = () => {
+          setTestimonialIndices((prev) => ({
+            ...prev,
+            [el.id]: (currentIndex - 1 + reviewList.length) % reviewList.length,
+          }))
+        }
+
+        return (
+          <div className="my-10 space-y-6">
+            <div className="text-center space-y-2 max-w-2xl mx-auto">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                <span>Verified Reviews (4.9 / 5.0)</span>
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-stone-900">
+                {String(p.heading || "What Our Happy Clients Say")}
+              </h3>
+              <p className="text-stone-500 text-xs sm:text-sm">
+                {String(p.subtext || "Real reviews from over 10,000+ satisfied guests and corporate groups.")}
+              </p>
+            </div>
+
+            {isGrid ? (
+              // Multi-column Grid Layout
+              <div className={`grid gap-5 ${getResponsiveGrid(p.colsDesktop || "3", p.colsTablet || "2", p.colsMobile || "1", "3")}`}>
+                {reviewList.map((rev, idx) => (
+                  <div
+                    key={idx}
+                    className="p-6 rounded-3xl bg-white border border-stone-200/80 shadow-xs hover:shadow-md transition flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1 mb-3">
+                        {[...Array(5)].map((_, s) => (
+                          <Star
+                            key={s}
+                            className={`h-4 w-4 ${s < rev.rating ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-stone-700 text-sm italic leading-relaxed">
+                        "{rev.text}"
+                      </p>
+                    </div>
+                    <div className="mt-5 flex items-center gap-3 pt-4 border-t border-stone-100">
+                      {rev.avatar ? (
+                        <img src={rev.avatar} alt={rev.name} className="w-10 h-10 rounded-full object-cover shadow-2xs" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-xs shadow-2xs">
+                          {rev.name[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-stone-900 text-xs">{rev.name}</p>
+                        <p className="text-[10px] text-stone-400">{rev.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // Interactive Slider Layout
+              <div className="relative max-w-3xl mx-auto">
+                <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-br from-stone-50 to-white border border-stone-200 shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, s) => (
+                        <Star
+                          key={s}
+                          className={`h-5 w-5 ${s < reviewList[currentIndex]?.rating ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Verified Client
+                    </span>
+                  </div>
+
+                  <p className="text-stone-800 text-base sm:text-lg italic leading-relaxed min-h-[90px]">
+                    "{reviewList[currentIndex]?.text}"
+                  </p>
+
+                  <div className="mt-6 flex items-center justify-between pt-5 border-t border-stone-200">
+                    <div className="flex items-center gap-3">
+                      {reviewList[currentIndex]?.avatar ? (
+                        <img
+                          src={reviewList[currentIndex]?.avatar}
+                          alt={reviewList[currentIndex]?.name}
+                          className="w-12 h-12 rounded-full object-cover shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
+                          {reviewList[currentIndex]?.name[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-stone-900 text-sm">{reviewList[currentIndex]?.name}</p>
+                        <p className="text-xs text-stone-400">{reviewList[currentIndex]?.role}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={prevSlide}
+                        className="p-2.5 rounded-full bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 shadow-xs cursor-pointer transition"
+                        title="Previous Review"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={nextSlide}
+                        className="p-2.5 rounded-full bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 shadow-xs cursor-pointer transition"
+                        title="Next Review"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dots indicator */}
+                <div className="flex justify-center gap-2 mt-4">
+                  {reviewList.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setTestimonialIndices((prev) => ({ ...prev, [el.id]: i }))}
+                      className={`h-2 rounded-full transition-all cursor-pointer ${
+                        i === currentIndex ? "w-6 bg-emerald-600" : "w-2 bg-stone-300 hover:bg-stone-400"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      // ─── NEW HIGH-CONVERTING BLOCK: FAQ ACCORDION WITH SEARCH ────────────
+      case "faq-accordion":
+      case "faq-item": {
+        const rawFaq = String(
+          p.items ||
+            (p.question && p.answer
+              ? `${p.question}:::${p.answer}`
+              : "How do I book and pay?:::You can pay securely online via credit/debit card, bank transfer, or confirm instantly on WhatsApp and pay on arrival.///What is your cancellation policy?:::Free cancellation up to 48 hours before your scheduled tour with a 100% full money-back guarantee.///Are hotel transfers included?:::Yes! Complimentary pickup and drop-off from any hotel or residence in Muscat/Salalah is included for all private tours.///Do you accommodate dietary requirements?:::Absolutely. We provide vegetarian, vegan, and halal options for all meals during camping and full-day tours. Please let us know when booking.///What should I wear on a desert safari?:::Lightweight, comfortable clothing, sunscreen, sunglasses, and a warm jacket for evening desert campfire dinners.")
+        )
+
+        const faqItems = rawFaq
+          .split("///")
+          .map((item) => {
+            const [q, a] = item.split(":::")
+            return { question: q?.trim(), answer: a?.trim() }
+          })
+          .filter((item) => item.question && item.answer)
+
+        const qSearch = (faqSearchQueries[el.id] || "").toLowerCase()
+        const filteredFaq = faqItems.filter(
+          (f) => f.question.toLowerCase().includes(qSearch) || f.answer.toLowerCase().includes(qSearch)
+        )
+
+        const toggleAll = (expand: boolean) => {
+          const updated: Record<string, boolean> = { ...openAccordions }
+          faqItems.forEach((_, idx) => {
+            updated[`${el.id}-${idx}`] = expand
+          })
+          setOpenAccordions(updated)
+        }
+
+        return (
+          <div className="my-10 space-y-5 max-w-3xl mx-auto">
+            {/* SEO Structured Data for Google FAQ Rich Snippets */}
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  mainEntity: faqItems.map((f) => ({
+                    "@type": "Question",
+                    name: f.question,
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: f.answer,
+                    },
+                  })),
+                }),
+              }}
+            />
+
+            <div className="text-center space-y-2">
+              <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
+                FAQ & Knowledge Base
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-stone-900">
+                {String(p.heading || "Frequently Asked Questions")}
+              </h3>
+              <p className="text-stone-500 text-xs sm:text-sm">
+                {String(p.subtext || "Everything you need to know about our tours, bookings, and policies.")}
+              </p>
+            </div>
+
+            {/* Interactive Search Bar */}
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder={String(p.searchPlaceholder || "Search questions (e.g. payment, refund, clothes)...")}
+                  value={faqSearchQueries[el.id] || ""}
+                  onChange={(e) =>
+                    setFaqSearchQueries((prev) => ({ ...prev, [el.id]: e.target.value }))
+                  }
+                  className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <button
+                onClick={() => toggleAll(true)}
+                className="px-3 py-2.5 text-[11px] font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl transition cursor-pointer whitespace-nowrap"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={() => toggleAll(false)}
+                className="px-3 py-2.5 text-[11px] font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl transition cursor-pointer whitespace-nowrap"
+              >
+                Collapse
+              </button>
+            </div>
+
+            {/* Accordion list */}
+            <div className="space-y-3">
+              {filteredFaq.length > 0 ? (
+                filteredFaq.map((item, idx) => {
+                  const key = `${el.id}-${idx}`
+                  const isOpen = !!openAccordions[key]
+                  return (
+                    <div
+                      key={idx}
+                      className="border border-stone-200/80 rounded-2xl overflow-hidden bg-white shadow-2xs transition"
+                    >
+                      <button
+                        onClick={() =>
+                          setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }))
+                        }
+                        className="w-full p-4 sm:p-5 text-left font-bold text-sm text-stone-900 flex items-center justify-between hover:bg-stone-50/80 cursor-pointer gap-4"
+                      >
+                        <span className="leading-snug">{item.question}</span>
+                        <ChevronDown
+                          className={`h-4 w-4 text-stone-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-emerald-600" : ""}`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="p-4 sm:p-5 pt-0 text-xs sm:text-sm text-stone-600 leading-relaxed border-t border-stone-100 bg-stone-50/40 animate-in fade-in duration-150">
+                          {item.answer}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="p-8 text-center bg-stone-50 rounded-2xl border border-stone-200 text-stone-400 text-xs">
+                  No matching questions found for "{qSearch}". Try a different keyword or chat with us directly below.
+                </div>
+              )}
+            </div>
+
+            {/* Direct WhatsApp Concierge CTA */}
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <WhatsAppIcon className="h-4 w-4 fill-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-950 text-xs sm:text-sm">Still have a question?</p>
+                  <p className="text-[11px] text-emerald-700">Our local guides reply on WhatsApp in under 3 minutes.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => openWhatsAppInquiry("Hello! I have a question not listed in the FAQ:")}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer whitespace-nowrap"
+              >
+                Chat on WhatsApp →
+              </button>
+            </div>
           </div>
         )
       }
@@ -348,35 +926,47 @@ export function PublishedSiteRenderer({
         const itemPrice = parseFloat(String(p.price || "99.00"))
         const itemCurrency = String(p.currency || activeCurrency)
         const itemName = String(p.name || "Premium Package")
+        const itemImage = String(p.image || "https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&q=80")
+        const itemDesc = String(p.description || "Comprehensive signature experience with full amenities and guidance.")
+
         return (
-          <div className="my-4 max-w-sm rounded-2xl border border-stone-200/80 bg-white overflow-hidden shadow-md hover:shadow-lg transition-all">
-            <div className="h-48 bg-stone-100 relative overflow-hidden flex items-center justify-center">
-              {p.image ? (
-                <img src={String(p.image)} alt={itemName} className="w-full h-full object-cover" />
-              ) : (
-                <ShoppingCart className="h-12 w-12 text-stone-300" />
-              )}
-              {p.badge && (
+          <div className="my-4 rounded-3xl border border-stone-200 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col md:flex-row">
+            <div className="md:w-1/2 aspect-4/3 md:aspect-auto relative overflow-hidden bg-stone-100">
+              <img src={itemImage} alt={itemName} className="w-full h-full object-cover" />
+              {p.highlight && (
                 <span className="absolute top-3 right-3 bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
-                  {String(p.badge)}
+                  Popular
                 </span>
               )}
             </div>
-            <div className="p-5">
-              <h4 className="font-extrabold text-stone-900 text-lg">{itemName}</h4>
-              <p className="text-xs text-stone-500 mt-1 line-clamp-2">{String(p.description || "All premium features included.")}</p>
-              <div className="flex items-center justify-between mt-5 pt-3 border-t border-stone-100">
+            <div className="p-6 md:w-1/2 flex flex-col justify-between space-y-4">
+              <div className="space-y-2">
+                <h3 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">{itemName}</h3>
+                <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">{itemDesc}</p>
+              </div>
+              <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-stone-400 font-bold uppercase block">Price</span>
-                  <span className="font-black text-emerald-700 text-xl">{itemCurrency} {itemPrice.toFixed(2)}</span>
+                  <div className="text-xl sm:text-2xl font-black text-emerald-800">
+                    {itemCurrency} {itemPrice.toFixed(2)}
+                  </div>
                 </div>
-                <button
-                  onClick={() => addToCart({ id: el.id, name: itemName, price: itemPrice, currency: itemCurrency })}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <ShoppingCart className="h-3.5 w-3.5" />
-                  <span>{String(p.buttonText || "Add to Cart")}</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => addToCart({ id: el.id, name: itemName, price: itemPrice, currency: itemCurrency, imageUrl: itemImage })}
+                    className="px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span>Add to Cart</span>
+                  </button>
+                  <button
+                    onClick={() => openWhatsAppInquiry(`Hi! I want to book: ${itemName} (${itemCurrency} ${itemPrice})`)}
+                    className="p-2.5 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white transition shadow-xs cursor-pointer"
+                    title="Book on WhatsApp"
+                  >
+                    <WhatsAppIcon className="h-4 w-4 fill-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -384,479 +974,144 @@ export function PublishedSiteRenderer({
       }
 
       case "product-grid": {
-        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, p.columns || "3")
-        const displayItems = products.length > 0 ? products : [
-          { id: "demo-1", name: "Horse Riding Tour", basePrice: 12, currency: activeCurrency, description: "Sunset beach ride with experienced guide." },
-          { id: "demo-2", name: "Desert Safari & Camp", basePrice: 45, currency: activeCurrency, description: "Dune bashing, BBQ dinner and star watching." },
-          { id: "demo-3", name: "Dolphin Watching Cruise", basePrice: 20, currency: activeCurrency, description: "2-hour coastal boat cruise around Bandar Khayran." },
+        const gridItems = products.length > 0 ? products : [
+          { id: "1", name: "Wahiba Desert Safari & Luxury Camp", price: 120, currency: activeCurrency, imageUrl: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=600&q=80", description: "Dune bashing, camel trekking, and stargazing dinner under desert skies." },
+          { id: "2", name: "Wadi Shab & Bimmah Sinkhole Tour", price: 85, currency: activeCurrency, imageUrl: "https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&q=80", description: "Hike through emerald green waters and hidden waterfall caves." },
+          { id: "3", name: "Daymaniyat Islands Snorkeling Cruise", price: 65, currency: activeCurrency, imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&q=80", description: "Swim with turtles and explore coral reefs on a private boat." },
         ]
 
         return (
-          <div className="my-8 space-y-4">
+          <div id="website-catalog-section" className="my-8 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-black text-2xl text-stone-900">Featured Offerings</h3>
-                <p className="text-xs text-stone-500">Book online or order directly via WhatsApp</p>
+                <p className="text-xs text-stone-500">Handcrafted experiences ready for instant booking</p>
               </div>
-              {onSwitchToCatalog && (
-                <button onClick={onSwitchToCatalog} className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
-                  View Full Catalog <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
-
-            <div className={`grid ${gridClass} gap-5`}>
-              {displayItems.map((prod) => {
-                const pr = prod.basePrice ?? prod.price ?? 25
-                const curr = prod.currency || activeCurrency
-                return (
-                  <div key={prod.id} className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
-                    <div className="h-40 bg-stone-100 relative flex items-center justify-center overflow-hidden">
-                      {prod.imageUrl ? (
-                        <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Sparkles className="h-10 w-10 text-emerald-300" />
-                      )}
-                      {prod.category && (
-                        <span className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-stone-800 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
-                          {prod.category}
-                        </span>
-                      )}
+            <div className={`grid gap-4 ${getResponsiveGrid(p.colsDesktop || p.columns || "3", p.colsTablet || "2", p.colsMobile || "1", "3")}`}>
+              {gridItems.map((prod) => (
+                <div key={prod.id} className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between">
+                  <div className="aspect-16/10 relative overflow-hidden bg-stone-100">
+                    <img src={prod.imageUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80"} alt={prod.name} className="w-full h-full object-cover hover:scale-105 transition duration-500" />
+                  </div>
+                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold text-stone-900 text-sm line-clamp-1">{prod.name}</h4>
+                      {prod.description && <p className="text-[11px] text-stone-500 line-clamp-2 mt-1">{prod.description}</p>}
                     </div>
-                    <div className="p-4 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h4 className="font-bold text-stone-900 text-sm">{prod.name}</h4>
-                        <p className="text-xs text-stone-500 mt-1 line-clamp-2">{prod.description}</p>
+                    <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
+                      <div className="font-black text-emerald-800 text-base">
+                        {prod.currency || activeCurrency} {(prod.price || prod.basePrice || 0).toFixed(2)}
                       </div>
-                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
-                        <span className="font-black text-emerald-700 text-base">{curr} {pr.toFixed(2)}</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => addToCart({ id: prod.id, name: prod.name, price: pr, currency: curr, imageUrl: prod.imageUrl })}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            <span>Add</span>
-                          </button>
-                        </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => addToCart({ id: prod.id, name: prod.name, price: prod.price || prod.basePrice || 0, currency: prod.currency || activeCurrency, imageUrl: prod.imageUrl })}
+                          className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition"
+                        >
+                          <ShoppingCart className="h-3 w-3" />
+                          <span>Add</span>
+                        </button>
+                        <button
+                          onClick={() => openWhatsAppInquiry(`Hi! I'd like to book ${prod.name}`)}
+                          className="p-1.5 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white transition cursor-pointer"
+                          title="WhatsApp Inquiry"
+                        >
+                          <WhatsAppIcon className="h-3.5 w-3.5 fill-white" />
+                        </button>
                       </div>
                     </div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )
       }
 
-      case "product-carousel": {
-        const displayItems = products.length > 0 ? products : [
-          { id: "demo-c1", name: "Wahiba Sands Desert Safari", basePrice: 45, currency: activeCurrency, description: "Full-day 4x4 dune bashing with Bedouin camp & sunset dinner." },
-          { id: "demo-c2", name: "Daymaniyat Islands Snorkeling", basePrice: 35, currency: activeCurrency, description: "Boat excursion with sea turtles, coral reefs & gear included." },
-          { id: "demo-c3", name: "Wadi Shab & Bimmah Sinkhole", basePrice: 28, currency: activeCurrency, description: "Guided canyon hike, cave swimming, and coastal views." },
-          { id: "demo-c4", name: "Jebel Akhdar Mountain Tour", basePrice: 50, currency: activeCurrency, description: "Green Mountain terrace villages, rose water distilleries & peaks." },
-          { id: "demo-c5", name: "Muscat City Heritage Night Tour", basePrice: 20, currency: activeCurrency, description: "Muttrah Souq, Sultan Qaboos Grand Mosque & Al Alam Palace." },
-        ]
-        const currentIdx = carouselIndices[el.id] || 0
-        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, 4)
-
-        const handlePrev = () => {
-          setCarouselIndices(prev => ({
-            ...prev,
-            [el.id]: Math.max(0, currentIdx - 1)
-          }))
-        }
-        const handleNext = () => {
-          setCarouselIndices(prev => ({
-            ...prev,
-            [el.id]: (currentIdx + 1) >= displayItems.length ? 0 : currentIdx + 1
-          }))
-        }
-
+      case "navbar":
         return (
-          <div className="my-10 space-y-4">
-            <div className="flex items-end justify-between">
-              <div>
-                {p.subtext && <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{String(p.subtext)}</p>}
-                <h3 className="font-black text-2xl sm:text-3xl text-stone-900">{String(p.heading || "Featured Collection")}</h3>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handlePrev}
-                  disabled={currentIdx === 0}
-                  className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center text-stone-600 disabled:opacity-30 shadow-xs cursor-pointer"
-                  title="Previous"
-                >
-                  <ChevronRight className="h-4 w-4 rotate-180" />
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="w-8 h-8 rounded-full border border-stone-200 bg-white hover:bg-stone-50 flex items-center justify-center text-stone-600 shadow-xs cursor-pointer"
-                  title="Next"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+          <nav key={el.id} className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs -mx-4 sm:-mx-6 -mt-6 mb-6">
+            <div className="flex items-center gap-3">
+              {brand.logoUrl ? (
+                <img src={brand.logoUrl} alt={String(p.logo || brand.name || "Logo")} className="h-8 w-auto object-contain rounded" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
+                  {String(p.logo || brand.name || "B")[0]}
+                </div>
+              )}
+              <span className="font-extrabold text-base text-stone-900 tracking-tight">
+                {String(p.logo || brand.name || "Official Store")}
+              </span>
             </div>
 
-            <div className="overflow-x-auto pb-4 pt-1 scrollbar-thin scrollbar-thumb-stone-200 -mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className={`grid ${gridClass} gap-4 min-w-[280px]`}>
-                {displayItems.map((prod) => {
-                  const pr = prod.basePrice ?? prod.price ?? 25
-                  const curr = prod.currency || activeCurrency
-                  return (
-                    <div key={prod.id} className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
-                      <div className="h-40 bg-stone-100 relative flex items-center justify-center overflow-hidden">
-                        {prod.imageUrl ? (
-                          <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Sparkles className="h-8 w-8 text-emerald-300" />
-                        )}
-                        {prod.category && (
-                          <span className="absolute top-2.5 left-2.5 bg-white/90 backdrop-blur-xs text-stone-800 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
-                            {prod.category}
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                          <h4 className="font-bold text-stone-900 text-sm line-clamp-1">{prod.name}</h4>
-                          <p className="text-xs text-stone-500 mt-1 line-clamp-2">{prod.description}</p>
-                        </div>
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
-                          <span className="font-black text-emerald-700 text-base">{curr} {pr.toFixed(2)}</span>
-                          <button
-                            onClick={() => addToCart({ id: prod.id, name: prod.name, price: pr, currency: curr, imageUrl: prod.imageUrl })}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5" />
-                            <span>Add</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      case "image-carousel": {
-        const slideUrls = String(p.slides || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80|https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=80")
-          .split("|")
-          .map(s => s.trim())
-          .filter(Boolean)
-        const currentIdx = carouselIndices[el.id] || 0
-        const activeSlide = slideUrls[currentIdx] || slideUrls[0]
-        const sliderHeight = p.height || "420"
-
-        const handlePrev = () => {
-          setCarouselIndices(prev => ({
-            ...prev,
-            [el.id]: currentIdx <= 0 ? slideUrls.length - 1 : currentIdx - 1
-          }))
-        }
-        const handleNext = () => {
-          setCarouselIndices(prev => ({
-            ...prev,
-            [el.id]: currentIdx >= slideUrls.length - 1 ? 0 : currentIdx + 1
-          }))
-        }
-
-        return (
-          <div className="my-8 rounded-3xl overflow-hidden relative shadow-lg group" style={{ height: `${sliderHeight}px` }}>
-            <img
-              src={activeSlide}
-              alt={`Slide ${currentIdx + 1}`}
-              className="w-full h-full object-cover transition-all duration-700 ease-in-out"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
-
-            {slideUrls.length > 1 && (
-              <>
-                <button
-                  onClick={handlePrev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md flex items-center justify-center transition cursor-pointer"
-                  title="Previous Slide"
-                >
-                  <ChevronRight className="h-5 w-5 rotate-180" />
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-md flex items-center justify-center transition cursor-pointer"
-                  title="Next Slide"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  {slideUrls.map((_, i) => (
+            {/* Multi-page Navigation Links */}
+            <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-stone-600">
+              {pages.length > 1
+                ? pages.map((page) => (
                     <button
-                      key={i}
-                      onClick={() => setCarouselIndices(prev => ({ ...prev, [el.id]: i }))}
-                      className={`h-2 rounded-full transition-all cursor-pointer ${currentIdx === i ? "w-6 bg-white" : "w-2 bg-white/50"}`}
-                      title={`Slide ${i + 1}`}
-                    />
+                      key={page.id}
+                      onClick={() => navigateToPage(page.slug)}
+                      className={`transition cursor-pointer ${
+                        activePageSlug === page.slug
+                          ? "text-emerald-700 font-extrabold border-b-2 border-emerald-600 pb-0.5"
+                          : "text-stone-600 hover:text-emerald-700"
+                      }`}
+                    >
+                      {page.title}
+                    </button>
+                  ))
+                : String(p.links || "").split("|").map((l, i) => (
+                    <span key={i} className="hover:text-emerald-700 transition cursor-pointer">
+                      {l.trim()}
+                    </span>
                   ))}
-                </div>
-              </>
-            )}
-          </div>
-        )
-      }
-
-      case "before-after": {
-        return (
-          <div className="my-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
-            <div className="text-center max-w-lg mx-auto mb-2">
-              <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Proven Results & Transformation")}</h3>
-              <p className="text-xs text-stone-500 mt-1">See the direct impact of our tailored services</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-5 rounded-2xl bg-stone-100 border border-stone-200 relative overflow-hidden">
-                <span className="inline-block px-3 py-1 bg-stone-900 text-white text-[10px] font-black rounded-lg uppercase tracking-wider mb-3">
-                  {String(p.beforeLabel || "Before")}
-                </span>
-                <p className="text-sm font-bold text-stone-700">Manual booking hassles & delayed replies</p>
-                <p className="text-xs text-stone-500 mt-1">Customers waiting hours for WhatsApp replies, missed bookings during weekends, manual invoice paperwork.</p>
-              </div>
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 relative overflow-hidden">
-                <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-lg uppercase tracking-wider mb-3">
-                  {String(p.afterLabel || "After")}
-                </span>
-                <p className="text-sm font-bold text-emerald-900">Instant 24/7 Automated Booking & Checkout</p>
-                <p className="text-xs text-emerald-700 mt-1">Direct live catalog ordering, automated WhatsApp confirmations, 3x faster customer turnaround and instant revenue.</p>
-              </div>
-            </div>
-          </div>
-        )
-      }
 
-      case "cta-multi": {
-        return (
-          <div className="my-10 rounded-3xl p-8 sm:p-12 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-950 text-white shadow-2xl relative overflow-hidden space-y-5">
-            <div className="relative z-10 max-w-2xl space-y-3">
-              {p.badge && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold uppercase tracking-wider">
-                  <Sparkles className="h-3 w-3 text-emerald-400" />
-                  <span>{String(p.badge)}</span>
-                </span>
-              )}
-              <h3 className="text-3xl sm:text-4xl font-black leading-tight tracking-tight">{String(p.heading || "Ready to experience the best?")}</h3>
-              <p className="text-stone-300 text-sm sm:text-base leading-relaxed">{String(p.subtext || "Reach out directly on WhatsApp for custom packages, or browse our complete collection.")}</p>
-              <div className="flex flex-wrap gap-3 pt-3">
+            <div className="flex items-center gap-2">
+              {onSwitchToCatalog && (
                 <button
-                  onClick={() => openWhatsAppInquiry(String(p.heading || "Inquiry from website"))}
-                  className="px-6 py-3.5 bg-[#25D366] hover:bg-[#20ba5a] text-stone-950 font-black rounded-xl text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
+                  onClick={onSwitchToCatalog}
+                  className="text-xs font-semibold text-stone-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
                 >
-                  <WhatsAppIcon className="h-4 w-4 fill-stone-950" />
-                  <span>{String(p.primaryText || "Order on WhatsApp")}</span>
+                  Classic Catalog
                 </button>
-                {onSwitchToCatalog ? (
-                  <button
-                    onClick={onSwitchToCatalog}
-                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-sm border border-white/20 transition cursor-pointer"
-                  >
-                    {String(p.secondaryText || "Explore Catalog")}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setCartOpen(true)}
-                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-sm border border-white/20 transition cursor-pointer"
-                  >
-                    {String(p.secondaryText || "View Cart & Products")}
-                  </button>
+              )}
+              {p.ctaText && (
+                <button
+                  onClick={() => openWhatsAppInquiry()}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow-xs"
+                >
+                  <WhatsAppIcon className="h-3.5 w-3.5 fill-white" />
+                  <span>{String(p.ctaText)}</span>
+                </button>
+              )}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
+                title="Open Cart"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
                 )}
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      case "custom-form": {
-        const fields = String(p.fields || "Full Name,WhatsApp Phone,Email,Notes").split(",").map(f => f.trim()).filter(Boolean)
-        const isSubmitting = !!customFormSubmitting[el.id]
-        const currentValues = customFormData[el.id] || {}
-
-        const handleFieldChange = (f: string, v: string) => {
-          setCustomFormData(prev => ({
-            ...prev,
-            [el.id]: {
-              ...(prev[el.id] || {}),
-              [f]: v,
-            }
-          }))
-        }
-
-        const handleFormSubmit = (e: React.FormEvent) => {
-          e.preventDefault()
-          setCustomFormSubmitting(prev => ({ ...prev, [el.id]: true }))
-
-          const lines = fields.map(f => `*${f}:* ${currentValues[f] || "N/A"}`).join("\n")
-          const msg = `📝 *New Custom Form Submission*\n*Form:* ${String(p.heading || "Inquiry")}\n\n${lines}`
-
-          const targetPhone = (brand.phone || "96890000000").replace(/[^0-9]/g, "")
-          const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`
-
-          setTimeout(() => {
-            setCustomFormSubmitting(prev => ({ ...prev, [el.id]: false }))
-            toast.success("Inquiry submitted! Launching WhatsApp…")
-            window.open(waUrl, "_blank")
-          }, 500)
-        }
-
-        return (
-          <div className="my-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-xs max-w-xl mx-auto space-y-4">
-            <div>
-              <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Custom Inquiry Form")}</h3>
-              <p className="text-xs text-stone-500 mt-1">Submit your request below and we will get back to you immediately.</p>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="space-y-3.5">
-              {fields.map((f, i) => (
-                <div key={i}>
-                  <label className="text-xs font-bold text-stone-700 block mb-1">{f} *</label>
-                  {f.toLowerCase().includes("note") || f.toLowerCase().includes("message") ? (
-                    <textarea
-                      required
-                      rows={3}
-                      placeholder={`Enter your ${f.toLowerCase()}…`}
-                      value={currentValues[f] || ""}
-                      onChange={e => handleFieldChange(f, e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                  ) : (
-                    <input
-                      required
-                      type={f.toLowerCase().includes("email") ? "email" : f.toLowerCase().includes("phone") ? "tel" : "text"}
-                      placeholder={`Enter your ${f.toLowerCase()}…`}
-                      value={currentValues[f] || ""}
-                      onChange={e => handleFieldChange(f, e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                  )}
-                </div>
-              ))}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <Send className="h-3.5 w-3.5" />
-                <span>{isSubmitting ? "Sending…" : String(p.submitText || "Submit Request via WhatsApp")}</span>
               </button>
-            </form>
-          </div>
-        )
-      }
-
-      case "logo-marquee": {
-        const logos = String(p.logos || "Premium Partner|Verified Seller|Official Agency|Secure Checkout|Global Delivery")
-          .split("|")
-          .map(l => l.trim())
-          .filter(Boolean)
-        const gridClass = getResponsiveGrid(p.colsDesktop, p.colsTablet, p.colsMobile, 5)
-
-        return (
-          <div className="my-8 py-6 px-4 bg-stone-50 rounded-2xl border border-stone-200/80 text-center space-y-3">
-            <p className="text-[11px] uppercase tracking-widest font-black text-stone-400">Trusted By & Certified With</p>
-            <div className={`grid ${gridClass} gap-3 items-center justify-center max-w-4xl mx-auto`}>
-              {logos.map((logo, i) => (
-                <div key={i} className="px-3 py-2.5 bg-white rounded-xl border border-stone-200 shadow-2xs flex items-center justify-center text-xs font-bold text-stone-700">
-                  {logo}
-                </div>
-              ))}
+              {/* Mobile Menu Button */}
+              {pages.length > 1 && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden p-2 rounded-xl bg-stone-100 text-stone-700 hover:bg-stone-200 cursor-pointer"
+                  title="Menu"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+              )}
             </div>
-          </div>
-        )
-      }
-
-      case "cart-button":
-        return (
-          <div className="py-2">
-            <button
-              onClick={() => setCartOpen(true)}
-              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full text-white font-bold text-xs shadow-md transition hover:opacity-90 cursor-pointer"
-              style={{ backgroundColor: String(p.bgColor || "#10B981") }}
-            >
-              <ShoppingCart className="h-4 w-4" />
-              <span>{String(p.text || "View Cart")}</span>
-              {cartCount > 0 && (
-                <span className="bg-white text-emerald-950 text-[10px] font-black px-2 py-0.5 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          </div>
+          </nav>
         )
 
-      case "checkout-form":
-        return (
-          <div className="my-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-lg max-w-xl mx-auto">
-            <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Complete Your Order")}</h3>
-            <p className="text-xs text-stone-500 mt-1 mb-6">Enter details below to confirm booking and receive WhatsApp confirmation.</p>
-
-            <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Salim Al-Harthy"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">WhatsApp Phone Number *</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+968 9123 4567"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">Delivery Address or Special Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Hotel name, pickup spot, or notes…"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-
-              {cart.length > 0 && (
-                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">
-                  <div className="flex justify-between font-bold text-stone-700">
-                    <span>Order Subtotal ({cartCount} items):</span>
-                    <span className="text-emerald-700">{activeCurrency} {cartSubtotal.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>{formSubmitting ? "Processing…" : String(p.submitText || "Submit & Pay via WhatsApp")}</span>
-              </button>
-            </form>
-          </div>
-        )
-
-      // ─── Marketing & Social Proof ────────────────────────────
+      // Fallback for other standard blocks (hero, feature-box, cards, etc.)
       case "hero-banner":
         return (
           <div
@@ -933,105 +1188,6 @@ export function PublishedSiteRenderer({
           </div>
         )
 
-      case "pricing-table":
-        return (
-          <div className="my-8 text-center space-y-6">
-            <h3 className="font-black text-2xl text-stone-900">{String(p.heading || "Simple, Transparent Pricing")}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {[1, 2, 3].map((num) => {
-                const isPro = num === 2
-                const planName = String(p[`plan${num}` as keyof typeof p] || (num === 1 ? "Starter" : num === 2 ? "Pro" : "Enterprise"))
-                const planPrice = String(p[`price${num}` as keyof typeof p] || (num === 1 ? "Free" : num === 2 ? "29" : "99"))
-                return (
-                  <div
-                    key={num}
-                    className={`p-6 rounded-3xl border-2 flex flex-col justify-between transition ${
-                      isPro
-                        ? "border-emerald-500 bg-emerald-50/40 shadow-lg scale-105 z-10"
-                        : "border-stone-200 bg-white shadow-xs"
-                    }`}
-                  >
-                    <div>
-                      {isPro && (
-                        <span className="inline-block px-3 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider mb-2">
-                          Most Popular
-                        </span>
-                      )}
-                      <h4 className="font-bold text-stone-800 text-base">{planName}</h4>
-                      <div className="my-4">
-                        <span className="text-3xl font-black text-stone-900">{planPrice}</span>
-                        {planPrice !== "Free" && <span className="text-xs text-stone-500"> {String(p.currency || activeCurrency)}/mo</span>}
-                      </div>
-                      <ul className="text-xs text-stone-600 space-y-2 text-left my-6">
-                        <li className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> Full Access</li>
-                        <li className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> WhatsApp Updates</li>
-                        <li className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" /> Priority Support</li>
-                      </ul>
-                    </div>
-                    <button
-                      onClick={() => openWhatsAppInquiry(`I would like to book the ${planName} package.`)}
-                      className={`w-full py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
-                        isPro
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                          : "bg-stone-900 hover:bg-stone-800 text-white"
-                      }`}
-                    >
-                      Choose {planName}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-
-      case "accordion": {
-        const isOpen = !!openAccordions[el.id]
-        return (
-          <div className="my-2 border border-stone-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-            <button
-              onClick={() => setOpenAccordions((prev) => ({ ...prev, [el.id]: !prev[el.id] }))}
-              className="w-full p-4 text-left font-bold text-sm text-stone-900 flex items-center justify-between hover:bg-stone-50 cursor-pointer"
-            >
-              <span>{String(p.question || "Frequently Asked Question")}</span>
-              <ChevronDown className={`h-4 w-4 text-stone-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-            {isOpen && (
-              <div className="p-4 pt-0 text-xs text-stone-600 leading-relaxed border-t border-stone-100 bg-stone-50/50">
-                {String(p.answer || "Answers to your common inquiries are posted right here for quick reference.")}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      case "tabs": {
-        const tabList = String(p.tabs || "Overview|Features|FAQ").split("|")
-        const currentTab = activeTabs[el.id] || 0
-        return (
-          <div className="my-6 space-y-4">
-            <div className="flex border-b border-stone-200 gap-2">
-              {tabList.map((tName, tIdx) => (
-                <button
-                  key={tIdx}
-                  onClick={() => setActiveTabs((prev) => ({ ...prev, [el.id]: tIdx }))}
-                  className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 cursor-pointer ${
-                    currentTab === tIdx
-                      ? "border-emerald-600 text-emerald-800"
-                      : "border-transparent text-stone-400 hover:text-stone-700"
-                  }`}
-                >
-                  {tName}
-                </button>
-              ))}
-            </div>
-            <div className="p-4 bg-stone-50 rounded-xl text-xs text-stone-600">
-              Content for <strong>{tabList[currentTab]}</strong> section.
-            </div>
-          </div>
-        )
-      }
-
       case "contact-info":
         return (
           <div className="my-6 p-6 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-3">
@@ -1064,193 +1220,150 @@ export function PublishedSiteRenderer({
           </div>
         )
 
-      case "social-links":
-        return (
-          <div className="my-4 flex items-center gap-3">
-            <button onClick={() => openWhatsAppInquiry()} className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:opacity-90 shadow-xs cursor-pointer">
-              <WhatsAppIcon className="h-4 w-4 fill-white" />
-            </button>
-            <button onClick={() => window.open("https://instagram.com", "_blank")} className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-purple-600 text-white flex items-center justify-center hover:opacity-90 shadow-xs cursor-pointer">
-              <Share2 className="h-4 w-4" />
-            </button>
-          </div>
-        )
-
-      // ─── Layout Elements ─────────────────────────────────────
       case "divider":
         return <hr className="my-6 border-stone-200" />
       case "spacer":
         return <div style={{ height: `${p.height || 40}px` }} />
-
-      case "container":
-        return (
-          <div
-            className="my-4 rounded-xl border border-stone-200/60 p-6 bg-white"
-            style={{ maxWidth: `${p.maxWidth || 1100}px` }}
-          >
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-2">Container Section</p>
-          </div>
-        )
-
-      // ─── Layout & Navigation Elements ─────────────────────────
-      case "navbar":
-        return (
-          <nav key={el.id} className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs -mx-4 sm:-mx-6 -mt-6 mb-6">
-            <div className="flex items-center gap-3">
-              {brand.logoUrl ? (
-                <img src={brand.logoUrl} alt={String(p.logo || brand.name || "Logo")} className="h-8 w-auto object-contain rounded" />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
-                  {String(p.logo || brand.name || "B")[0]}
-                </div>
-              )}
-              <span className="font-extrabold text-base text-stone-900 tracking-tight">
-                {String(p.logo || brand.name || "Official Store")}
-              </span>
-            </div>
-            <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-stone-600">
-              {String(p.links || "").split("|").map((l, i) => (
-                <span key={i} className="hover:text-emerald-700 transition cursor-pointer">{l.trim()}</span>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              {onSwitchToCatalog && (
-                <button
-                  onClick={onSwitchToCatalog}
-                  className="text-xs font-semibold text-stone-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition cursor-pointer"
-                >
-                  Classic Catalog
-                </button>
-              )}
-              {p.ctaText && (
-                <button
-                  onClick={() => openWhatsAppInquiry()}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer shadow-xs"
-                >
-                  <WhatsAppIcon className="h-3.5 w-3.5 fill-white" />
-                  <span>{String(p.ctaText)}</span>
-                </button>
-              )}
-              <button
-                onClick={() => setCartOpen(true)}
-                className="relative p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
-                title="Open Cart"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </nav>
-        )
-
-      case "card":
-        return (
-          <div
-            key={el.id}
-            className="rounded-2xl p-6 border transition shadow-xs"
-            style={{
-              backgroundColor: String(p.bgColor || "#ffffff"),
-              borderColor: String(p.borderColor || "#E5E7EB"),
-              borderRadius: `${p.borderRadius || 16}px`,
-            }}
-          >
-            {p.title && <h4 className="font-bold text-lg text-stone-900 mb-1">{String(p.title)}</h4>}
-            {p.description && <p className="text-sm text-stone-600">{String(p.description)}</p>}
-          </div>
-        )
-
-      case "two-column":
-        return (
-          <div key={el.id} className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
-            <div className="p-5 rounded-xl bg-stone-50 border border-stone-200">
-              <h4 className="font-bold text-stone-900 mb-1">{String(p.leftHeading || "Feature One")}</h4>
-              <p className="text-sm text-stone-600">{String(p.leftText || "Discover our specialized offerings and personalized service.")}</p>
-            </div>
-            <div className="p-5 rounded-xl bg-stone-50 border border-stone-200">
-              <h4 className="font-bold text-stone-900 mb-1">{String(p.rightHeading || "Feature Two")}</h4>
-              <p className="text-sm text-stone-600">{String(p.rightText || "Instant booking confirmation and continuous support via WhatsApp.")}</p>
-            </div>
-          </div>
-        )
-
-      case "three-column":
-        return (
-          <div key={el.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 my-4">
-            {[1, 2, 3].map((col) => (
-              <div key={col} className="p-4 rounded-xl bg-stone-50 border border-stone-200">
-                <h4 className="font-bold text-stone-900 text-sm mb-1">{String(p[`col${col}Heading`] || `Highlight ${col}`)}</h4>
-                <p className="text-xs text-stone-600">{String(p[`col${col}Text`] || "Dedicated hospitality and authentic desert journeys.")}</p>
-              </div>
-            ))}
-          </div>
-        )
 
       default:
         return null
     }
   }
 
-  const hasNavbarElement = elements.some((e) => e.type === "navbar")
+  const hasNavbarElement = elementsToRender.some((e) => e.type === "navbar")
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 relative">
-      {/* Site Header - only shown if no custom navbar element was added */}
+      {/* Site Header - shown if no custom navbar element exists in the current page */}
       {!hasNavbarElement && (
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {brand.logoUrl ? (
-            <img src={brand.logoUrl} alt={brand.name || "Logo"} className="h-8 w-auto object-contain rounded" />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
-              {(brand.name || "B")[0]}
-            </div>
-          )}
-          <span className="font-extrabold text-base text-stone-900 tracking-tight">
-            {brand.name || "Official Store"}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          {onSwitchToCatalog && (
-            <button
-              onClick={onSwitchToCatalog}
-              className="text-xs font-semibold text-stone-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition"
-            >
-              Classic Catalog
-            </button>
-          )}
-
-          <button
-            onClick={() => openWhatsAppInquiry()}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
-          >
-            <WhatsAppIcon className="h-3.5 w-3.5 fill-emerald-800" />
-            <span>WhatsApp Us</span>
-          </button>
-
-          <button
-            onClick={() => setCartOpen(true)}
-            className="relative p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
-            title="Open Cart"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
-                {cartCount}
-              </span>
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {brand.logoUrl ? (
+              <img src={brand.logoUrl} alt={brand.name || "Logo"} className="h-8 w-auto object-contain rounded" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm shadow-xs">
+                {(brand.name || "B")[0]}
+              </div>
             )}
-          </button>
+            <span className="font-extrabold text-base text-stone-900 tracking-tight">
+              {brand.name || "Official Store"}
+            </span>
+          </div>
+
+          {/* Multi-page Navbar Links */}
+          <div className="hidden md:flex items-center gap-4 text-xs font-bold text-stone-600">
+            {pages.length > 1 &&
+              pages.map((page) => (
+                <button
+                  key={page.id}
+                  onClick={() => navigateToPage(page.slug)}
+                  className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                    activePageSlug === page.slug
+                      ? "bg-emerald-50 text-emerald-800 font-extrabold shadow-2xs"
+                      : "hover:text-emerald-700 hover:bg-stone-50"
+                  }`}
+                >
+                  {page.title}
+                </button>
+              ))}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onSwitchToCatalog && (
+              <button
+                onClick={onSwitchToCatalog}
+                className="text-xs font-semibold text-stone-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-stone-100 transition"
+              >
+                Classic Catalog
+              </button>
+            )}
+
+            <button
+              onClick={() => openWhatsAppInquiry()}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
+            >
+              <WhatsAppIcon className="h-3.5 w-3.5 fill-emerald-800" />
+              <span>WhatsApp Us</span>
+            </button>
+
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 transition cursor-pointer"
+              title="Open Cart"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {pages.length > 1 && (
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden p-2 rounded-xl bg-stone-100 text-stone-700 hover:bg-stone-200 cursor-pointer"
+                title="Open Menu"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </header>
+      )}
+
+      {/* Mobile Pages Drawer Modal */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+          <div className="w-72 bg-white h-full p-6 flex flex-col justify-between shadow-2xl">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <span className="font-extrabold text-sm text-stone-900">{brand.name || "Navigation"}</span>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1 rounded-lg text-stone-400 hover:text-stone-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                {pages.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      navigateToPage(p.slug)
+                      setMobileMenuOpen(false)
+                    }}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                      activePageSlug === p.slug
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "text-stone-600 hover:bg-stone-50"
+                    }`}
+                  >
+                    {p.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="pt-4 border-t border-stone-100">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  openWhatsAppInquiry()
+                }}
+                className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <WhatsAppIcon className="h-4 w-4 fill-white" />
+                <span>Chat on WhatsApp</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </header>
       )}
 
       {/* Main Drag-and-Drop Content Canvas */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-4">
-        {elements.map((el) => (
+        {elementsToRender.map((el) => (
           <div key={el.id}>{renderElement(el)}</div>
         ))}
       </main>
@@ -1271,66 +1384,77 @@ export function PublishedSiteRenderer({
         </div>
       )}
 
-      {/* Cart Slide-over Drawer */}
+      {/* Cart Drawer */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end" onClick={() => setCartOpen(false)}>
-          <div
-            className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-stone-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-emerald-600" />
-                <h3 className="font-extrabold text-base text-stone-900">Your Cart</h3>
-                <span className="text-xs text-stone-500">({cartCount} items)</span>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between p-6">
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-emerald-600" />
+                  <h3 className="font-black text-lg text-stone-900">Your Cart ({cartCount})</h3>
+                </div>
+                <button
+                  onClick={() => setCartOpen(false)}
+                  className="p-1 rounded-lg text-stone-400 hover:text-stone-600 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button onClick={() => setCartOpen(false)} className="p-1 rounded-full hover:bg-stone-100 text-stone-500">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            {/* Cart Items List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-stone-400 text-center p-6">
-                  <ShoppingCart className="h-12 w-12 stroke-stone-300 mb-2" />
-                  <p className="font-bold text-stone-600">Your cart is empty</p>
-                  <p className="text-xs text-stone-400 mt-1">Add items from the store to begin checkout.</p>
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
+                    <ShoppingCart className="h-8 w-8" />
+                  </div>
+                  <p className="font-bold text-stone-600 text-sm">Your cart is currently empty</p>
+                  <p className="text-xs text-stone-400">Browse our packages and add items to your cart</p>
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-stone-50">
-                    <div className="min-w-0 flex-1 mr-3">
-                      <p className="font-bold text-xs text-stone-900 truncate">{item.name}</p>
-                      <p className="text-xs text-emerald-700 font-extrabold mt-0.5">
-                        {item.currency} {(item.price * item.quantity).toFixed(2)}
-                      </p>
+                <div className="divide-y divide-stone-100 max-h-[60vh] overflow-y-auto py-2">
+                  {cart.map((item) => (
+                    <div key={item.id} className="py-3 flex items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm text-stone-900">{item.name}</p>
+                        <p className="text-xs text-emerald-700 font-semibold">
+                          {item.currency} {item.price.toFixed(2)} each
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 bg-stone-100 rounded-lg p-1">
+                        <button
+                          onClick={() => updateQuantity(item.id, -1)}
+                          className="w-6 h-6 rounded flex items-center justify-center bg-white text-stone-700 shadow-xs cursor-pointer hover:bg-stone-50"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.id, 1)}
+                          className="w-6 h-6 rounded flex items-center justify-center bg-white text-stone-700 shadow-xs cursor-pointer hover:bg-stone-50"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-white rounded-lg border border-stone-200 p-1">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-stone-100 rounded text-stone-600 cursor-pointer">
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <span className="text-xs font-bold px-1.5">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-stone-100 rounded text-stone-600 cursor-pointer">
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* Drawer Footer */}
             {cart.length > 0 && (
-              <div className="p-4 border-t border-stone-200 space-y-3 bg-stone-50">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-500 font-medium">Subtotal</span>
-                  <span className="font-black text-emerald-800 text-base">{activeCurrency} {cartSubtotal.toFixed(2)}</span>
+              <div className="pt-4 border-t border-stone-200 space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-stone-500 font-semibold">Subtotal:</span>
+                  <span className="font-black text-lg text-emerald-800">
+                    {activeCurrency} {cartSubtotal.toFixed(2)}
+                  </span>
                 </div>
                 <button
-                  onClick={() => { setCartOpen(false); setCheckoutOpen(true) }}
-                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => {
+                    setCartOpen(false)
+                    setCheckoutOpen(true)
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Proceed to Checkout</span>
                   <ArrowRight className="h-4 w-4" />
@@ -1343,22 +1467,73 @@ export function PublishedSiteRenderer({
 
       {/* Checkout Modal */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" onClick={() => setCheckoutOpen(false)}>
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setCheckoutOpen(false)} className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full">
-              <X className="h-5 w-5" />
-            </button>
-
-            <h3 className="text-xl font-black text-stone-900 mb-1">Instant Checkout</h3>
-            <p className="text-xs text-stone-500 mb-5">Confirm your order items and delivery details</p>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <h3 className="font-black text-xl text-stone-900">Complete Your Booking</h3>
+              <button
+                onClick={() => setCheckoutOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
             <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+              {/* Payment Method Selector */}
               <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">Your Full Name *</label>
+                <label className="text-xs font-bold text-stone-700 block mb-1.5">Choose Payment Method</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("WHATSAPP")}
+                    className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      paymentMethod === "WHATSAPP"
+                        ? "border-emerald-600 bg-emerald-50/70 text-emerald-950 ring-2 ring-emerald-500/20"
+                        : "border-stone-200 bg-white hover:bg-stone-50 text-stone-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="w-7 h-7 rounded-xl bg-[#25D366] flex items-center justify-center text-white shadow-2xs">
+                        <WhatsAppIcon className="h-4 w-4 fill-white" />
+                      </div>
+                      {paymentMethod === "WHATSAPP" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-xs">WhatsApp Order</div>
+                      <div className="text-[10px] text-stone-500">Concierge confirmation</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("CARD_ONLINE")}
+                    className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                      paymentMethod === "CARD_ONLINE"
+                        ? "border-emerald-600 bg-emerald-50/70 text-emerald-950 ring-2 ring-emerald-500/20"
+                        : "border-stone-200 bg-white hover:bg-stone-50 text-stone-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="w-7 h-7 rounded-xl bg-stone-900 flex items-center justify-center text-white shadow-2xs">
+                        <CreditCard className="h-4 w-4 text-white" />
+                      </div>
+                      {paymentMethod === "CARD_ONLINE" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                    </div>
+                    <div>
+                      <div className="font-extrabold text-xs">Pay Online (Card)</div>
+                      <div className="text-[10px] text-stone-500">AmwalPay / Oman Net</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-stone-700 block mb-1">Full Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ahmed Al-Balushi"
+                  placeholder="e.g. Salim Al-Harthy"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -1366,7 +1541,7 @@ export function PublishedSiteRenderer({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-stone-700 block mb-1">WhatsApp Phone Number *</label>
+                <label className="text-xs font-bold text-stone-700 block mb-1">WhatsApp Phone Number</label>
                 <input
                   type="tel"
                   required
@@ -1377,11 +1552,24 @@ export function PublishedSiteRenderer({
                 />
               </div>
 
+              {paymentMethod === "CARD_ONLINE" && (
+                <div>
+                  <label className="text-xs font-bold text-stone-700 block mb-1">Email Address (for receipt)</label>
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-bold text-stone-700 block mb-1">Delivery Address / Booking Notes</label>
                 <textarea
                   rows={2}
-                  placeholder="Location or instructions…"
+                  placeholder="Location or special requests…"
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -1394,16 +1582,33 @@ export function PublishedSiteRenderer({
                   <span>Order Total:</span>
                   <span className="text-emerald-700 font-black">{activeCurrency} {cartSubtotal.toFixed(2)}</span>
                 </div>
+                {paymentMethod === "CARD_ONLINE" && (
+                  <div className="flex items-center gap-1 text-[11px] text-stone-500 pt-1 border-t border-stone-200/60">
+                    <Lock className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span>256-Bit SSL Encrypted checkout via AmwalPay Oman</span>
+                  </div>
+                )}
               </div>
 
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <WhatsAppIcon className="h-4 w-4 fill-white" />
-                <span>{formSubmitting ? "Submitting Order…" : "Confirm Order on WhatsApp"}</span>
-              </button>
+              {paymentMethod === "CARD_ONLINE" ? (
+                <button
+                  type="submit"
+                  disabled={formSubmitting}
+                  className="w-full py-3.5 rounded-xl bg-stone-900 hover:bg-black text-white font-extrabold text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Lock className="h-4 w-4 text-emerald-400" />
+                  <span>{formSubmitting ? "Initiating Secure Checkout…" : `Pay ${activeCurrency} ${cartSubtotal.toFixed(2)} Online`}</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={formSubmitting}
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <WhatsAppIcon className="h-4 w-4 fill-white" />
+                  <span>{formSubmitting ? "Submitting Order…" : "Confirm Order on WhatsApp"}</span>
+                </button>
+              )}
             </form>
           </div>
         </div>

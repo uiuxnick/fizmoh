@@ -41,6 +41,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
 import RestaurantSiteView from "@/components/restaurant/restaurant-site-view"
 import { PublishedSiteRenderer } from "@/components/website-builder/published-site-renderer"
+import { normalizeWebsiteData } from "@/lib/website-builder-types"
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CONSTANTS
@@ -4345,7 +4346,7 @@ export default function CustomerSiteView({
   })
   const [cartOpen, setCartOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [publishedWebsite, setPublishedWebsite] = useState<any[] | null>(initialPublishedWebsite)
+  const [publishedWebsite, setPublishedWebsite] = useState<any>(initialPublishedWebsite)
   const [showPublished, setShowPublished] = useState(true)
 
   // i18n
@@ -4398,17 +4399,17 @@ export default function CustomerSiteView({
       .then(r => r.json())
       .then(d => {
         setBrand(brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? ""))
-        if (d.publishedWebsite && Array.isArray(d.publishedWebsite) && d.publishedWebsite.length > 0) {
+        if (d.publishedWebsite) {
           setPublishedWebsite(d.publishedWebsite)
         } else if (d.branding?.website_published_json) {
           try {
             const parsed = JSON.parse(d.branding.website_published_json)
-            if (Array.isArray(parsed) && parsed.length > 0) setPublishedWebsite(parsed)
+            if (parsed) setPublishedWebsite(parsed)
           } catch {}
         } else if (d.settings?.website_published_json) {
           try {
             const parsed = JSON.parse(d.settings.website_published_json)
-            if (Array.isArray(parsed) && parsed.length > 0) setPublishedWebsite(parsed)
+            if (parsed) setPublishedWebsite(parsed)
           } catch {}
         }
 
@@ -4567,10 +4568,12 @@ export default function CustomerSiteView({
   const handleTryWhatsapp = useCallback(() => navigate(10), [navigate])
 
   // If workspace has published a custom drag-and-drop website, render it as primary homepage
-  if (publishedWebsite && publishedWebsite.length > 0 && showPublished && step === 0) {
+  const normWebsite = publishedWebsite ? normalizeWebsiteData(publishedWebsite) : null
+  if (normWebsite && ((normWebsite.elements && normWebsite.elements.length > 0) || (normWebsite.pages && normWebsite.pages.length > 0)) && showPublished && step === 0) {
     return (
       <PublishedSiteRenderer
-        elements={publishedWebsite}
+        websiteData={normWebsite}
+        elements={normWebsite.elements}
         products={tours}
         brand={brand}
         onSwitchToCatalog={() => setShowPublished(false)}
