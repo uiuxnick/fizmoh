@@ -75,7 +75,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "integration" | "white_label"
   badge?: string
   accent?: string
   hash?: string
@@ -122,6 +122,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "ai-assistant", label: "AI Assistant", icon: Sparkles, group: "WhatsApp Commerce", accent: "text-amber-600", feature: "ai" },
   { key: "knowledge", label: "Knowledge Base", icon: BookOpen, group: "WhatsApp Commerce", feature: "knowledge" },
   { key: "bot-builder", label: "Bot & Automation", icon: Workflow, group: "WhatsApp Commerce", accent: "text-emerald-600", feature: "flows" },
+  { key: "cloud-bridges", label: "Cloud & Sheet Bridges", icon: Share2, group: "WhatsApp Commerce", accent: "text-emerald-400", badge: "Addon" },
   { key: "whatsapp-numbers", label: "Numbers", icon: Smartphone, group: "WhatsApp Commerce", feature: "inbox" },
   { key: "whatsapp-setup", label: "Setup & Guide", icon: ShieldCheck, group: "WhatsApp Commerce", feature: "inbox" },
   { key: "templates", label: "Templates", icon: FileText, group: "Marketing" },
@@ -158,6 +159,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "digital-qr", label: "Digital QR Addons", icon: QrCode, group: "Marketing", accent: "text-emerald-600", feature: "digital_qr" },
   { key: "digital-vcard", label: "Digital Business Card", icon: Contact2, group: "Marketing", accent: "text-cyan-500", feature: "digital_vcard" },
   { key: "live-chat", label: "Website Chat Widget", icon: MessageCircle, group: "Marketing", accent: "text-emerald-500", badge: "Addon", feature: "live_chat" },
+  { key: "white-label", label: "Agency White-Label", icon: Building2, group: "Marketing", accent: "text-amber-400", badge: "Agency" },
   { key: "customers", label: "Customers & CRM", icon: Users, group: "People", feature: "crm" },
   { key: "staff", label: "Staff & Roles", icon: UserCog, group: "People", feature: "staff" },
   { key: "reports", label: "Reports & Analytics", icon: BarChart3, group: "Insights", feature: "reports" },
@@ -459,6 +461,8 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
           else if (modKey === "digital_vcard") next.digital_vcard = enabled
           else if (modKey === "social_inbox") next.social_inbox = enabled
           else if (modKey === "live_chat") next.live_chat = enabled
+          else if (modKey === "integration") next.integration = enabled
+          else if (modKey === "white_label") next.white_label = enabled
           return next
         })
       }

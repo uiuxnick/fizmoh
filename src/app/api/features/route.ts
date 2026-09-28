@@ -43,6 +43,8 @@ export const GET = withErrors(async (request: NextRequest) => {
     live_chat: has("LIVE_CHAT"),
     corporate: has("CORPORATE"),
     website: has("WEBSITE") || has("TOURS") || has("RESTAURANT"),
+    integration: has("INTEGRATION"),
+    white_label: has("WHITE_LABEL"),
     modules,
     platform: !currentTenant()?.tenantId && !!(await requirePlatformAdmin(request)),
   })

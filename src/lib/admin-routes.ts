@@ -37,6 +37,8 @@ export const VIEW_PATHS: Record<ViewKey, string> = {
   "live-chat": "live-chat",
   corporate: "corporate",
   "website-builder": "website-builder",
+  "cloud-bridges": "cloud-bridges",
+  "white-label": "white-label",
 }
 
 const ALIASES: Record<string, ViewKey> = {
@@ -64,6 +66,13 @@ const ALIASES: Record<string, ViewKey> = {
   shop: "catalog",
   inbox: "inbox",
   chat: "inbox",
+  bridges: "cloud-bridges",
+  sheets: "cloud-bridges",
+  "google-sheets": "cloud-bridges",
+  integrations: "cloud-bridges",
+  reseller: "white-label",
+  whitelabel: "white-label",
+  agency: "white-label",
 }
 
 const PATH_TO_VIEW = new Map<string, ViewKey>(

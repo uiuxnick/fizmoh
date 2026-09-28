@@ -38,6 +38,8 @@ export type ViewKey =
   | "live-chat"
   | "corporate"
   | "website-builder"
+  | "cloud-bridges"
+  | "white-label"
 
 type AuthMode = "login" | "admin" | "customer" | null
 

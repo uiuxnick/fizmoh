@@ -3,6 +3,7 @@
 import { MODULE_REGISTRY } from "@/lib/module-registry"
 import { WorkspaceModulesManager } from "@/components/views/workspace-modules-manager"
 import { OFFICIAL_PLANS } from "@/lib/official-plans"
+import { useApp } from "@/lib/store"
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -117,6 +118,7 @@ interface TenantInvoice {
 }
 
 export default function BillingView() {
+  const { setView } = useApp()
   const [plans, setPlans] = useState<Plan[]>([])
   const [billing, setBilling] = useState<Billing | null>(null)
   const [invoices, setInvoices] = useState<TenantInvoice[]>([])
@@ -1026,31 +1028,53 @@ export default function BillingView() {
                         </p>
                       </div>
 
-                      {isActive ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => executeAddonCancel(addon.slug)}
-                          disabled={addonBusy === addon.slug}
-                          className="text-stone-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 text-xs h-8 px-2.5 cursor-pointer"
-                        >
-                          {addonBusy === addon.slug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Cancel Add-On"}
-                        </Button>
-                      ) : isEntitled ? (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 text-emerald-600" />
-                          Included in Plan
-                        </span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleSelectAddon(addon)}
-                          disabled={addonBusy === addon.slug}
-                          className="bg-stone-900 hover:bg-emerald-600 text-white rounded-lg h-8 px-3 text-xs font-semibold transition cursor-pointer"
-                        >
-                          {addonBusy === addon.slug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Purchase Add-On"}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {(addon.slug === "google-sheets-sync" || addon.module === "INTEGRATION") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setView("cloud-bridges")}
+                            className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-100 text-xs h-8 px-2 font-medium"
+                          >
+                            Open Bridge →
+                          </Button>
+                        )}
+                        {(addon.slug === "white-label-agency-portal" || addon.module === "WHITE_LABEL") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setView("white-label")}
+                            className="text-amber-700 hover:text-amber-800 hover:bg-amber-100 text-xs h-8 px-2 font-medium"
+                          >
+                            Open Portal →
+                          </Button>
+                        )}
+                        {isActive ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => executeAddonCancel(addon.slug)}
+                            disabled={addonBusy === addon.slug}
+                            className="text-stone-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 text-xs h-8 px-2.5 cursor-pointer"
+                          >
+                            {addonBusy === addon.slug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Cancel Add-On"}
+                          </Button>
+                        ) : isEntitled ? (
+                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 text-emerald-600" />
+                            Included in Plan
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleSelectAddon(addon)}
+                            disabled={addonBusy === addon.slug}
+                            className="bg-stone-900 hover:bg-emerald-600 text-white rounded-lg h-8 px-3 text-xs font-semibold transition cursor-pointer"
+                          >
+                            {addonBusy === addon.slug ? <Loader2 className="h-3 w-3 animate-spin" /> : "Purchase Add-On"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )

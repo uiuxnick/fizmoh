@@ -36,6 +36,8 @@ import HospitalView from "@/components/views/hospital-view"
 import LiveChatWidgetView from "@/components/views/live-chat-widget-view"
 import CorporateView from "@/components/views/corporate-view"
 import WebsiteBuilderView from "@/components/views/website-builder-view"
+import CloudBridgesView from "@/components/views/cloud-bridges-view"
+import WhiteLabelView from "@/components/views/white-label-view"
 
 export default function ViewRouter() {
   const { view } = useApp()
@@ -43,6 +45,8 @@ export default function ViewRouter() {
     case "dashboard": return <DashboardView />
     case "customer-site": return <CustomerSiteView />
     case "website-builder": return <WebsiteBuilderView />
+    case "cloud-bridges": return <CloudBridgesView />
+    case "white-label": return <WhiteLabelView />
     case "tours": return <ToursView />
     case "bookings": return <BookingsView />
     case "calendar": return <CalendarView />
