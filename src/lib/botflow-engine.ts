@@ -747,7 +747,7 @@ async function walkSteps(
   // Check if this flow collected training course booking answers
   const isTrainingFlow =
     answers.full_name &&
-    (answers.number_attendees || answers.job_title || answers.company_name || answers.second_full_name)
+    (answers.email || answers.number_attendees || answers.job_title || answers.company_name || answers.second_full_name || answers.payment_receipt)
   if (isTrainingFlow) {
     try {
       const { getTenantCourses, createCourseRegistration, getTenantRegistrations } = await import("@/lib/training-service")
@@ -792,6 +792,7 @@ async function walkSteps(
             numberOfSeats: seats,
             paymentMethod: "BANK_TRANSFER",
             source: "WHATSAPP",
+            notes: answers.payment_receipt ? `Payment receipt proof uploaded: ${answers.payment_receipt}` : undefined,
             attendees: inputAttendees,
           })
 

@@ -1657,8 +1657,8 @@ async function handleFlowMediaUpload(params: {
   // ── 3. Only intercept QUESTION nodes that expect a file/media upload ──
   const isUploadNode =
     node.type === "QUESTION" &&
-    /drawing|upload|photo|media|file|attachment|measurement|blueprint/i.test(
-      (node.data?.name || "") + " " + (node.data?.text || "")
+    /receipt|screenshot|proof|transfer|drawing|upload|photo|media|file|attachment|measurement|blueprint|bank|payment/i.test(
+      (node.data?.name || "") + " " + (node.data?.text || "") + " " + (node.data?.inputType || "")
     )
 
   if (!isUploadNode) return false
@@ -1673,7 +1673,7 @@ async function handleFlowMediaUpload(params: {
     if (dl.success && dl.base64 && dl.mimeType) {
       const { storeMedia } = await import("@/lib/media-store")
       const buffer = Buffer.from(dl.base64, "base64")
-      const originalName = filename || `drawing-${Date.now()}.${dl.mimeType.split("/")[1] || "jpg"}`
+      const originalName = filename || `receipt-${Date.now()}.${dl.mimeType.split("/")[1] || "jpg"}`
       const stored = await storeMedia(buffer, dl.mimeType, originalName)
       if (stored?.url) storedUrl = stored.url
     }
@@ -1728,7 +1728,8 @@ async function handleFlowMediaUpload(params: {
           answers: {
             ...existingAnswers,
             attachments: [...existingAttachments, storedUrl],
-            drawings_url: storedUrl, // latest drawing/photo for quick access
+            drawings_url: storedUrl,
+            receipt_url: storedUrl,
           },
         },
       })
@@ -1736,9 +1737,21 @@ async function handleFlowMediaUpload(params: {
   } catch { /* non-critical — the message row is still saved */ }
 
   // ── 7. Advance the flow — treat media receipt as the answer "Uploaded" ──
-  // We call resumeFlow with message = "Uploaded" so the QUESTION (required: false)
-  // is satisfied and the engine walks to the next node (SAVE_LEAD / confirmation).
   try {
+    // Record receipt url into session answers so it persists into registration / lead
+    const qName = node.data?.name || "payment_receipt"
+    session.answers = {
+      ...(session.answers || {}),
+      [qName]: storedUrl,
+      payment_receipt: storedUrl,
+      payment_receipt_url: storedUrl,
+      receipt_screenshot: storedUrl,
+    }
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { flowState: JSON.stringify(session) },
+    })
+
     const { resumeFlow } = await import("@/lib/botflow-engine")
     const tenantId = conv.tenantId || ""
     await resumeFlow({
@@ -1746,7 +1759,7 @@ async function handleFlowMediaUpload(params: {
       conversationId,
       customerId,
       customerPhone: from,
-      message: "Uploaded",
+      message: storedUrl || "Uploaded",
       channel: "WHATSAPP",
     })
   } catch { /* if resumeFlow fails, the customer still sees the saved-image confirmation */ }

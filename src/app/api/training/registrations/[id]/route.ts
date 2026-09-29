@@ -47,17 +47,28 @@ export const PUT = withErrors(
         const course = await getCourseByIdOrSlug(tenantId, updated.courseId)
         if (course) {
           const confirmationMsg =
-            `✅ *Registration Confirmed — ${course.name}*\n\n` +
-            `Hello *${updated.customerName}*,\n\n` +
-            `Your registration and payment have been confirmed!\n\n` +
-            `• *Course:* ${course.name}\n` +
-            `• *Participant(s):* ${updated.numberOfSeats} Attendee(s)\n` +
-            `• *Dates:* ${course.startDate} to ${course.endDate}\n` +
-            `• *Time:* ${course.startTime} - ${course.endTime}\n` +
-            `• *Venue:* ${course.venueName}, ${course.city}\n` +
-            `• *Registration ID:* ${updated.registrationNumber}\n\n` +
-            `📍 Google Maps: ${course.mapUrl || "Provided in venue details"}\n\n` +
-            `We look forward to welcoming you and your colleagues!`
+            `🧾 *OFFICIAL PAYMENT RECEIPT & ENROLMENT CONFIRMATION*\n` +
+            `*Tanfidh Management Consultants*\n\n` +
+            `Dear *${updated.customerName}*,\n\n` +
+            `Your bank transfer payment has been successfully verified! Your seat registration is fully confirmed.\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `📋 *Registration Reference:* ${updated.registrationNumber}\n` +
+            `🎓 *Course:* ${course.name}\n` +
+            `👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant)\n` +
+            `📅 *Dates:* ${course.startDate} to ${course.endDate}\n` +
+            `⏱ *Timing:* ${course.startTime} - ${course.endTime}\n` +
+            `📍 *Venue:* ${course.venueName}, ${course.address || "Ruwi Financial District"}, ${course.city}\n` +
+            `👥 *Confirmed Seats:* ${updated.numberOfSeats} Attendee(s)\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💰 *Total Investment:* OMR ${updated.totalAmount}\n` +
+            `💳 *Paid Balance:* OMR ${updated.totalAmount} (Bank Transfer Verified)\n` +
+            `⚖️ *Remaining Balance:* OMR 0.00 (Fully Paid)\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `🎫 *Your Digital Check-In Pass:*\n` +
+            `https://app.fizmoh.cloud/training/checkin?ref=${updated.registrationNumber}\n\n` +
+            `📍 *Google Maps Venue Location:*\n` +
+            `${course.mapUrl || "https://maps.google.com/?q=Sheraton+Oman+Hotel+Muscat"}\n\n` +
+            `We look forward to hosting you at this executive masterclass!`
 
           const cleanPhone = updated.customerPhone.replace(/[^0-9+]/g, "")
           await sendWhatsApp({
