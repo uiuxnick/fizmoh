@@ -36,6 +36,7 @@ interface Conversation {
   customerName: string | null
   status: string
   botActive: boolean
+  automationPaused?: boolean
   labels?: any
   lastMessageAt: string | null
   lastMessageText: string | null
@@ -962,21 +963,54 @@ export default function InboxView() {
                 <ChatTrainingModal conversationId={selected.id} />
 
                 <div data-tour="inbox-bot-toggle" className="flex items-center gap-1.5 pl-2 border-l border-stone-200 ml-1">
-                  <span className="text-xs font-semibold text-stone-600">Bot</span>
+                  <span className="text-xs font-semibold text-stone-600">AI</span>
                   <Switch
-                    checked={selected.botActive}
+                    checked={selected.botActive && !selected.automationPaused}
                     onCheckedChange={async v => {
                       await fetch(`/api/conversations/${selected.id}`, {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ botActive: v }),
                       })
+                      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, botActive: v, automationPaused: !v, status: v ? "OPEN" : c.status } : c))
                       loadConvos()
+                      toast.success(v ? "AI Assistant enabled for this customer" : "AI Assistant paused")
                     }}
                   />
                 </div>
               </div>
             </div>
+
+            {/* AI Assistant Paused Notice when tenant replied */}
+            {(!selected.botActive || selected.automationPaused) && (
+              <div className="bg-amber-50/90 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-900 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span className="font-medium">AI Assistant is paused for this customer (manual tenant reply).</span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs bg-white border-amber-300 text-amber-900 hover:bg-amber-100 font-medium shadow-2xs"
+                  onClick={async () => {
+                    await fetch(`/api/conversations/${selected.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ botActive: true }),
+                    })
+                    setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, botActive: true, automationPaused: false, status: "OPEN" } : c))
+                    loadConvos()
+                    toast.success("AI Assistant resumed for this customer")
+                  }}
+                >
+                  Resume AI Assistant
+                </Button>
+              </div>
+            )}
 
             {/* Chat Messages Body with WhatsApp Texture Background */}
             <div

@@ -30,6 +30,9 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   if (typeof botActive === "boolean") {
     data.botActive = botActive
     data.automationPaused = !botActive
+    if (botActive && (existing.status === "PENDING" || existing.status === "SNOOZED")) {
+      data.status = "OPEN"
+    }
   }
   if (status) data.status = status
   if (assignedStaffId !== undefined) data.assignedStaffId = assignedStaffId || null
@@ -51,6 +54,7 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   }
 
   const conversation = await db.conversation.update({ where: { id }, data })
+  publish({ type: "conversation", conversationId: id, tenantId: conversation.tenantId || undefined })
 
   if (data.labels !== undefined) {
     if (existing.customerId) {

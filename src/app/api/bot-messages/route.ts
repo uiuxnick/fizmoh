@@ -2,14 +2,22 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant } from "@/lib/tenant"
 import { BOT_MESSAGES, loadBotMessages, saveBotMessages, type BotMessageOverrides } from "@/lib/bot-messages"
+import { getConfigValue } from "@/lib/app-config"
 
 /** The catalogue plus this workspace's overrides, for the editor. */
 export const GET = withErrors(async () => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
 
+  const hardcodedOn = (await getConfigValue("hardcoded_flows_enabled").catch(() => "")).trim().toLowerCase()
+  const isHardcodedFlowsEnabled = hardcodedOn === "true" || hardcodedOn === "1" || hardcodedOn === "on"
+  if (!isHardcodedFlowsEnabled) {
+    return NextResponse.json({ messages: [], enabled: false })
+  }
+
   const overrides = await loadBotMessages()
   return NextResponse.json({
+    enabled: true,
     messages: BOT_MESSAGES.map(m => ({
       key: m.key,
       group: m.group,

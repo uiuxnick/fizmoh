@@ -207,24 +207,17 @@ async function resolveConversation(from: string, customerName: string, customerI
           data: { status: "OPEN", botActive: true, automationPaused: false },
         })
       }
-    } else if (!isBotActive) {
-      if (existing.botActive || !existing.automationPaused) {
+    } else if (existing.automationPaused || !existing.botActive) {
+      // If a customer writes back to an old closed/resolved conversation, reopen fresh with AI:
+      if (existing.status === "CLOSED" || existing.status === "RESOLVED") {
         return db.conversation.update({
           where: { id: existing.id },
-          data: { botActive: false, automationPaused: true },
+          data: { status: "OPEN", botActive: isBotActive, automationPaused: !isBotActive },
         })
       }
-    } else if (isBotActive) {
-      // If AI is turned ON and no human agent has explicitly claimed this conversation:
-      // ensure botActive is true and automationPaused is false so AI can reply!
-      if (!existing.assignedStaffId && (!existing.botActive || existing.automationPaused)) {
-        return db.conversation.update({
-          where: { id: existing.id },
-          data: { status: "OPEN", botActive: true, automationPaused: false },
-        })
-      }
-    }
-    if (existing.status === "CLOSED" || existing.status === "RESOLVED" || existing.status === "SNOOZED") {
+      // Ongoing conversation paused by human/tenant reply: AI MUST REMAIN OFF until manually turned on!
+      return existing
+    } else if (existing.status === "CLOSED" || existing.status === "RESOLVED" || existing.status === "SNOOZED") {
       return db.conversation.update({
         where: { id: existing.id },
         data: { status: "OPEN", botActive: isBotActive, automationPaused: !isBotActive },
@@ -233,17 +226,7 @@ async function resolveConversation(from: string, customerName: string, customerI
     return existing
   }
 
-  // Auto-assign to available agent (load-based)
-  const activeAgents = await db.staff.findMany({
-    where: { role: "CHAT_AGENT", isActive: true },
-    include: { _count: { select: { conversationsOwned: true } } },
-  })
-  let assignedStaffId: string | null = null
-  if (activeAgents.length > 0) {
-    const sorted = activeAgents.sort((a, b) => a._count.conversationsOwned - b._count.conversationsOwned)
-    assignedStaffId = sorted[0].id
-  }
-
+  // Brand new conversation: AI is enabled by default for all incoming customers!
   return db.conversation.create({
     data: {
       customerPhone: from,
@@ -252,7 +235,7 @@ async function resolveConversation(from: string, customerName: string, customerI
       status: "OPEN",
       botActive: isBotActive,
       automationPaused: !isBotActive,
-      assignedStaffId,
+      assignedStaffId: null, // do not lock to human agent so AI handles replies until a tenant responds
       tenantId: currentTenant()?.tenantId || null,
     },
   })
@@ -762,9 +745,9 @@ async function processMessage(msg: any, contact: any) {
       console.log(`[bot] Tenant ${currentTenant()?.tenantId || "default"} is in whitelist-only mode. Sender ${from} is not whitelisted. Ignoring.`)
       return
     }
-    // If the conversation is currently claimed by an assigned staff member, let the agent reply.
-    if (!conversation.botActive && conversation.assignedStaffId) {
-      console.log(`[bot] Chat ${conversation.id} is assigned to agent ${conversation.assignedStaffId}. Awaiting human response.`)
+    // If conversation automation is paused (either because tenant replied, human handoff, or manual pause):
+    if (!conversation.botActive || conversation.automationPaused) {
+      console.log(`[bot] Chat ${conversation.id} automation is paused (tenant replied or manual pause). Awaiting human response.`)
       return
     }
   }
@@ -2152,13 +2135,13 @@ async function handoffToAgent(params: {
 
   // 2. Do NOT send automated message if bot is disabled or AI is disabled
   const isWhitelisted = await isTestPhoneNumber(from)
+  const aiAssistantVal = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
   const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
   const isBotDisabled =
-    botOn === "false" || botOn === "off" || botOn === "0" ||
-    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
-    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+    (aiAssistantVal === "false" || aiAssistantVal === "off" || aiAssistantVal === "0") &&
+    (botOn === "false" || botOn === "off" || botOn === "0") &&
+    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0")
 
   if ((!isWhitelisted && isBotDisabled) || intent === "AI_DISABLED") {
     return

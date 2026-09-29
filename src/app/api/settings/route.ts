@@ -119,6 +119,7 @@ export const PUT = withErrors(async (request: NextRequest) => {
         data: {
           botActive: true,
           automationPaused: false,
+          status: "OPEN",
         },
       }).catch(() => {})
     }

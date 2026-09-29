@@ -71,6 +71,16 @@ export function BotMessagesEditor() {
 
   if (loading) return <Skeleton className="h-96 rounded-xl" />
 
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 p-6 text-center">
+        <MessageSquareText className="h-8 w-8 text-stone-300 mx-auto mb-2" />
+        <p className="text-xs text-stone-600 font-medium">Built-in legacy messages are currently disabled.</p>
+        <p className="text-[11px] text-stone-400 mt-1">Your conversations are handled dynamically by your custom automation flows and the AI Assistant.</p>
+      </div>
+    )
+  }
+
   const groups = [...new Set(rows.map(r => r.group))]
 
   return (

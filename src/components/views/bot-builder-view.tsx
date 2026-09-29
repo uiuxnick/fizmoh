@@ -54,6 +54,8 @@ export default function BotBuilderView() {
   const [aiOn, setAiOn] = useState(true)
   const [aiName, setAiName] = useState("")
   const [aiSaving, setAiSaving] = useState(false)
+  const [legacyFlowsOn, setLegacyFlowsOn] = useState(false)
+  const [legacySaving, setLegacySaving] = useState(false)
 
   // The banner used to claim "Najwa … Active" whatever the workspace had
   // configured, on a page with no way to change either.
@@ -64,9 +66,31 @@ export default function BotBuilderView() {
         const v = String(d?.settings?.ai_assistant_enabled ?? "").trim().toLowerCase()
         setAiOn(!(v === "false" || v === "off" || v === "0"))
         setAiName(String(d?.settings?.assistant_name ?? "").trim())
+        const legacyVal = String(d?.settings?.hardcoded_flows_enabled ?? "").trim().toLowerCase()
+        setLegacyFlowsOn(legacyVal === "true" || legacyVal === "1" || legacyVal === "on")
       })
       .catch(() => {})
   }, [])
+
+  const toggleLegacyFlows = async (next: boolean) => {
+    setLegacySaving(true)
+    const previous = legacyFlowsOn
+    setLegacyFlowsOn(next)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hardcoded_flows_enabled: next ? "true" : "false" }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not save")
+      toast.success(next ? "Built-in bot flows enabled" : "Built-in bot flows disabled — Pure AI & Dynamic Flows active")
+    } catch (e) {
+      setLegacyFlowsOn(previous)
+      toast.error(e instanceof Error ? e.message : "Could not save")
+    } finally {
+      setLegacySaving(false)
+    }
+  }
 
   const toggleAi = async (next: boolean) => {
     setAiSaving(true)
@@ -213,11 +237,40 @@ export default function BotBuilderView() {
         </CardContent>
       </Card>}
 
-      {/* What the built-in bot says, editable by the workspace */}
+      {/* Legacy Built-in Bot Flows Option (Disabled by default so tenants only use custom flows) */}
       {channel === "WHATSAPP" && (
-        <div data-tour="bot-messages-editor">
-          <BotMessagesEditor />
-        </div>
+        <Card className="border-stone-200 bg-stone-50/70">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-stone-900">
+                    Legacy Built-in Bot Flows & Messages
+                  </h4>
+                  <Badge variant="outline" className={legacyFlowsOn ? "border-amber-300 text-amber-700 bg-amber-50 text-[11px]" : "text-stone-500 bg-stone-100 text-[11px]"}>
+                    {legacyFlowsOn ? "Enabled" : "Disabled (Pure Custom Flows & AI)"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">
+                  {legacyFlowsOn
+                    ? "Built-in legacy tour/restaurant bot scripts and fixed messages are active alongside your custom flows."
+                    : "Disabled (Recommended) — Pure AI & Dynamic Flows mode. Your customers only see flows you create or import. Hardcoded bot flows and scripts are turned off."}
+                </p>
+              </div>
+              <Switch
+                aria-label="Enable legacy built-in bot flows"
+                checked={legacyFlowsOn}
+                disabled={legacySaving}
+                onCheckedChange={toggleLegacyFlows}
+              />
+            </div>
+            {legacyFlowsOn && (
+              <div className="mt-4 pt-4 border-t border-stone-200" data-tour="bot-messages-editor">
+                <BotMessagesEditor />
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Flows */}
