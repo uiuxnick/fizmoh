@@ -36,7 +36,53 @@ export const GET = withErrors(async (request: NextRequest) => {
     orderBy: { createdAt: "desc" },
   })
 
-  return NextResponse.json({ payments })
+  // Include training registrations with manual bank transfer receipts
+  let trainingPayments: any[] = []
+  try {
+    const { getTenantRegistrations } = await import("@/lib/training-service")
+    const trainingRegs = await getTenantRegistrations(tenant.tenantId).catch(() => [])
+    trainingPayments = trainingRegs
+      .filter(r => {
+        const hasProof = r.notes && r.notes.includes("Payment receipt proof uploaded")
+        if (!hasProof && r.paymentMethod !== "BANK_TRANSFER") return false
+        if (status === "SUBMITTED") return r.paymentStatus !== "PAID"
+        if (status === "APPROVED") return r.paymentStatus === "PAID"
+        return true
+      })
+      .map(r => {
+        const m = (r.notes || "").match(/https?:\/\/[^\s"'<>]+|\/api\/media\/[^\s"'<>]+|whatsapp_media:\/\/[^\s"'<>]+/)
+        const proofUrl = m ? m[0] : null
+        return {
+          id: `tr_${r.id}`,
+          amount: r.totalAmount,
+          method: "BANK_TRANSFER",
+          status: r.paymentStatus === "PAID" ? "APPROVED" : "SUBMITTED",
+          bankReference: r.registrationNumber,
+          bankName: "Bank Muscat",
+          transferDate: r.createdAt,
+          screenshotUrl: proofUrl,
+          screenshotOcr: null,
+          fraudScore: 0,
+          fraudFlags: null,
+          verifiedAt: r.paymentStatus === "PAID" ? r.updatedAt : null,
+          verifierComment: null,
+          rejectionReason: null,
+          order: {
+            orderNumber: r.registrationNumber,
+            customerName: r.customerName,
+            customerPhone: r.customerPhone,
+            totalAmount: r.totalAmount,
+            tour: { name: r.courseName },
+            slot: { date: r.createdAt, startTime: "Training Cohort" },
+          },
+          gatewayReference: `TRAINING-${r.registrationNumber}`,
+        }
+      })
+  } catch (tErr) {
+    console.warn("[payments] Failed to fetch training registrations for queue:", tErr)
+  }
+
+  return NextResponse.json({ payments: [...trainingPayments, ...payments] })
 })
 
 // Submit bank transfer payment with screenshot

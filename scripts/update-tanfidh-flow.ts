@@ -54,7 +54,7 @@ async function main() {
       id: "bsc_actions",
       type: "BUTTONS",
       data: {
-        text: "Would you like to reserve your seat or speak with a senior advisor?",
+        text: "🎓 *AI-Powered Certified Balanced Scorecard Professional*\n📁 *Category:* Strategy & Executive Leadership (Certification)\n\n📅 *Dates:* 13–14 October 2026 (2 Days | 14 Hours)\n📍 *Venue:* Sheraton Oman Hotel, Muscat\n👥 *Seats:* 26 of 30 seats available\n🎟️ *Special Offer:* Pay for 1 seat, get 1 seat FREE (Buy 1 Get 1 Free)\n💰 *Investment:* OMR 500 (Covers 2 Attendees)\n👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant)\n\nReserve your seat or speak with our team:",
         buttons: [
           { id: "btn_book", title: "Book Now" },
           { id: "btn_support", title: "Talk with Support" },

@@ -41,6 +41,8 @@ import {
   BookOpen,
   User,
   Bot,
+  FileImage,
+  Camera,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -997,15 +999,22 @@ export default function TrainingView() {
                             {reg.currency} {reg.totalAmount.toFixed(2)}
                           </td>
                           <td className="p-3">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                reg.paymentStatus === "PAID"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-amber-100 text-amber-800"
-                              }`}
-                            >
-                              {reg.paymentStatus}
-                            </span>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  reg.paymentStatus === "PAID"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
+                              >
+                                {reg.paymentStatus}
+                              </span>
+                              {Boolean(reg.notes && reg.notes.includes("Payment receipt proof uploaded")) && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                  📸 Receipt Uploaded
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3">
                             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700">
@@ -1420,6 +1429,80 @@ export default function TrainingView() {
                   </Badge>
                 </div>
               </div>
+
+              {/* Submitted Payment Receipt / Screenshot */}
+              {(() => {
+                const n = activeRegistration.notes || ""
+                const m = n.match(/https?:\/\/[^\s"'<>]+|\/api\/media\/[^\s"'<>]+|whatsapp_media:\/\/[^\s"'<>]+/)
+                const receiptProofUrl = m ? m[0] : (activeRegistration as any).paymentProofUrl || null
+
+                if (!receiptProofUrl) {
+                  return (
+                    <div className="p-3 rounded-xl border border-dashed border-stone-200 text-stone-500 text-xs flex items-center justify-between bg-stone-50/50">
+                      <div className="flex items-center gap-2">
+                        <FileImage className="h-4 w-4 text-stone-400" />
+                        <span>No payment receipt screenshot uploaded yet.</span>
+                      </div>
+                      <span className="text-[10px] text-stone-400">Waiting for transfer</span>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                          <FileImage className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-blue-950 text-xs">Submitted Payment Proof (Bank Transfer Receipt)</div>
+                          <div className="text-[10px] text-blue-700">Uploaded via WhatsApp by buyer</div>
+                        </div>
+                      </div>
+                      {!receiptProofUrl.startsWith("whatsapp_media://") && (
+                        <a
+                          href={receiptProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-900 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Open Full Image
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg overflow-hidden border border-blue-200 bg-white p-2 flex items-center justify-center">
+                      {receiptProofUrl.startsWith("whatsapp_media://") ? (
+                        <div className="text-center py-6 text-stone-500 text-xs">
+                          <p className="font-medium">WhatsApp media attachment</p>
+                          <p className="text-[10px] text-stone-400 mt-1">Stored securely in WhatsApp conversation thread</p>
+                        </div>
+                      ) : (
+                        <a href={receiptProofUrl} target="_blank" rel="noopener noreferrer" className="block max-h-72 w-full text-center">
+                          <img
+                            src={receiptProofUrl}
+                            alt="Payment Transfer Proof"
+                            className="max-h-72 max-w-full mx-auto object-contain rounded hover:opacity-95 transition-opacity"
+                          />
+                        </a>
+                      )}
+                    </div>
+
+                    {activeRegistration.paymentStatus !== "PAID" && (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[11px] text-blue-900 font-medium">Verify receipt and confirm seat allocation:</span>
+                        <button
+                          onClick={() => handleUpdateRegStatus(activeRegistration.id, { paymentStatus: "PAID", status: "CONFIRMED" }, true)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Approve Payment & Confirm Seat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Attendees list */}
               <div className="space-y-2">

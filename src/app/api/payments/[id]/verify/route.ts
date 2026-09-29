@@ -19,6 +19,73 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
   const body = await request.json()
   const { comment, action } = body // action: APPROVE or REJECT
 
+  // Handle training registration payment approval
+  if (id.startsWith("tr_")) {
+    const regId = id.replace(/^tr_/, "")
+    const { updateRegistrationStatus, getCourseByIdOrSlug } = await import("@/lib/training-service")
+    const { currentTenant } = await import("@/lib/tenant")
+    const tenant = currentTenant()
+    const tenantId = String(tenant?.tenantId || (session as any).tenantId || "")
+
+    if (action === "REJECT") {
+      await updateRegistrationStatus(tenantId, regId, {
+        paymentStatus: "FAILED",
+        status: "CANCELLED",
+        notes: body.reason ? `Payment rejected: ${body.reason}` : undefined,
+      })
+      return NextResponse.json({ success: true, payment: { id, status: "REJECTED" } })
+    }
+
+    // APPROVE
+    const updatedReg = await updateRegistrationStatus(tenantId, regId, {
+      paymentStatus: "PAID",
+      status: "CONFIRMED",
+    })
+
+    // Trigger WhatsApp official confirmation receipt
+    if (updatedReg && updatedReg.customerPhone) {
+      try {
+        const course = await getCourseByIdOrSlug(tenantId, updatedReg.courseId)
+        if (course) {
+          const { sendWhatsApp } = await import("@/lib/flow-delivery")
+          const confirmationMsg =
+            `🧾 *OFFICIAL PAYMENT RECEIPT & ENROLMENT CONFIRMATION*\n` +
+            `*Tanfidh Management Consultants*\n\n` +
+            `Dear *${updatedReg.customerName}*,\n\n` +
+            `Your bank transfer payment has been successfully verified! Your seat registration is fully confirmed.\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `📋 *Registration Reference:* ${updatedReg.registrationNumber}\n` +
+            `🎓 *Course:* ${course.name}\n` +
+            `👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant)\n` +
+            `📅 *Dates:* ${course.startDate} to ${course.endDate}\n` +
+            `⏱ *Timing:* ${course.startTime} - ${course.endTime}\n` +
+            `📍 *Venue:* ${course.venueName}, ${course.address || "Ruwi Financial District"}, ${course.city}\n` +
+            `👥 *Confirmed Seats:* ${updatedReg.numberOfSeats} Attendee(s)\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💰 *Total Investment:* OMR ${updatedReg.totalAmount}\n` +
+            `💳 *Paid Balance:* OMR ${updatedReg.totalAmount} (Bank Transfer Verified)\n` +
+            `⚖️ *Remaining Balance:* OMR 0.00 (Fully Paid)\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `🎫 *Your Digital Check-In Pass:*\n` +
+            `https://app.fizmoh.cloud/training/checkin?ref=${updatedReg.registrationNumber}\n\n` +
+            `📍 *Google Maps Venue Location:*\n` +
+            `${course.mapUrl || "https://maps.google.com/?q=Sheraton+Oman+Hotel+Muscat"}\n\n` +
+            `We look forward to hosting you at this executive masterclass!`
+
+          const cleanPhone = updatedReg.customerPhone.replace(/[^0-9+]/g, "")
+          await sendWhatsApp({
+            to: cleanPhone,
+            body: confirmationMsg,
+            allowOutsideSession: true,
+          })
+        }
+      } catch (err) {
+        console.warn("[training] Failed to send receipt from payments verify:", err)
+      }
+    }
+    return NextResponse.json({ success: true, payment: { id, status: "APPROVED" } })
+  }
+
   const payment = await db.payment.findUnique({
     where: { id },
     include: { order: { include: { tour: true, slot: true, customer: true } } },
