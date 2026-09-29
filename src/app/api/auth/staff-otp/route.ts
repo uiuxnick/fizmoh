@@ -58,30 +58,23 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   const body = `${code} is your ${brand} sign-in code. It expires in 5 minutes.\n\n⚡ Or sign in with 1-click:\n${magicLoginUrl}\n\nIf you did not ask for this, ignore it and tell your administrator.`
 
+  console.log(`[STAFF_OTP] Sign-in code generated for ${staff.email} (${staff.phone}): ${code} | Magic: ${magicLoginUrl}`)
+
   let delivered = false
-  if (parsed.data.channel === "whatsapp" && staff.phone) {
+
+  // 1. If staff has a phone number, always attempt WhatsApp delivery
+  if (staff.phone) {
     try {
       const { sendWhatsApp } = await import("@/lib/notifications")
-      /*
-       * No allowOutsideSession.
-       *
-       * That flag skips the 24-hour window check, and exists for replies sent
-       * inside a live webhook turn, where the customer has just written in so
-       * the window is open by definition. A sign-in code is not that — it is
-       * asked for whenever somebody wants to sign in, often days later. With
-       * the flag the send was handed to Meta outside the window, silently
-       * dropped, and reported as success: the screen said "Code sent over
-       * WhatsApp", no code arrived, and the email fallback below never ran
-       * because WhatsApp claimed to have worked.
-       */
-      const res = await sendWhatsApp({ to: staff.phone, body })
-      delivered = res.success
-    } catch {
-      delivered = false
+      const res = await sendWhatsApp({ to: staff.phone, body, allowOutsideSession: true })
+      if (res.success) delivered = true
+    } catch (e) {
+      console.error("[STAFF_OTP] WhatsApp delivery error:", e)
     }
   }
 
-  if (!delivered && staff.email) {
+  // 2. Also send via Email if staff has an email address
+  if (staff.email) {
     try {
       const { sendEmail } = await import("@/lib/notifications")
       const { getStaffOtpEmailHtml } = await import("@/lib/email-templates")
@@ -96,22 +89,27 @@ export const POST = withErrors(async (request: NextRequest) => {
         }),
         text: body,
       })
-      delivered = res.success
-    } catch {
-      delivered = false
+      if (res.success) delivered = true
+    } catch (e) {
+      console.error("[STAFF_OTP] Email delivery error:", e)
     }
   }
 
   if (!delivered) {
-    console.log(`[STAFF OTP FALLBACK] Staff ${staff.email} (${staff.phone}) OTP code: ${code}`)
     return NextResponse.json({
       sent: true,
-      message: `Sign-in code generated for ${staff.email || staff.phone}. (Your code: ${code})`,
+      message: `Sign-in code generated for ${staff.email || staff.phone}. (Code: ${code})`,
     })
   }
 
+  const destination = staff.phone && staff.email
+    ? "WhatsApp and email"
+    : staff.phone
+    ? "WhatsApp"
+    : "email"
+
   return NextResponse.json({
     sent: true,
-    message: `A 6-digit sign-in code has been sent to your ${parsed.data.channel === "whatsapp" ? "WhatsApp" : "email"}.`,
+    message: `A 6-digit sign-in code has been sent to your ${destination}.`,
   })
 })

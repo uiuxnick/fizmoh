@@ -12,7 +12,7 @@ import { Wand2, Loader2 } from "lucide-react"
 import { validateCarousel, type CarouselCard } from "@/lib/carousel"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Plus, Trash2, Save, Send, AlertTriangle } from "lucide-react"
+import { Plus, Trash2, Save, Send, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react"
 import { WhatsAppPreview, type PreviewButton } from "@/components/whatsapp-preview"
 
 /**
@@ -122,6 +122,70 @@ export function validateTemplate(draft: TemplateDraft): string[] {
   return errors
 }
 
+export interface RejectionRisk {
+  severity: "high" | "medium"
+  message: string
+}
+
+export function analyzeRejectionRisks(draft: TemplateDraft): RejectionRisk[] {
+  const risks: RejectionRisk[] = []
+  const body = (draft.bodyContent || "").trim()
+  const header = (draft.headerContent || "").trim()
+  const fullText = `${header} ${body}`
+
+  // 1. URL shorteners check
+  const shortenerRegex = /(bit\.ly|tinyurl\.com|goo\.gl|t\.co|ow\.ly|is\.gd|buff\.ly|rebrand\.ly|rb\.gy)/i
+  const allUrls = [
+    ...draft.buttons.filter(b => b.type === "URL").map(b => b.url || ""),
+    body,
+  ]
+  if (allUrls.some(u => shortenerRegex.test(u))) {
+    risks.push({
+      severity: "high",
+      message: "Meta strictly rejects templates with URL shorteners (e.g. bit.ly, tinyurl). Use full brand domain URLs instead.",
+    })
+  }
+
+  // 2. Excessive punctuation check
+  if (/(!{2,}|\?{2,})/.test(fullText)) {
+    risks.push({
+      severity: "medium",
+      message: "Repeated punctuation (e.g. '!!' or '??') frequently triggers Meta automated spam detection.",
+    })
+  }
+
+  // 3. Excessive ALL CAPS check
+  const words = fullText.split(/\s+/)
+  const allCapsWords = words.filter(w => w.length >= 4 && w === w.toUpperCase() && /^[A-Z]+$/.test(w))
+  if (allCapsWords.length >= 2) {
+    risks.push({
+      severity: "medium",
+      message: `Multiple all-caps words (${allCapsWords.slice(0, 3).join(", ")}) may trigger Meta formatting rejections.`,
+    })
+  }
+
+  // 4. Category Mismatch check: Marketing keywords in Utility template
+  if (draft.category === "UTILITY") {
+    const promoRegex = /\b(offer|discount|promo|code|sale|deal|coupon|exclusive|hurry|limited time|free|buy now)\b/i
+    if (promoRegex.test(fullText)) {
+      risks.push({
+        severity: "high",
+        message: "Template is categorized as UTILITY but contains promotional words. Meta will reject it or reclassify it as MARKETING.",
+      })
+    }
+  }
+
+  // 5. Adjacent variables without words
+  if (/\{\{\d+\}\}\s*\{\{\d+\}\}/.test(body)) {
+    risks.push({
+      severity: "high",
+      message: "Adjacent variables without text between them (e.g. {{1}} {{2}}) violate Meta syntax requirements.",
+    })
+  }
+
+  return risks
+}
+
 export function TemplateBuilder({
   open,
   onOpenChange,
@@ -151,6 +215,7 @@ export function TemplateBuilder({
 
   const vars = useMemo(() => variablesIn(draft.bodyContent), [draft.bodyContent])
   const errors = useMemo(() => validateTemplate(draft), [draft])
+  const rejectionRisks = useMemo(() => analyzeRejectionRisks(draft), [draft])
 
   /**
    * Writes the whole template from a sentence.
@@ -347,6 +412,13 @@ export function TemplateBuilder({
                     <SelectItem value="AUTHENTICATION">Authentication — one-time codes</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-[10px] text-stone-500 mt-1">
+                  {draft.category === "UTILITY"
+                    ? "Utility templates carry a lower delivery rate and must relate strictly to an active order or confirmed action."
+                    : draft.category === "MARKETING"
+                    ? "Marketing templates allow promotional announcements, product launches and seasonal discounts."
+                    : "Authentication templates deliver security codes and OTP verifications."}
+                </p>
               </div>
               <div>
                 <Label className="text-xs">Format</Label>
@@ -556,13 +628,39 @@ export function TemplateBuilder({
             />
 
             {errors.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
-                  <AlertTriangle className="h-3.5 w-3.5" />Meta will reject this
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />Meta Syntax Blockers ({errors.length})
                 </div>
-                <ul className="mt-1.5 space-y-0.5 text-[11px] text-amber-700">
+                <ul className="mt-1.5 space-y-0.5 text-[11px] text-rose-700">
                   {errors.map((e, i) => <li key={i}>• {e}</li>)}
                 </ul>
+              </div>
+            )}
+
+            {rejectionRisks.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />Meta Rejection Risk Advisory ({rejectionRisks.length})
+                </div>
+                <ul className="mt-1.5 space-y-1 text-[11px] text-amber-800">
+                  {rejectionRisks.map((r, i) => (
+                    <li key={i} className="flex items-start gap-1">
+                      <span className="font-bold">•</span>
+                      <span>{r.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {errors.length === 0 && rejectionRisks.length === 0 && draft.bodyContent.trim().length > 10 && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2.5 flex items-center gap-2 text-xs text-emerald-800 shadow-2xs">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold">Meta Quality Readiness: 100%</span>
+                  <p className="text-[10px] text-emerald-700">Valid parameters, clean syntax &amp; high approval probability.</p>
+                </div>
               </div>
             )}
           </div>

@@ -79,21 +79,38 @@ export interface RatingSyncResult {
  * `averageRating` and `totalReviewCount` at the top level, computed by Google
  * over every review, not just the page returned.
  */
-export async function syncLocationRating(locationResourceName: string): Promise<RatingSyncResult> {
+export async function syncLocationRating(locationResourceName: string, accountId?: string | null): Promise<RatingSyncResult> {
   const token = await businessAccessToken()
   if (!token) return { ok: false, error: "No connected Google account" }
 
+  const tenant = currentTenant()
+  let fullResourceName = locationResourceName
+  if (!fullResourceName.startsWith("accounts/")) {
+    let accId = accountId
+    if (!accId && tenant?.tenantId) {
+      const { db } = await import("@/lib/db")
+      const integration = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
+      accId = integration?.googleAccountId || null
+    }
+    if (accId) {
+      fullResourceName = `${accId.replace(/\/$/, "")}/${locationResourceName.replace(/^\//, "")}`
+    }
+  }
+
   try {
-    const url = `${LEGACY_API}/${locationResourceName}/reviews?pageSize=1`
+    const url = `${LEGACY_API}/${fullResourceName}/reviews?pageSize=1`
     const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     if (!response.ok) {
       const detail = await response.text().catch(() => "")
+      const isServiceDisabled = response.status === 403 && detail.includes("SERVICE_DISABLED")
       return {
         ok: false,
-        pendingApproval: isPendingApproval(response.status),
-        error: isPendingApproval(response.status)
-          ? "Google has not yet approved this platform's Business Profile API access request."
-          : `Google returned ${response.status}: ${detail.slice(0, 200)}`,
+        pendingApproval: isPendingApproval(response.status) && !isServiceDisabled,
+        error: isServiceDisabled
+          ? "Google My Business API is not enabled yet in your Google Cloud Project. Please enable it in Google Cloud Console."
+          : isPendingApproval(response.status)
+            ? "Google has not yet approved this platform's Business Profile API access request."
+            : `Google returned ${response.status}: ${detail.slice(0, 200)}`,
       }
     }
     const body = await response.json()
@@ -113,7 +130,8 @@ export async function syncCampaignRating(campaignId: string): Promise<RatingSync
   const campaign = await db.qrCampaign.findUnique({ where: { id: campaignId } })
   if (!campaign?.googleLocationId) return { ok: false, error: "This campaign has no Google location linked" }
 
-  const result = await syncLocationRating(campaign.googleLocationId)
+  const integration = await db.googleIntegration.findFirst({ where: { tenantId: campaign.tenantId } })
+  const result = await syncLocationRating(campaign.googleLocationId, integration?.googleAccountId)
   if (result.ok) {
     await db.qrCampaign.update({
       where: { id: campaignId },

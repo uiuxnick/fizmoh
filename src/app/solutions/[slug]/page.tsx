@@ -7,6 +7,7 @@ import { SOLUTION_PAGES, solutionBySlug } from "@/lib/solution-pages"
 import { INDUSTRY_PAGES, industryBySlug } from "@/lib/marketing/industries"
 import { MarketingLanding } from "@/components/marketing/marketing-landing"
 import { MarketingJsonLd } from "@/components/marketing/marketing-jsonld"
+import { absoluteUrl, SITE_URL } from "@/lib/seo"
 import { ArrowRight, Check, CircleAlert } from "lucide-react"
 
 /**
@@ -74,6 +75,18 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
   const page = solutionBySlug(slug)
   if (!page) notFound()
 
+  const canonical = absoluteUrl(`/solutions/${page.slug}`)
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Industries", item: absoluteUrl("/features") },
+      { "@type": "ListItem", position: 3, name: page.title, item: canonical },
+    ],
+  }
+
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -87,6 +100,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
   return (
     <div className="marketing min-h-screen bg-[var(--mk-surface)] text-[var(--mk-ink)]">
       <SiteHeader />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       <main>

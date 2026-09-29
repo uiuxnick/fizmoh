@@ -307,8 +307,22 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
         envVar: "AI_ASSISTANT_ENABLED",
         options: ["true", "false"],
         hint:
-          "Whether the AI answers messages the booking flow does not claim. Off, those go to a " +
-          "human instead — the menu, buttons and booking flow keep working either way.",
+          "Whether the AI answers incoming messages. Off, messages go to a " +
+          "human instead.",
+      },
+      {
+        key: "hardcoded_flows_enabled",
+        label: "Hardcoded Bot Flows",
+        envVar: "HARDCODED_FLOWS_ENABLED",
+        options: ["false", "true"],
+        hint: "Enable legacy built-in restaurant & tour scripts. When disabled (default & recommended), all conversations are handled dynamically by Visual BotFlows and the AI Assistant.",
+      },
+      {
+        key: "wa_flows_enabled",
+        label: "Dynamic Bot Flows",
+        envVar: "WA_FLOWS_ENABLED",
+        options: ["true", "false"],
+        hint: "Run published keyword and intent flows from the Bot Builder before falling through to the AI Assistant.",
       },
       {
         key: "assistant_name",

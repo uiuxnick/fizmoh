@@ -5,7 +5,7 @@ import { SiteHeader, SiteFooter } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { COMPARISON_PAGES, comparisonBySlug } from "@/lib/marketing/comparisons"
-import { absoluteUrl } from "@/lib/seo"
+import { absoluteUrl, SITE_URL } from "@/lib/seo"
 import { Check, X, ArrowRight, ShieldCheck, Zap, Sparkles } from "lucide-react"
 
 export function generateStaticParams() {
@@ -22,20 +22,24 @@ export async function generateMetadata({
   if (!page) return {}
 
   const canonical = absoluteUrl(`/compare/${page.slug}`)
-  return {
-    title: page.metaTitle,
-    description: page.metaDescription,
-    keywords: page.keywords,
-    alternates: {
+  const { pageSeo } = await import("@/lib/seo-config")
+  const base = await pageSeo(
+    `/compare/${page.slug}`,
+    page.metaTitle.replace(/\s*\|\s*Fizmoh.*$/i, ""),
+    page.metaDescription,
+    "/marketing/products/team-inbox.jpg",
+    {
       canonical,
+      languages: {
+        en: canonical,
+        ar: `${canonical}?lang=ar`,
+        "x-default": canonical,
+      },
     },
-    openGraph: {
-      title: page.metaTitle,
-      description: page.metaDescription,
-      url: canonical,
-      type: "website",
-      images: [{ url: absoluteUrl("/marketing/products/team-inbox.jpg"), width: 1200, height: 630 }],
-    },
+  )
+  return {
+    ...base,
+    keywords: page.keywords,
   }
 }
 
@@ -47,6 +51,33 @@ export default async function ComparePage({
   const { slug } = await params
   const page = comparisonBySlug(slug)
   if (!page) notFound()
+
+  const canonical = absoluteUrl(`/compare/${page.slug}`)
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Comparisons",
+        item: absoluteUrl("/features"),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `Fizmoh vs ${page.competitorName}`,
+        item: canonical,
+      },
+    ],
+  }
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -76,6 +107,10 @@ export default async function ComparePage({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}

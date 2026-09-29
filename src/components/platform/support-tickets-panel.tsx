@@ -6,8 +6,9 @@ import {
   Loader2, Search, Headphones, AlertTriangle, Send, Plus,
   CheckCircle2, Clock, MessageSquare, Lock, Globe, User, Building2,
   RefreshCw, X, ChevronRight, Lightbulb, Bug, MessageCircle, ExternalLink, Mail, Phone,
-  Download, Trash2, Timer, Sparkles,
+  Download, Trash2, Timer, Sparkles, Copy, Check, Languages,
 } from "lucide-react"
+
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -125,12 +126,91 @@ export function SupportTicketsPanel({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // Translation & clipboard states
+  const [translations, setTranslations] = useState<Record<string, { text: string; targetLang: string; loading?: boolean; visible?: boolean }>>({})
+  const [translatingInput, setTranslatingInput] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const isArabicText = (text?: string | null) => {
+    if (!text) return false
+    return /[\u0600-\u06FF]/.test(text)
+  }
+
+  const handleCopyText = (id: string, text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    toast.success("Copied to clipboard")
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleTranslateMessage = async (id: string, text: string) => {
+    if (translations[id]?.text) {
+      setTranslations(prev => ({
+        ...prev,
+        [id]: { ...prev[id], visible: !prev[id].visible }
+      }))
+      return
+    }
+
+    setTranslations(prev => ({
+      ...prev,
+      [id]: { text: "", targetLang: "", loading: true, visible: true }
+    }))
+
+    try {
+      const res = await fetch("/api/platform/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.translatedText) throw new Error(data.error || "Translation failed")
+      setTranslations(prev => ({
+        ...prev,
+        [id]: { text: data.translatedText, targetLang: data.targetLang, loading: false, visible: true }
+      }))
+    } catch (err: any) {
+      toast.error(err.message || "Failed to translate message")
+      setTranslations(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }
+  }
+
+  const handleTranslateInput = async (targetLang?: string) => {
+    if (!replyText.trim()) {
+      toast.info("Type a response first, then click translate")
+      return
+    }
+    setTranslatingInput(true)
+    try {
+      const res = await fetch("/api/platform/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: replyText, targetLang })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.translatedText) throw new Error(data.error || "Translation failed")
+      setReplyText(data.translatedText)
+      toast.success(`Translated to ${data.targetLang === "ar" ? "Arabic" : "English"}`)
+    } catch (err: any) {
+      toast.error(err.message || "Failed to translate response")
+    } finally {
+      setTranslatingInput(false)
+    }
+  }
+
   const CANNED_RESPONSES = [
     { label: "Investigation in Progress", text: "Hello, our engineering team has received your report and is actively investigating the issue. We will update this thread as soon as we have a fix." },
+    { label: "Pricing & Plans (Arabic)", text: "مرحباً بك! باقة البداية لدينا تبدأ من 40 ريال عماني شهرياً وتشمل الربط الرسمي مع واتساب وروبوت الرد الآلي والمحادثات المباشرة. هل ترغب في تفعيل حساب تجريبي؟" },
+    { label: "Pricing & Plans (English)", text: "Hello! Our Starter package is 40 OMR/month with official Meta WhatsApp Cloud API, AI automated flows, and live chat. Would you like a live demo or trial?" },
     { label: "Feature Added to Roadmap", text: "Thank you for this valuable feature suggestion! We have reviewed it and added it to our product engineering roadmap for an upcoming release." },
     { label: "Fix Deployed in Latest Build", text: "We have resolved this issue and deployed a fix to production. Please refresh your browser or try again and let us know if everything works smoothly." },
-    { label: "Need More Information / Logs", text: "To help us diagnose this faster, could you please provide your workspace subdomain, a screenshot or console error, and the exact steps taken?" },
+    { label: "Need More Information", text: "To help us diagnose this faster, could you please provide your workspace subdomain, a screenshot or console error, and the exact steps taken?" },
   ]
+
 
   useEffect(() => {
     fetch("/api/platform/tenants")
@@ -691,212 +771,417 @@ export function SupportTicketsPanel({
       </div>
 
       {/* Ticket View & Edit Dialog */}
-      {selectedTicket && (
-        <Dialog open={!!selectedTicket} onOpenChange={open => !open && setSelectedTicket(null)}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-6 bg-white rounded-3xl border-stone-200">
-            <DialogHeader className="border-b border-stone-100 pb-4">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md">
-                    {selectedTicket.reference}
-                  </span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(selectedTicket.priority)}`}>
-                    {selectedTicket.priority}
-                  </span>
-                  {getChannelBadge(selectedTicket)}
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedTicket.tenantId === null && ["LIVE_CHAT", "WEBSITE"].includes(selectedTicket.channel) && !["RESOLVED", "CLOSED"].includes(selectedTicket.status) && (
-                    <Button size="sm" disabled={updatingStatus} onClick={() => handleUpdateTicket({ status: "IN_PROGRESS", claim: true })}>Take over chat</Button>
-                  )}
-                  <select
-                    value={selectedTicket.status}
-                    onChange={e => handleUpdateTicket({ status: e.target.value })}
-                    disabled={updatingStatus}
-                    className="h-8 px-2.5 text-xs font-bold rounded-lg border border-stone-200 bg-white text-stone-800"
-                  >
-                    <option value="OPEN">Status: OPEN</option>
-                    <option value="IN_PROGRESS">Status: IN PROGRESS</option>
-                    <option value="WAITING">Status: WAITING</option>
-                    <option value="RESOLVED">Status: RESOLVED</option>
-                    <option value="CLOSED">Status: CLOSED</option>
-                  </select>
-                  <select
-                    value={selectedTicket.priority}
-                    onChange={e => handleUpdateTicket({ priority: e.target.value })}
-                    disabled={updatingStatus}
-                    className="h-8 px-2.5 text-xs font-bold rounded-lg border border-stone-200 bg-white text-stone-800"
-                  >
-                    <option value="LOW">Priority: LOW</option>
-                    <option value="MEDIUM">Priority: MEDIUM</option>
-                    <option value="HIGH">Priority: HIGH</option>
-                    <option value="URGENT">Priority: URGENT</option>
-                  </select>
-                  <select
-                    value={selectedTicket.assignedStaffId || ""}
-                    onChange={e => handleUpdateTicket({ assignedStaffId: e.target.value || null })}
-                    disabled={updatingStatus}
-                    className="h-8 px-2.5 text-xs font-semibold rounded-lg border border-stone-200 bg-white text-stone-800"
-                  >
-                    <option value="">Assignee: Unassigned</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.id}>Assigned: {s.name}</option>
-                    ))}
-                  </select>
+      {selectedTicket && (() => {
+        const emailMatch = (selectedTicket.body || "").match(/Email:\s*([^\s\n]+@[^\s\n]+)/i)
+        const phoneMatch = (selectedTicket.body || "").match(/(?:WhatsApp|Phone|Mobile|Contact):\s*\+?([\d\s\-()]{7,})/i)
+        const nameMatch = (selectedTicket.body || "").match(/Name:\s*([^\n\r]+)/i)
+        const contactPhone = phoneMatch?.[1]?.replace(/\D/g, "")
+        const contactEmail = emailMatch?.[1]
+
+        return (
+          <Dialog open={!!selectedTicket} onOpenChange={open => !open && setSelectedTicket(null)}>
+            <DialogContent className="sm:max-w-4xl max-h-[92vh] flex flex-col p-6 bg-white rounded-3xl border-stone-200 shadow-2xl overflow-hidden">
+              {/* Header */}
+              <DialogHeader className="border-b border-stone-100 pb-4 pr-8 space-y-3 shrink-0">
+                {/* Top Row: Identification, Badges, Claim, Delete */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-stone-100 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-mono font-black text-stone-900">{selectedTicket.reference}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText("ref", selectedTicket.reference)}
+                        className="text-stone-400 hover:text-stone-700 transition"
+                        title="Copy ticket reference"
+                      >
+                        {copiedId === "ref" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadge(selectedTicket.priority)}`}>
+                      {selectedTicket.priority}
+                    </span>
+                    {getChannelBadge(selectedTicket)}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      selectedTicket.status === "OPEN" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                      selectedTicket.status === "IN_PROGRESS" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                      selectedTicket.status === "WAITING" ? "bg-purple-100 text-purple-800 border border-purple-200" :
+                      selectedTicket.status === "RESOLVED" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                      "bg-stone-100 text-stone-700 border border-stone-200"
+                    }`}>
+                      {selectedTicket.status}
+                    </span>
+                    {selectedTicket.tenantId === null && ["LIVE_CHAT", "WEBSITE"].includes(selectedTicket.channel) && !["RESOLVED", "CLOSED"].includes(selectedTicket.status) && (
+                      <Button
+                        size="sm"
+                        disabled={updatingStatus}
+                        onClick={() => handleUpdateTicket({ status: "IN_PROGRESS", claim: true })}
+                        className="h-7 px-2.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-2xs"
+                      >
+                        Take over chat
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setDeleteConfirmOpen(true)}
-                    className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                    className="h-7 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg text-xs"
                     title="Delete Ticket"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                  </Button>
+                </div>
+
+                {/* Second Row: Subject & Meta Details */}
+                <div>
+                  <DialogTitle className="text-xl font-black text-stone-900 leading-snug">{selectedTicket.subject}</DialogTitle>
+                  <div className="text-xs text-stone-500 flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 font-medium">
+                    <span>Workspace: <strong className="text-stone-800">{selectedTicket.tenantName || "Global Platform"}</strong></span>
+                    {nameMatch?.[1] && (
+                      <span>Visitor: <strong className="text-stone-800">{nameMatch[1].trim()}</strong></span>
+                    )}
+                    <span>Created: <strong className="text-stone-700">{new Date(selectedTicket.createdAt).toLocaleString()}</strong></span>
+                  </div>
+                </div>
+
+                {/* Third Row: Triage Toolbar (Status, Priority, Assignee, Quick Links) */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200/80">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-stone-600 font-bold">
+                      <span className="text-[11px]">Status:</span>
+                      <select
+                        value={selectedTicket.status}
+                        onChange={e => handleUpdateTicket({ status: e.target.value })}
+                        disabled={updatingStatus}
+                        className="h-7 px-2 text-xs font-bold rounded-lg border border-stone-200 bg-white text-stone-800 focus:ring-1 focus:ring-emerald-500"
+                      >
+                        <option value="OPEN">🟢 OPEN</option>
+                        <option value="IN_PROGRESS">🟡 IN PROGRESS</option>
+                        <option value="WAITING">🟠 WAITING</option>
+                        <option value="RESOLVED">🔵 RESOLVED</option>
+                        <option value="CLOSED">⚪ CLOSED</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs text-stone-600 font-bold">
+                      <span className="text-[11px]">Priority:</span>
+                      <select
+                        value={selectedTicket.priority}
+                        onChange={e => handleUpdateTicket({ priority: e.target.value })}
+                        disabled={updatingStatus}
+                        className="h-7 px-2 text-xs font-bold rounded-lg border border-stone-200 bg-white text-stone-800 focus:ring-1 focus:ring-emerald-500"
+                      >
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="URGENT">URGENT</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs text-stone-600 font-bold">
+                      <span className="text-[11px]">Assignee:</span>
+                      <select
+                        value={selectedTicket.assignedStaffId || ""}
+                        onChange={e => handleUpdateTicket({ assignedStaffId: e.target.value || null })}
+                        disabled={updatingStatus}
+                        className="h-7 px-2 text-xs font-semibold rounded-lg border border-stone-200 bg-white text-stone-800 focus:ring-1 focus:ring-emerald-500"
+                      >
+                        <option value="">Unassigned</option>
+                        {staffList.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Direct Contact Links */}
+                  <div className="flex items-center gap-2">
+                    {contactEmail && (
+                      <a
+                        href={`mailto:${contactEmail}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition"
+                      >
+                        <Mail className="h-3 w-3" /> Email
+                      </a>
+                    )}
+                    {contactPhone && (
+                      <a
+                        href={`https://wa.me/${contactPhone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition"
+                      >
+                        <Phone className="h-3 w-3" /> Chat on WhatsApp
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Conversation Body & Replies */}
+              <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                {/* Initial Request Bubble */}
+                <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold">
+                    <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-stone-600" /> Initial Request</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTranslateMessage("initial", selectedTicket.body)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition cursor-pointer"
+                      >
+                        {translations["initial"]?.loading ? (
+                          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        ) : (
+                          <Languages className="h-3 w-3" />
+                        )}
+                        {translations["initial"]?.visible === false ? "Show Translation" : translations["initial"]?.text ? "Hide Translation" : isArabicText(selectedTicket.body) ? "Translate to English" : "Translate"}
+                      </button>
+                      <span>{new Date(selectedTicket.createdAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <p
+                    dir={isArabicText(selectedTicket.body) ? "rtl" : "ltr"}
+                    className={`text-xs text-stone-800 whitespace-pre-wrap leading-relaxed ${
+                      isArabicText(selectedTicket.body) ? "text-right font-medium text-[13px]" : "text-left"
+                    }`}
+                  >
+                    {selectedTicket.body || "No details provided."}
+                  </p>
+
+                  {/* Initial Request Translation */}
+                  {translations["initial"]?.visible && translations["initial"]?.text && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-violet-50/90 border border-violet-200/90 text-violet-950 text-xs space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-violet-700">
+                        <span className="flex items-center gap-1">
+                          <Languages className="h-3 w-3" />
+                          Translated to {translations["initial"].targetLang === "ar" ? "Arabic" : "English"}:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText("trans-initial", translations["initial"].text)}
+                          className="text-violet-600 hover:text-violet-800"
+                          title="Copy translation"
+                        >
+                          {copiedId === "trans-initial" ? <Check className="h-2.5 w-2.5 text-emerald-600" /> : <Copy className="h-2.5 w-2.5" />}
+                        </button>
+                      </div>
+                      <p
+                        dir={translations["initial"].targetLang === "ar" ? "rtl" : "ltr"}
+                        className={`leading-relaxed ${translations["initial"].targetLang === "ar" ? "text-right font-medium text-[13px]" : "text-left"}`}
+                      >
+                        {translations["initial"].text}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Replies Thread */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider text-[10px]">
+                      Communication Thread ({selectedTicket.replies?.length || 0})
+                    </h4>
+                    <span className="text-[10px] text-stone-400">All live messages auto-sync</span>
+                  </div>
+
+                  {fetchingDetail ? (
+                    <div className="py-6 text-center"><Loader2 className="h-5 w-5 animate-spin text-stone-400 mx-auto" /></div>
+                  ) : (!selectedTicket.replies || selectedTicket.replies.length === 0) ? (
+                    <div className="text-xs text-stone-400 text-center py-6 bg-stone-50/50 rounded-xl border border-stone-100 italic">
+                      No replies or notes on this ticket yet.
+                    </div>
+                  ) : (
+                    selectedTicket.replies.map(r => {
+                      const isVisitor = r.staffName === "Website visitor" || r.staffId.startsWith("visitor:")
+                      const isAI = r.staffName === "AI assistant" || r.staffId === "platform-support-ai"
+                      const hasArabic = isArabicText(r.body)
+                      const trans = translations[r.id]
+
+                      return (
+                        <div
+                          key={r.id}
+                          className={`p-3.5 rounded-2xl border text-xs space-y-1.5 transition-all ${
+                            r.isInternal
+                              ? "bg-amber-50/80 border-amber-200 text-amber-950"
+                              : isAI
+                              ? "bg-emerald-50/50 border-emerald-200/70 text-emerald-950"
+                              : isVisitor
+                              ? "bg-slate-50 border-slate-200/80 text-stone-900"
+                              : "bg-blue-50/40 border-blue-200/70 text-blue-950"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-bold text-[10px]">
+                            <span className="flex items-center gap-1.5">
+                              {r.isInternal ? (
+                                <Lock className="h-3 w-3 text-amber-600" />
+                              ) : isAI ? (
+                                <Sparkles className="h-3 w-3 text-emerald-600" />
+                              ) : isVisitor ? (
+                                <User className="h-3 w-3 text-stone-600" />
+                              ) : (
+                                <MessageSquare className="h-3 w-3 text-blue-600" />
+                              )}
+                              <span className={r.isInternal ? "text-amber-900 font-black" : isAI ? "text-emerald-800 font-bold" : isVisitor ? "text-stone-800 font-bold" : "text-blue-800 font-bold"}>
+                                {r.staffName || (isVisitor ? "Website visitor" : "Staff Member")}
+                              </span>
+                              {r.isInternal && <span className="text-amber-700 font-black ml-1 text-[9px] bg-amber-100 px-1 rounded">[INTERNAL NOTE]</span>}
+                              {isAI && <span className="text-emerald-700 font-bold ml-1 text-[9px] bg-emerald-100 px-1 rounded">AI BOT</span>}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {/* Translate Button on Message */}
+                              <button
+                                type="button"
+                                onClick={() => handleTranslateMessage(r.id, r.body)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition cursor-pointer"
+                              >
+                                {trans?.loading ? (
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                ) : (
+                                  <Languages className="h-3 w-3" />
+                                )}
+                                {trans?.visible === false ? "Show Translation" : trans?.text ? "Hide" : hasArabic ? "Translate to English" : "Translate"}
+                              </button>
+                              <span className="text-stone-400 font-normal">{new Date(r.createdAt).toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* Message Text with proper RTL alignment */}
+                          <p
+                            dir={hasArabic ? "rtl" : "ltr"}
+                            className={`whitespace-pre-wrap leading-relaxed text-xs ${
+                              hasArabic ? "text-right font-medium text-[13px]" : "text-left"
+                            }`}
+                          >
+                            {r.body}
+                          </p>
+
+                          {/* Translation Box */}
+                          {trans?.visible && trans?.text && (
+                            <div className="mt-2 p-2.5 rounded-xl bg-violet-50/90 border border-violet-200/90 text-violet-950 text-xs space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-violet-700">
+                                <span className="flex items-center gap-1">
+                                  <Languages className="h-3 w-3" />
+                                  Translated to {trans.targetLang === "ar" ? "Arabic" : "English"}:
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyText(`trans-${r.id}`, trans.text)}
+                                  className="text-violet-600 hover:text-violet-800"
+                                  title="Copy translation"
+                                >
+                                  {copiedId === `trans-${r.id}` ? <Check className="h-2.5 w-2.5 text-emerald-600" /> : <Copy className="h-2.5 w-2.5" />}
+                                </button>
+                              </div>
+                              <p
+                                dir={trans.targetLang === "ar" ? "rtl" : "ltr"}
+                                className={`leading-relaxed ${trans.targetLang === "ar" ? "text-right font-medium text-[13px]" : "text-left"}`}
+                              >
+                                {trans.text}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Reply Input Box with Translation Tools */}
+              <div className="border-t border-stone-100 pt-3 space-y-2 shrink-0">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] font-bold text-stone-700">Add Reply or Internal Note</label>
+                    {/* Live translate typed response */}
+                    {!isInternalReply && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={translatingInput || !replyText.trim()}
+                          onClick={() => handleTranslateInput("ar")}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 disabled:opacity-40 transition cursor-pointer"
+                          title="Translate your message to Arabic before sending"
+                        >
+                          {translatingInput ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Languages className="h-3 w-3" />}
+                          Translate to Arabic
+                        </button>
+                        <button
+                          type="button"
+                          disabled={translatingInput || !replyText.trim()}
+                          onClick={() => handleTranslateInput("en")}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 disabled:opacity-40 transition cursor-pointer"
+                          title="Translate your message to English"
+                        >
+                          {translatingInput ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Languages className="h-3 w-3" />}
+                          Translate to English
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isInternalReply}
+                      onChange={e => setIsInternalReply(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                    />
+                    <span className="text-[11px] font-semibold text-amber-800">Internal note (hidden from visitor and tenant)</span>
+                  </label>
+                </div>
+
+                {/* Canned Responses */}
+                {!isInternalReply && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                      <Sparkles className="h-3 w-3 text-emerald-600" /> Canned:
+                    </span>
+                    {CANNED_RESPONSES.map(c => (
+                      <button
+                        key={c.label}
+                        type="button"
+                        onClick={() => setReplyText(c.text)}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-600 border border-stone-200 shrink-0 transition"
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={
+                      isInternalReply
+                        ? "Write an internal note..."
+                        : isArabicText(replyText)
+                        ? "...اكتب ردك بالعربية أو الإنجليزية واضغط ترجمة"
+                        : "Write a response... (Type in English or Arabic, use Translate above)"
+                    }
+                    dir={isArabicText(replyText) ? "rtl" : "ltr"}
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply() } }}
+                    className="flex-1 text-xs rounded-xl h-9"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSendReply}
+                    disabled={sendingReply || !replyText.trim()}
+                    className={`rounded-xl text-white text-xs font-bold gap-1.5 h-9 ${
+                      isInternalReply ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
+                    }`}
+                  >
+                    {sendingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {isInternalReply ? "Save Note" : "Send Reply"}
                   </Button>
                 </div>
               </div>
-              <DialogTitle className="text-lg font-black text-stone-900">{selectedTicket.subject}</DialogTitle>
-              <DialogDescription className="text-xs text-stone-500 flex items-center gap-3 mt-1">
-                <span>Workspace: <strong className="text-stone-700">{selectedTicket.tenantName || "Global Platform"}</strong></span>
-                <span>Created: {new Date(selectedTicket.createdAt).toLocaleString()}</span>
-              </DialogDescription>
-            </DialogHeader>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
 
-            {/* Conversation Body & Replies */}
-            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
-              {/* Original Message */}
-              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200">
-                <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold mb-2">
-                  <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Initial Request</span>
-                  <span>{new Date(selectedTicket.createdAt).toLocaleString()}</span>
-                </div>
-                <p className="text-xs text-stone-800 whitespace-pre-wrap leading-relaxed">
-                  {selectedTicket.body || "No details provided."}
-                </p>
-              </div>
-
-              {/* Quick Actions — extract email / phone from body */}
-              {(() => {
-                const emailMatch = (selectedTicket.body || "").match(/Email:\s*([^\s\n]+@[^\s\n]+)/i)
-                const phoneMatch = (selectedTicket.body || "").match(/(?:WhatsApp|Phone|Mobile|Contact):\s*\+?([\d\s\-()]{7,})/i)
-                if (!emailMatch && !phoneMatch) return null
-                return (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Quick Actions:</span>
-                    {emailMatch && (
-                      <a
-                        href={`mailto:${emailMatch[1]}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition"
-                      >
-                        <Mail className="h-3.5 w-3.5" /> Email Submitter
-                      </a>
-                    )}
-                    {phoneMatch && (
-                      <a
-                        href={`https://wa.me/${phoneMatch[1].replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition"
-                      >
-                        <Phone className="h-3.5 w-3.5" /> Chat on WhatsApp
-                      </a>
-                    )}
-                  </div>
-                )
-              })()}
-
-              {/* Replies Thread */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider text-[10px]">
-                  Communication Thread ({selectedTicket.replies?.length || 0})
-                </h4>
-
-                {fetchingDetail ? (
-                  <div className="py-4 text-center"><Loader2 className="h-4 w-4 animate-spin text-stone-400 mx-auto" /></div>
-                ) : (!selectedTicket.replies || selectedTicket.replies.length === 0) ? (
-                  <div className="text-xs text-stone-400 text-center py-4 bg-stone-50/50 rounded-xl border border-stone-100 italic">
-                    No replies or notes on this ticket yet.
-                  </div>
-                ) : (
-                  selectedTicket.replies.map(r => (
-                    <div
-                      key={r.id}
-                      className={`p-3.5 rounded-2xl border text-xs space-y-1.5 ${
-                        r.isInternal
-                          ? "bg-amber-50/80 border-amber-200 text-amber-950"
-                          : "bg-white border-stone-200 text-stone-800 shadow-2xs"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between font-bold text-[10px]">
-                        <span className="flex items-center gap-1">
-                          {r.isInternal ? <Lock className="h-3 w-3 text-amber-600" /> : <MessageSquare className="h-3 w-3 text-emerald-600" />}
-                          {r.staffName || "Staff Member"}
-                          {r.isInternal && <span className="text-amber-700 font-black ml-1">[INTERNAL NOTE]</span>}
-                        </span>
-                        <span className="text-stone-400 font-normal">{new Date(r.createdAt).toLocaleString()}</span>
-                      </div>
-                      <p className="whitespace-pre-wrap leading-relaxed text-xs">{r.body}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Reply Input Box */}
-            <div className="border-t border-stone-100 pt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-stone-700">Add Reply or Internal Note</label>
-                <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isInternalReply}
-                    onChange={e => setIsInternalReply(e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
-                  />
-                  <span className="text-[11px] font-semibold text-amber-800">Internal note (hidden from visitor and tenant)</span>
-                </label>
-              </div>
-              {/* Canned Responses */}
-              {!isInternalReply && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
-                    <Sparkles className="h-3 w-3 text-emerald-600" /> Canned:
-                  </span>
-                  {CANNED_RESPONSES.map(c => (
-                    <button
-                      key={c.label}
-                      type="button"
-                      onClick={() => setReplyText(c.text)}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 text-stone-600 border border-stone-200 shrink-0 transition"
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Input
-                  placeholder={isInternalReply ? "Write an internal note..." : "Write a response..."}
-                  value={replyText}
-                  onChange={e => setReplyText(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply() } }}
-                  className="flex-1 text-xs rounded-xl h-9"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleSendReply}
-                  disabled={sendingReply || !replyText.trim()}
-                  className={`rounded-xl text-white text-xs font-bold gap-1.5 h-9 ${
-                    isInternalReply ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
-                  }`}
-                >
-                  {sendingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  {isInternalReply ? "Save Note" : "Send Reply"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

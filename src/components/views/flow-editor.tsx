@@ -14,10 +14,11 @@ import {
   ShoppingBag, Package, CalendarClock, Bot, Globe, Tag,
   Zap, CreditCard, Clock, Layers, RotateCcw, Play, ChevronDown,
   ChevronRight, Variable, Send, BarChart3, ZoomIn, ZoomOut,
-  Maximize2, Link2, Settings, Star,
+  Maximize2, Link2, Settings, Star, Eye,
 } from "lucide-react"
 import { SOCIAL_FLOW_NODES, supportsFlowNode, FLOW_CHANNEL_LABELS, type FlowChannel } from "@/lib/flow-channels"
 import { BOT_TEMPLATES, type FlowTemplate } from "@/lib/bot-templates"
+import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
 import { normalizeFlowGraph } from "@/lib/flow-normalizer"
 import { parseExternalFlow, type DynamicSuggestion, type ImportResult } from "@/lib/flow-importer"
 
@@ -403,6 +404,7 @@ export function FlowEditor({
   const [drafting, setDrafting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showTemplates, setShowTemplates] = useState(initialShowTemplates)
+  const [visualDemoTemplate, setVisualDemoTemplate] = useState<FlowTemplate | null>(null)
   const [tplCategory, setTplCategory] = useState("All")
   const [tplSearch, setTplSearch] = useState("")
   const [showSimulator, setShowSimulator] = useState(false)
@@ -1527,12 +1529,11 @@ export function FlowEditor({
                   return true
                 })
                 .map(tpl => (
-                  <button
+                  <div
                     key={tpl.id}
-                    className="text-left p-4 bg-white border rounded-xl hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5 transition-all group flex flex-col justify-between"
-                    onClick={() => applyTemplate(tpl)}
+                    className="text-left p-4 bg-white border border-stone-200/90 rounded-xl hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5 transition-all group flex flex-col justify-between"
                   >
-                    <div>
+                    <div className="cursor-pointer" onClick={() => setVisualDemoTemplate(tpl)}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-2xl p-1.5 bg-stone-100 rounded-lg group-hover:scale-110 transition-transform">{tpl.emoji}</span>
                         <Badge variant="outline" className="text-[10px] font-medium text-stone-500 bg-stone-50">{tpl.category}</Badge>
@@ -1541,14 +1542,45 @@ export function FlowEditor({
                       <div className="text-xs text-stone-500 mt-1.5 leading-relaxed line-clamp-3">{tpl.description}</div>
                     </div>
                     <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400">
-                      <span>{Array.isArray(tpl.nodes) ? tpl.nodes.length : 4} nodes</span>
-                      <span className="font-semibold text-amber-600 group-hover:underline flex items-center gap-1">Load Flow →</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVisualDemoTemplate(tpl)
+                        }}
+                        className="px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-50 hover:text-emerald-700 text-stone-600 font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Interactive visual simulator demo"
+                      >
+                        <Eye className="h-3 w-3 text-emerald-600" />
+                        <span>Visual Demo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyTemplate(tpl)}
+                        className="font-semibold text-amber-600 hover:text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Load Flow →</span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Interactive WhatsApp Visual Simulator Demo ───────────────────────── */}
+      {visualDemoTemplate && (
+        <BotTemplateVisualDemo
+          template={visualDemoTemplate}
+          isOpen={!!visualDemoTemplate}
+          onClose={() => setVisualDemoTemplate(null)}
+          onApply={(tpl) => {
+            applyTemplate(tpl)
+            setVisualDemoTemplate(null)
+            setShowTemplates(false)
+          }}
+        />
       )}
 
       {/* ── Smart AI Flow Importer Modal ────────────────────────────────────── */}

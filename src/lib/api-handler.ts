@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { resolveTenant, withTenant, type TenantContext } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 
 /**
  * Wraps a route handler so an unexpected failure returns usable JSON instead
@@ -32,9 +33,13 @@ const RESOLVED_TTL_MS = 15_000
 const resolved = new Map<string, { tenant: TenantContext | null; at: number }>()
 
 async function tenantFor(request: NextRequest): Promise<TenantContext | null> {
-  // Set by the proxy after it verified the session. A request that reaches a
-  // handler without it is public, and public work runs unscoped.
-  const staffId = request.headers.get("x-wptour-staff-id")
+  // Set by the proxy after it verified the session. If omitted or bypassed,
+  // fall back to verified session cookie directly so tenant resolution never drops.
+  let staffId = request.headers.get("x-wptour-staff-id")
+  if (!staffId) {
+    const session = await sessionFromRequest(request).catch(() => null)
+    if (session?.staffId) staffId = session.staffId
+  }
   const host = request.headers.get("host")
 
   /*

@@ -8,6 +8,7 @@ import {
   isSubscriberOptedIn,
   type SubscriberChannel,
 } from "@/lib/subscribers"
+import { matchesSegment, parseFilterRules } from "@/lib/segments"
 
 /**
  * Multi-channel subscriber manager (WhatsApp, Facebook, Instagram).
@@ -16,13 +17,20 @@ import {
  */
 
 function parseTags(value: unknown): string[] {
-  if (Array.isArray(value)) return value as string[]
+  if (!value) return []
+  if (Array.isArray(value)) return (value as unknown[]).map(v => String(v || "").trim()).filter(Boolean)
   if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === "[]") return []
     try {
-      const parsed = JSON.parse(value)
-      return Array.isArray(parsed) ? parsed : []
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed.map(v => String(v || "").trim()).filter(Boolean)
+      if (typeof parsed === "string" && parsed.trim()) return [parsed.trim()]
     } catch {
-      return []
+      if (trimmed.includes(",")) {
+        return trimmed.split(",").map(s => s.trim()).filter(Boolean)
+      }
+      return [trimmed]
     }
   }
   return []
@@ -33,6 +41,7 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   const search = searchParams.get("search")?.trim()
   const status = searchParams.get("status") // opted_in | opted_out | all
   const tag = searchParams.get("tag")
+  const segmentId = searchParams.get("segmentId")
   const channelFilter = searchParams.get("channel")?.toUpperCase() // ALL | WHATSAPP | FACEBOOK | INSTAGRAM
 
   const where: any = {}
@@ -49,7 +58,10 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   // Fetch candidate customers
   const customers = await db.customer.findMany({
     where,
-    include: { _count: { select: { orders: true, conversations: true } } },
+    include: {
+      _count: { select: { orders: true, conversations: true } },
+      conversations: { select: { labels: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 600,
   })
@@ -59,7 +71,9 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
     const channel = resolveSubscriberChannel(c)
     const { displayIdentifier, handle, rawPhone } = formatDisplayIdentifier(c)
     const isSubscribed = isSubscriberOptedIn(c)
-    const tagList = parseTags(c.tags)
+    const customerTags = parseTags(c.tags)
+    const convLabels = (c.conversations || []).flatMap(conv => parseTags(conv.labels))
+    const tagList = Array.from(new Set([...customerTags, ...convLabels])).filter(Boolean)
 
     return {
       ...c,
@@ -111,7 +125,21 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
 
   // Apply Tag Filter
   if (tag) {
-    filtered = filtered.filter(c => c.tagList.includes(tag))
+    filtered = filtered.filter(c => c.tagList.some(t => t.toLowerCase() === tag.toLowerCase()))
+  }
+
+  // Apply Dynamic Segment Filter
+  let activeSegment: any = null
+  if (segmentId && segmentId !== "all") {
+    try {
+      activeSegment = await db.segment.findUnique({ where: { id: segmentId } })
+      if (activeSegment) {
+        const rules = parseFilterRules(activeSegment.filterRules)
+        filtered = filtered.filter(c => matchesSegment(c, rules, activeSegment.channel))
+      }
+    } catch {
+      // ignore
+    }
   }
 
   const allTags = [...new Set(normalized.flatMap(c => c.tagList))].sort()
@@ -120,6 +148,10 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
     subscribers: filtered,
     stats,
     tags: allTags,
+    activeSegment: activeSegment ? {
+      ...activeSegment,
+      parsedRules: parseFilterRules(activeSegment.filterRules),
+    } : null,
   })
 }))
 
@@ -192,7 +224,11 @@ export const PATCH = withErrors(withModule("BROADCAST", async (request: NextRequ
       const next = action === "add_tag"
         ? [...new Set([...current, tag])]
         : current.filter(t => t !== tag)
-      await db.customer.update({ where: { id: c.id }, data: { tags: JSON.stringify(next) } })
+      await db.customer.update({ where: { id: c.id }, data: { tags: next } })
+      await db.conversation.updateMany({
+        where: { customerId: c.id },
+        data: { labels: next },
+      }).catch(() => {})
     }
     return NextResponse.json({ updated: customers.length })
   }

@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import {
   Facebook, Instagram, Link2, Unlink, Loader2, Check, AlertTriangle, Plus, Trash2,
-  Star, Pause, Play, MessageCircle, ArrowRight, RefreshCw,
+  Star, Pause, Play, MessageCircle, ArrowRight, RefreshCw, ShieldCheck, Sparkles,
 } from "lucide-react"
 
 /**
@@ -342,6 +342,33 @@ interface ConversationRow {
 
 export interface KeywordRule { id: string; channel: string; keywords: string; reply: string; isActive: boolean }
 
+const SOCIAL_PRESETS = [
+  {
+    label: "🏷️ Promo / Discount Code",
+    keywords: "OFFER, PROMO, DISCOUNT, CODE, SALE",
+    private: "Hey there! Thanks for engaging with us. Here is your exclusive 20% promo voucher: SPECIAL20 — redeem it here: https://app.fizmoh.cloud",
+    public: "Sent you the exclusive promo code in your DM! 🎁 Check your inbox.",
+  },
+  {
+    label: "🛍️ Menu & Catalog",
+    keywords: "MENU, CATALOG, PRICE, LIST, DETAILS",
+    private: "Hi! Check out our full digital catalog and latest pricing right here: https://app.fizmoh.cloud — reply here if you have any questions!",
+    public: "Sent our digital catalog straight to your DMs! 📲",
+  },
+  {
+    label: "📍 Location & Hours",
+    keywords: "LOCATION, ADDRESS, WHERE, TIMINGS, MAP",
+    private: "We are open daily from 9:00 AM to 10:00 PM! Find our exact location on Google Maps: https://maps.google.com — looking forward to your visit!",
+    public: "Sent our exact branch location and timings to your DM! 📍",
+  },
+  {
+    label: "🤝 Talk to Agent",
+    keywords: "AGENT, HUMAN, SUPPORT, HELP, CALL",
+    private: "Hello! Our customer support team has been notified of your message and is taking over. How can we assist you today?",
+    public: "Connecting you with our support team in DM right now! 🤝",
+  },
+]
+
 export function AutomationRulesTab({ defaultRuleType = "COMMENT_TO_DM", defaultChannel = "INSTAGRAM" }: { defaultRuleType?: "COMMENT_TO_DM" | "KEYWORD_REPLY"; defaultChannel?: "FACEBOOK" | "INSTAGRAM" } = {}) {
   const [channel, setChannel] = useState(defaultChannel)
   const [rules, setRules] = useState<KeywordRule[] | null>(null)
@@ -402,6 +429,14 @@ export function AutomationRulesTab({ defaultRuleType = "COMMENT_TO_DM", defaultC
 
   return (
     <div className="max-w-2xl space-y-4">
+      {/* Meta Policy Compliance Banner */}
+      <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-900 shadow-2xs">
+        <ShieldCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+        <div>
+          <span className="font-semibold">Meta Platform Compliance:</span> In accordance with Meta Cloud policies, comment-to-DM triggers send a single private message to followers commenting on public posts, opening an active 24-hour customer conversation window in your Unified Team Inbox.
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1.5">
           {(["FACEBOOK", "INSTAGRAM"] as const).map(c => (
@@ -445,6 +480,34 @@ export function AutomationRulesTab({ defaultRuleType = "COMMENT_TO_DM", defaultC
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Quick Presets */}
+          <div className="space-y-1.5 pb-2 border-b border-stone-100">
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              Quick 1-Click Presets:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {SOCIAL_PRESETS.map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setKeywords(p.keywords)
+                    if (ruleType === "COMMENT_TO_DM") {
+                      setPrivateReply(p.private)
+                      setReply(p.public)
+                    } else {
+                      setReply(p.private)
+                    }
+                    toast.success(`Loaded "${p.label}" preset`)
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 bg-stone-50 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-colors text-stone-700 font-medium shadow-2xs"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-xs font-medium text-stone-700 block mb-1">Trigger Keywords (comma separated)</label>
             <Input

@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server"
+import { withErrors } from "@/lib/api-handler"
+import { currentTenant, PLATFORM } from "@/lib/tenant"
+import {
+  getTenantCertificates,
+  issueAttendeeCertificate,
+  verifyCertificateById,
+  getCourseByIdOrSlug,
+} from "@/lib/training-service"
+import { sendWhatsApp } from "@/lib/flow-delivery"
+
+export const dynamic = "force-dynamic"
+
+export const GET = withErrors(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url)
+  const certId = searchParams.get("id") || searchParams.get("verify")
+
+  if (certId) {
+    const verified = await verifyCertificateById(certId)
+    if (!verified) {
+      return NextResponse.json({ error: "Certificate not found or invalid" }, { status: 404 })
+    }
+    return NextResponse.json({ verified: true, certificate: verified })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId || PLATFORM
+  const list = await getTenantCertificates(tenantId)
+  return NextResponse.json({ certificates: list, total: list.length })
+})
+
+export const POST = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId || PLATFORM
+  const body = await request.json()
+
+  const { registrationId, attendeeId, sendWhatsAppNotice } = body
+  if (!registrationId || !attendeeId) {
+    return NextResponse.json(
+      { error: "registrationId and attendeeId are required" },
+      { status: 400 },
+    )
+  }
+
+  const certificate = await issueAttendeeCertificate(tenantId, registrationId, attendeeId)
+
+  // Send WhatsApp delivery if requested
+  let whatsappDelivered = false
+  if (sendWhatsAppNotice && body.recipientPhone) {
+    try {
+      const msg =
+        `🎓 *Certificate of Completion — ${certificate.courseName}*\n\n` +
+        `Congratulations *${certificate.recipientName}*!\n\n` +
+        `Your official training credential has been generated and cryptographically verified:\n\n` +
+        `• *Credential ID:* ${certificate.id}\n` +
+        `• *Issue Date:* ${certificate.issueDate}\n` +
+        `• *Instructor:* ${certificate.trainerName}\n\n` +
+        `🔗 View & Download your Verifiable Certificate:\n` +
+        `${certificate.credentialUrl}\n\n` +
+        `We wish you continued professional excellence!`
+
+      const cleanPhone = body.recipientPhone.replace(/[^0-9+]/g, "")
+      const res = await sendWhatsApp({
+        to: cleanPhone,
+        body: msg,
+        allowOutsideSession: true,
+      })
+      whatsappDelivered = !!res?.success
+    } catch (waErr) {
+      console.warn("[training] Failed to send WhatsApp certificate notice:", waErr)
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    certificate,
+    whatsappDelivered,
+  })
+})

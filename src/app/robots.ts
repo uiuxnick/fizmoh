@@ -49,12 +49,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/llms.txt"],
+        allow: ["/", "/llms.txt", "/llms-full.txt"],
         disallow: DISALLOW,
       },
       ...aiSearchBots.map(bot => ({
         userAgent: bot,
-        allow: ["/", "/llms.txt"],
+        allow: ["/", "/llms.txt", "/llms-full.txt"],
         disallow: DISALLOW,
       })),
       {

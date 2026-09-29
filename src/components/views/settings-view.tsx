@@ -21,11 +21,12 @@ import {
   Shield, Building2, Clock, Percent, Phone, Languages,
   CheckCircle2, AlertTriangle, Lock, Copy, RefreshCw, ExternalLink,
   Sparkles, Zap, XCircle, KeyRound, Loader2, Plus, Trash2,
-  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send, ShoppingBag,
+  Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send, ShoppingBag, Pencil, Check, Boxes,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
 import EcommerceSettingsView from "@/components/views/ecommerce-settings-view"
+import { WorkspaceModulesManager } from "@/components/views/workspace-modules-manager"
 
 interface BankAccount {
   id: string
@@ -56,6 +57,203 @@ interface WhatsAppConfigState {
   live: boolean
   inboundReady: boolean
   webhookUrl: string
+}
+
+const CANNED_CATEGORIES = ["ALL", "GENERAL", "INFO", "BOOKING", "PAYMENT", "FOLLOW_UP", "COMPLAINT"]
+
+interface CannedItem { id: string; title: string; content: string; category?: string | null; shortcut?: string | null; isActive?: boolean }
+
+function CannedResponsesManager() {
+  const [items, setItems] = useState<CannedItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [catFilter, setCatFilter] = useState("ALL")
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editContent, setEditContent] = useState("")
+  const [editCat, setEditCat] = useState("GENERAL")
+  const [editShortcut, setEditShortcut] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [newTitle, setNewTitle] = useState("")
+  const [newContent, setNewContent] = useState("")
+  const [newCat, setNewCat] = useState("GENERAL")
+  const [newShortcut, setNewShortcut] = useState("")
+
+  const load = () => {
+    setLoading(true)
+    fetch("/api/canned-responses").then(r => r.json()).then(d => { setItems(d.responses || []); setLoading(false) }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const startEdit = (item: CannedItem) => {
+    setEditId(item.id); setEditTitle(item.title); setEditContent(item.content)
+    setEditCat(item.category || "GENERAL"); setEditShortcut(item.shortcut || "")
+  }
+
+  const saveEdit = async () => {
+    if (!editId) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/canned-responses/${editId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim(), content: editContent.trim(), category: editCat, shortcut: editShortcut.trim() || null }),
+      })
+      if (res.ok) { toast.success("Quick reply updated"); setEditId(null); load() }
+      else toast.error("Failed to save")
+    } finally { setBusy(false) }
+  }
+
+  const deleteItem = async (id: string) => {
+    if (!confirm("Remove this quick reply?")) return
+    setBusy(true)
+    try {
+      await fetch(`/api/canned-responses/${id}`, { method: "DELETE" })
+      toast.success("Quick reply removed"); load()
+    } finally { setBusy(false) }
+  }
+
+  const createNew = async () => {
+    if (!newTitle.trim() || !newContent.trim()) return
+    setBusy(true)
+    try {
+      const res = await fetch("/api/canned-responses", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim(), category: newCat, shortcut: newShortcut.trim() || null }),
+      })
+      if (res.ok) {
+        toast.success("Quick reply created")
+        setAdding(false); setNewTitle(""); setNewContent(""); setNewCat("GENERAL"); setNewShortcut(""); load()
+      } else toast.error("Failed to create")
+    } finally { setBusy(false) }
+  }
+
+  const filtered = catFilter === "ALL" ? items : items.filter(i => i.category === catFilter)
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Quick Replies · Canned Responses
+              </CardTitle>
+              <p className="text-xs text-stone-500 mt-0.5">Pre-written answers agents insert with <code className="bg-stone-100 px-1 rounded">/shortcut</code> or the ⚡ button in the inbox.</p>
+            </div>
+            <Button size="sm" onClick={() => setAdding(!adding)} className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Plus className="h-3.5 w-3.5" />{adding ? "Cancel" : "New Reply"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* New reply form */}
+          {adding && (
+            <div className="border rounded-xl p-4 bg-stone-50 space-y-3">
+              <div className="text-xs font-semibold text-stone-600 uppercase tracking-wide">New Quick Reply</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px]">Title *</Label>
+                  <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Refund Policy" className="mt-1 h-8 text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[11px]">Category</Label>
+                    <select value={newCat} onChange={e => setNewCat(e.target.value)} className="mt-1 w-full h-8 text-xs border rounded-md px-2 bg-white">
+                      {CANNED_CATEGORIES.filter(c => c !== "ALL").map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Shortcut</Label>
+                    <Input value={newShortcut} onChange={e => setNewShortcut(e.target.value)} placeholder="/greeting" className="mt-1 h-8 text-xs" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1"><Label className="text-[11px]">Message Content *</Label><span className="text-[10px] text-stone-400">{newContent.length} chars</span></div>
+                <textarea value={newContent} onChange={e => setNewContent(e.target.value)} rows={3} placeholder="Type the reply text here..." className="w-full text-xs p-2 border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+              </div>
+              <Button onClick={createNew} disabled={busy || !newTitle.trim() || !newContent.trim()} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+                <Check className="h-3.5 w-3.5" />{busy ? "Saving..." : "Create Quick Reply"}
+              </Button>
+            </div>
+          )}
+
+          {/* Category filter */}
+          <div className="flex flex-wrap gap-1.5">
+            {CANNED_CATEGORIES.map(c => (
+              <button key={c} onClick={() => setCatFilter(c)} className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${catFilter === c ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-500 hover:bg-stone-200"}`}>
+                {c === "ALL" ? `All (${items.length})` : `${c} (${items.filter(i => i.category === c).length})`}
+              </button>
+            ))}
+          </div>
+
+          {/* Items list */}
+          {loading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-stone-100 animate-pulse" />)}</div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-sm text-stone-400">No quick replies in this category.<br /><span className="text-xs">Click "New Reply" to create one.</span></div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map(item => (
+                <div key={item.id} className={`border rounded-xl p-3 transition-colors ${editId === item.id ? "border-amber-300 bg-amber-50" : "bg-white hover:border-stone-300"}`}>
+                  {editId === item.id ? (
+                    /* Inline edit mode */
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Title</Label>
+                          <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="mt-0.5 h-7 text-xs" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px]">Category</Label>
+                            <select value={editCat} onChange={e => setEditCat(e.target.value)} className="mt-0.5 w-full h-7 text-xs border rounded-md px-1.5 bg-white">
+                              {CANNED_CATEGORIES.filter(c => c !== "ALL").map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Shortcut</Label>
+                            <Input value={editShortcut} onChange={e => setEditShortcut(e.target.value)} placeholder="/greeting" className="mt-0.5 h-7 text-xs" />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-0.5"><Label className="text-[10px]">Content</Label><span className="text-[10px] text-stone-400">{editContent.length} chars</span></div>
+                        <textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={3} className="w-full text-xs p-2 border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit} disabled={busy} className="h-7 text-xs bg-amber-500 hover:bg-amber-600 text-white gap-1"><Check className="h-3 w-3" />{busy ? "Saving..." : "Save"}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="h-7 text-xs">Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* View mode */
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-semibold text-stone-800">{item.title}</span>
+                          {item.category && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">{item.category}</span>}
+                          {item.shortcut && <code className="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded">{item.shortcut}</code>}
+                        </div>
+                        <p className="text-xs text-stone-500 line-clamp-2">{item.content}</p>
+                        <div className="text-[10px] text-stone-300 mt-1">{item.content.length} chars</div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(item)} className="h-7 w-7 p-0 text-stone-400 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => deleteItem(item.id)} disabled={busy} className="h-7 w-7 p-0 text-stone-400 hover:text-rose-500"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 export default function SettingsView() {
@@ -321,6 +519,7 @@ export default function SettingsView() {
           {isPlatformAdmin ? (
             <>
               <TabsTrigger value="integrations" className="gap-1.5"><Plug className="h-3.5 w-3.5" />Platform Server Config</TabsTrigger>
+              <TabsTrigger value="modules" className="gap-1.5"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
               <TabsTrigger value="seo" className="gap-1.5"><Code2 className="h-3.5 w-3.5" />Analytics & SEO</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-1.5"><KeyRound className="h-3.5 w-3.5" />API Keys & Docs</TabsTrigger>
               <TabsTrigger value="compliance" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Compliance & Security</TabsTrigger>
@@ -328,6 +527,7 @@ export default function SettingsView() {
           ) : (
             <>
               <TabsTrigger data-tour="settings-business-profile" value="business" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
+              <TabsTrigger value="modules" className="gap-1.5"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
               <TabsTrigger value="google" className="gap-1.5"><Video className="h-3.5 w-3.5" />Google Calendar & Meet</TabsTrigger>
               <TabsTrigger value="website" className="gap-1.5"><Globe className="h-3.5 w-3.5" />Website & Domain</TabsTrigger>
               <TabsTrigger value="seo" className="gap-1.5"><Code2 className="h-3.5 w-3.5" />SEO & Integrations</TabsTrigger>
@@ -339,6 +539,7 @@ export default function SettingsView() {
               <TabsTrigger value="ai" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />AI</TabsTrigger>
               <TabsTrigger value="email" className="gap-1.5"><Mail className="h-3.5 w-3.5" />Email</TabsTrigger>
               <TabsTrigger data-tour="settings-notifications" value="notifications" className="gap-1.5"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
+              <TabsTrigger value="quick-replies" className="gap-1.5"><Zap className="h-3.5 w-3.5" />Quick Replies</TabsTrigger>
               <TabsTrigger value="compliance" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Compliance</TabsTrigger>
             </>
           )}
@@ -386,6 +587,16 @@ export default function SettingsView() {
                     className="mt-1 bg-white"
                     onBlur={e => saveSettings({ business_name: e.target.value })}
                   />
+                </div>
+                <div>
+                  <Label className="text-xs">AI Assistant Name (Persona Branding)</Label>
+                  <Input
+                    defaultValue={settings.assistant_name || ""}
+                    placeholder="e.g. EMADI Assistant, Nizwa, etc."
+                    className="mt-1 bg-white"
+                    onBlur={e => saveSettings({ assistant_name: e.target.value })}
+                  />
+                  <p className="text-[10px] text-stone-500 mt-0.5">The persona name your WhatsApp AI bot introduces itself with.</p>
                 </div>
                 <div>
                   <Label className="text-xs">Support phone</Label>
@@ -1008,9 +1219,10 @@ export default function SettingsView() {
             <CardHeader><CardTitle className="text-base">AI Assistant &amp; Automation</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {([
-                { key: "wa_bot_enabled", label: "AI Assistant Enabled", desc: "Najwa handles conversations automatically", def: true },
+                { key: "wa_bot_enabled", label: "AI Assistant Enabled", desc: "Automated AI assistant handles conversations and answers questions", def: true },
+                { key: "hardcoded_flows_enabled", label: "Hardcoded Bot Flows", desc: "Enable legacy built-in restaurant, waiter & tour scripts (Disable to use only AI Assistant & Dynamic Visual Flows)", def: false },
+                { key: "wa_flows_enabled", label: "Dynamic Bot Flows", desc: "Keyword and intent flows from Bot Builder answer before the AI", def: true },
                 { key: "ai_reschedule_enabled", label: "AI Booking Reschedule & Changes", desc: "Allow customers to reschedule tours directly via AI", def: true },
-                { key: "wa_flows_enabled", label: "Bot Flows", desc: "Keyword and intent flows answer before the AI", def: true },
                 { key: "wa_hours_enabled", label: "Auto-Reply Outside Hours", desc: "Send an away message when the business is closed", def: false },
                 { key: "wa_ai_always_on", label: "AI 24/7 Booking", desc: "Let the AI keep booking outside working hours", def: true },
                 { key: "wa_reminders_enabled", label: "Pre-Tour Reminders", desc: "24 hours before departure", def: true },
@@ -1024,7 +1236,18 @@ export default function SettingsView() {
                   </div>
                   <Switch
                     checked={settings[row.key] ?? row.def}
-                    onCheckedChange={v => saveSettings({ [row.key]: v })}
+                    onCheckedChange={v => {
+                      if (row.key === "wa_bot_enabled") {
+                        saveSettings({
+                          wa_bot_enabled: v,
+                          ai_assistant_enabled: v ? "true" : "false",
+                          bot_enabled: v ? "true" : "false",
+                          auto_reply_enabled: v ? "true" : "false",
+                        })
+                      } else {
+                        saveSettings({ [row.key]: v })
+                      }
+                    }}
                   />
                 </div>
               ))}
@@ -1352,6 +1575,27 @@ export default function SettingsView() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Modules & Feature Controls */}
+        <TabsContent value="modules" className="mt-4 space-y-4">
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-6 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <Boxes className="h-5 w-5 text-emerald-600" />
+                Workspace Modules &amp; Feature Controls
+              </h2>
+              <p className="text-xs text-stone-500 mt-1">
+                Enable or disable specific features entitled by your active plan or purchased add-ons. Turning off a module hides its navigation items without losing data.
+              </p>
+            </div>
+            <WorkspaceModulesManager />
+          </div>
+        </TabsContent>
+
+        {/* Quick Replies / Canned Responses Manager */}
+        <TabsContent value="quick-replies" className="mt-4">
+          <CannedResponsesManager />
         </TabsContent>
       </Tabs>
 

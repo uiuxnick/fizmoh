@@ -81,19 +81,28 @@ async function loadConfig(): Promise<{ config: AIConfig; source: AIConfigSource 
   // production.
   const envProvider = (process.env.AI_PROVIDER || "").toLowerCase()
   const dbProvider = (byKey.get(DB_KEYS.provider) || "").toLowerCase()
-  const provider: Provider =
+  const anthropicKey = byKey.get(DB_KEYS.anthropicKey) || process.env.ANTHROPIC_API_KEY || ""
+  const openaiKey = byKey.get(DB_KEYS.openaiKey) || process.env.OPENAI_API_KEY || ""
+
+  let provider: Provider =
     dbProvider === "openai" || dbProvider === "anthropic"
       ? (dbProvider as Provider)
       : envProvider === "openai" || envProvider === "anthropic"
         ? (envProvider as Provider)
-        : "anthropic"
+        : openaiKey && !anthropicKey
+          ? "openai"
+          : "anthropic"
+
+  // If selected provider has no key, but the alternate provider is configured, automatically fall back
+  if (provider === "anthropic" && !anthropicKey && openaiKey) {
+    provider = "openai"
+  } else if (provider === "openai" && !openaiKey && anthropicKey) {
+    provider = "anthropic"
+  }
 
   const envModel = process.env.AI_MODEL || ""
   const dbModel = byKey.get(DB_KEYS.model) || ""
   const model = dbModel || envModel || DEFAULT_MODELS[provider]
-
-  const anthropicKey = byKey.get(DB_KEYS.anthropicKey) || process.env.ANTHROPIC_API_KEY || ""
-  const openaiKey = byKey.get(DB_KEYS.openaiKey) || process.env.OPENAI_API_KEY || ""
 
   const config: AIConfig = { provider, model, anthropicKey, openaiKey }
   const source: AIConfigSource = {

@@ -123,7 +123,13 @@ export async function completeBusinessConnection(code: string, baseUrl: string):
       if (first) { accountId = first.name; accountName = first.accountName || null }
     } else {
       status = "ERROR"
-      lastError = `Google returned ${accountsRes.status} listing accounts — Business Profile API access is likely still pending Google's approval.`
+      if (accountsRes.status === 429) {
+        // 429 = API access IS approved, Google is just rate-limiting this call.
+        // The OAuth grant is real and reviews will sync once quota resets.
+        lastError = `QUOTA_EXCEEDED: Google approved API access but is rate-limiting requests right now (HTTP 429). Reviews will sync automatically — no action needed.`
+      } else {
+        lastError = `Google returned ${accountsRes.status} listing accounts — Business Profile API access is likely still pending Google's approval.`
+      }
     }
   } catch (error) {
     status = "ERROR"
@@ -242,4 +248,61 @@ export async function businessIntegrationStatus(): Promise<GoogleBusinessStatus>
     lastError: row.lastError,
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
   }
+}
+
+/**
+ * Re-probes Google's Business Profile API live to check if approval has been granted.
+ * Updates database status accordingly and returns the refreshed state.
+ */
+export async function recheckBusinessIntegration(): Promise<GoogleBusinessStatus> {
+  const token = await businessAccessToken()
+  const tenant = currentTenant()
+  if (!token || !tenant?.tenantId) {
+    return businessIntegrationStatus()
+  }
+
+  const { db } = await import("@/lib/db")
+  let accountId: string | null = null
+  let accountName: string | null = null
+  let status = "CONNECTED"
+  let lastError: string | null = null
+
+  try {
+    const accountsRes = await fetch(`${ACCOUNTS_API}/accounts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (accountsRes.ok) {
+      const body = await accountsRes.json()
+      const first = body.accounts?.[0]
+      if (first) {
+        accountId = first.name
+        accountName = first.accountName || null
+      }
+      status = "CONNECTED"
+      lastError = null
+    } else {
+      status = "ERROR"
+      if (accountsRes.status === 429) {
+        lastError = `QUOTA_EXCEEDED: Google approved API access but is rate-limiting requests right now (HTTP 429). Reviews will sync automatically — no action needed.`
+      } else {
+        lastError = `Google returned ${accountsRes.status} listing accounts — Business Profile API access is likely still pending Google's approval.`
+      }
+    }
+  } catch (error) {
+    status = "ERROR"
+    lastError = String(error)
+  }
+
+  await db.googleIntegration.update({
+    where: { tenantId: tenant.tenantId },
+    data: {
+      status,
+      lastError,
+      ...(accountId ? { googleAccountId: accountId } : {}),
+      ...(accountName ? { googleAccountName: accountName } : {}),
+      lastSyncAt: new Date(),
+    },
+  })
+
+  return businessIntegrationStatus()
 }

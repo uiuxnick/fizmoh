@@ -99,6 +99,31 @@ export const PUT = withErrors(async (request: NextRequest) => {
     body.custom_domain = domainVal
   }
 
+  // Synchronize AI/bot toggles so enabling AI Assistant updates all related flags consistently
+  if (body.wa_bot_enabled !== undefined || body.ai_assistant_enabled !== undefined || body.bot_enabled !== undefined) {
+    const val = body.wa_bot_enabled ?? body.ai_assistant_enabled ?? body.bot_enabled
+    const boolVal = typeof val === "boolean" ? val : String(val).toLowerCase() === "true" || String(val) === "1"
+    body.wa_bot_enabled = boolVal
+    body.ai_assistant_enabled = boolVal ? "true" : "false"
+    body.bot_enabled = boolVal ? "true" : "false"
+    body.auto_reply_enabled = boolVal ? "true" : "false"
+
+    if (boolVal && tenantId) {
+      // Re-enable bot on conversations where no human staff is assigned
+      await db.conversation.updateMany({
+        where: {
+          tenantId,
+          assignedStaffId: null,
+          botActive: false,
+        },
+        data: {
+          botActive: true,
+          automationPaused: false,
+        },
+      }).catch(() => {})
+    }
+  }
+
   for (const [key, value] of Object.entries(body)) {
     if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(key)) return NextResponse.json({ error: "Invalid setting key" }, { status: 400 })
     if (protectedWebsiteCode.has(key)) {

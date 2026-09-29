@@ -1455,37 +1455,58 @@ function Pricing({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {plans.length ? (
-          plans.map((plan) => {
+          plans.map((plan: any) => {
             const price = Math.round((annual ? plan.priceYearly : plan.priceMonthly) / 1000)
+            const isPopular = plan.slug === "growth" || plan.isPopular
+            const isEnterprise = plan.slug === "enterprise" || plan.isAllInclusive
+
+            const featuresList = isAr
+              ? (plan.featuresAr && plan.featuresAr.length > 0 ? plan.featuresAr : plan.modules.map((m: string) => m.replace(/_/g, " ")))
+              : (plan.featuresEn && plan.featuresEn.length > 0 ? plan.featuresEn : plan.modules.map((m: string) => m.replace(/_/g, " ")))
+
             return (
               <div
                 key={plan.id}
-                className="rounded-[16px] border border-[var(--mk-line)] bg-white p-6 sm:p-7 flex flex-col justify-between hover:border-[#1D1D1D] transition shadow-sm"
+                className={`relative rounded-[16px] border bg-white p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 shadow-xs hover:shadow-md ${
+                  isPopular
+                    ? "border-emerald-600 ring-2 ring-emerald-500/20"
+                    : isEnterprise
+                      ? "border-amber-400 ring-2 ring-amber-400/20 bg-gradient-to-b from-amber-500/[0.02] to-white"
+                      : "border-[var(--mk-line)] hover:border-stone-400"
+                }`}
               >
+                {/* Popular or Enterprise Tag */}
+                {isPopular && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white shadow-xs">
+                    {isAr ? "الأكثر طلباً وموصى به" : "Recommended • Most Popular"}
+                  </div>
+                )}
+                {isEnterprise && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-bold text-white shadow-xs">
+                    {isAr ? "شامل جميع الإضافات والمميزات" : "All Add-ons & Engines Included"}
+                  </div>
+                )}
+
                 <div>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[18px] font-bold text-[var(--mk-ink)]">{plan.name}</h3>
+                    <h3 className="text-[19px] font-bold text-[var(--mk-ink)]">{isAr && plan.nameAr ? plan.nameAr : plan.name}</h3>
                     <span className="px-2.5 py-1 rounded-[6px] bg-[#00E785]/20 text-[var(--mk-ink)] border border-[#00E785]/40 text-[11px] font-bold">
                       {isAr ? "تجربة 14 يوماً" : "14d Trial"}
                     </span>
                   </div>
-                  <p className="mt-2 text-[13px] text-[#717680] leading-relaxed">
-                    {plan.description || "Complete multi-tenant workspace with WhatsApp integration."}
+                  <p className="mt-2 text-[12.5px] text-[#717680] leading-relaxed line-clamp-2">
+                    {isAr && plan.descriptionAr ? plan.descriptionAr : plan.description || "Complete multi-tenant workspace with WhatsApp integration."}
                   </p>
                   <p className="mt-5 text-3xl sm:text-4xl font-extrabold text-[var(--mk-ink)]">
-                    {price === 0 ? "Free" : `${plan.currency} ${price}`}
+                    {price === 0 ? (isAr ? "مجاناً" : "Free") : `${plan.currency} ${price}`}
                     {price > 0 && (
                       <span className="text-[12px] font-normal text-[#717680]">
                         /{annual ? (isAr ? "سنة" : "yr") : isAr ? "شهر" : "mo"}
                       </span>
                     )}
                   </p>
-                  {/* What paying yearly is actually worth on this plan, from
-                      its own two prices. Silent when it saves nothing, because
-                      a plan whose yearly price is higher should not be
-                      advertising a discount. */}
                   {annual && (() => {
                     const twelve = plan.priceMonthly * 12
                     if (!twelve || !plan.priceYearly || plan.priceYearly >= twelve) return null
@@ -1497,94 +1518,106 @@ function Pricing({
                       </p>
                     )
                   })()}
+
                   {/* Plan Quotas & Assigned Limits */}
                   <div className="mt-5 pt-4 border-t border-[var(--mk-line)] space-y-2">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-[#717680]">
-                      {isAr ? "الحدود والحصص المخصصة" : "Included Quotas & Usage"}
+                      {isAr ? "الحدود والحصص المخصصة" : "Included Quotas & Limits"}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-[12px]">
                       {/* WhatsApp Messages */}
-                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2 border border-[var(--mk-line)]">
                         <div className="flex items-center gap-1.5 text-[#00B96A] font-bold">
                           <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">
-                            {plan.limits?.messagesPerMonth
+                            {plan.limits?.messagesPerMonth && plan.limits.messagesPerMonth > 0
                               ? `${plan.limits.messagesPerMonth.toLocaleString()}`
                               : isAr ? "غير محدود" : "Unlimited"}
                           </span>
                         </div>
-                        <div className="text-[10.5px] text-[#717680] mt-0.5">
-                          {isAr ? "رسائل واتساب / شهر" : "WhatsApp msgs / mo"}
+                        <div className="text-[10px] text-[#717680] mt-0.5 truncate">
+                          {isAr ? "رسائل / شهر" : "Messages / mo"}
                         </div>
                       </div>
 
                       {/* WhatsApp Numbers */}
-                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2 border border-[var(--mk-line)]">
                         <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
                           <Smartphone className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
                           <span className="truncate">
                             {plan.limits?.numbers
-                              ? `${plan.limits.numbers} ${isAr ? "أرقام" : plan.limits.numbers === 1 ? "Number" : "Numbers"}`
+                              ? `${plan.limits.numbers} ${isAr ? (plan.limits.numbers === 1 ? "رقم" : "أرقام") : plan.limits.numbers === 1 ? "Number" : "Numbers"}`
                               : isAr ? "أرقام متعددة" : "Multi-Number"}
                           </span>
                         </div>
-                        <div className="text-[10.5px] text-[#717680] mt-0.5">
+                        <div className="text-[10px] text-[#717680] mt-0.5 truncate">
                           {isAr ? "أرقام واتساب" : "WhatsApp numbers"}
                         </div>
                       </div>
 
                       {/* Staff Seats */}
-                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2 border border-[var(--mk-line)]">
                         <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
                           <Users className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
                           <span className="truncate">
-                            {plan.limits?.staff
+                            {plan.limits?.staff && plan.limits.staff > 0
                               ? `${plan.limits.staff} ${isAr ? "مقاعد" : "Seats"}`
                               : isAr ? "غير محدود" : "Unlimited"}
                           </span>
                         </div>
-                        <div className="text-[10.5px] text-[#717680] mt-0.5">
-                          {isAr ? "مقاعد الفريق" : "Team inbox seats"}
+                        <div className="text-[10px] text-[#717680] mt-0.5 truncate">
+                          {isAr ? "مقاعد الفريق" : "Agent seats"}
                         </div>
                       </div>
 
                       {/* Contacts Storage */}
-                      <div className="rounded-[8px] bg-[#F8F9FA] p-2.5 border border-[var(--mk-line)]">
+                      <div className="rounded-[8px] bg-[#F8F9FA] p-2 border border-[var(--mk-line)]">
                         <div className="flex items-center gap-1.5 text-[var(--mk-ink)] font-bold">
                           <UserCheck className="h-3.5 w-3.5 text-[#00B96A] shrink-0" />
                           <span className="truncate">
-                            {plan.limits?.contacts
+                            {plan.limits?.contacts && plan.limits.contacts > 0
                               ? `${plan.limits.contacts >= 1000 ? `${(plan.limits.contacts / 1000).toFixed(0)}k` : plan.limits.contacts}`
                               : isAr ? "غير محدود" : "Unlimited"}
                           </span>
                         </div>
-                        <div className="text-[10.5px] text-[#717680] mt-0.5">
-                          {isAr ? "جهات الاتصال" : "CRM contacts"}
+                        <div className="text-[10px] text-[#717680] mt-0.5 truncate">
+                          {isAr ? "المشتركين" : "Subscribers"}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <ul className="mt-5 space-y-2.5 border-t border-[var(--mk-line)] pt-5">
-                    {plan.modules.map((module) => (
-                      <li key={module} className="flex items-center gap-2 text-[13px] text-[var(--mk-ink)]">
-                        <Check className="h-4 w-4 text-[#00B96A] shrink-0" />
-                        <span>{module.replace(/_/g, " ")}</span>
+                  <ul className="mt-5 space-y-2 border-t border-[var(--mk-line)] pt-4 text-[12.5px]">
+                    {featuresList.slice(0, 8).map((feat: string, fIdx: number) => (
+                      <li key={fIdx} className="flex items-start gap-2 text-[var(--mk-ink)] leading-snug">
+                        <Check className="h-3.5 w-3.5 text-[#00B96A] shrink-0 mt-0.5" />
+                        <span className="line-clamp-1">{feat}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="pt-7">
-                  <Button className="w-full bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] text-[13px] font-bold rounded-[8px] h-10 border border-[#00B96A]/20" asChild><Link href={`/signup?plan=${plan.slug}`}>
-                      {isAr ? "ابدأ التجربة المجانية" : "Start 14-Day Free Trial"}
-                    </Link></Button>
+                <div className="pt-6">
+                  <Button
+                    className={`w-full text-[13px] font-bold rounded-[8px] h-10 transition cursor-pointer ${
+                      isPopular
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                        : isEnterprise
+                          ? "bg-stone-900 hover:bg-stone-800 text-amber-300 shadow-xs"
+                          : "bg-[#00E785] hover:bg-[#00B96A] text-[var(--mk-ink)] border border-[#00B96A]/20"
+                    }`}
+                    asChild
+                  >
+                    <Link href={`/signup?plan=${plan.slug}`}>
+                      {price === 0 ? (isAr ? "ابدأ مجاناً" : "Get Started Free") : (isAr ? "ابدأ التجربة 14 يوماً" : "Start 14-Day Free Trial")}
+                    </Link>
+                  </Button>
                 </div>
               </div>
             )
           })
         ) : (
-          <div className="rounded-[16px] border border-dashed border-[var(--mk-line)] bg-[#FAFAFA] p-10 text-center text-[13px] text-[#717680] lg:col-span-3">
+          <div className="rounded-[16px] border border-dashed border-[var(--mk-line)] bg-[#FAFAFA] p-10 text-center text-[13px] text-[#717680] md:col-span-2 xl:col-span-4">
             <Sparkles className="mx-auto h-6 w-6 text-[#00B96A] mb-2" />
             <p role="status">{plansError ? (isAr ? "تعذر تحميل الباقات. يرجى المحاولة مرة أخرى." : "Plans could not be loaded. Please try again.") : (isAr ? "جاري تحميل الباقات..." : "Loading plans catalogue...")}</p>
             {plansError && <Button type="button" variant="outline" onClick={onRetry} className="mt-4">{isAr ? "إعادة المحاولة" : "Retry"}</Button>}

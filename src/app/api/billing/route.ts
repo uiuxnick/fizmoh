@@ -30,9 +30,16 @@ function resolveOrigin(request: NextRequest): string {
 
 export const GET = withErrors(async () => {
   const tenant = currentTenant()
+  const { ALLOWED_PLAN_SLUGS } = await import("@/lib/official-plans")
+  const { ensureOfficialFourPlans } = await import("@/lib/official-plans-server")
+  await ensureOfficialFourPlans(db).catch(() => {})
+
   const [plans, gateways] = await Promise.all([
     db.plan.findMany({
-      where: { isPublic: true },
+      where: {
+        isPublic: true,
+        slug: { in: [...ALLOWED_PLAN_SLUGS] },
+      },
       orderBy: { sortOrder: "asc" },
     }),
     availablePlatformGateways(),

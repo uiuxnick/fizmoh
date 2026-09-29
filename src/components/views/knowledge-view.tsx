@@ -11,9 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 import {
   BookOpen, Search, Plus, Trash2, Globe, FileText, MessageCircleQuestion,
   Upload, Loader2, AlertTriangle, CheckCircle2, Link2, Eye, Pencil, Copy, ExternalLink,
+  MessageSquareQuote, Sparkles, Brain, Bot, Filter,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -36,7 +38,7 @@ interface Passage {
 }
 
 const TYPE_ICON: Record<string, React.ElementType> = {
-  TEXT: FileText, FILE: Upload, URL: Link2, SITE: Globe, FAQ: MessageCircleQuestion,
+  TEXT: FileText, FILE: Upload, URL: Link2, SITE: Globe, FAQ: MessageCircleQuestion, CONVERSATION: MessageSquareQuote,
 }
 const MATCH_STYLE: Record<string, string> = {
   both: "bg-emerald-100 text-emerald-700",
@@ -51,6 +53,9 @@ export default function KnowledgeView() {
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState("text")
+  const [filterType, setFilterType] = useState<string>("ALL")
+  const [autoLearn, setAutoLearn] = useState<boolean>(false)
+  const [loadingAutoLearn, setLoadingAutoLearn] = useState<boolean>(false)
 
   const [text, setText] = useState({ title: "", body: "" })
   const [faq, setFaq] = useState({ question: "", answer: "" })
@@ -73,7 +78,7 @@ export default function KnowledgeView() {
   const [editLoading, setEditLoading] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
 
-  const load = useCallback(() =>
+  const load = useCallback(() => {
     fetch("/api/knowledge")
       .then(r => r.json())
       .then(d => {
@@ -81,7 +86,35 @@ export default function KnowledgeView() {
         setTotals({ totalChunks: d.totalChunks || 0, embedded: d.embedded || 0 })
         setLoading(false)
       })
-      .catch(() => setLoading(false)), [])
+      .catch(() => setLoading(false))
+
+    fetch("/api/knowledge/auto-learn")
+      .then(r => r.json())
+      .then(d => {
+        if (typeof d.enabled === "boolean") setAutoLearn(d.enabled)
+      })
+      .catch(() => {})
+  }, [])
+
+  const toggleAutoLearn = async (checked: boolean) => {
+    setAutoLearn(checked)
+    setLoadingAutoLearn(true)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: checked }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update setting")
+      toast.success(checked ? "Auto-learning enabled: resolved chats will train AI automatically" : "Auto-learning disabled")
+    } catch (error) {
+      setAutoLearn(!checked)
+      toast.error(error instanceof Error ? error.message : "Failed to update auto-learn")
+    } finally {
+      setLoadingAutoLearn(false)
+    }
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -219,18 +252,39 @@ export default function KnowledgeView() {
     }
   }
 
+  const filteredSources = filterType === "ALL"
+    ? sources
+    : filterType === "CONVERSATION"
+      ? sources.filter(s => s.type === "CONVERSATION")
+      : sources.filter(s => s.type !== "CONVERSATION")
+
   return (
     <div className="flex h-full flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Knowledge base</h1>
           <Badge variant="secondary">{sources.length} sources</Badge>
           <Badge variant="outline">{totals.totalChunks} passages</Badge>
         </div>
-        <Button className="ml-auto" onClick={() => setAdding(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />Add content
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-1.5 shadow-2xs">
+            <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-semibold text-stone-800">Auto-train from chats</span>
+              <span className="text-[10px] text-stone-500">Learns policies & answers on resolve</span>
+            </div>
+            <Switch
+              checked={autoLearn}
+              disabled={loadingAutoLearn}
+              onCheckedChange={toggleAutoLearn}
+              className="ml-1 data-[state=checked]:bg-amber-600"
+            />
+          </div>
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />Add content
+          </Button>
+        </div>
       </div>
 
       {totals.totalChunks > 0 && totals.embedded < totals.totalChunks && (
@@ -244,22 +298,63 @@ export default function KnowledgeView() {
       )}
 
       <div className="grid flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_400px]">
-        <Card className="overflow-hidden">
-          <ScrollArea className="h-full">
+        <Card className="overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between border-b px-3 py-2 bg-stone-50/60">
+            <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+              <Button
+                variant={filterType === "ALL" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 text-xs px-2.5 font-medium"
+                onClick={() => setFilterType("ALL")}
+              >
+                All ({sources.length})
+              </Button>
+              <Button
+                variant={filterType === "CONVERSATION" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 text-xs px-2.5 font-medium gap-1 text-amber-900"
+                onClick={() => setFilterType("CONVERSATION")}
+              >
+                <Sparkles className="h-3 w-3 text-amber-600" />
+                Learned from Chats ({sources.filter(s => s.type === "CONVERSATION").length})
+              </Button>
+              <Button
+                variant={filterType === "MANUAL" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 text-xs px-2.5 font-medium"
+                onClick={() => setFilterType("MANUAL")}
+              >
+                Files & Pages ({sources.filter(s => s.type !== "CONVERSATION").length})
+              </Button>
+            </div>
+          </div>
+          <ScrollArea className="flex-1">
             {loading ? (
               <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-            ) : sources.length === 0 ? (
+            ) : filteredSources.length === 0 ? (
               <div className="space-y-2 p-10 text-center">
-                <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
-                <p className="text-sm font-medium">Nothing indexed yet</p>
-                <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-                  Until you add something, the assistant can only answer from tours and bookings.
-                  Ask it about your cancellation policy and it will guess. Add that policy here and it will quote it.
-                </p>
+                {filterType === "CONVERSATION" ? (
+                  <>
+                    <Sparkles className="mx-auto h-10 w-10 text-amber-500/50" />
+                    <p className="text-sm font-medium">No chat learnings yet</p>
+                    <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                      Click &ldquo;Train AI&rdquo; in any conversation toolbar in the Team Inbox, or turn on &ldquo;Auto-train from chats&rdquo; above.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">Nothing indexed yet</p>
+                    <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                      Until you add something, the assistant can only answer from tours and bookings.
+                      Ask it about your cancellation policy and it will guess. Add that policy here and it will quote it.
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="divide-y">
-                {sources.map(source => {
+                {filteredSources.map(source => {
                   const Icon = TYPE_ICON[source.type] || FileText
                   return (
                     <div key={source.id} className="flex items-center gap-3 p-3">
@@ -267,6 +362,12 @@ export default function KnowledgeView() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium">{source.title}</span>
+                          {source.type === "CONVERSATION" && (
+                            <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-normal">
+                              <Sparkles className="h-2.5 w-2.5 text-amber-600" />
+                              Chat Learn
+                            </Badge>
+                          )}
                           {source.status === "INDEXING" && (
                             <Badge variant="outline" className="gap-1 bg-sky-50 text-sky-700">
                               <Loader2 className="h-2.5 w-2.5 animate-spin" />working

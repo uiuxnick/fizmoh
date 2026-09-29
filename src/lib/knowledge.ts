@@ -326,25 +326,11 @@ const ARABIC = /[؀-ۿ]/
  * passage that both methods rank highly finishes above one that only a single
  * method loved, which is the behaviour we want.
  */
-export async function searchKnowledge(query: string, limit = 5): Promise<Passage[]> {
+export async function searchKnowledge(query: string, limit = 5, tenantIdOverride?: string | null): Promise<Passage[]> {
   const cleaned = query.trim()
   if (cleaned.length < 2) return []
 
-  /*
-   * One business's knowledge, never another's.
-   *
-   * The keyword half of this search is raw SQL, and raw SQL goes straight to
-   * the database — the scoped client cannot narrow what it never sees. So the
-   * ranking ran across every tenant's chunks at once, and the passages handed
-   * to the assistant could come from a different business entirely. The table
-   * is empty today, which is the only reason this has not already put one
-   * customer's internal documents in front of another's.
-   *
-   * Refused outright without a workspace rather than searching everything:
-   * an assistant with no idea whose customer it is answering has nothing
-   * useful to say.
-   */
-  const tenantId = currentTenant()?.tenantId
+  const tenantId = tenantIdOverride || currentTenant()?.tenantId
   if (!tenantId) return []
 
   const config = ARABIC.test(cleaned) ? "arabic" : "english"
@@ -436,10 +422,10 @@ export async function searchKnowledge(query: string, limit = 5): Promise<Passage
 }
 
 /** Whether this workspace has anything to search. */
-export async function knowledgeReady(): Promise<boolean> {
+export async function knowledgeReady(tenantIdOverride?: string | null): Promise<boolean> {
   // Scoped explicitly: unscoped, this answered "yes" to a business with no
   // documents because some other business had uploaded some.
-  const tenantId = currentTenant()?.tenantId
+  const tenantId = tenantIdOverride || currentTenant()?.tenantId
   if (!tenantId) return false
   return (await db.knowledgeChunk.count({ where: { tenantId } })) > 0
 }

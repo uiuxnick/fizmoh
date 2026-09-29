@@ -6,14 +6,31 @@
 (function () {
   if (window.__FIZMOH_WIDGET_LOADED__) return;
 
-  // Do not render floating visitor widget inside the admin dashboard or platform panel
-  if (
-    typeof window !== "undefined" &&
-    (window.location.pathname.startsWith("/dashboard") ||
-     window.location.pathname.startsWith("/platform") ||
-     window.location.pathname.startsWith("/admin"))
-  ) {
-    return;
+  // Do not render floating visitor widget inside iframes, personal vCards, or admin panels
+  if (typeof window !== "undefined") {
+    try {
+      if (window.self !== window.top) {
+        return;
+      }
+    } catch (e) {
+      return;
+    }
+
+    const path = window.location.pathname || "";
+    if (
+      path.startsWith("/dashboard") ||
+      path.startsWith("/platform") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/card") ||
+      path.startsWith("/vcard") ||
+      path.startsWith("/design") ||
+      path.startsWith("/order") ||
+      path.startsWith("/menu") ||
+      path.startsWith("/r/") ||
+      (window.location.search && window.location.search.includes("embed=true"))
+    ) {
+      return;
+    }
   }
 
   window.__FIZMOH_WIDGET_LOADED__ = true;
@@ -51,6 +68,24 @@
 
   // Mount to body safely after React finishes initial hydration
   function mountHost() {
+    if (typeof window !== "undefined") {
+      try {
+        if (window.self !== window.top) return;
+      } catch (e) {
+        return;
+      }
+      const p = window.location.pathname || "";
+      if (
+        p.startsWith("/card") ||
+        p.startsWith("/vcard") ||
+        p.startsWith("/dashboard") ||
+        p.startsWith("/platform") ||
+        p.startsWith("/admin") ||
+        (window.location.search && window.location.search.includes("embed=true"))
+      ) {
+        return;
+      }
+    }
     if (!document.getElementById("fizmoh-chat-widget-root") && document.body) {
       document.body.appendChild(host);
     }
@@ -890,6 +925,36 @@
         }
         .fzm-handoff-btn:hover { background: #fcd34d; }
 
+        /* WhatsApp Continuity Handoff */
+        .fzm-wa-continuity {
+          padding: 8px 12px;
+          background: #f0fdf4;
+          border-top: 1px solid #bbf7d0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 11px;
+          color: #166534;
+        }
+        .fzm-wa-continuity-btn {
+          background: #25d366;
+          color: #ffffff;
+          border: none;
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 11px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          flex-shrink: 0;
+          transition: background 0.15s ease;
+        }
+        .fzm-wa-continuity-btn:hover { background: #128c7e; }
+        .fzm-wa-continuity-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
         /* Composer */
         .fzm-composer {
           padding: 12px;
@@ -1054,6 +1119,19 @@
               <div class="fzm-typing-dot"></div>
             </div>
             <p class="fzm-error" role="alert">${escapeHtml(state.error)}</p>
+            ${
+              config.whatsappEnabled
+                ? `
+              <div class="fzm-wa-continuity">
+                <span>💬 Prefer WhatsApp on mobile?</span>
+                <button type="button" class="fzm-wa-continuity-btn" title="Continue chat on WhatsApp">
+                  <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM16.56 14.37C16.31 14.25 15.09 13.65 14.86 13.56C14.63 13.48 14.47 13.44 14.3 13.69C14.14 13.94 13.67 14.49 13.53 14.65C13.38 14.82 13.24 14.84 12.99 14.71C12.74 14.59 11.95 14.33 11.01 13.49C10.28 12.84 9.78 12.03 9.64 11.78C9.5 11.53 9.62 11.4 9.75 11.27C9.86 11.16 10 10.98 10.12 10.84C10.25 10.7 10.29 10.59 10.37 10.43C10.45 10.26 10.41 10.12 10.35 10C10.29 9.88 9.79 8.65 9.59 8.14C9.39 7.65 9.18 7.72 9.03 7.71C8.89 7.7 8.72 7.7 8.56 7.7C8.39 7.7 8.12 7.76 7.89 8.01C7.66 8.26 7.02 8.86 7.02 10.08C7.02 11.3 7.91 12.47 8.03 12.64C8.16 12.81 9.77 15.28 12.24 16.35C12.83 16.6 13.28 16.75 13.64 16.87C14.23 17.06 14.77 17.03 15.2 16.97C15.68 16.9 16.67 16.37 16.88 15.79C17.08 15.22 17.08 14.73 17.02 14.63C16.96 14.53 16.81 14.49 16.56 14.37Z"/></svg>
+                  <span>WhatsApp</span>
+                </button>
+              </div>
+            `
+                : ""
+            }
             <div class="fzm-composer">
               <input type="text" class="fzm-input" aria-label="Support message" maxlength="4000" placeholder="Type a message..." />
               <button class="fzm-send-btn" title="Send message">
@@ -1134,6 +1212,20 @@
         window.open(waUrl, "_blank", "noopener,noreferrer");
       };
     }
+
+    // Continue on WhatsApp Continuity Action
+    const waContinuityBtn = shadow.querySelector(".fzm-wa-continuity-btn");
+    if (waContinuityBtn) {
+      waContinuityBtn.onclick = () => {
+        const cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
+        const namePart = state.visitorName ? `My name is ${state.visitorName}. ` : "";
+        const refPart = state.reference ? `(Ref: ${state.reference}) ` : "";
+        const greeting = `Hello! ${namePart}${refPart}I was chatting on your website and would like to continue our conversation here.`;
+        const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(greeting)}`;
+        window.open(waUrl, "_blank", "noopener,noreferrer");
+      };
+    }
+
 
     // Lead Form Submission
     const leadForm = shadow.querySelector(".fzm-lead-form");

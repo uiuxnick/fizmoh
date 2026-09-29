@@ -7,6 +7,8 @@ import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 import { FeatureRequestForm } from "@/components/resources/feature-request-form"
 import { BugReportForm } from "@/components/resources/bug-report-form"
 import { TicketTracker } from "@/components/resources/ticket-tracker"
+import { TelegramResourceView } from "@/components/resources/telegram-resource-view"
+import { WebsiteChatResourceView } from "@/components/resources/website-chat-resource-view"
 
 export function generateStaticParams() {
   return RESOURCE_PAGES.map(({ slug }) => ({ slug }))
@@ -130,6 +132,10 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
             <TicketTracker />
           </div>
         )}
+
+        {slug === "telegram" && <TelegramResourceView />}
+
+        {slug === "website-chat" && <WebsiteChatResourceView />}
 
         <div className="mt-16">
           <h3 className="text-lg font-bold text-stone-900 mb-6">

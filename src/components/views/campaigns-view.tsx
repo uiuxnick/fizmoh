@@ -521,6 +521,7 @@ function NewCampaignDialog({
   const [scheduledAt, setScheduledAt] = useState("")
   const [saving, setSaving] = useState(false)
   const [labels, setLabels] = useState<{ name: string; customers: number }[]>([])
+  const [segments, setSegments] = useState<any[]>([])
   const [audienceLabel, setAudienceLabel] = useState("")
   const [audience, setAudience] = useState<{ count: number; totalReachable: number; sample: { id: string; name: string | null; phone: string }[] } | null>(null)
   const [countingAudience, setCountingAudience] = useState(false)
@@ -551,12 +552,26 @@ function NewCampaignDialog({
 
   useEffect(() => {
     fetch("/api/labels").then(r => r.json()).then(d => setLabels(d.labels || [])).catch(() => {})
+    fetch("/api/segments").then(r => r.json()).then(d => setSegments(d.segments || [])).catch(() => {})
   }, [])
 
   useEffect(() => {
     let cancelled = false
     setCountingAudience(true)
-    const rules = audienceLabel ? [{ field: "tag", op: "contains", value: audienceLabel }] : []
+    let rules: any[] = []
+    if (audienceLabel.startsWith("seg:")) {
+      const segId = audienceLabel.replace("seg:", "")
+      const foundSeg = segments.find(s => s.id === segId)
+      if (foundSeg) {
+        rules = foundSeg.parsedRules || (typeof foundSeg.filterRules === "string" ? JSON.parse(foundSeg.filterRules) : foundSeg.filterRules) || []
+      }
+    } else if (audienceLabel.startsWith("label:")) {
+      const tagVal = audienceLabel.replace("label:", "")
+      rules = [{ field: "tag", op: "contains", value: tagVal }]
+    } else if (audienceLabel && audienceLabel !== "__all") {
+      rules = [{ field: "tag", op: "contains", value: audienceLabel }]
+    }
+
     fetch("/api/campaigns/audience", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -567,7 +582,7 @@ function NewCampaignDialog({
       .catch(() => { if (!cancelled) setAudience(null) })
       .finally(() => { if (!cancelled) setCountingAudience(false) })
     return () => { cancelled = true }
-  }, [channel, audienceLabel])
+  }, [channel, audienceLabel, segments])
 
   const selectedTemplate = templates.find((t: { id: string }) => t.id === templateId)
 
@@ -621,14 +636,17 @@ function NewCampaignDialog({
     setSaving(true)
     try {
       let segmentId: string | undefined
-      if (audienceLabel) {
+      if (audienceLabel.startsWith("seg:")) {
+        segmentId = audienceLabel.replace("seg:", "")
+      } else if (audienceLabel && audienceLabel !== "__all") {
+        const tagVal = audienceLabel.startsWith("label:") ? audienceLabel.replace("label:", "") : audienceLabel
         const segRes = await fetch("/api/segments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: `Label: ${audienceLabel}`,
+            name: `Label: ${tagVal}`,
             channel,
-            filterRules: [{ field: "tag", op: "contains", value: audienceLabel }],
+            filterRules: [{ field: "tag", op: "contains", value: tagVal }],
           }),
         })
         if (segRes.ok) segmentId = (await segRes.json()).segment?.id
@@ -796,11 +814,30 @@ function NewCampaignDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all">Everyone who has opted in (Broadcast list)</SelectItem>
-                    {labels.map(l => (
-                      <SelectItem key={l.name} value={l.name}>
-                        🏷️ {l.name} · {l.customers} contacts
-                      </SelectItem>
-                    ))}
+                    {segments.length > 0 && (
+                      <>
+                        <div className="px-2 py-1 text-[10px] font-bold text-purple-700 uppercase tracking-wider bg-purple-50/60 mt-1">
+                          ⚡ Smart Dynamic Segments
+                        </div>
+                        {segments.map(s => (
+                          <SelectItem key={s.id} value={`seg:${s.id}`}>
+                            ⚡ {s.name} ({s.contactCount ?? 0} contacts)
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    {labels.length > 0 && (
+                      <>
+                        <div className="px-2 py-1 text-[10px] font-bold text-stone-500 uppercase tracking-wider bg-stone-50 mt-1">
+                          🏷️ Subscriber Labels
+                        </div>
+                        {labels.map(l => (
+                          <SelectItem key={l.name} value={`label:${l.name}`}>
+                            🏷️ {l.name} · {l.customers} contacts
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

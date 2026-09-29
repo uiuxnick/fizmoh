@@ -146,8 +146,8 @@
   /* Stone and gold. Warm neutrals read as considered rather than default-blue
      SaaS, and the gold carries the region without resorting to clip art. */
   --mk-ink: #0C0A09;
-  --mk-ink-soft: #44403C;
-  --mk-muted: #78716C;
+  --mk-ink-soft: #292524;
+  --mk-muted: #57534E;
   --mk-line: #E7E5E4;
   --mk-surface: #FFFFFF;
   --mk-surface-2: #FAFAF9;

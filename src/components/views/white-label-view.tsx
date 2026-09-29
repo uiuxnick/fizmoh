@@ -207,20 +207,20 @@ export default function WhiteLabelView() {
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
               <Building2 className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
                 Agency White-Label Reseller Portal
-                <Badge variant="outline" className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-xs">
+                <Badge variant="outline" className="text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-xs font-semibold">
                   Reseller Portal
                 </Badge>
               </h1>
-              <p className="text-xs md:text-sm text-slate-400">
+              <p className="text-xs md:text-sm text-stone-500 dark:text-stone-400">
                 Custom agency branding, client sub-workspaces, custom domain mapping and retail client billing.
               </p>
             </div>
@@ -233,7 +233,7 @@ export default function WhiteLabelView() {
             size="sm"
             onClick={loadData}
             disabled={loading}
-            className="border-slate-700 hover:bg-slate-800 text-slate-300"
+            className="border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300"
           >
             <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
             Refresh
@@ -241,7 +241,7 @@ export default function WhiteLabelView() {
           <Button
             onClick={() => setCreateModalOpen(true)}
             size="sm"
-            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-sm"
+            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-xs"
           >
             <Plus className="h-4 w-4 mr-1" />
             Create Client Workspace
@@ -251,15 +251,15 @@ export default function WhiteLabelView() {
 
       {/* Plan Status Notice (if not entitled or on trial) */}
       {!entitled && (
-        <Card className="border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-slate-900/60 text-amber-200">
+        <Card className="border-amber-300 dark:border-amber-500/40 bg-amber-50/70 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200">
           <CardContent className="p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-white text-sm">
+                <h3 className="font-semibold text-stone-900 dark:text-white text-sm">
                   Agency White-Label Add-on ($49/mo or Enterprise Plan)
                 </h3>
-                <p className="text-xs text-amber-200/80 mt-0.5">
+                <p className="text-xs text-amber-800/90 dark:text-amber-200/80 mt-0.5">
                   Launch sub-accounts for your clients, remove all platform branding, map your own agency portal domain (e.g. <code>clients.youragency.com</code>), and bill your clients at your own markup.
                 </p>
               </div>
@@ -278,53 +278,53 @@ export default function WhiteLabelView() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="bg-[#111927] border-slate-800">
+        <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Sub-Workspaces</p>
-              <h4 className="text-xl font-bold text-white mt-1">{subWorkspaces.length}</h4>
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Sub-Workspaces</p>
+              <h4 className="text-2xl font-bold text-stone-900 dark:text-white mt-1">{subWorkspaces.length}</h4>
             </div>
-            <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
               <Building2 className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#111927] border-slate-800">
+        <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Active Clients</p>
-              <h4 className="text-xl font-bold text-white mt-1">
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Active Clients</p>
+              <h4 className="text-2xl font-bold text-stone-900 dark:text-white mt-1">
                 {subWorkspaces.filter(w => w.status === "ACTIVE").length}
               </h4>
             </div>
-            <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
               <CheckCircle2 className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#111927] border-slate-800">
+        <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Agency Portal Domain</p>
-              <h4 className="text-xs font-semibold text-slate-200 mt-1 truncate">
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Agency Portal Domain</p>
+              <h4 className="text-xs font-semibold text-stone-800 dark:text-stone-200 mt-1 truncate">
                 {branding.customDomain || "Not mapped"}
               </h4>
             </div>
-            <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20">
               <Globe className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#111927] border-slate-800">
+        <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 shadow-xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Client Price Markup</p>
-              <h4 className="text-xl font-bold text-emerald-400 mt-1">+{branding.marginPercentage}%</h4>
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">Client Price Markup</p>
+              <h4 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">+{branding.marginPercentage}%</h4>
             </div>
-            <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
               <DollarSign className="h-5 w-5" />
             </div>
           </CardContent>
@@ -333,16 +333,16 @@ export default function WhiteLabelView() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="clients" className="w-full space-y-5">
-        <TabsList className="bg-[#111927] border border-slate-800 p-1 w-full sm:w-auto grid grid-cols-3">
-          <TabsTrigger value="clients" className="flex items-center gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 text-xs font-semibold">
+        <TabsList className="bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 p-1 w-full sm:w-auto grid grid-cols-3 rounded-xl">
+          <TabsTrigger value="clients" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-900 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-400 text-stone-600 dark:text-stone-300 text-xs font-semibold rounded-lg shadow-xs transition-all">
             <Users className="h-3.5 w-3.5" />
             Client Sub-Workspaces ({subWorkspaces.length})
           </TabsTrigger>
-          <TabsTrigger value="branding" className="flex items-center gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 text-xs font-semibold">
+          <TabsTrigger value="branding" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-900 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-400 text-stone-600 dark:text-stone-300 text-xs font-semibold rounded-lg shadow-xs transition-all">
             <Palette className="h-3.5 w-3.5" />
             Agency Brand & Identity
           </TabsTrigger>
-          <TabsTrigger value="domain" className="flex items-center gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 text-xs font-semibold">
+          <TabsTrigger value="domain" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-stone-900 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-400 text-stone-600 dark:text-stone-300 text-xs font-semibold rounded-lg shadow-xs transition-all">
             <Globe className="h-3.5 w-3.5" />
             Dedicated Agency Domain
           </TabsTrigger>
@@ -350,21 +350,21 @@ export default function WhiteLabelView() {
 
         {/* Tab 1: Client Sub-Workspaces */}
         <TabsContent value="clients" className="space-y-4">
-          <Card className="bg-[#111927] border-slate-800 text-slate-100">
+          <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-amber-400" />
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900 dark:text-white">
+                  <Building2 className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   Your Client Sub-Workspaces
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardDescription className="text-xs text-stone-500 dark:text-stone-400">
                   Direct master access into each of your client accounts. One-click switch into any client dashboard.
                 </CardDescription>
               </div>
               <Button
                 onClick={() => setCreateModalOpen(true)}
                 size="sm"
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold"
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-xs"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 Add Client
@@ -372,13 +372,13 @@ export default function WhiteLabelView() {
             </CardHeader>
             <CardContent>
               {subWorkspaces.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl space-y-3">
-                  <div className="mx-auto w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                <div className="text-center py-12 border border-dashed border-stone-200 dark:border-stone-800 rounded-xl space-y-3 bg-stone-50/50 dark:bg-stone-900/50">
+                  <div className="mx-auto w-10 h-10 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-400">
                     <Users className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">No Client Sub-Workspaces Yet</h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                    <h4 className="text-sm font-semibold text-stone-900 dark:text-white">No Client Sub-Workspaces Yet</h4>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto mt-1">
                       Create an isolated workspace for your client with their own WhatsApp numbers, CRM, and team seats.
                     </p>
                   </div>
@@ -386,7 +386,7 @@ export default function WhiteLabelView() {
                     onClick={() => setCreateModalOpen(true)}
                     variant="outline"
                     size="sm"
-                    className="border-slate-700 text-slate-200 text-xs"
+                    className="border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 text-xs"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
                     Create First Client Workspace
@@ -401,18 +401,18 @@ export default function WhiteLabelView() {
                         "p-4 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-all",
                         ws.isCurrent
                           ? "bg-amber-500/10 border-amber-500/30"
-                          : "bg-slate-900/70 border-slate-800 hover:border-slate-700"
+                          : "bg-stone-50/70 dark:bg-stone-800/40 border-stone-200 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700"
                       )}
                     >
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">{ws.name}</span>
+                          <span className="font-bold text-sm text-stone-900 dark:text-white">{ws.name}</span>
                           {ws.isCurrent && (
                             <Badge className="bg-amber-500 text-slate-950 font-bold text-[10px] px-1.5">
                               CURRENT ACTIVE
                             </Badge>
                           )}
-                          <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">
+                          <Badge variant="outline" className="text-[10px] border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400">
                             {ws.planName} Plan
                           </Badge>
                           <Badge
@@ -420,17 +420,17 @@ export default function WhiteLabelView() {
                             className={cn(
                               "text-[10px] px-1.5",
                               ws.status === "ACTIVE"
-                                ? "text-emerald-400 border-emerald-500/30"
-                                : "text-amber-400 border-amber-500/30"
+                                ? "text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10"
+                                : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10"
                             )}
                           >
                             {ws.status}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-400">
-                          <span className="font-mono text-slate-300">{ws.slug}.fizmoh.cloud</span>
+                        <div className="flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
+                          <span className="font-mono text-stone-700 dark:text-stone-300">{ws.slug}.fizmoh.cloud</span>
                           {ws.customDomain && (
-                            <span className="text-emerald-400 font-mono flex items-center gap-1">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
                               <Globe className="h-3 w-3" /> {ws.customDomain}
                             </span>
                           )}
@@ -438,13 +438,13 @@ export default function WhiteLabelView() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end pt-2 md:pt-0 border-t md:border-t-0 border-stone-200 dark:border-stone-800">
                         {ws.isCurrent ? (
                           <Button
                             size="sm"
                             variant="outline"
                             disabled
-                            className="border-amber-500/40 text-amber-400 text-xs h-8"
+                            className="border-amber-500/40 text-amber-600 dark:text-amber-400 text-xs h-8"
                           >
                             Currently Inside Workspace
                           </Button>
@@ -453,9 +453,9 @@ export default function WhiteLabelView() {
                             size="sm"
                             onClick={() => handleSwitchWorkspace(ws.slug)}
                             disabled={switchingSlug === ws.slug}
-                            className="bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs h-8 border border-slate-700"
+                            className="bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-white font-medium text-xs h-8 border border-stone-200 dark:border-stone-700"
                           >
-                            <ExternalLink className="h-3 w-3 mr-1 text-amber-400" />
+                            <ExternalLink className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />
                             {switchingSlug === ws.slug ? "Switching..." : "Open Workspace"}
                           </Button>
                         )}
@@ -472,101 +472,101 @@ export default function WhiteLabelView() {
         <TabsContent value="branding" className="space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-5">
-              <Card className="bg-[#111927] border-slate-800 text-slate-100">
+              <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xs">
                 <CardHeader>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Palette className="h-5 w-5 text-amber-400" />
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900 dark:text-white">
+                    <Palette className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     White-Label Portal Identity
                   </CardTitle>
-                  <CardDescription className="text-xs text-slate-400">
+                  <CardDescription className="text-xs text-stone-500 dark:text-stone-400">
                     Replace Fizmoh branding with your agency name, logo, support channels and custom primary colors.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Agency Legal / Brand Name</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Agency Legal / Brand Name</Label>
                       <Input
                         value={branding.agencyName}
                         onChange={e => setBranding(prev => ({ ...prev, agencyName: e.target.value }))}
-                        className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                        className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Client Portal Page Title</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Client Portal Page Title</Label>
                       <Input
                         value={branding.portalTitle}
                         onChange={e => setBranding(prev => ({ ...prev, portalTitle: e.target.value }))}
-                        className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                        className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-300">Agency Logo Image URL</Label>
+                    <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Agency Logo Image URL</Label>
                     <Input
                       placeholder="https://youragency.com/assets/logo-white.png"
                       value={branding.logoUrl}
                       onChange={e => setBranding(prev => ({ ...prev, logoUrl: e.target.value }))}
-                      className="bg-slate-900 border-slate-700 text-xs font-mono text-slate-200"
+                      className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-900 dark:text-stone-100"
                     />
-                    <p className="text-[11px] text-slate-400">Recommended: Transparent PNG or SVG, 240x60px.</p>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400">Recommended: Transparent PNG or SVG, 240x60px.</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Primary Brand Accent Color</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Primary Brand Accent Color</Label>
                       <div className="flex gap-2 items-center">
                         <input
                           type="color"
                           value={branding.primaryColor}
                           onChange={e => setBranding(prev => ({ ...prev, primaryColor: e.target.value }))}
-                          className="h-9 w-12 rounded cursor-pointer bg-slate-900 border border-slate-700 p-0.5"
+                          className="h-9 w-12 rounded-lg cursor-pointer bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-0.5"
                         />
                         <Input
                           value={branding.primaryColor}
                           onChange={e => setBranding(prev => ({ ...prev, primaryColor: e.target.value }))}
-                          className="bg-slate-900 border-slate-700 font-mono text-xs text-slate-200 uppercase"
+                          className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 font-mono text-xs text-stone-900 dark:text-stone-100 uppercase"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Client Support Email</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Client Support Email</Label>
                       <Input
                         placeholder="help@youragency.com"
                         value={branding.supportEmail}
                         onChange={e => setBranding(prev => ({ ...prev, supportEmail: e.target.value }))}
-                        className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                        className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Support WhatsApp Number</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Support WhatsApp Number</Label>
                       <Input
                         placeholder="+96891234567"
                         value={branding.supportPhone}
                         onChange={e => setBranding(prev => ({ ...prev, supportPhone: e.target.value }))}
-                        className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                        className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300">Custom Footer Copyright Text</Label>
+                      <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Custom Footer Copyright Text</Label>
                       <Input
                         value={branding.footerText}
                         onChange={e => setBranding(prev => ({ ...prev, footerText: e.target.value }))}
-                        className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                        className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                  <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
                     <div>
-                      <Label className="text-xs font-semibold text-slate-200 block">Hide Fizmoh Platform Branding</Label>
-                      <p className="text-[11px] text-slate-400">Erases references to Fizmoh in headers, footers and emails.</p>
+                      <Label className="text-xs font-semibold text-stone-900 dark:text-stone-100 block">Hide Fizmoh Platform Branding</Label>
+                      <p className="text-[11px] text-stone-500 dark:text-stone-400">Erases references to Fizmoh in headers, footers and emails.</p>
                     </div>
                     <Switch
                       checked={branding.hideFizmohBranding}
@@ -580,7 +580,7 @@ export default function WhiteLabelView() {
                     <Button
                       onClick={saveBranding}
                       disabled={saving}
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs"
                     >
                       {saving ? "Saving..." : "Save Branding Settings"}
                     </Button>
@@ -591,17 +591,17 @@ export default function WhiteLabelView() {
 
             {/* Live Preview Card */}
             <div>
-              <Card className="bg-[#111927] border-slate-800 text-slate-200">
+              <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-800 dark:text-stone-200 shadow-xs">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-amber-400" />
+                  <CardTitle className="text-sm font-bold text-stone-900 dark:text-white flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     Client Portal Mockup Preview
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="rounded-xl border border-slate-700 bg-slate-950 p-4 space-y-4">
+                  <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 p-4 space-y-4">
                     {/* Simulated Topbar */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
                       <div className="flex items-center gap-2">
                         {branding.logoUrl ? (
                           <img src={branding.logoUrl} alt="Logo" className="h-6 object-contain" />
@@ -613,19 +613,19 @@ export default function WhiteLabelView() {
                             {branding.agencyName.slice(0, 3).toUpperCase()}
                           </div>
                         )}
-                        <span className="text-xs font-bold text-white">{branding.agencyName}</span>
+                        <span className="text-xs font-bold text-stone-900 dark:text-white">{branding.agencyName}</span>
                       </div>
-                      <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-400">
+                      <Badge variant="outline" className="text-[9px] border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-transparent">
                         ONLINE
                       </Badge>
                     </div>
 
                     {/* Simulated Body */}
                     <div className="space-y-2">
-                      <div className="h-3 w-3/4 rounded bg-slate-800" />
-                      <div className="h-3 w-1/2 rounded bg-slate-900" />
+                      <div className="h-3 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
+                      <div className="h-3 w-1/2 rounded bg-stone-200 dark:bg-stone-900" />
                       <div
-                        className="mt-3 p-2.5 rounded-lg text-center text-xs font-semibold text-white"
+                        className="mt-3 p-2.5 rounded-lg text-center text-xs font-semibold text-white shadow-xs"
                         style={{ backgroundColor: branding.primaryColor }}
                       >
                         Client Action Button
@@ -633,11 +633,11 @@ export default function WhiteLabelView() {
                     </div>
 
                     {/* Simulated Footer */}
-                    <div className="pt-2 border-t border-slate-900 text-[10px] text-slate-500 text-center">
+                    <div className="pt-2 border-t border-stone-200 dark:border-stone-900 text-[10px] text-stone-500 dark:text-stone-500 text-center">
                       {branding.footerText || `© ${branding.agencyName}`}
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 text-center">
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 text-center">
                     Clients see your bespoke branding when logging into your sub-workspaces.
                   </p>
                 </CardContent>
@@ -648,31 +648,31 @@ export default function WhiteLabelView() {
 
         {/* Tab 3: Dedicated Agency Domain */}
         <TabsContent value="domain" className="space-y-4">
-          <Card className="bg-[#111927] border-slate-800 text-slate-100">
+          <Card className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 shadow-xs">
             <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Globe className="h-5 w-5 text-amber-400" />
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900 dark:text-white">
+                <Globe className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 Dedicated Reseller Portal Domain (CNAME)
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-stone-500 dark:text-stone-400">
                 Point your own custom domain (e.g. <code>portal.youragency.com</code>) so clients access their marketing suite under your agency's domain.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2 max-w-xl">
-                <Label className="text-xs font-semibold text-slate-300">Custom Agency Portal Domain</Label>
+                <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Custom Agency Portal Domain</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="clients.myagency.com"
                     value={branding.customDomain}
                     onChange={e => setBranding(prev => ({ ...prev, customDomain: e.target.value }))}
-                    className="bg-slate-900 border-slate-700 font-mono text-xs text-amber-300"
+                    className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 font-mono text-xs text-amber-700 dark:text-amber-300"
                   />
                   <Button
                     onClick={handleVerifyDomain}
                     disabled={verifyingDomain}
                     size="sm"
-                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0"
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 shadow-xs"
                   >
                     {verifyingDomain ? "Checking DNS..." : "Verify DNS"}
                   </Button>
@@ -680,24 +680,24 @@ export default function WhiteLabelView() {
               </div>
 
               {/* DNS Instructions */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                <h4 className="text-xs font-bold text-white flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 space-y-3">
+                <h4 className="text-xs font-bold text-stone-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Required DNS Record in your Domain Registrar (Cloudflare, GoDaddy, Namecheap):
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-                  <div className="p-2.5 rounded bg-slate-900 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block font-sans">Type</span>
-                    <strong className="text-amber-400">CNAME</strong>
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400 block font-sans">Type</span>
+                    <strong className="text-amber-600 dark:text-amber-400">CNAME</strong>
                   </div>
-                  <div className="p-2.5 rounded bg-slate-900 border border-slate-800">
-                    <span className="text-[10px] text-slate-400 block font-sans">Name / Host</span>
-                    <strong className="text-slate-200">{branding.customDomain ? branding.customDomain.split(".")[0] : "clients"}</strong>
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400 block font-sans">Name / Host</span>
+                    <strong className="text-stone-800 dark:text-stone-200">{branding.customDomain ? branding.customDomain.split(".")[0] : "clients"}</strong>
                   </div>
-                  <div className="p-2.5 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-sans">Value / Target</span>
-                      <strong className="text-emerald-400">app.fizmoh.cloud</strong>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 block font-sans">Value / Target</span>
+                      <strong className="text-emerald-600 dark:text-emerald-400">app.fizmoh.cloud</strong>
                     </div>
                     <button
                       onClick={() => {
@@ -706,13 +706,13 @@ export default function WhiteLabelView() {
                         setTimeout(() => setCopiedTarget(false), 2000)
                         toast.success("Copied CNAME target!")
                       }}
-                      className="text-slate-400 hover:text-white"
+                      className="text-stone-400 hover:text-stone-900 dark:hover:text-white"
                     >
-                      {copiedTarget ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedTarget ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-stone-500 dark:text-stone-400">
                   SSL certificate is provisioned automatically within seconds of DNS propagation.
                 </p>
               </div>
@@ -721,7 +721,7 @@ export default function WhiteLabelView() {
                 <Button
                   onClick={saveBranding}
                   disabled={saving}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs"
                 >
                   {saving ? "Saving..." : "Save Domain"}
                 </Button>
@@ -733,20 +733,20 @@ export default function WhiteLabelView() {
 
       {/* Create Client Workspace Modal */}
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="bg-[#111927] border-slate-800 text-slate-100 max-w-md">
+        <DialogContent className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-400" />
+            <DialogTitle className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               Create Client Sub-Workspace
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-stone-500 dark:text-stone-400">
               Provision a complete isolated workspace for your client with your agency as administrator.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3.5 py-2">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-300">Client Business Name</Label>
+              <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Client Business Name</Label>
               <Input
                 placeholder="e.g. Royal Palace Hotel & Spa"
                 value={newClientName}
@@ -756,63 +756,63 @@ export default function WhiteLabelView() {
                     setNewClientSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "-"))
                   }
                 }}
-                className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-300">Workspace Subdomain Slug</Label>
+              <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Workspace Subdomain Slug</Label>
               <div className="flex items-center gap-1 font-mono text-xs">
                 <Input
                   placeholder="royal-palace"
                   value={newClientSlug}
                   onChange={e => setNewClientSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-                  className="bg-slate-900 border-slate-700 text-xs text-amber-300"
+                  className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-amber-700 dark:text-amber-300"
                 />
-                <span className="text-slate-500 shrink-0">.fizmoh.cloud</span>
+                <span className="text-stone-500 shrink-0">.fizmoh.cloud</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-300">Client Admin Name</Label>
+                <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Client Admin Name</Label>
                 <Input
                   placeholder="Manager Name"
                   value={newAdminName}
                   onChange={e => setNewAdminName(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                  className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-300">Client Admin Email</Label>
+                <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Client Admin Email</Label>
                 <Input
                   type="email"
                   placeholder="manager@client.com"
                   value={newAdminEmail}
                   onChange={e => setNewAdminEmail(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                  className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-300">Initial Password (Optional)</Label>
+              <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Initial Password (Optional)</Label>
               <Input
                 type="password"
                 placeholder="Leave blank to auto-generate temporary password"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                className="bg-slate-900 border-slate-700 text-xs text-slate-200"
+                className="bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-300">Assigned Plan Tier</Label>
+              <Label className="text-xs font-semibold text-stone-700 dark:text-stone-300">Assigned Plan Tier</Label>
               <select
                 value={newPlanSlug}
                 onChange={e => setNewPlanSlug(e.target.value)}
-                className="w-full h-9 rounded-md bg-slate-900 border border-slate-700 px-3 text-xs text-slate-200"
+                className="w-full h-9 rounded-lg bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 px-3 text-xs text-stone-900 dark:text-stone-100"
               >
                 <option value="growth">Growth Plan (WhatsApp + CRM + Marketing)</option>
                 <option value="enterprise">Enterprise (All Modules Included)</option>
@@ -828,7 +828,7 @@ export default function WhiteLabelView() {
               variant="ghost"
               size="sm"
               onClick={() => setCreateModalOpen(false)}
-              className="text-slate-400 text-xs"
+              className="text-stone-500 hover:text-stone-700 dark:text-stone-400 text-xs"
             >
               Cancel
             </Button>
@@ -836,7 +836,7 @@ export default function WhiteLabelView() {
               onClick={handleCreateClientWorkspace}
               disabled={creating}
               size="sm"
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs"
             >
               {creating ? "Creating Sub-Workspace..." : "Create Workspace"}
             </Button>

@@ -23,14 +23,14 @@ const RESERVED = new Set([
 ])
 
 const schema = z.object({
-  business: z.string().trim().min(2).max(80),
-  name: z.string().trim().min(2).max(80),
-  email: z.string().trim().toLowerCase().email(),
-  phone: z.string().trim().min(7).max(20),
-  password: z.string().min(8).max(200),
+  business: z.string().trim().min(2, "Business name must be at least 2 characters").max(80),
+  name: z.string().trim().min(2, "Your name must be at least 2 characters").max(80),
+  email: z.string().trim().toLowerCase().email("Please provide a valid email address"),
+  phone: z.string().trim().min(7, "Please provide a valid WhatsApp phone number").max(20),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
   /** Optional: what they want to be called at fizmoh.cloud. */
   slug: z.string().trim().toLowerCase().optional(),
-  planSlug: z.string().trim().optional(),
+  planSlug: z.string().trim().min(1, "Please choose a subscription plan to continue."),
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
@@ -43,8 +43,9 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
+    const issue = parsed.error.issues[0]?.message
     return NextResponse.json(
-      { error: "Check the form: a business name, your name, a valid email, a WhatsApp phone number, and a password of at least 8 characters." },
+      { error: issue || "Check the form: a business name, your name, a valid email, a WhatsApp phone number, choose a plan, and a password of at least 8 characters." },
       { status: 400 },
     )
   }
@@ -67,11 +68,18 @@ export const POST = withErrors(async (request: NextRequest) => {
   }
 
   const plan =
-    (input.planSlug ? await db.plan.findUnique({ where: { slug: input.planSlug } }) : null) ??
-    (await db.plan.findFirst({ where: { isPublic: true }, orderBy: { sortOrder: "asc" } }))
+    (await db.plan.findFirst({ where: { slug: input.planSlug, isPublic: true } })) ??
+    (await db.plan.findUnique({ where: { slug: input.planSlug } }))
+
+  if (!plan) {
+    return NextResponse.json(
+      { error: "The selected plan is not valid. Please choose a plan from the list." },
+      { status: 400 },
+    )
+  }
 
   const trialEndsAt = new Date()
-  trialEndsAt.setDate(trialEndsAt.getDate() + (plan?.trialDays ?? 14))
+  trialEndsAt.setDate(trialEndsAt.getDate() + (plan.trialDays ?? 14))
 
   const passwordHash = await bcrypt.hash(input.password, 12)
 
@@ -160,8 +168,8 @@ export const POST = withErrors(async (request: NextRequest) => {
                 <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${input.phone} ${waLink ? `&nbsp;(<a href="${waLink}" style="color: #059669; text-decoration: underline;">Chat on WhatsApp &rarr;</a>)` : ""}</td>
               </tr>
               <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Plan & Trial</td>
-                <td style="padding: 10px 0; color: #0f172a;">${plan?.name || plan?.slug || "14-Day Free Trial"} (ends ${trialEndsAt.toLocaleDateString("en-GB")})</td>
+                <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Selected Plan</td>
+                <td style="padding: 10px 0; color: #00B96A; font-weight: 700;">${plan.name} (${plan.slug}) &middot; ${(plan.priceMonthly / 1000).toFixed(0)} OMR/mo (Trial ends ${trialEndsAt.toLocaleDateString("en-GB")})</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Registered At</td>
@@ -180,7 +188,7 @@ export const POST = withErrors(async (request: NextRequest) => {
           </div>
         </div>
       `,
-      text: `New Tenant Signup!\n\nWorkspace: ${tenant.name} (app.fizmoh.cloud/${tenant.slug})\nAdmin: ${staff.name}\nEmail: ${staff.email}\nPhone: ${input.phone}\nPlan: ${plan?.name || plan?.slug || "Trial"}\nRegistered: ${formattedDate} (Muscat)\n\nManage in console: https://app.fizmoh.cloud/platform/workspaces`,
+      text: `New Tenant Signup!\n\nWorkspace: ${tenant.name} (app.fizmoh.cloud/${tenant.slug})\nAdmin: ${staff.name}\nEmail: ${staff.email}\nPhone: ${input.phone}\nPlan: ${plan.name} (${plan.slug}) — ${(plan.priceMonthly / 1000).toFixed(0)} OMR/mo\nRegistered: ${formattedDate} (Muscat)\n\nManage in console: https://app.fizmoh.cloud/platform/workspaces`,
     }).catch(err => {
       console.error("[Signup Alert] Failed to send operator email:", err)
     })
@@ -189,14 +197,17 @@ export const POST = withErrors(async (request: NextRequest) => {
   }
 
   return NextResponse.json({
-    workspace: { slug: tenant.slug, name: tenant.name },
-    // Every business signs in at the same address. Which workspace they land
-    // in is decided by who they are, not by what they typed — no wildcard DNS
-    // to provision, no certificate per customer, and a new workspace works the
-    // moment it exists.
+    workspace: {
+      slug: tenant.slug,
+      name: tenant.name,
+      plan: {
+        slug: plan.slug,
+        name: plan.name,
+      },
+    },
     url: "https://app.fizmoh.cloud",
     trialEndsAt,
-    plan: plan?.slug ?? null,
+    plan: plan.slug,
     email: staff.email,
   }, { status: 201 })
 })

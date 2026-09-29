@@ -93,6 +93,40 @@ export const GET = withErrors(async (request: NextRequest) => {
     newCustomers: customers.filter(c => c.createdAt >= b.start && c.createdAt < b.end).length,
   }))
 
+  // Staff leaderboard: conversations handled per agent in the period.
+  // We measure by conversations whose lastMessageAt falls in the window,
+  // which aligns with the "active conversations" definition used elsewhere.
+  const convoPeriod = { tenantId: tenant.tenantId, lastMessageAt: { gte: from, lte: to } }
+  const [staffConvos, staffResolved] = await Promise.all([
+    db.conversation.groupBy({
+      by: ["assignedStaffId"],
+      _count: { id: true },
+      where: { ...convoPeriod, assignedStaffId: { not: null } },
+    }),
+    db.conversation.groupBy({
+      by: ["assignedStaffId"],
+      _count: { id: true },
+      where: { ...convoPeriod, assignedStaffId: { not: null }, status: "RESOLVED" },
+    }),
+  ])
+  const staffIds = staffConvos.map(r => r.assignedStaffId).filter(Boolean) as string[]
+  const staffMembers = await db.staff.findMany({ where: { id: { in: staffIds } }, select: { id: true, name: true, role: true } })
+  const resolvedMap: Record<string, number> = {}
+  staffResolved.forEach(r => { if (r.assignedStaffId) resolvedMap[r.assignedStaffId] = r._count.id })
+  const staffLeaderboard = staffConvos
+    .map(r => {
+      const member = staffMembers.find(s => s.id === r.assignedStaffId)
+      return {
+        staffId: r.assignedStaffId,
+        name: member?.name || "Unassigned",
+        role: member?.role || "",
+        conversations: r._count.id,
+        resolved: resolvedMap[r.assignedStaffId || ""] || 0,
+        resolutionRate: r._count.id > 0 ? Math.round(((resolvedMap[r.assignedStaffId || ""] || 0) / r._count.id) * 100) : 0,
+      }
+    })
+    .sort((a, b) => b.conversations - a.conversations)
+
   const payload = {
     range: { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) },
     summary: {
@@ -108,6 +142,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     revenueByMonth,
     topTours,
     customerGrowth,
+    staffLeaderboard,
   }
 
   // `format=csv` returns the same numbers as a spreadsheet, so a report can be
@@ -135,6 +170,12 @@ export const GET = withErrors(async (request: NextRequest) => {
     payload.topTours.forEach(t => {
       const name = (t.tour?.name || "Unknown").replace(/"/g, '""')
       rows.push(`"${name}",${t._count},${(t._sum.totalAmount || 0).toFixed(3)}`)
+    })
+    rows.push("")
+    rows.push("Staff Leaderboard,Conversations Handled,Resolved,Resolution Rate %")
+    payload.staffLeaderboard.forEach(s => {
+      const name = (s.name || "Unknown").replace(/"/g, '""')
+      rows.push(`"${name}",${s.conversations},${s.resolved},${s.resolutionRate}`)
     })
 
     return new NextResponse(rows.join("\n"), {

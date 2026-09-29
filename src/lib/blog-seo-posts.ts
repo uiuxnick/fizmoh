@@ -1089,4 +1089,712 @@ Ready to migrate or upgrade? [Start your free 14-day trial](/signup) or [schedul
 
 [ابدأ تجربتك المجانية اليوم](/signup) أو [تحدث مع فريق المبيعات](/contact).`,
   },
+  // =========================================================================
+  // NEW POST: WhatsApp for Salalah Khareef Season
+  // =========================================================================
+  {
+    slug: "whatsapp-business-salalah-khareef-tour-operators",
+    slugAr: "whatsapp-salalah-khareef-tour-operators-ar",
+    metaTitle: "WhatsApp Business for Salalah Tour Operators: Khareef Season Guide 2026",
+    metaTitleAr: "واتساب بزنس لمشغلي السياحة في صلالة: دليل موسم الخريف 2026",
+    metaDescription:
+      "How Salalah tour operators use WhatsApp Business API to handle Khareef season booking surges, Arabic AI chatbots, and instant OMR payments — all from one inbox.",
+    metaDescriptionAr:
+      "كيف يستخدم مشغلو الجولات السياحية في صلالة واتساب بزنس API لإدارة حجوزات موسم الخريف، الدردشة الآلية بالعربية، والمدفوعات الفورية بالريال العماني.",
+    h1: "WhatsApp Business for Salalah Tour Operators: The Khareef Season Playbook",
+    h1Ar: "واتساب بزنس لمشغلي الجولات السياحية في صلالة: دليل موسم الخريف",
+    category: "Tourism & Hospitality",
+    categoryAr: "السياحة والضيافة",
+    readTime: "7 min read",
+    date: "2026-09-15",
+    author: AUTHOR,
+    image: "/marketing/products/botflow-studio.jpg",
+    imageAlt: "Salalah tour operator managing WhatsApp bookings during Khareef season",
+    imageAltAr: "مشغل جولات سياحية في صلالة يدير حجوزات واتساب خلال موسم الخريف",
+    primaryKeyword: "WhatsApp Business Salalah",
+    primaryKeywordAr: "واتساب بزنس صلالة",
+    keywords: [
+      "WhatsApp Business Salalah",
+      "Salalah tour operator WhatsApp",
+      "Khareef season tourism Oman",
+      "Dhofar tourism WhatsApp",
+      "WhatsApp booking system Oman",
+      "WhatsApp API tour operators GCC",
+      "Salalah safari WhatsApp",
+      "Oman tourism chatbot",
+      "WhatsApp payments OMR",
+      "AmwalPay Salalah",
+    ],
+    keywordsAr: [
+      "واتساب بزنس صلالة",
+      "مشغلو الجولات السياحية صلالة واتساب",
+      "سياحة موسم الخريف عمان",
+      "سياحة ظفار واتساب",
+      "نظام حجز واتساب عمان",
+      "واتساب API مشغلو الجولات الخليج",
+      "سفاري صلالة واتساب",
+      "شات بوت سياحة عمان",
+      "مدفوعات واتساب الريال العماني",
+      "أموال باي صلالة",
+    ],
+    toc: [
+      { id: "khareef-challenge", titleEn: "1. The Khareef Booking Surge Challenge", titleAr: "1. تحدي طفرة حجوزات موسم الخريف" },
+      { id: "whatsapp-api-setup", titleEn: "2. Setting Up WhatsApp Business API", titleAr: "2. إعداد واتساب بزنس API" },
+      { id: "arabic-ai-chatbot", titleEn: "3. Arabic AI Chatbot for Tour Inquiries", titleAr: "3. الشات بوت الذكي بالعربية للاستفسارات السياحية" },
+      { id: "instant-payments", titleEn: "4. Instant OMR Payments with AmwalPay", titleAr: "4. المدفوعات الفورية بالريال العماني مع أموال باي" },
+      { id: "multi-agent-inbox", titleEn: "5. Multi-Agent Team Inbox for Busy Season", titleAr: "5. صندوق الوارد متعدد الموظفين لموسم الذروة" },
+      { id: "faqs", titleEn: "Frequently Asked Questions", titleAr: "الأسئلة الشائعة" },
+    ],
+    faqs: [
+      {
+        q: "Can WhatsApp Business API handle hundreds of Khareef booking inquiries simultaneously?",
+        a: "Yes. Fizmoh's multi-agent inbox and AI botflow layer allow unlimited concurrent conversations, with human agents stepping in only for complex requests. During peak Khareef season, a single number can handle 500+ simultaneous chats.",
+      },
+      {
+        q: "How do tour operators in Salalah collect deposits via WhatsApp?",
+        a: "Through Fizmoh's native AmwalPay integration, guests receive a payment link inside WhatsApp. They pay in Omani Rial (OMR) with Visa, Mastercard, or Mada — no app download required.",
+      },
+      {
+        q: "Does the WhatsApp chatbot support Arabic for Dhofar tourists?",
+        a: "Yes. Fizmoh's AI understands and responds in both Modern Standard Arabic and Gulf dialect, crucial for the large number of domestic Omani and Saudi visitors to Salalah during Khareef.",
+      },
+    ],
+    faqsAr: [
+      {
+        q: "هل يستطيع واتساب بزنس API استقبال مئات الاستفسارات في آنٍ واحد خلال موسم الخريف؟",
+        a: "نعم. تتيح منصة Fizmoh صندوق وارد متعدد الموظفين مع طبقة الشات بوت الذكي لإدارة محادثات غير محدودة في وقت واحد، حيث يتدخل الموظفون البشريون للطلبات المعقدة فقط.",
+      },
+      {
+        q: "كيف يجمع مشغلو الجولات في صلالة الدفعات المقدمة عبر واتساب؟",
+        a: "من خلال تكامل Fizmoh الأصلي مع أموال باي، يتلقى الضيوف رابط دفع داخل واتساب للدفع بالريال العماني عبر Visa أو Mastercard أو مدى.",
+      },
+      {
+        q: "هل يدعم الشات بوت اللغة العربية لسياح ظفار؟",
+        a: "نعم. يفهم الذكاء الاصطناعي في Fizmoh اللهجة العمانية والخليجية ويرد بها، وهو أمر بالغ الأهمية للزوار العمانيين والسعوديين خلال موسم الخريف.",
+      },
+    ],
+    contentEn: `
+## The Khareef Booking Surge Challenge {#khareef-challenge}
+
+Every June through September, Salalah transforms. The *Khareef* monsoon season draws hundreds of thousands of visitors — domestic Omani families, Saudi tourists, and international travellers — to Dhofar's lush green mountains, waterfalls, and beach resorts.
+
+For local tour operators, safari companies, and hotel concierge desks, this represents a double-edged sword: enormous revenue potential paired with a near-impossible communication load. A single Salalah safari company might receive **600–800 WhatsApp inquiries per day** during peak Khareef weeks, covering:
+
+- Safari and 4WD tour availability and pricing
+- Group booking deposits and itinerary customisation
+- Airport pickup coordination
+- Last-minute slot confirmations
+
+Managing this on a personal WhatsApp account — or even the free WhatsApp Business app — is not viable. You need the **official WhatsApp Business API**.
+
+---
+
+## Setting Up WhatsApp Business API {#whatsapp-api-setup}
+
+Fizmoh is an official Meta WhatsApp Business Solution Provider (BSP). Getting set up takes 3 business days:
+
+1. **Verify your Meta Business Manager** — Submit your Dhofar tourism licence or commercial registration (CR).
+2. **Register your dedicated business number** — Separate from personal WhatsApp, works on any SIM.
+3. **Configure your brand display name** — Shows your company name instead of a phone number for every guest.
+4. **Go live on Fizmoh** — Connect your team, build AI reply templates, and start receiving bookings.
+
+> **Tip:** Apply for the official green tick (verified badge) at the same time. Verified businesses see significantly higher response rates from guests unfamiliar with the company.
+
+---
+
+## Arabic AI Chatbot for Tour Inquiries {#arabic-ai-chatbot}
+
+Fizmoh's **Botflow Studio** lets you build visual, no-code conversation flows that handle the most common Khareef queries automatically — in Arabic and English:
+
+- "What tours are available this Friday?" → shows available safari slots in real time
+- "How much is the group package for 6 people?" → calculates pricing and sends a quote
+- "Can I pay deposit now?" → triggers AmwalPay payment link
+
+The AI layer understands Gulf Arabic dialect, meaning Omani guests receive natural, familiar responses — not robotic formal Arabic that alienates local customers.
+
+---
+
+## Instant OMR Payments with AmwalPay {#instant-payments}
+
+The #1 drop-off point for Salalah tour bookings is the payment step. Guests who need to transfer money via bank or visit an office simply don't convert.
+
+With Fizmoh's **AmwalPay integration**, guests receive a secure payment link directly inside the WhatsApp conversation:
+
+- Accepts Visa, Mastercard, and Mada debit cards
+- Rial Omani (OMR) pricing — no currency confusion
+- Instant deposit receipt sent back to the guest automatically
+- Bookings marked as "paid" and routed to the right team agent
+
+**Result:** tour operators using Fizmoh report a 3–4× increase in completed bookings vs. manual bank-transfer flows.
+
+---
+
+## Multi-Agent Team Inbox for Busy Season {#multi-agent-inbox}
+
+During Khareef, you may need 5–10 agents answering WhatsApp simultaneously. Fizmoh's **Team Inbox** provides:
+
+- One shared WhatsApp number, multiple agents logged in simultaneously
+- Conversation assignment — route sea-facing room queries to hotel team, 4WD safari to tour team
+- Collision prevention — no two agents can reply to the same conversation simultaneously
+- Supervisor view — monitor all conversations in real time and step in when needed
+
+**Get started:** [Try Fizmoh free for 14 days](/signup) or explore our [Salalah location guide](/locations/salalah).
+`,
+    contentAr: `
+## تحدي طفرة حجوزات موسم الخريف {#khareef-challenge}
+
+مع كل موسم خريف، تتحول صلالة إلى وجهة سياحية رئيسية تستقطب مئات الآلاف من الزوار من مختلف أنحاء عمان والمملكة العربية السعودية والسياح الدوليين.
+
+يواجه مشغلو الجولات السياحية ووكالات السفاري وإدارة الفنادق تحدياً مزدوجاً: فرص ربحية ضخمة مع حجم تواصل يكاد يكون مستحيل الإدارة يدوياً.
+
+---
+
+## إعداد واتساب بزنس API {#whatsapp-api-setup}
+
+Fizmoh شريك معتمد من Meta (BSP) ومعتمد رسمياً. الإعداد يستغرق 3 أيام عمل:
+
+1. **التحقق من حساب ميتا للأعمال** — بتقديم السجل التجاري في ظفار.
+2. **تسجيل رقم الأعمال المخصص** — منفصل تماماً عن واتساب الشخصي.
+3. **تفعيل اسم العلامة التجارية** — يُعرض اسم شركتك لكل ضيف.
+4. **الانطلاق على منصة Fizmoh** — ربط الفريق وبناء الردود الآلية وبدء استقبال الحجوزات.
+
+---
+
+## الشات بوت الذكي بالعربية {#arabic-ai-chatbot}
+
+يُتيح **استوديو مسارات البوت** من Fizmoh بناء محادثات آلية بصرية بدون كود تتعامل مع استفسارات الخريف الأكثر شيوعاً بالعربية والإنجليزية.
+
+---
+
+## مدفوعات فورية بالريال العماني مع أموال باي {#instant-payments}
+
+مع تكامل **أموال باي** في Fizmoh، يتلقى الضيف رابط دفع آمن مباشرة داخل محادثة واتساب بالريال العماني، مما يُضاعف نسبة إتمام الحجوزات 3-4 أضعاف مقارنة بالتحويل البنكي.
+
+---
+
+**ابدأ تجربتك المجانية:** [سجّل الآن في Fizmoh](/signup) أو استكشف [دليل صلالة](/locations/salalah).
+`,
+  },
+
+  // =========================================================================
+  // NEW POST: Fizmoh vs WATI comparison
+  // =========================================================================
+  {
+    slug: "fizmoh-vs-wati-whatsapp-comparison-oman",
+    slugAr: "fizmoh-vs-wati-muqarana-oman",
+    metaTitle: "Fizmoh vs WATI: WhatsApp Business API Comparison for Oman (2026)",
+    metaTitleAr: "Fizmoh مقابل WATI: مقارنة واتساب بزنس API للأعمال في عمان (2026)",
+    metaDescription:
+      "Side-by-side comparison of Fizmoh and WATI for Oman businesses. Pricing in OMR, Arabic AI support, AmwalPay payments, and local GCC customer service reviewed.",
+    metaDescriptionAr:
+      "مقارنة مفصلة بين Fizmoh و WATI لأعمال سلطنة عمان: الأسعار بالريال العماني، الذكاء الاصطناعي العربي، تكامل أموال باي، وخدمة العملاء المحلية.",
+    h1: "Fizmoh vs WATI: Which WhatsApp Platform Is Better for Oman Businesses in 2026?",
+    h1Ar: "Fizmoh مقابل WATI: أيهما أفضل لأعمال سلطنة عمان في 2026؟",
+    category: "Comparisons",
+    categoryAr: "مقارنات",
+    readTime: "8 min read",
+    date: "2026-09-18",
+    author: AUTHOR,
+    image: "/marketing/products/team-inbox.jpg",
+    imageAlt: "Fizmoh vs WATI WhatsApp platform comparison for Oman businesses",
+    imageAltAr: "مقارنة Fizmoh و WATI لمنصة واتساب بزنس لأعمال سلطنة عمان",
+    primaryKeyword: "Fizmoh vs WATI",
+    primaryKeywordAr: "Fizmoh مقابل WATI",
+    keywords: [
+      "Fizmoh vs WATI",
+      "WATI alternative Oman",
+      "WhatsApp Business API comparison Oman",
+      "best WhatsApp platform Oman",
+      "WATI pricing OMR",
+      "WhatsApp CRM Oman",
+      "WhatsApp BSP comparison GCC",
+      "Fizmoh WhatsApp Oman",
+      "WATI vs Fizmoh",
+      "WhatsApp marketing platform Oman 2026",
+    ],
+    keywordsAr: [
+      "Fizmoh مقابل WATI",
+      "بديل WATI عمان",
+      "مقارنة واتساب بزنس API عمان",
+      "أفضل منصة واتساب في عمان",
+      "أسعار WATI بالريال العماني",
+      "CRM واتساب عمان",
+      "مقارنة شركاء واتساب الخليج",
+      "Fizmoh واتساب عمان",
+      "WATI مقابل Fizmoh",
+      "منصة تسويق واتساب عمان 2026",
+    ],
+    toc: [
+      { id: "overview", titleEn: "1. Quick Overview", titleAr: "1. نظرة عامة سريعة" },
+      { id: "pricing", titleEn: "2. Pricing Comparison (OMR vs USD)", titleAr: "2. مقارنة الأسعار (ريال عماني مقابل دولار)" },
+      { id: "arabic-support", titleEn: "3. Arabic Language & AI Support", titleAr: "3. دعم اللغة العربية والذكاء الاصطناعي" },
+      { id: "local-payments", titleEn: "4. Local Payment Integration", titleAr: "4. تكامل المدفوعات المحلية" },
+      { id: "verdict", titleEn: "5. Verdict for Oman Businesses", titleAr: "5. الحكم لأعمال عمان" },
+      { id: "faqs", titleEn: "Frequently Asked Questions", titleAr: "الأسئلة الشائعة" },
+    ],
+    faqs: [
+      {
+        q: "Does WATI support Arabic language and Gulf dialect AI chatbots?",
+        a: "WATI offers basic Arabic text support but does not provide Gulf-dialect-aware AI or locally trained language models. Fizmoh's AI is specifically tuned for Omani Arabic and GCC dialects.",
+      },
+      {
+        q: "Can I pay for WATI in Omani Rial?",
+        a: "WATI charges in USD, which means Omani businesses face currency conversion fees and fluctuating costs. Fizmoh is priced in OMR with transparent, fixed local rates.",
+      },
+      {
+        q: "Which platform integrates with Omani payment gateways?",
+        a: "Fizmoh has a native integration with AmwalPay, Oman's leading payment gateway, allowing OMR card payments directly inside WhatsApp. WATI requires custom webhook development for local payment gateways.",
+      },
+    ],
+    faqsAr: [
+      {
+        q: "هل يدعم WATI اللغة العربية واللهجة الخليجية؟",
+        a: "يوفر WATI دعماً أساسياً للنص العربي لكنه لا يملك ذكاءً اصطناعياً مُدرَّباً على اللهجة العمانية والخليجية. Fizmoh مُصمَّم خصيصاً للسوق العُماني.",
+      },
+      {
+        q: "هل يمكنني الدفع لـ WATI بالريال العماني؟",
+        a: "يفرض WATI رسوماً بالدولار الأمريكي مع تكاليف تحويل إضافية، بينما تُقدِّم Fizmoh أسعاراً ثابتة بالريال العماني.",
+      },
+      {
+        q: "أي المنصتين تدعم بوابات الدفع العُمانية؟",
+        a: "Fizmoh تمتلك تكاملاً أصلياً مع أموال باي للدفع بالريال العماني مباشرة داخل واتساب، بينما يحتاج WATI إلى تطوير مخصص.",
+      },
+    ],
+    contentEn: `
+## Quick Overview {#overview}
+
+Both Fizmoh and WATI are official Meta WhatsApp Business Solution Providers (BSPs). But they serve very different markets. WATI was built for the Indian e-commerce market, then expanded globally. **Fizmoh was built specifically for GCC markets** — Oman, UAE, Saudi Arabia — with Arabic-first design, OMR pricing, and local payment integrations from day one.
+
+---
+
+## Pricing Comparison {#pricing}
+
+| Feature | Fizmoh | WATI |
+|---|---|---|
+| Currency | Omani Rial (OMR) | USD (converted) |
+| Starter Plan | OMR 14/month | ~USD 49/month |
+| Agents Included | 3 | 1 |
+| AI Chatbot | Included (all plans) | Add-on cost |
+| Meta Conversation Fees | Transparent, pass-through | Marked up |
+
+---
+
+## Arabic Language & AI Support {#arabic-support}
+
+Fizmoh's AI engine is trained on Gulf Arabic datasets. It understands:
+- Omani dialect nuances
+- RTL (right-to-left) message formatting
+- Arabic date and number formats
+
+WATI offers translation-based Arabic support, which often produces formal Modern Standard Arabic that feels unnatural to Gulf customers.
+
+---
+
+## Local Payment Integration {#local-payments}
+
+**Fizmoh + AmwalPay:** Native WhatsApp payment link generation, OMR billing, instant receipt delivery.
+
+**WATI:** No native GCC payment gateway integration. Requires custom Zapier/webhook development.
+
+---
+
+## Verdict for Oman Businesses {#verdict}
+
+If you are an Oman-based business — restaurant, tour operator, clinic, retailer — Fizmoh is the clear choice:
+
+✅ Priced in OMR  
+✅ Arabic AI tuned for Gulf dialect  
+✅ Native AmwalPay integration  
+✅ GCC-based support team  
+✅ Meta Business Partner certified  
+
+[Compare all plans →](/pricing) | [Start free trial →](/signup) | [Full comparison →](/compare/fizmoh-vs-wati)
+`,
+    contentAr: `
+## نظرة عامة سريعة {#overview}
+
+كلٌّ من Fizmoh و WATI شريكان رسميان لحلول واتساب من Meta. لكنهما يخدمان أسواقاً مختلفة تماماً. WATI مبنية للسوق الهندي بينما **Fizmoh مصممة خصيصاً لأسواق الخليج** — عمان والإمارات والسعودية — مع واجهة عربية أولاً وأسعار بالريال العماني وتكاملات الدفع المحلية منذ البداية.
+
+---
+
+## مقارنة الأسعار {#pricing}
+
+| الميزة | Fizmoh | WATI |
+|---|---|---|
+| العملة | ريال عماني | دولار أمريكي |
+| الخطة الأساسية | 14 ريال / شهر | ~49 دولار / شهر |
+| عدد الموظفين | 3 موظفين | موظف واحد |
+| الشات بوت الذكي | مشمول في جميع الخطط | تكلفة إضافية |
+
+---
+
+## دعم اللغة العربية والذكاء الاصطناعي {#arabic-support}
+
+محرك الذكاء الاصطناعي في Fizmoh مُدرَّب على بيانات عربية خليجية، يفهم اللهجة العمانية وتنسيق النصوص من اليمين لليسار.
+
+---
+
+## الحكم لأعمال عمان {#verdict}
+
+إذا كانت شركتك في سلطنة عمان، فإن Fizmoh هي الخيار الواضح:
+
+✅ أسعار بالريال العماني  
+✅ ذكاء اصطناعي بالعربية الخليجية  
+✅ تكامل أصلي مع أموال باي  
+✅ فريق دعم خليجي  
+✅ شريك أعمال ميتا معتمد  
+
+[قارن جميع الخطط ←](/pricing) | [ابدأ تجربتك المجانية ←](/signup)
+`,
+  },
+
+  // =========================================================================
+  // NEW POST: WhatsApp Payments in Oman with AmwalPay
+  // =========================================================================
+  {
+    slug: "whatsapp-payments-oman-amwalpay",
+    slugAr: "mdfuat-whatsapp-oman-amwalpay",
+    metaTitle: "WhatsApp Payments in Oman: Collect OMR with AmwalPay + Fizmoh (2026)",
+    metaTitleAr: "مدفوعات واتساب في عمان: اقبل الريال العماني مع أموال باي + Fizmoh (2026)",
+    metaDescription:
+      "Collect card payments in Omani Rial (OMR) directly inside WhatsApp using Fizmoh + AmwalPay. Setup guide for restaurants, clinics, and tour operators in Oman.",
+    metaDescriptionAr:
+      "اقبل مدفوعات بطاقات الريال العماني مباشرة داخل واتساب عبر Fizmoh + أموال باي. دليل الإعداد للمطاعم والعيادات ومشغلي الجولات السياحية في عمان.",
+    h1: "How to Accept WhatsApp Payments in Oman Using AmwalPay + Fizmoh",
+    h1Ar: "كيف تقبل مدفوعات واتساب في سلطنة عمان باستخدام أموال باي + Fizmoh",
+    category: "Payments & Commerce",
+    categoryAr: "المدفوعات والتجارة",
+    readTime: "6 min read",
+    date: "2026-09-20",
+    author: AUTHOR,
+    image: "/marketing/products/amwalpay.jpg",
+    imageAlt: "AmwalPay WhatsApp payment link being sent to customer in Oman",
+    imageAltAr: "رابط دفع أموال باي يُرسل لعميل في سلطنة عمان عبر واتساب",
+    primaryKeyword: "WhatsApp payments Oman",
+    primaryKeywordAr: "مدفوعات واتساب عمان",
+    keywords: [
+      "WhatsApp payments Oman",
+      "AmwalPay WhatsApp",
+      "accept payments WhatsApp Oman",
+      "OMR payment WhatsApp",
+      "WhatsApp commerce Oman",
+      "WhatsApp payment link Oman",
+      "Fizmoh AmwalPay",
+      "WhatsApp checkout Oman",
+      "Omani Rial payment gateway WhatsApp",
+      "conversational commerce Oman",
+    ],
+    keywordsAr: [
+      "مدفوعات واتساب عمان",
+      "أموال باي واتساب",
+      "قبول المدفوعات واتساب عمان",
+      "دفع الريال العماني واتساب",
+      "تجارة واتساب عمان",
+      "رابط دفع واتساب عمان",
+      "Fizmoh أموال باي",
+      "بوابة دفع الريال العماني واتساب",
+      "التجارة التحادثية عمان",
+    ],
+    toc: [
+      { id: "why-whatsapp-payments", titleEn: "1. Why WhatsApp Is Oman's Best Payment Channel", titleAr: "1. لماذا واتساب هو أفضل قناة دفع في عمان" },
+      { id: "amwalpay-setup", titleEn: "2. Connecting AmwalPay to Fizmoh", titleAr: "2. ربط أموال باي مع Fizmoh" },
+      { id: "payment-flow", titleEn: "3. The Customer Payment Flow", titleAr: "3. تجربة الدفع للعميل" },
+      { id: "use-cases", titleEn: "4. Use Cases by Industry", titleAr: "4. حالات الاستخدام حسب القطاع" },
+      { id: "faqs", titleEn: "Frequently Asked Questions", titleAr: "الأسئلة الشائعة" },
+    ],
+    faqs: [
+      {
+        q: "What cards does AmwalPay accept inside WhatsApp?",
+        a: "AmwalPay accepts Visa, Mastercard, and Mada debit and credit cards, all billed in Omani Rial (OMR) with 3D Secure authentication.",
+      },
+      {
+        q: "Is there a transaction fee on WhatsApp payments through Fizmoh?",
+        a: "Fizmoh does not charge a separate transaction fee. AmwalPay's standard merchant rate applies (typically 2–2.5% per transaction). There are no hidden fees on the Fizmoh platform side.",
+      },
+      {
+        q: "Can restaurants use WhatsApp payments for table ordering?",
+        a: "Yes. Fizmoh's Smart Menu integration allows customers to order via WhatsApp and pay at checkout, all without leaving the app. The order flows automatically to the kitchen display system (KDS).",
+      },
+    ],
+    faqsAr: [
+      {
+        q: "ما هي البطاقات التي يقبلها أموال باي داخل واتساب؟",
+        a: "يقبل أموال باي بطاقات Visa وMastercard ومدى للخصم والائتمان بالريال العماني مع التحقق الثلاثي الأبعاد.",
+      },
+      {
+        q: "هل توجد رسوم على مدفوعات واتساب عبر Fizmoh؟",
+        a: "لا تفرض Fizmoh رسوماً إضافية على المعاملات. تُطبَّق النسبة التجارية القياسية لأموال باي (2–2.5%) دون رسوم خفية.",
+      },
+      {
+        q: "هل يمكن للمطاعم استخدام مدفوعات واتساب للطلبات على الطاولة؟",
+        a: "نعم. يتيح تكامل المنيو الذكي من Fizmoh للعملاء الطلب والدفع عبر واتساب مع إرسال الطلب تلقائياً لشاشة المطبخ.",
+      },
+    ],
+    contentEn: `
+## Why WhatsApp Is Oman's Best Payment Channel {#why-whatsapp-payments}
+
+In Oman, **WhatsApp is the primary communication channel** for business — not email, not SMS, not live chat. With over 90% smartphone penetration and WhatsApp as the default messaging app, it makes logical sense to close transactions where conversations already happen.
+
+The problem historically: WhatsApp had no native payment infrastructure. Businesses would chat on WhatsApp, then redirect customers to a separate website for payment — losing 40–60% of potential buyers in the redirect.
+
+**AmwalPay + Fizmoh solves this** by embedding a payment link directly inside the WhatsApp conversation, keeping the entire journey — enquiry, quote, payment, confirmation — in one thread.
+
+---
+
+## Connecting AmwalPay to Fizmoh {#amwalpay-setup}
+
+Setup takes under 30 minutes:
+
+1. **Sign up for a Fizmoh account** — [Start here](/signup)
+2. **Enable AmwalPay** in your Fizmoh dashboard under *Settings → Payments*
+3. **Enter your AmwalPay merchant ID** — Apply for a merchant account at amwalpay.com if you don't have one
+4. **Test a payment** — Send yourself a OMR 1 test transaction
+5. **Go live** — Your agents and AI botflows can now trigger payment links in any conversation
+
+---
+
+## The Customer Payment Flow {#payment-flow}
+
+From the customer's perspective, the flow is seamless:
+
+1. Customer sends a WhatsApp message: *"I want to book a safari for 4 people this Saturday"*
+2. AI bot or agent confirms availability and quotes **OMR 45 per person → OMR 180 total**
+3. Agent clicks *"Send Payment Request"* inside Fizmoh
+4. Customer receives a **branded payment link** inside the same WhatsApp chat
+5. Customer pays with their Omani bank card — 3D Secure verified
+6. Customer receives instant digital receipt
+7. Booking is automatically confirmed and assigned to the operations team
+
+**Total time from enquiry to paid booking: under 4 minutes.**
+
+---
+
+## Use Cases by Industry {#use-cases}
+
+**🍽️ Restaurants:** Table reservation deposits, advance ordering, delivery COD replacement  
+**🌿 Tour Operators:** Safari deposits, package booking fees, group tour confirmations  
+**🏥 Clinics & Dentists:** Appointment fees, consultation deposits, prescription pickups  
+**🛍️ Retail & Fashion:** WhatsApp catalogue orders, instalment first payment  
+**🏨 Hotels:** Room upgrade upsells, late checkout fees, amenity bookings  
+
+[Explore pricing →](/pricing) | [Start free trial →](/signup)
+`,
+    contentAr: `
+## لماذا واتساب هو أفضل قناة دفع في عمان {#why-whatsapp-payments}
+
+في سلطنة عمان، **واتساب هو القناة الأولى للتواصل التجاري** — وليس البريد الإلكتروني ولا الرسائل القصيرة. مع معدل انتشار الهواتف الذكية الذي يتجاوز 90%، من المنطقي إتمام المعاملات المالية حيث تجري المحادثات بالفعل.
+
+المشكلة تاريخياً: واتساب لم يكن يوفر بنية تحتية للمدفوعات. أما **أموال باي + Fizmoh**، فتحل هذه المعضلة بتضمين رابط الدفع مباشرة داخل محادثة واتساب.
+
+---
+
+## ربط أموال باي مع Fizmoh {#amwalpay-setup}
+
+يستغرق الإعداد أقل من 30 دقيقة:
+
+1. **أنشئ حساباً على Fizmoh** — [ابدأ هنا](/signup)
+2. **فعّل أموال باي** من لوحة التحكم تحت *الإعدادات ← المدفوعات*
+3. **أدخل معرف تاجر أموال باي** الخاص بك
+4. **اختبر عملية دفع** بريال عماني واحد
+5. **انطلق** — يمكن لموظفيك والبوت الذكي الآن إرسال روابط الدفع في أي محادثة
+
+---
+
+## تجربة الدفع للعميل {#payment-flow}
+
+من منظور العميل، العملية سلسة تماماً:
+
+1. يرسل العميل رسالة واتساب يسأل عن الحجز
+2. يؤكد البوت الذكي أو الموظف المبلغ بالريال العماني
+3. يتلقى العميل **رابط دفع مميز بعلامتك التجارية** داخل نفس المحادثة
+4. يدفع العميل ببطاقة بنكه العُماني
+5. يتلقى العميل إيصالاً رقمياً فورياً
+
+**الوقت من الاستفسار إلى الحجز المدفوع: أقل من 4 دقائق.**
+
+[استكشف الخطط ←](/pricing) | [ابدأ تجربتك المجانية ←](/signup)
+`,
+  },
+
+  // =========================================================================
+  // NEW POST: AIO & GEO for Oman Businesses
+  // =========================================================================
+  {
+    slug: "aio-geo-optimization-oman-businesses-2026",
+    slugAr: "aio-geo-optimization-oman-businesses-ar",
+    metaTitle: "AIO & GEO for Oman Businesses: Get Found on ChatGPT & Perplexity (2026)",
+    metaTitleAr: "AIO وGEO لأعمال عمان: كيف تظهر على ChatGPT وPerplexity (2026)",
+    metaDescription:
+      "Learn how Oman-based businesses can optimise for AI Answer Engines (AIO) and Generative Engine Optimisation (GEO) to appear in ChatGPT, Perplexity, and Google AI Overviews.",
+    metaDescriptionAr:
+      "اكتشف كيف يمكن للأعمال العُمانية تحسين ظهورها على محركات الإجابة الذكية مثل ChatGPT وPerplexity وGoogle AI Overviews من خلال استراتيجيات AIO وGEO.",
+    h1: "AIO & GEO Optimisation for Oman Businesses: Get Cited by ChatGPT and Perplexity",
+    h1Ar: "تحسين AIO وGEO للأعمال العُمانية: كيف يذكرك ChatGPT وPerplexity",
+    category: "AI & SEO",
+    categoryAr: "الذكاء الاصطناعي وتحسين محركات البحث",
+    readTime: "7 min read",
+    date: "2026-09-22",
+    author: AUTHOR,
+    image: "/marketing/products/botflow-studio.jpg",
+    imageAlt: "Oman business appearing in ChatGPT and Perplexity AI search results",
+    imageAltAr: "أعمال عُمانية تظهر في نتائج البحث الذكي ChatGPT وPerplexity",
+    primaryKeyword: "GEO optimization Oman",
+    primaryKeywordAr: "تحسين GEO عمان",
+    keywords: [
+      "GEO optimization Oman",
+      "AIO optimization Oman",
+      "generative engine optimization",
+      "AI search engine optimization Oman",
+      "ChatGPT visibility Oman business",
+      "Perplexity SEO Oman",
+      "Google AI Overviews Oman",
+      "LLM optimization GCC",
+      "AI answer engine Oman",
+      "WhatsApp business AI search",
+    ],
+    keywordsAr: [
+      "تحسين GEO عمان",
+      "تحسين AIO عمان",
+      "تحسين محركات البحث التوليدية",
+      "تحسين محرك البحث الذكي عمان",
+      "ظهور على ChatGPT أعمال عمان",
+      "تحسين Perplexity عمان",
+      "نظرة Google الذكية عمان",
+      "تحسين LLM الخليج",
+      "محرك الإجابة الذكية عمان",
+    ],
+    toc: [
+      { id: "what-is-aio-geo", titleEn: "1. What Are AIO and GEO?", titleAr: "1. ما هو AIO وGEO؟" },
+      { id: "why-it-matters-oman", titleEn: "2. Why It Matters for Oman Businesses", titleAr: "2. لماذا يهم هذا الأعمال العُمانية" },
+      { id: "llms-txt", titleEn: "3. The /llms.txt Strategy", titleAr: "3. استراتيجية ملف /llms.txt" },
+      { id: "structured-data", titleEn: "4. Structured Data & Citations", titleAr: "4. البيانات المنظمة والاقتباسات" },
+      { id: "fizmoh-aio", titleEn: "5. How Fizmoh Is Already Optimised", titleAr: "5. كيف Fizmoh مُحسَّنة فعلاً" },
+      { id: "faqs", titleEn: "Frequently Asked Questions", titleAr: "الأسئلة الشائعة" },
+    ],
+    faqs: [
+      {
+        q: "What is the difference between SEO and GEO?",
+        a: "Traditional SEO optimises for ranked links in Google Search. GEO (Generative Engine Optimisation) optimises for being cited as a source inside AI-generated answers from ChatGPT, Perplexity, Google AI Overviews, and Claude — where no ranked list appears.",
+      },
+      {
+        q: "How do AI chatbots like ChatGPT decide which businesses to mention?",
+        a: "AI models cite businesses that appear in high-quality, factual web content — reviews, directories, structured data (schema.org), and dedicated pages with clear entity signals. Consistent NAP (Name, Address, Phone) data and structured FAQ pages significantly improve citation rates.",
+      },
+      {
+        q: "Does Fizmoh appear in ChatGPT answers about WhatsApp API in Oman?",
+        a: "Yes. Fizmoh publishes an /llms.txt and /llms-full.txt manifest specifically designed for AI crawlers, containing factual information about pricing, features, and regional coverage — making it far easier for LLMs to cite Fizmoh accurately.",
+      },
+    ],
+    faqsAr: [
+      {
+        q: "ما الفرق بين SEO وGEO؟",
+        a: "يُحسِّن SEO التقليدي ترتيب الروابط في Google. أما GEO فيُحسِّن ظهورك كمصدر مُقتَبَس داخل إجابات الذكاء الاصطناعي من ChatGPT وPerplexity وGoogle AI Overviews.",
+      },
+      {
+        q: "كيف تقرر أدوات الذكاء الاصطناعي مثل ChatGPT أي الأعمال تذكر؟",
+        a: "تستشهد نماذج الذكاء الاصطناعي بالأعمال التي تظهر في محتوى عالي الجودة — المراجعات، الدلائل، البيانات المنظمة (schema.org)، والصفحات ذات إشارات الكيانات الواضحة.",
+      },
+      {
+        q: "هل تظهر Fizmoh في إجابات ChatGPT حول واتساب API في عمان؟",
+        a: "نعم. تنشر Fizmoh ملفَّي /llms.txt و/llms-full.txt المصمَّمَين خصيصاً لزواحف الذكاء الاصطناعي، مما يجعل من السهل على النماذج اللغوية الاقتباس منها بدقة.",
+      },
+    ],
+    contentEn: `
+## What Are AIO and GEO? {#what-is-aio-geo}
+
+The way people search for businesses is changing fast. In 2024, Google launched **AI Overviews** — AI-generated answer summaries that appear above traditional search results. Simultaneously, tools like **ChatGPT, Perplexity, and Claude** became primary research tools for millions of users.
+
+- **AIO (AI Overview Optimisation):** Getting your business cited inside Google's AI-generated answer boxes
+- **GEO (Generative Engine Optimisation):** Optimising for citation in responses from ChatGPT, Perplexity, Claude, and other LLM-powered answer engines
+
+Neither channel shows a traditional "ranked" list of links. Either you're cited — or you're invisible.
+
+---
+
+## Why It Matters for Oman Businesses {#why-it-matters-oman}
+
+When an Omani entrepreneur searches *"best WhatsApp API platform in Oman"* on Perplexity or asks ChatGPT, they receive a direct answer — often without clicking any links. If your business is not in that answer, you lose the customer before they ever visit your website.
+
+In markets like Oman, where business discovery still heavily relies on word-of-mouth and direct recommendation, being cited by an AI search engine is the digital equivalent of a trusted referral.
+
+---
+
+## The /llms.txt Strategy {#llms-txt}
+
+A new emerging standard: **/llms.txt** — a plain-text file at your domain root that tells AI crawlers what your business does, what pages exist, and how to understand your content.
+
+Fizmoh publishes:
+- **[/llms.txt](https://app.fizmoh.cloud/llms.txt)** — high-level summary with page index
+- **[/llms-full.txt](https://app.fizmoh.cloud/llms-full.txt)** — comprehensive 10-section knowledge manifest covering pricing, features, comparisons, and regional coverage
+
+Both files are accessible to all major AI crawlers: GPTBot, PerplexityBot, ClaudeBot, Google-Extended.
+
+---
+
+## Structured Data & Citations {#structured-data}
+
+Pages with proper **schema.org JSON-LD markup** are cited far more often by AI engines. Fizmoh implements:
+
+- **LocalBusiness** schema on every location page (Muscat, Salalah, Sohar, Dubai)
+- **FAQPage** schema on comparison and solution pages
+- **BreadcrumbList** schema sitewide
+- **Article** schema on all blog posts
+- **hreflang** alternates for Arabic/English versions
+
+---
+
+## How Fizmoh Is Already Optimised {#fizmoh-aio}
+
+As of September 2026, Fizmoh has implemented a full AIO/GEO stack:
+
+| Signal | Implementation |
+|---|---|
+| /llms.txt manifest | ✅ Live |
+| /llms-full.txt | ✅ Live |
+| AI crawler access in robots.txt | ✅ GPTBot, PerplexityBot, ClaudeBot |
+| LocalBusiness schema | ✅ All 8 city pages |
+| FAQPage schema | ✅ All comparison + solution pages |
+| BreadcrumbList | ✅ Sitewide |
+| hreflang Arabic/English | ✅ Compare + location pages |
+
+Want to implement GEO for your Oman business? [Talk to our team →](/contact)
+`,
+    contentAr: `
+## ما هو AIO وGEO؟ {#what-is-aio-geo}
+
+طريقة بحث الناس عن الأعمال تتغير بسرعة. في 2024، أطلقت Google **AI Overviews** — ملخصات إجابات مُولَّدة بالذكاء الاصطناعي تظهر فوق نتائج البحث التقليدية. وفي الوقت ذاته، أصبحت أدوات مثل **ChatGPT وPerplexity وClaude** أدوات بحث أساسية لملايين المستخدمين.
+
+- **AIO:** تحسين ظهور أعمالك داخل مربعات الإجابات الذكية من Google
+- **GEO:** تحسين ظهورك كمصدر في ردود ChatGPT وPerplexity وClaude
+
+---
+
+## لماذا يهم هذا الأعمال العُمانية {#why-it-matters-oman}
+
+عندما يبحث رائد أعمال عُماني عن *"أفضل منصة واتساب API في عمان"* على Perplexity، يحصل على إجابة مباشرة بدون النقر على أي رابط. إذا لم يذكرك الذكاء الاصطناعي، تخسر العميل قبل أن يزور موقعك.
+
+---
+
+## استراتيجية ملف /llms.txt {#llms-txt}
+
+معيار ناشئ جديد: ملف **/llms.txt** يخبر زواحف الذكاء الاصطناعي بما تفعله شركتك وما تحتويه صفحاتك.
+
+تنشر Fizmoh:
+- **[/llms.txt](https://app.fizmoh.cloud/llms.txt)** — ملخص عالي المستوى مع فهرس الصفحات
+- **[/llms-full.txt](https://app.fizmoh.cloud/llms-full.txt)** — بيان معرفة شامل من 10 أقسام
+
+---
+
+## البيانات المنظمة والاقتباسات {#structured-data}
+
+تُنفِّذ Fizmoh:
+- مخطط **LocalBusiness** على كل صفحة موقع جغرافي
+- مخطط **FAQPage** على صفحات المقارنة والحلول
+- مخطط **BreadcrumbList** على كل الموقع
+- مخطط **Article** على جميع مقالات المدونة
+- بدائل **hreflang** للعربية/الإنجليزية
+
+تريد تطبيق GEO لأعمالك العُمانية؟ [تحدث مع فريقنا ←](/contact)
+`,
+  },
 ]

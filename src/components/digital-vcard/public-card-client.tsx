@@ -402,6 +402,8 @@ export function PublicCardClient({ card, items, gallery, cardUrl }: PublicCardPr
 
   return (
     <div className={`min-h-screen antialiased flex flex-col items-center justify-start pb-12 sm:py-8 sm:px-4 ${template.wrapperClass}`}>
+      {/* Suppress platform support chat widget on personal business cards */}
+      <style dangerouslySetInnerHTML={{ __html: `#fizmoh-chat-widget-root { display: none !important; }` }} />
       {/* Profile Card Container */}
       <div className={`w-full max-w-md overflow-hidden transition-all duration-300 ${template.cardClass}`}>
         

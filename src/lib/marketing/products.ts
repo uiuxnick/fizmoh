@@ -1,4 +1,5 @@
 import type { MarketingPage } from "./types"
+import { SOCIAL_PRODUCT_PAGES } from "./social-products"
 
 /**
  * Product landing pages — one per capability in the "Products" nav menu.
@@ -10,6 +11,7 @@ import type { MarketingPage } from "./types"
  */
 
 export const PRODUCT_PAGES: MarketingPage[] = [
+  ...SOCIAL_PRODUCT_PAGES,
   /* ===================================================================== */
   /* 1. Multi-Agent Team Inbox                                              */
   /*    Primary keyword:  WhatsApp shared team inbox                        */
@@ -2042,7 +2044,7 @@ export const PRODUCT_PAGES: MarketingPage[] = [
       ar: "مكّن ضيوفك من مسح باركود الطاولة، استعراض المنيو المصور، الطلب فوراً، وطلب النادل بضغطة زر — مع إدارة الطلبات لحظة بلحظة للطهاة عبر شاشة المطبخ الحية.",
     },
     hero: {
-      src: "/marketing/industries/restaurants-dining.jpg",
+      src: "/marketing/products/smart-menu-ordering.jpg",
       alt: {
         en: "Modern restaurant guests ordering via table QR code with chefs managing tickets on a live kitchen display",
         ar: "رواد مطعم عصري يطلبون عبر رمز QR على الطاولة مع إدارة الطهاة للطلبات عبر شاشة المطبخ",

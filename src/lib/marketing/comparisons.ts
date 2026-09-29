@@ -397,5 +397,10 @@ export const COMPARISON_PAGES: ComparisonPage[] = [
 ]
 
 export function comparisonBySlug(slug: string): ComparisonPage | undefined {
-  return COMPARISON_PAGES.find(p => p.slug === slug.toLowerCase())
+  const normalized = (slug || "").toLowerCase().trim()
+  return (
+    COMPARISON_PAGES.find(p => p.slug === normalized) ||
+    COMPARISON_PAGES.find(p => p.slug === `fizmoh-vs-${normalized}`) ||
+    COMPARISON_PAGES.find(p => p.competitorName.toLowerCase() === normalized)
+  )
 }

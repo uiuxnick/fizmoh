@@ -33,9 +33,46 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   }
   if (status) data.status = status
   if (assignedStaffId !== undefined) data.assignedStaffId = assignedStaffId || null
-  if (labels) data.labels = labels
+  if (labels !== undefined) {
+    if (Array.isArray(labels)) {
+      data.labels = labels.map(String).filter(Boolean)
+    } else if (typeof labels === "string") {
+      try {
+        const parsed = JSON.parse(labels)
+        data.labels = Array.isArray(parsed)
+          ? parsed.map(String).filter(Boolean)
+          : (labels.trim() && labels.trim() !== "[]" ? [labels.trim()] : [])
+      } catch {
+        data.labels = labels.trim() && labels.trim() !== "[]" ? [labels.trim()] : []
+      }
+    } else if (labels === null) {
+      data.labels = []
+    }
+  }
 
   const conversation = await db.conversation.update({ where: { id }, data })
+
+  if (data.labels !== undefined) {
+    if (existing.customerId) {
+      await db.customer.update({
+        where: { id: existing.customerId },
+        data: { tags: data.labels },
+      }).catch(() => {})
+    } else if (existing.customerPhone) {
+      await db.customer.updateMany({
+        where: { phone: existing.customerPhone },
+        data: { tags: data.labels },
+      }).catch(() => {})
+    }
+  }
+
+  if (data.status === "RESOLVED") {
+    // Asynchronously extract and learn facts in background if auto-learn is enabled
+    import("@/lib/chat-training")
+      .then(m => m.handleConversationAutoLearn(id, conversation.tenantId || undefined))
+      .catch(err => console.error("Background chat auto-learning error:", err))
+  }
+
   publish({
     type: "conversation",
     conversationId: id,

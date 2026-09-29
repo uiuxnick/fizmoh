@@ -251,8 +251,113 @@ export const LOCATION_PAGES: LocationPage[] = [
       },
     ],
   },
+  {
+    slug: "salalah",
+    city: "Salalah",
+    country: "Oman",
+    currency: "OMR",
+    primaryKeyword: "WhatsApp marketing Salalah",
+    keywords: [
+      "WhatsApp marketing Salalah",
+      "WhatsApp Business API Salalah",
+      "WhatsApp automation Dhofar",
+      "WhatsApp tour booking Salalah",
+      "Khareef tour WhatsApp booking",
+      "Salalah resort WhatsApp CRM",
+      "AmwalPay WhatsApp Salalah",
+    ],
+    metaTitle: "WhatsApp Business API & Marketing in Salalah, Dhofar | Fizmoh",
+    metaDescription:
+      "WhatsApp Cloud API platform for Salalah & Dhofar businesses: automated Khareef tour bookings, hotel guest concierge, AmwalPay OMR payments, and multi-agent CRM.",
+    h1: "WhatsApp Business API & Automation in Salalah, Oman",
+    subheadline:
+      "Power your Dhofar business with official WhatsApp Cloud API: automated Khareef tour reservations, hospitality guest messaging, and instant AmwalPay card checkout.",
+    heroBadge: "Salalah, Dhofar Governorate, Oman",
+    intro:
+      "From high-season Khareef tourism and mountain safari excursions in Jabal Samhan to luxury beach resorts in Hawana Salalah and frankincense trade, businesses in Dhofar rely on WhatsApp for direct bookings and customer communication. Fizmoh delivers a 24/7 automated messaging engine with native Omani Rial payments.",
+    localHighlights: [
+      {
+        title: "Khareef & Safari Tour Booking Engine",
+        description:
+          "Automate high-volume excursion bookings, safari departures, and car rental confirmations with live slot tracking and digital PDF vouchers.",
+      },
+      {
+        title: "Instant AmwalPay (OMR) Deposits",
+        description:
+          "Collect reservation deposits or full tour payments directly inside WhatsApp. Domestic and GCC travelers pay with Bank Muscat, debit or credit cards.",
+      },
+      {
+        title: "Bilingual Southern & Gulf Arabic AI",
+        description:
+          "Provide instant, polite answers to seasonal tourists in Arabic and English, seamlessly routing complex inquiries to your local team.",
+      },
+    ],
+    faqs: [
+      {
+        q: "How does Fizmoh assist tour operators during Khareef Salalah?",
+        a: "Our bot flows handle peak booking volume automatically: checking excursion dates, collecting guest numbers, issuing payment links, and sending instant WhatsApp confirmations.",
+      },
+      {
+        q: "Can hotels and car rental agencies in Salalah collect deposits via WhatsApp?",
+        a: "Yes. Using native AmwalPay integration, you can issue single-use OMR payment links with instant settlement directly in the chat window.",
+      },
+    ],
+  },
+  {
+    slug: "sohar",
+    city: "Sohar",
+    country: "Oman",
+    currency: "OMR",
+    primaryKeyword: "WhatsApp Business API Sohar",
+    keywords: [
+      "WhatsApp Business API Sohar",
+      "WhatsApp marketing Sohar",
+      "WhatsApp CRM Batinah",
+      "WhatsApp logistics automation Oman",
+      "WhatsApp industrial supply Sohar",
+      "AmwalPay B2B WhatsApp Sohar",
+    ],
+    metaTitle: "WhatsApp Business API & CRM in Sohar, Oman | Fizmoh",
+    metaDescription:
+      "Enterprise WhatsApp Cloud API for Sohar port, logistics, and B2B industrial leaders: multi-agent dispatch queue, shipment notifications, and AmwalPay OMR billing.",
+    h1: "Enterprise WhatsApp Business Platform in Sohar, Oman",
+    subheadline:
+      "Scale logistics updates, field technician dispatch, and B2B customer support across Al Batinah with official WhatsApp Cloud API automation.",
+    heroBadge: "Sohar Port & Freezone, Al Batinah, Oman",
+    intro:
+      "As Oman's industrial and maritime shipping capital, Sohar operates around the clock. Fizmoh equips Sohar-based logistics companies, manufacturing suppliers, and retail merchants with robust WhatsApp automation, multi-agent dispatch queues, and instant customer tracking.",
+    localHighlights: [
+      {
+        title: "Logistics & Delivery Dispatch Automation",
+        description:
+          "Send automated shipment tracking links, customs clearance updates, and delivery confirmations to drivers and B2B clients instantly.",
+      },
+      {
+        title: "Multi-Agent Support & Assignment",
+        description:
+          "Route technical support tickets and sales inquiries across departments from one verified corporate WhatsApp profile.",
+      },
+      {
+        title: "B2B Quoting & AmwalPay Invoicing",
+        description:
+          "Send itemized purchase quotes and collect commercial payments in OMR with verified transaction records.",
+      },
+    ],
+    faqs: [
+      {
+        q: "Can industrial suppliers in Sohar connect ERP or CRM systems?",
+        a: "Yes. Fizmoh offers webhooks and REST APIs to connect order databases, delivery dispatch systems, and customer records effortlessly.",
+      },
+      {
+        q: "Can multiple team members manage dispatch from different locations?",
+        a: "Yes. The shared multi-agent team inbox allows dispatchers and agents in Sohar and Muscat to collaborate on the same business number.",
+      },
+    ],
+  },
 ]
 
 export function locationBySlug(slug: string): LocationPage | undefined {
-  return LOCATION_PAGES.find(p => p.slug === slug.toLowerCase())
+  const normalized = (slug || "").toLowerCase().trim()
+  return LOCATION_PAGES.find(p => p.slug === normalized)
 }
+

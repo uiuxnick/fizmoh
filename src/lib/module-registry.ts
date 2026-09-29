@@ -36,6 +36,7 @@ export const MODULE_REGISTRY = [
   { key: "REPUTATION", label: "Google Review AI Shield", description: "Google Maps 5-star review collector, AI draft generation, and negative feedback private routing", group: "Growth", alwaysIncluded: false },
   { key: "WEBSITE", label: "Website Builder", description: "Drag-and-drop website and landing page builder with 50+ elements, e-commerce store, and publish to your domain", group: "Growth", alwaysIncluded: false },
   { key: "WHITE_LABEL", label: "Agency White-Label Reseller", description: "Custom agency branding, sub-account workspace creation, custom domain mapping and margin billing", group: "Growth", alwaysIncluded: false },
+  { key: "TRAINING", label: "Training & Course Management", description: "Course catalog, registrations, attendee QR tickets, certificates, offers, and WhatsApp automation", group: "Commerce", alwaysIncluded: false },
 ] as const
 
 export type Module = typeof MODULE_REGISTRY[number]["key"]

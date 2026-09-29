@@ -21,7 +21,7 @@ import { calculateOrderPrice } from "@/lib/helpers"
 
 export type NodeKind =
   | "TRIGGER" | "MESSAGE" | "CONDITION" | "ACTION" | "HANDOFF" | "QUESTION" | "SAVE"
-  | "BUTTONS" | "LIST" | "MEDIA" | "DELAY" | "AI" | "HTTP" | "SET" | "TAG"
+  | "BUTTONS" | "LIST" | "MEDIA" | "DELAY" | "AI" | "AI_KNOWLEDGE" | "HTTP" | "SET" | "TAG"
   | "ASSIGN" | "TEMPLATE" | "JUMP" | "SPLIT" | "HOURS" | "END" | "PRODUCT" | "CATALOG"
   | "APPOINTMENT" | "APT_RESCHEDULE" | "HOSPITAL" | "HOSP_CHEMO" | "HOSP_DOCTOR" | "HOSP_BED_MAP"
   | "TOUR" | "TOUR_DETAILS" | "TOUR_AVAIL" | "PAYMENT" | "BANK_TRANSFER"
@@ -55,6 +55,13 @@ export interface NodeData {
   /** AI: what the assistant is being asked to do here. */
   instruction?: string
   useKnowledge?: boolean
+  /** AI_KNOWLEDGE: RAG Knowledge Base Retrieval */
+  query?: string
+  maxPassages?: number
+  fallbackThreshold?: number
+  fallbackText?: string
+  saveToVariable?: string
+  sendReply?: boolean
   /** HTTP: the call, and what to keep from the answer. */
   url?: string
   method?: "GET" | "POST"
@@ -374,6 +381,112 @@ export async function runNode(
         },
       })
       return { branch: "ok", set: { ai_reply: body } }
+    }
+
+    // ── AI Knowledge Base (RAG) Query Node ──────────────────────────────────
+    case "AI_KNOWLEDGE": {
+      const userQuery = fill(data.query || ctx.lastMessage || "", ctx).trim()
+      const instruction = fill(data.instruction || "Answer the customer's question directly and helpfully using the business knowledge base facts.", ctx)
+      const limit = Math.max(1, Math.min(8, Number(data.maxPassages) || 4))
+      const fallbackThreshold = Number(data.fallbackThreshold) || 0.01
+
+      let passages: any[] = []
+      try {
+        const { searchKnowledge } = await import("@/lib/knowledge")
+        passages = await searchKnowledge(userQuery, limit, ctx.tenantId)
+      } catch (err) {
+        console.error("AI_KNOWLEDGE search error:", err)
+      }
+
+      // Check if passages found and meet quality score
+      const validPassages = passages.filter(p => !fallbackThreshold || (p.score && p.score >= fallbackThreshold))
+
+      if (validPassages.length === 0) {
+        // No relevant knowledge base facts found -> trigger fallback branch
+        const fallbackMsg = data.fallbackText ? fill(data.fallbackText, ctx) : ""
+        if (fallbackMsg && data.sendReply !== false) {
+          const result = await sendWhatsApp({ to: ctx.customerPhone, body: fallbackMsg, allowOutsideSession: true })
+          await db.message.create({
+            data: {
+              conversationId: ctx.conversationId,
+              customerId: ctx.customerId,
+              direction: "BOT",
+              type: "TEXT",
+              content: fallbackMsg,
+              isAiGenerated: true,
+              status: result.success ? "SENT" : "FAILED",
+            },
+          })
+        }
+        return {
+          branch: "fallback",
+          set: {
+            [data.saveToVariable || "ai_knowledge_answer"]: "",
+            ai_knowledge_matched: "false",
+          }
+        }
+      }
+
+      // Synthesize answer using AI model grounded with retrieved facts
+      const grounding = validPassages.map(p => `[Source: ${p.sourceTitle}]\n${p.content}`).join("\n\n").slice(0, 5000)
+      let reply = ""
+      try {
+        const { aiChat } = await import("@/lib/ai")
+        reply = await aiChat(
+          [
+            {
+              role: "user",
+              content: `${instruction}\n\nStrict Rule: Answer ONLY using the facts from the Knowledge Passages below. If the information is not present, respond with [NO_INFO].\n\nKnowledge Passages:\n${grounding}\n\nCustomer Question:\n${userQuery}`,
+            }
+          ],
+          "en",
+          ctx.customerPhone,
+          ctx.tenantId,
+        )
+      } catch (err) {
+        console.error("AI_KNOWLEDGE generation error:", err)
+      }
+
+      const body = reply.trim()
+      if (!body || body.includes("[NO_INFO]")) {
+        const fallbackMsg = data.fallbackText ? fill(data.fallbackText, ctx) : ""
+        if (fallbackMsg && data.sendReply !== false) {
+          await sendWhatsApp({ to: ctx.customerPhone, body: fallbackMsg, allowOutsideSession: true })
+        }
+        return {
+          branch: "fallback",
+          set: {
+            [data.saveToVariable || "ai_knowledge_answer"]: "",
+            ai_knowledge_matched: "false",
+          }
+        }
+      }
+
+      // If sendReply is true (default), send answer to customer
+      if (data.sendReply !== false) {
+        const result = await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+        await db.message.create({
+          data: {
+            conversationId: ctx.conversationId,
+            customerId: ctx.customerId,
+            direction: "BOT",
+            type: "TEXT",
+            content: body,
+            isAiGenerated: true,
+            status: result.success ? "SENT" : "FAILED",
+          },
+        })
+      }
+
+      const varKey = data.saveToVariable || "ai_knowledge_answer"
+      return {
+        branch: "answered",
+        set: {
+          [varKey]: body,
+          ai_knowledge_matched: "true",
+          ai_knowledge_sources: validPassages.map(p => p.sourceTitle).filter(Boolean).join(", "),
+        }
+      }
     }
 
     // ── the world outside ───────────────────────────────────────────────────
@@ -1265,7 +1378,9 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
       const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
       const slug = tenant?.slug || "kitchen"
-      const siteUrl = `https://app.fizmoh.cloud/menu/${slug}`
+      const existingTable = ctx.variables?.["restaurant.tableNumber"] || ctx.variables?.["table"]
+      const tableParam = existingTable && existingTable !== "0" ? `?table=${encodeURIComponent(existingTable)}` : ""
+      const siteUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
 
       const txt = fill(data.text || `🍽️ *${tenant?.name || "Restaurant"} — Smart Menu & Ordering*\n\nExplore our chef specials, customize dishes, and order directly for Delivery, Pickup or Dine-In with online card payment:`, ctx)
       
@@ -1276,13 +1391,12 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
         url: siteUrl,
       })
 
-      await record(ctx, `${txt}\n${siteUrl}`, res.success)
+      await record(ctx, txt, res.success)
 
       if (!res.success) {
-        const fullMsg = `${txt}\n\n👉 *Open Menu & Order:*\n${siteUrl}`
         await sendWhatsApp({
           to: ctx.customerPhone,
-          body: fullMsg,
+          body: `${txt}\n\n👉 *Open Menu & Order:*\n${siteUrl}`,
           allowOutsideSession: true,
         })
       }
@@ -1294,59 +1408,62 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
       const slug = tenant?.slug || "kitchen"
 
-      const categories = await db.menuCategory.findMany({
-        where: { tenantId, isActive: true },
-        include: {
-          items: {
-            where: { isAvailable: true, isSoldOut: false },
-            take: 6,
-            orderBy: { sortOrder: "asc" },
+      // If customer already has a table number (from QR scan stored in variables), use it directly.
+      // Otherwise ask for it so the menu URL can pre-fill their table.
+      const existingTable = ctx.variables?.["restaurant.tableNumber"] || ctx.variables?.["table"]
+
+      if (!existingTable) {
+        // No table known — ask first, then send menu after they reply
+        const prompt =
+          `🍽️ *${tenant?.name || "Restaurant"} — Welcome!*\n\n` +
+          `To help us serve you better, please reply with your *table number*.\n\n` +
+          `Example: reply *5* if you're sitting at Table 5\n\n` +
+          `_(If you are ordering for Takeaway or Delivery, reply *0*)_`
+
+        await db.conversation.update({
+          where: { id: ctx.conversationId },
+          data: {
+            flowState: JSON.stringify({
+              waitingFor: "TABLE_NUMBER",
+              tenantId,
+              slug,
+              businessName: tenant?.name || "Restaurant",
+              startedAt: new Date().toISOString(),
+            }),
           },
-        },
-        take: 10,
-        orderBy: { displayOrder: "asc" },
-      })
+        }).catch(() => {})
 
-      const rows = categories.flatMap(cat =>
-        cat.items.map(item => ({
-          id: `item_${item.id}`,
-          title: item.name.slice(0, 24),
-          description: `${(item.salePrice || item.price).toFixed(3)} ${item.currency} · ${cat.name}`.slice(0, 72),
-        }))
-      ).slice(0, 10)
+        await sendWhatsApp({ to: ctx.customerPhone, body: prompt, allowOutsideSession: true })
+        await record(ctx, prompt, true)
+        return { wait: "reply" }
+      }
 
-      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}`
+      // Table already known — send CTA with table pre-filled
+      const tableParam = existingTable && existingTable !== "0"
+        ? `?table=${encodeURIComponent(existingTable)}`
+        : ""
+      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
       const intro = fill(
         data.text ||
-          `🍽️ *${tenant?.name || "Restaurant"} Menu*\n\nBrowse our popular dishes below, or open our full interactive digital menu with high-res photos & online ordering:`,
+          `🍽️ *${tenant?.name || "Restaurant"} — Menu & Online Ordering*\n\n` +
+          (existingTable && existingTable !== "0" ? `Table *${existingTable}* — ` : "") +
+          `Explore our chef's specialties, fresh dishes, and customize your meal.\n\nTap below to open our interactive digital menu inside WhatsApp:`,
         ctx,
       )
 
-      if (rows.length > 0) {
-        const result = await sendInteractiveMessage({
-          to: ctx.customerPhone,
-          body: `${intro}\n\n👉 *Open Full Digital Menu:*\n${menuUrl}`,
-          list: {
-            title: "View Menu",
-            sections: [{ title: "Popular Dishes", rows }],
-          },
-        })
-        await record(ctx, `${intro}\n${menuUrl}`, result.success)
-      } else {
-        const cta = await sendCtaUrlMessage({
+      const cta = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body: intro,
+        buttonText: "Open Digital Menu",
+        url: menuUrl,
+      })
+      await record(ctx, intro, cta.success)
+      if (!cta.success) {
+        await sendWhatsApp({
           to: ctx.customerPhone,
           body: intro,
-          buttonText: "Open Menu & Order",
-          url: menuUrl,
+          allowOutsideSession: true,
         })
-        await record(ctx, `${intro}\n${menuUrl}`, cta.success)
-        if (!cta.success) {
-          await sendWhatsApp({
-            to: ctx.customerPhone,
-            body: `${intro}\n\n👉 *Open Menu & Order:*\n${menuUrl}`,
-            allowOutsideSession: true,
-          })
-        }
       }
       return { wait: "reply" }
     }
@@ -1355,20 +1472,21 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
       const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
       const slug = tenant?.slug || "kitchen"
-      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}`
+      const existingTable = ctx.variables?.["restaurant.tableNumber"] || ctx.variables?.["table"]
+      const tableParam = existingTable && existingTable !== "0" ? `?table=${encodeURIComponent(existingTable)}` : ""
+      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
 
       await db.conversation.update({
         where: { id: ctx.conversationId },
         data: {
-          flowState: JSON.stringify({ waitingFor: "SEARCH_QUERY", tenantId, startedAt: new Date().toISOString() }),
+          flowState: JSON.stringify({ waitingFor: "SEARCH_QUERY", tenantId, slug, startedAt: new Date().toISOString() }),
         },
       }).catch(() => {})
 
       const promptMsg =
         `🔍 *Search Menu & Dishes (${tenant?.name || "Restaurant"})*\n\n` +
         `What dish or craving are you looking for today?\n\n` +
-        `Type any dish or ingredient like *pasta*, *burger*, *pizza*, *fries*, *salad*, *steak*, etc.\n\n` +
-        `👉 *Or Browse Full Digital Menu Online:*\n${menuUrl}`
+        `Type any dish or ingredient like *pasta*, *burger*, *pizza*, *fries*, *salad*, *steak*, etc., or tap below to open the interactive menu:`
 
       const cta = await sendCtaUrlMessage({
         to: ctx.customerPhone,
@@ -1384,7 +1502,8 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
       const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
       const slug = tenant?.slug || "kitchen"
-      const tableParam = data.tableNumber ? `?table=${encodeURIComponent(data.tableNumber)}` : ""
+      const tableNum = data.tableNumber || ctx.variables?.["restaurant.tableNumber"] || ctx.variables?.["table"]
+      const tableParam = tableNum && tableNum !== "0" ? `?table=${encodeURIComponent(tableNum)}` : ""
       const orderUrl = `https://app.fizmoh.cloud/menu/${slug}${tableParam}`
 
       const txt = fill(
@@ -1392,7 +1511,7 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
           `🍽️ *Place an Order (${tenant?.name || "Restaurant"})*\n\n` +
           `🛵 *Home Delivery* — Fast to your address\n` +
           `🥡 *Self Pickup* — Fresh and ready\n` +
-          `🍽️ *Dine-In* ${data.tableNumber ? `(Table #${data.tableNumber})` : "— Order to your table"}\n\n` +
+          `🍽️ *Dine-In* ${tableNum ? `(Table #${tableNum})` : "— Order to your table"}\n\n` +
           `Tap below to open interactive menu & order:`,
         ctx,
       )
@@ -1404,7 +1523,7 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
         url: orderUrl,
       })
 
-      await record(ctx, `${txt}\n${orderUrl}`, res.success)
+      await record(ctx, txt, res.success)
 
       if (!res.success) {
         await sendWhatsApp({
@@ -1496,9 +1615,18 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       })
 
       if (!order) {
-        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } })
-        const body = `💳 You have no pending restaurant bills. If you want to place a new order, view our menu:\nhttps://app.fizmoh.cloud/${tenant?.slug || "kitchen"}`
-        await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+        const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
+        const menuUrl = `https://app.fizmoh.cloud/menu/${tenant?.slug || "kitchen"}`
+        const body = `💳 You have no pending restaurant bills. If you want to place a new order, tap below to view our menu:`
+        const cta = await sendCtaUrlMessage({
+          to: ctx.customerPhone,
+          body,
+          buttonText: "View Menu",
+          url: menuUrl,
+        })
+        if (!cta.success) {
+          await sendWhatsApp({ to: ctx.customerPhone, body: `${body}\n\n👉 ${menuUrl}`, allowOutsideSession: true })
+        }
         return { wait: "reply" }
       }
 
@@ -1562,6 +1690,7 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
       const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || ""
       const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { slug: true, name: true } })
       const slug = tenant?.slug || "kitchen"
+      const menuUrl = `https://app.fizmoh.cloud/menu/${slug}`
 
       const body = fill(
         data.text ||
@@ -1570,11 +1699,20 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
           `2️⃣ Browse our live interactive menu\n` +
           `3️⃣ Add your dishes & send order straight to our kitchen chefs\n` +
           `4️⃣ Pay online instantly or pay at the table\n\n` +
-          `👉 *Or open our live menu directly:* https://app.fizmoh.cloud/${slug}`,
+          `Tap below to open interactive menu:`,
         ctx,
       )
 
-      await sendWhatsApp({ to: ctx.customerPhone, body, allowOutsideSession: true })
+      const cta = await sendCtaUrlMessage({
+        to: ctx.customerPhone,
+        body,
+        buttonText: "Open Menu",
+        url: menuUrl,
+      })
+      await record(ctx, body, cta.success)
+      if (!cta.success) {
+        await sendWhatsApp({ to: ctx.customerPhone, body: `${body}\n\n👉 ${menuUrl}`, allowOutsideSession: true })
+      }
       return { wait: "reply" }
     }
 

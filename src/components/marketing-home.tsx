@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { WhatsAppDemo } from "@/components/whatsapp-demo"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
@@ -50,6 +51,7 @@ import { Reveal } from "@/components/motion-primitives"
 import { HeroSlider } from "@/components/hero-slider"
 import { LogoMarquee } from "@/components/logo-marquee"
 import { ClientLogos } from "@/components/client-logos"
+import { ProductWalkthroughRemotion } from "@/components/marketing/product-walkthrough-remotion"
 import {
   Accordion,
   AccordionContent,
@@ -59,7 +61,7 @@ import {
 
 export default function MarketingHome() {
   const { lang, isAr } = useLanguage()
-  const [activeDemo, setActiveDemo] = useState<"david" | "farida" | "aisha">("farida")
+  const [activeDemo, setActiveDemo] = useState<"nick" | "farida" | "david" | "aisha">("nick")
 
   const industries = [
     { icon: Utensils, titleEn: "Restaurants & Cafes", titleAr: "المطاعم والكافيهات", descEn: "QR menus, table booking & kitchen routing", descAr: "منيو باركود وحجز طاولات وتوجيه للمطبخ", href: "/solutions/restaurants-dining" },
@@ -258,11 +260,26 @@ export default function MarketingHome() {
         {/* ============================================================ */}
         {/* TRUST / PARTNER BAR */}
         {/* ============================================================ */}
-        <section className="border-b border-[var(--mk-line)] bg-[var(--mk-surface-2)] px-4 py-6 sm:px-6">
+        <section className="border-b border-[var(--mk-line)] bg-[var(--mk-surface-2)] px-4 py-8 sm:px-6">
           <div className="mx-auto max-w-7xl">
-            <p className="mb-4 text-center text-[11.5px] font-bold uppercase tracking-widest text-[var(--mk-muted)]">
-              {isAr ? "معتمدون ومتكاملون مع" : "Certified & integrated with"}
-            </p>
+            <div className="mb-6 flex flex-col items-center justify-center gap-3.5 text-center">
+              <p className="text-[12px] font-bold uppercase tracking-widest text-[var(--mk-muted)]">
+                {isAr ? "شريك معتمد وموثق رسمياً من ميتا للأعمال" : "Officially Certified Meta Business Partner"}
+              </p>
+              <div
+                className="inline-flex items-center gap-3.5 rounded-2xl bg-white border-2 border-emerald-600/35 px-6 py-3 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-4 ring-emerald-500/10"
+                title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+              >
+                <Image
+                  src="/meta_business_partner.webp"
+                  alt="Official Meta Business Partner"
+                  width={220}
+                  height={64}
+                  className="h-11 sm:h-13 w-auto object-contain"
+                  priority
+                />
+              </div>
+            </div>
             <LogoMarquee />
           </div>
         </section>
@@ -324,6 +341,11 @@ export default function MarketingHome() {
             </div>
           </div>
         </section>
+
+        {/* ============================================================ */}
+        {/* INTERACTIVE PRODUCT WALKTHROUGH STUDIO (REMOTION POWERED)   */}
+        {/* ============================================================ */}
+        <ProductWalkthroughRemotion isAr={isAr} />
 
         {/* ============================================================ */}
         {/* SPOTLIGHT: DIGITAL BUSINESS CARDS (VCARD 2.0) */}
@@ -397,16 +419,21 @@ export default function MarketingHome() {
                 <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm">
                   <button
                     type="button"
-                    onClick={() => setActiveDemo("david")}
+                    onClick={() => setActiveDemo("nick")}
                     className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
-                      activeDemo === "david"
-                        ? "bg-emerald-700 text-white shadow-md"
+                      activeDemo === "nick"
+                        ? "bg-slate-950 text-teal-300 shadow-md ring-1 ring-teal-500/60"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span>David Okello</span>
-                    <span className="hidden sm:inline text-[10px] opacity-80">(Emerald)</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                    </span>
+                    <span>Nick Sharma</span>
+                    <span className="rounded-full bg-teal-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-teal-300">
+                      Live
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -420,6 +447,19 @@ export default function MarketingHome() {
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
                     <span>Farida Mwaniki</span>
                     <span className="hidden sm:inline text-[10px] opacity-80">(Navy)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDemo("david")}
+                    className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                      activeDemo === "david"
+                        ? "bg-emerald-700 text-white shadow-md"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    <span>David Okello</span>
+                    <span className="hidden sm:inline text-[10px] opacity-80">(Emerald)</span>
                   </button>
                   <button
                     type="button"
@@ -445,7 +485,44 @@ export default function MarketingHome() {
                   </div>
 
                   {/* Device Screen */}
-                  <div className="relative overflow-hidden rounded-[36px] bg-white min-h-[540px] text-left select-none pt-7 flex flex-col justify-between">
+                  <div className={`relative overflow-hidden rounded-[36px] min-h-[580px] h-[580px] text-left select-none flex flex-col justify-between ${
+                    activeDemo === "nick" ? "bg-slate-950 pt-0" : "bg-white pt-7"
+                  }`}>
+                    {/* Demo 0: Nick Sharma (Live Embedded vCard 2.0) */}
+                    {activeDemo === "nick" && (
+                      <div className="relative flex flex-col h-full w-full bg-slate-950 text-white transition-all duration-300">
+                        {/* Live Notch Header Bar */}
+                        <div className="flex items-center justify-between px-4 pt-7 pb-2 text-[10.5px] font-semibold text-emerald-400 bg-slate-950/95 border-b border-white/10 z-20 shrink-0">
+                          <span className="flex items-center gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                            </span>
+                            <span className="tracking-wide uppercase font-bold text-[10px]">
+                              {isAr ? "بطاقة مباشرة · نيك شارما" : "LIVE VCARD · NICK SHARMA"}
+                            </span>
+                          </span>
+                          <Link
+                            href="/card/nick"
+                            target="_blank"
+                            className="inline-flex items-center gap-1 text-[10.5px] font-bold text-teal-300 hover:text-teal-200 transition"
+                          >
+                            <span>{isAr ? "فتح مباشر" : "Live URL"}</span>
+                            <ArrowUpRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+
+                        {/* Interactive Live Card Iframe */}
+                        <div className="relative flex-1 w-full overflow-hidden bg-slate-950">
+                          <iframe
+                            src="/card/nick?embed=true"
+                            className="w-full h-full border-0"
+                            title="Nick Sharma - Live Digital vCard"
+                            loading="eager"
+                          />
+                        </div>
+                      </div>
+                    )}
                     {/* Demo 1: David Okello (Curve Emerald) */}
                     {activeDemo === "david" && (
                       <div className="flex flex-col h-full bg-white text-slate-900 transition-all duration-300">
@@ -744,11 +821,11 @@ export default function MarketingHome() {
                     {isAr ? "معاينة البطاقة الحية:" : "Open Live Card:"}
                   </span>
                   <Link
-                    href={`/card/${activeDemo === "david" ? "david-okello" : activeDemo === "farida" ? "farida-mwaniki" : "aisha-abdullahi"}`}
+                    href={`/card/${activeDemo === "nick" ? "nick" : activeDemo === "david" ? "david-okello" : activeDemo === "farida" ? "farida-mwaniki" : "aisha-abdullahi"}`}
                     target="_blank"
                     className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-900 transition hover:bg-emerald-100"
                   >
-                    <span>{activeDemo === "david" ? "david-okello" : activeDemo === "farida" ? "farida-mwaniki" : "aisha-abdullahi"}</span>
+                    <span>{activeDemo === "nick" ? "nick" : activeDemo === "david" ? "david-okello" : activeDemo === "farida" ? "farida-mwaniki" : "aisha-abdullahi"}</span>
                     <ArrowUpRight className="h-3 w-3 text-emerald-700" />
                   </Link>
                 </div>
@@ -1165,6 +1242,87 @@ export default function MarketingHome() {
                 <span>{isAr ? "استعراض مركز التنزيل الكامل والمواصفات" : "Open Full Download Center & Release Hashes"}</span>
                 <ArrowRight className={`h-4 w-4 ${isAr ? "rotate-180" : ""}`} />
               </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================ */}
+        {/* PLATFORM BENCHMARKS & DEFINITION (GEO / AIO EXTRACTION BLOCK) */}
+        {/* ============================================================ */}
+        <section className="border-b border-[var(--mk-line)] bg-white px-4 py-20 sm:px-6">
+          <div className="mx-auto max-w-7xl space-y-12">
+            <div className="mx-auto max-w-3xl text-center space-y-3">
+              <p className="text-[12px] font-extrabold uppercase tracking-widest text-[var(--mk-green-deep)]">
+                {isAr ? "معايير الأداء والاعتمادية" : "Verified Performance & Benchmarks"}
+              </p>
+              <h2 className="mk-display text-[36px] text-[var(--mk-ink)] sm:text-[44px]">
+                {isAr ? "بنية تحتية سحابية موثوقة للشركات في الخليج" : "Enterprise Infrastructure Engineered for the GCC"}
+              </h2>
+              <p className="text-[16px] text-[var(--mk-ink-soft)] leading-relaxed">
+                {isAr
+                  ? "أرقام قياسية مدعومة بشراكة رسمية مع ميتا، وتكامل مباشر مع البوابات المصرفية في سلطنة عمان."
+                  : "Measurable impact powered by direct Meta Cloud API integration and native Oman banking rails."}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {[
+                {
+                  value: "99.4%",
+                  labelEn: "Delivery Rate",
+                  labelAr: "معدل وصول الرسائل",
+                  subEn: "Direct Meta Cloud API",
+                  subAr: "واجهة ميتا الرسمية المباشرة",
+                },
+                {
+                  value: "82%",
+                  labelEn: "Faster First Response",
+                  labelAr: "استجابة أسرع للعملاء",
+                  subEn: "AI triage + Human takeover",
+                  subAr: "ذكاء اصطناعي وتحويل للموظف",
+                },
+                {
+                  value: "35%",
+                  labelEn: "Quicker Table Turnaround",
+                  labelAr: "دوران أسرع للطاولات",
+                  subEn: "QR Menu & Live KDS",
+                  subAr: "منيو الباركود وشاشة المطبخ",
+                },
+                {
+                  value: "0%",
+                  labelEn: "Markup on Meta Fees",
+                  labelAr: "عمولة إضافية على ميتا",
+                  subEn: "Direct pass-through in OMR",
+                  subAr: "سعر التكلفة بالريال العماني",
+                },
+              ].map((stat, i) => (
+                <div key={i} className="mk-card p-6 text-center space-y-2 border-stone-200/90 shadow-sm">
+                  <div className="text-[36px] sm:text-[42px] font-extrabold tracking-tight text-emerald-600">
+                    {stat.value}
+                  </div>
+                  <div className="text-[15px] font-bold text-[var(--mk-ink)]">
+                    {isAr ? stat.labelAr : stat.labelEn}
+                  </div>
+                  <div className="text-[12px] text-[var(--mk-muted)]">
+                    {isAr ? stat.subAr : stat.subEn}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Answer-First Definition Card for SearchGPT / Perplexity / Google AIO */}
+            <div className="rounded-2xl border-2 border-emerald-500/25 bg-emerald-50/40 p-7 md:p-9 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-[18px] font-bold text-emerald-950">
+                  {isAr ? "ما هي منصة فيزموه (Fizmoh)؟" : "What is the Fizmoh WhatsApp Business Platform?"}
+                </h3>
+              </div>
+              <p className="text-[15px] md:text-[16px] leading-relaxed text-emerald-950/85">
+                {isAr
+                  ? "فيزموه (Fizmoh) هي منصة سحابية رائدة في سلطنة عمان ودول مجلس التعاون الخليجي، معتمدة كشريك رسمي لأعمال ميتا (Meta Business Partner). تمكّن الشركات من ربط أرقامها بواجهة WhatsApp Cloud API الرسمية، وتوفر صندوق وارد مشترك متعدد الموظفين (Shared Team Inbox)، وبوتات ذكاء اصطناعي تفهم اللهجة العمانية والخليجية، ونظام المنيو الذكي وطلبات الطاولات للمطاعم، مع قبول فوري للمدفوعات الإلكترونية بالريال العماني عبر بوابة أموال باي (AmwalPay) بعمولة 0% على رسوم ميتا."
+                  : "Fizmoh is an enterprise conversational commerce and customer support platform engineered for Oman and the GCC. As an official Meta Business Partner, Fizmoh provides direct WhatsApp Cloud API connectivity, multi-agent shared team inboxes, no-code visual botflows supporting Gulf Arabic dialects, and interactive QR dining menus with live Kitchen Display Systems (KDS). The platform features native AmwalPay payment gateway integration for instant in-chat card checkout in Omani Rials (OMR) with zero markup on official Meta messaging fees."}
+              </p>
             </div>
           </div>
         </section>

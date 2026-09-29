@@ -56,13 +56,32 @@ export const GET = withErrors(async (request: NextRequest) => {
         raw.order.count({ where: { tenantId: tenant.id } }),
         raw.message.count({ where: { tenantId: tenant.id } }),
       ])
-      const settings = await raw.systemSetting.findMany({
-        where: {
-          tenantId: tenant.id,
-          key: { in: ["business_name", "business_phone", "business_email", "business_address", "business_website", "business_about"] },
-        },
-        select: { key: true, value: true },
-      })
+      const [settings, ownerStaff, waAccount, latestMsg] = await Promise.all([
+        raw.systemSetting.findMany({
+          where: {
+            tenantId: tenant.id,
+            key: { in: ["business_name", "business_phone", "business_email", "business_address", "business_website", "business_about"] },
+          },
+          select: { key: true, value: true },
+        }),
+        // The workspace owner (SUPER_ADMIN of this tenant) for contact details
+        raw.staff.findFirst({
+          where: { tenantId: tenant.id, role: "SUPER_ADMIN" },
+          select: { email: true, phone: true, name: true },
+          orderBy: { createdAt: "asc" },
+        }),
+        // Connected WhatsApp number
+        raw.whatsAppAccount.findFirst({
+          where: { tenantId: tenant.id, status: "CONNECTED" },
+          select: { displayPhone: true, phoneNumberId: true },
+        }),
+        // Last inbound or outbound message time
+        raw.message.findFirst({
+          where: { tenantId: tenant.id },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        }),
+      ])
       const byKey = Object.fromEntries(settings.map(row => [row.key, row.value]))
       const subscription = tenant.subscriptions[0]
       return {
@@ -93,9 +112,17 @@ export const GET = withErrors(async (request: NextRequest) => {
         businessAddress: byKey.business_address ?? "",
         businessWebsite: byKey.business_website ?? "",
         businessAbout: byKey.business_about ?? "",
+        // Marketing fields
+        ownerName: ownerStaff?.name ?? "",
+        ownerEmail: ownerStaff?.email ?? "",
+        ownerPhone: ownerStaff?.phone ?? "",
+        whatsappNumber: waAccount?.displayPhone ?? "",
+        whatsappPhoneId: waAccount?.phoneNumberId ?? "",
+        lastMessageAt: latestMsg?.createdAt ?? null,
       }
     }),
   )
+
 
   const plans = await raw.plan.findMany({ orderBy: { sortOrder: "asc" } })
 
@@ -155,7 +182,9 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   const plan =
     (body?.planId ? await raw.plan.findUnique({ where: { id: String(body.planId) } }) : null) ??
+    (await raw.plan.findUnique({ where: { slug: "starter" } })) ??
     (await raw.plan.findFirst({ where: { isPublic: true }, orderBy: { sortOrder: "asc" } }))
+
 
   const trialEndsAt = new Date()
   trialEndsAt.setDate(trialEndsAt.getDate() + (plan?.trialDays ?? 14))

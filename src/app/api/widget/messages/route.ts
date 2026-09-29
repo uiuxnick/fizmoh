@@ -184,10 +184,17 @@ export async function POST(request: NextRequest) {
             where: { id: sessionId },
             data: {
               botActive: false,
+              automationPaused: true,
+              status: "PENDING",
               intent: intent.intent,
               sentiment: intent.sentiment,
             },
           })
+
+          const isArabic = conversation.customer?.preferredLang === "ar" || /[\u0600-\u06FF]/.test(content)
+          const handoffText = isArabic
+            ? "تم تحويل المحادثة إلى أحد ممثلي فريق خدمة العملاء للمتابعة معك مباشرة. 🙏"
+            : "I'm looping in a member of our support team to assist you further. 🙏"
 
           aiResponseMessage = await db.message.create({
             data: {
@@ -195,10 +202,23 @@ export async function POST(request: NextRequest) {
               conversationId: sessionId,
               direction: "BOT",
               type: "TEXT",
-              content: "I'm looping in a member of our support team to assist you further. 🙏",
+              content: handoffText,
               isAiGenerated: true,
               status: "SENT",
             },
+          })
+
+          publish({
+            type: "message",
+            conversationId: sessionId,
+            direction: "BOT",
+            preview: handoffText.slice(0, 120),
+            channel: "LIVE_CHAT",
+          })
+          publish({
+            type: "conversation",
+            conversationId: sessionId,
+            tenantId: conversation.tenantId || undefined,
           })
         } else {
           // Fetch conversation history for smart grounded reply
@@ -213,7 +233,8 @@ export async function POST(request: NextRequest) {
             content: m.content,
           }))
 
-          const aiReplyText = await aiChat(aiHistory, conversation.customer?.preferredLang || "en")
+          const preferredLang = conversation.customer?.preferredLang || (/[\u0600-\u06FF]/.test(content) ? "ar" : "en")
+          const aiReplyText = await aiChat(aiHistory, preferredLang, undefined, conversation.tenantId)
 
           aiResponseMessage = await db.message.create({
             data: {

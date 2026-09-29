@@ -8,7 +8,7 @@ export interface FlowTemplate {
   name: string
   description: string
   emoji: string
-  category: "Healthcare" | "Tours & Travel" | "Appointments" | "E-Commerce" | "Dining & Hospitality" | "CRM & AI" | "Corporate & Architectural"
+  category: "Healthcare" | "Tours & Travel" | "Appointments" | "E-Commerce" | "Dining & Hospitality" | "CRM & AI" | "Corporate & Architectural" | "Training & Education"
   trigger: string
   triggerConfig: Record<string, unknown>
   nodes: unknown[]
@@ -1552,6 +1552,105 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
       e("e_loc8", "loc_qurum", "loc_end"),
       e("e_loc9", "loc_sohar", "loc_end"),
       e("e_loc10", "loc_salalah", "loc_end"),
+    ],
+  },
+  // ════════════════════════════════════════════════════════════════════════════
+  // TRAINING & COURSE MANAGEMENT REGISTRATION BOT FLOW (TANFIDH / BSC)
+  // ════════════════════════════════════════════════════════════════════════════
+  {
+    id: "tanfidh_training_bsc_flow",
+    name: "AI-Powered Course Registration & BOGO Offer Bot",
+    description: "Ready-made training registration funnel: Course info, seat selection with Buy 1 Get 1 Free auto-calculation, attendee details, and payment link.",
+    emoji: "🎓",
+    category: "Training & Education",
+    trigger: "KEYWORD",
+    triggerConfig: {
+      keywords: ["bsc", "course", "training", "register", "tanfidh", "scorecard", "دورة", "تدريب"],
+      matchType: "contains",
+    },
+    nodes: [
+      n("t_start", "TRIGGER", {}, 500, 30),
+      n("n_welcome", "BUTTONS", {
+        header: "Tanfidh Management Consultants",
+        text: "👋 Welcome! *AI-Powered Certified Balanced Scorecard Professional*\n\n📅 13-14 October 2026\n📍 Sheraton Oman Hotel, Muscat\n⏰ 2-Day In-Person Executive Masterclass\n🎁 *Special Offer:* Pay for 1 seat and get 1 seat FREE!\n\nWhat would you like to do?",
+        footer: "Select an option below",
+        buttons: [
+          { id: "opt_details", title: "View Course Details" },
+          { id: "opt_register", title: "Register Now 🚀" },
+          { id: "opt_advisor", title: "Talk to Consultant" },
+        ],
+      }, 500, 160),
+      n("n_details", "BUTTONS", {
+        header: "Course Overview",
+        text: "🎯 *Course Highlights:*\n• 4-Perspective BSC Formulation with Generative AI\n• Strategy mapping & KPI cascading across departments\n• Lead vs Lagging KPI mathematical thresholds\n• Executive toolkit & PowerBI dashboards included\n• Official Certified Professional Credential\n\n💰 *Standard Fee:* OMR 500\n✨ *Special Offer:* 1 Paid Seat + 1 FREE Seat (2 Attendees for OMR 500)",
+        buttons: [
+          { id: "opt_register_from_details", title: "Book My Seat Now" },
+          { id: "opt_advisor", title: "Speak with Said" },
+        ],
+      }, 250, 340),
+      n("q_name", "QUESTION", {
+        text: "Great! Let's get your registration started.\n\nPlease enter your *Full Name*:",
+        name: "customer_name",
+        inputType: "text",
+      }, 500, 340),
+      n("q_mobile", "QUESTION", {
+        text: "Thank you {{customer_name}}! What is your best *Mobile / WhatsApp number*?",
+        name: "customer_mobile",
+        inputType: "phone",
+      }, 500, 480),
+      n("q_email", "QUESTION", {
+        text: "What is your *Work Email Address*?",
+        name: "customer_email",
+        inputType: "email",
+      }, 500, 620),
+      n("q_company", "QUESTION", {
+        text: "What is your *Company Name* and *Job Title*? (e.g. Omantel - Strategy Director)",
+        name: "company_name",
+        inputType: "text",
+      }, 500, 760),
+      n("q_seats", "BUTTONS", {
+        header: "Participant Seats",
+        text: "How many seats would you like to reserve?\n\n✨ *Special Offer Active:* Every 1 paid seat includes 1 FREE guest seat!",
+        footer: "Select quantity",
+        buttons: [
+          { id: "seats_1", title: "1 Paid (+1 FREE = 2)" },
+          { id: "seats_2", title: "2 Paid (+2 FREE = 4)" },
+          { id: "seats_corp", title: "Corporate Booking (5+)" },
+        ],
+      }, 500, 900),
+      n("n_summary", "BUTTONS", {
+        header: "Registration Summary",
+        text: "📋 *Booking Summary:*\n\n• *Course:* AI-Powered Certified Balanced Scorecard Professional\n• *Dates:* 13-14 October 2026\n• *Venue:* Sheraton Oman Hotel, Muscat\n• *Primary Buyer:* {{customer_name}}\n• *Offer Applied:* Pay 1 Get 1 FREE\n• *Total Delegates:* 2 Participants\n• *Total Amount:* OMR 500 (+ 5% VAT)\n\nReady to confirm?",
+        buttons: [
+          { id: "opt_confirm_reg", title: "Confirm & Pay 💳" },
+          { id: "opt_advisor", title: "Request Official Invoice" },
+        ],
+      }, 500, 1060),
+      n("n_confirmed", "SEND_TEXT", {
+        text: "🎉 *Registration Confirmed!*\n\nHello {{customer_name}},\n\nYour registration has been created with Reference *REG-2026-OM*. To secure your participant badges and materials, please use your checkout link:\n\n👉 https://app.fizmoh.cloud/training/ai-powered-balanced-scorecard-professional\n\nOur coordinator will reach out to collect your second attendee's details.\n\nSee you on 13 October!",
+      }, 500, 1220),
+      n("n_handoff", "HANDOFF", {
+        text: "Connecting you with a senior training consultant from Tanfidh Management Consultants right away. Please hold on.",
+      }, 800, 500),
+      n("n_end", "END", {}, 500, 1360),
+    ],
+    edges: [
+      e("e_trg", "t_start", "n_welcome"),
+      e("e_w1", "n_welcome", "n_details", "opt_details"),
+      e("e_w2", "n_welcome", "q_name", "opt_register"),
+      e("e_w3", "n_welcome", "n_handoff", "opt_advisor"),
+      e("e_d1", "n_details", "q_name", "opt_register_from_details"),
+      e("e_d2", "n_details", "n_handoff", "opt_advisor"),
+      e("e_q1", "q_name", "q_mobile"),
+      e("e_q2", "q_mobile", "q_email"),
+      e("e_q3", "q_email", "q_company"),
+      e("e_q4", "q_company", "q_seats"),
+      e("e_s1", "q_seats", "n_summary", "seats_1"),
+      e("e_s2", "q_seats", "n_summary", "seats_2"),
+      e("e_s3", "q_seats", "n_handoff", "seats_corp"),
+      e("e_sum1", "n_summary", "n_confirmed", "opt_confirm_reg"),
+      e("e_sum2", "n_summary", "n_handoff", "opt_advisor"),
+      e("e_end", "n_confirmed", "n_end"),
     ],
   },
 ]

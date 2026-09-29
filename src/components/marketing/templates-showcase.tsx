@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { BOT_TEMPLATES, type FlowTemplate } from "@/lib/bot-templates"
+import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
 import { useLanguage } from "@/context/language-context"
 import { toast } from "sonner"
 
@@ -209,143 +210,14 @@ export function TemplatesShowcase() {
         })}
       </div>
 
-      {/* Template Preview Modal */}
+      {/* Interactive WhatsApp Visual Simulator Demo */}
       {previewTemplate && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setPreviewTemplate(null)}
-        >
-          <div
-            className="bg-white rounded-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 bg-stone-50/70">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl p-2 bg-white rounded-xl shadow-xs border border-stone-200">
-                  {previewTemplate.emoji}
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base text-stone-900">{previewTemplate.name}</h3>
-                    <Badge variant="outline" className="text-[10px] font-semibold bg-white text-stone-600">
-                      {previewTemplate.category}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-stone-500 mt-0.5 max-w-md line-clamp-1">{previewTemplate.description}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPreviewTemplate(null)}
-                className="text-stone-400 hover:text-stone-700 p-1.5 rounded-lg hover:bg-stone-200 transition-colors cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Body - Flow Architecture Preview */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FAFAFA]">
-              <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs text-stone-500">
-                  <span className="font-semibold text-stone-700">Trigger Event</span>
-                  <span className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-mono text-[11px] font-semibold border border-amber-200">
-                    {previewTemplate.trigger}
-                  </span>
-                </div>
-                {previewTemplate.triggerConfig && (
-                  <div className="text-xs text-stone-600 bg-stone-50 p-2.5 rounded-lg font-mono text-[11px] border border-stone-100">
-                    {JSON.stringify(previewTemplate.triggerConfig, null, 2)}
-                  </div>
-                )}
-              </div>
-
-              {/* Node Sequence List */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Conversational Node Sequence ({previewTemplate.nodes.length} Steps)
-                </h4>
-                <div className="space-y-2.5">
-                  {(previewTemplate.nodes as any[]).map((node, idx) => (
-                    <div
-                      key={node.id || idx}
-                      className="rounded-xl border border-stone-200/90 bg-white p-3.5 shadow-2xs flex items-start gap-3 hover:border-emerald-300 transition-colors"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-stone-900 uppercase tracking-wide">
-                            {node.type || "STEP"}
-                          </span>
-                          <span className="text-[10px] text-stone-400 font-mono">id: {node.id}</span>
-                        </div>
-                        {node.data?.text && (
-                          <p className="text-xs text-stone-600 mt-1.5 whitespace-pre-line bg-stone-50/80 p-2 rounded border border-stone-100 font-sans">
-                            {String(node.data.text)}
-                          </p>
-                        )}
-                        {node.data?.buttons && Array.isArray(node.data.buttons) && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {node.data.buttons.map((b: string, bi: number) => (
-                              <span key={bi} className="text-[11px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded border border-emerald-200">
-                                🔘 {b}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {node.data?.rows && Array.isArray(node.data.rows) && (
-                          <div className="mt-2 space-y-1">
-                            {node.data.rows.map((r: any, ri: number) => (
-                              <div key={ri} className="text-[11px] bg-stone-50 text-stone-700 px-2 py-1 rounded border border-stone-100 flex items-center justify-between">
-                                <span className="font-semibold">{r.title}</span>
-                                <span className="text-stone-400 text-[10px]">{r.description}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-stone-200 bg-white flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => copyTemplateId(previewTemplate.id)}
-                className="text-xs font-semibold h-9 px-3"
-              >
-                <Copy className="h-3.5 w-3.5 mr-1.5 text-stone-500" />
-                Copy Template ID
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPreviewTemplate(null)}
-                  className="text-xs h-9 px-3"
-                >
-                  Close
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-[#00E785] hover:bg-[#00B96A] text-stone-950 font-bold text-xs h-9 px-4 rounded-lg border border-[#00B96A]/30 shadow-xs"
-                  asChild
-                >
-                  <Link href={`/signup?template=${previewTemplate.id}`}>
-                    Install Flow in Workspace
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BotTemplateVisualDemo
+          template={previewTemplate}
+          isOpen={!!previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          signupUrl={`/signup?template=${previewTemplate.id}`}
+        />
       )}
     </section>
   )

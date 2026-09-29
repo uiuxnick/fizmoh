@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import SignupPage from "./page-client"
 
 export async function generateMetadata() {
@@ -10,5 +11,10 @@ export async function generateMetadata() {
 }
 
 export default function Page() {
-  return <SignupPage />
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <SignupPage />
+    </Suspense>
+  )
 }
+

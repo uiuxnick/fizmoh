@@ -10,17 +10,18 @@ import { toast } from "sonner"
 import {
   Clock, Globe, Languages, MapPin, UserRound, Tag, StickyNote, Plus,
   ShoppingBag, Mail, CheckCircle2, AlertTriangle, Bot, ShieldCheck, Sparkles,
-  Phone, UserCheck
+  Phone, UserCheck, Copy, PhoneCall, ExternalLink, Smile, Frown, Meh, X, Download,
 } from "lucide-react"
 import { formatCurrency, formatDateTime, timeAgo } from "@/lib/helpers"
-import { AVAILABLE_LABELS, labelClass } from "@/components/views/conversation-tools"
+import { AVAILABLE_LABELS, labelClass, parseLabels } from "@/components/views/conversation-tools"
 
 interface Conversation {
   id: string
   customerPhone: string
   customerName: string | null
+  status?: string
   botActive: boolean
-  labels: string | null
+  labels?: any
   assignedStaffId?: string | null
   intent: string | null
   sentiment: string | null
@@ -66,15 +67,6 @@ function originOf(phone: string): { country: string; timezone: string } {
   return { country: "International", timezone: "—" }
 }
 
-function parseLabels(raw: string | null): string[] {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.map(String) : []
-  } catch {
-    return []
-  }
-}
 
 function Row({ icon: Icon, label, children }: { icon: typeof Clock; label: string; children: React.ReactNode }) {
   return (
@@ -113,6 +105,20 @@ export function ConversationDetails({
   const [draft, setDraft] = useState("")
   const [adding, setAdding] = useState(false)
   const [staff, setStaff] = useState<StaffOption[]>([])
+  const [customTag, setCustomTag] = useState("")
+
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryData, setSummaryData] = useState<{
+    intent: string
+    status: string
+    nextAction: string
+    summary: string
+  } | null>(null)
+  const [savingSummaryNote, setSavingSummaryNote] = useState(false)
+
+  useEffect(() => {
+    setSummaryData(null)
+  }, [conversation.id])
 
   const loadNotes = useCallback(() => {
     fetch(`/api/conversations/${conversation.id}/notes`)
@@ -120,6 +126,48 @@ export function ConversationDetails({
       .then(d => setNotes(d.notes || []))
       .catch(() => setNotes([]))
   }, [conversation.id])
+
+  const generateSummary = async () => {
+    setSummaryLoading(true)
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/summarize`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to summarize")
+      setSummaryData({
+        intent: data.points?.intent || "Customer inquiry",
+        status: data.points?.status || "Conversation active",
+        nextAction: data.points?.nextAction || "Reply to customer",
+        summary: data.summary || "",
+      })
+      toast.success("AI Thread Summary generated!")
+    } catch (err: any) {
+      toast.error(err.message || "Could not generate summary")
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
+  const saveSummaryAsNote = async () => {
+    if (!summaryData) return
+    setSavingSummaryNote(true)
+    try {
+      const noteContent = `📋 [AI Thread Summary]\n• 📌 Request: ${summaryData.intent}\n• ⚙️ Status: ${summaryData.status}\n• 💡 Next Step: ${summaryData.nextAction}`
+      const res = await fetch(`/api/conversations/${conversation.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: noteContent }),
+      })
+      if (!res.ok) throw new Error("Failed to save note")
+      loadNotes()
+      toast.success("Summary saved to Team Notes!")
+    } catch {
+      toast.error("Could not save to notes")
+    } finally {
+      setSavingSummaryNote(false)
+    }
+  }
 
   useEffect(() => { loadNotes() }, [loadNotes])
   useEffect(() => {
@@ -155,6 +203,58 @@ export function ConversationDetails({
     }
   }
 
+  const addCustomTag = () => {
+    const cleaned = customTag.trim()
+    if (!cleaned) return
+    const currentLabels = parseLabels(conversation.labels)
+    if (currentLabels.some(l => l.toLowerCase() === cleaned.toLowerCase())) {
+      toast.info("Label already exists")
+      return
+    }
+    const next = [...currentLabels, cleaned]
+    patch({ labels: next }, `Label "${cleaned}" added`)
+    setCustomTag("")
+  }
+
+  const exportTranscript = async () => {
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/messages`)
+      const data = await res.json()
+      const msgs = data.conversation?.messages || []
+      const lines = [
+        `============================================================`,
+        `CONVERSATION TRANSCRIPT - ${conversation.customerName || conversation.customerPhone}`,
+        `Phone: ${conversation.customerPhone}`,
+        `Status: ${conversation.status || "OPEN"}`,
+        `Exported: ${new Date().toLocaleString()}`,
+        `============================================================\n`,
+      ]
+      msgs.forEach((m: any) => {
+        const time = new Date(m.createdAt).toLocaleString()
+        const sender =
+          m.direction === "INBOUND"
+            ? conversation.customerName || "Customer"
+            : m.isAiGenerated
+            ? "AI Assistant"
+            : "Support Staff"
+        lines.push(`[${time}] ${sender}:`)
+        if (m.content) lines.push(`  ${m.content}`)
+        if (m.mediaUrl) lines.push(`  [Attachment: ${m.mediaUrl}]`)
+        lines.push("")
+      })
+      const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `transcript-${conversation.customerPhone.replace(/[^0-9]/g, "")}-${new Date().toISOString().slice(0, 10)}.txt`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Transcript downloaded")
+    } catch {
+      toast.error("Could not export transcript")
+    }
+  }
+
   const labels = parseLabels(conversation.labels)
   const origin = originOf(conversation.customerPhone)
   const customer = conversation.customer
@@ -162,22 +262,167 @@ export function ConversationDetails({
   return (
     <div className="h-full flex-1 min-h-0 overflow-y-auto bg-white p-4 space-y-3.5">
       {/* Customer Profile Card */}
-        <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-stone-50 to-emerald-50/30 border border-stone-200/80">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black mx-auto mb-2 shadow-sm shadow-emerald-600/20">
-            {(conversation.customerName || conversation.customerPhone)[0]?.toUpperCase()}
+      <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-stone-50 to-emerald-50/30 border border-stone-200/80">
+        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black mx-auto mb-2 shadow-sm shadow-emerald-600/20">
+          {(conversation.customerName || conversation.customerPhone).slice(0, 2).toUpperCase()}
+        </div>
+        <div className="font-bold text-sm text-stone-900">{conversation.customerName || "Unnamed Customer"}</div>
+        <div className="text-xs text-stone-500 font-mono mt-0.5">{conversation.customerPhone}</div>
+
+        {/* 1-Click Quick Actions */}
+        <div className="flex items-center justify-center gap-1.5 mt-2.5">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(conversation.customerPhone)
+              toast.success("Phone copied to clipboard")
+            }}
+            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+            title="Copy phone number"
+          >
+            <Copy className="h-3 w-3 text-stone-500" />
+            <span>Copy</span>
+          </button>
+          <a
+            href={`https://wa.me/${conversation.customerPhone.replace(/[^0-9]/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[11px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+            title="Direct WhatsApp"
+          >
+            <ExternalLink className="h-3 w-3 text-emerald-600" />
+            <span>WhatsApp</span>
+          </a>
+          <a
+            href={`tel:${conversation.customerPhone}`}
+            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+            title="Voice Call"
+          >
+            <PhoneCall className="h-3 w-3 text-stone-500" />
+            <span>Call</span>
+          </a>
+          <button
+            onClick={exportTranscript}
+            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+            title="Download conversation transcript (.txt)"
+          >
+            <Download className="h-3 w-3 text-stone-500" />
+            <span>Export</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300/80 text-[10px] font-bold">
+            {customer?.loyaltyTier || "STANDARD"}
+          </Badge>
+          <Badge variant="outline" className="text-[10px] text-stone-600">
+            {origin.country}
+          </Badge>
+        </div>
+
+        {/* Sentiment & Intent Badges */}
+        {(conversation.sentiment || conversation.intent) && (
+          <div className="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-stone-200/60 text-xs">
+            {conversation.sentiment && (
+              <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                conversation.sentiment.toLowerCase() === "positive"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : conversation.sentiment.toLowerCase() === "negative"
+                  ? "bg-rose-50 text-rose-800 border-rose-200"
+                  : "bg-stone-100 text-stone-700 border-stone-200"
+              }`}>
+                {conversation.sentiment.toLowerCase() === "positive" ? (
+                  <Smile className="h-3 w-3 text-emerald-600" />
+                ) : conversation.sentiment.toLowerCase() === "negative" ? (
+                  <Frown className="h-3 w-3 text-rose-600" />
+                ) : (
+                  <Meh className="h-3 w-3 text-stone-500" />
+                )}
+                <span className="capitalize">{conversation.sentiment}</span>
+              </div>
+            )}
+            {conversation.intent && (
+              <div className="text-[10px] font-semibold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200 truncate max-w-[140px]">
+                {conversation.intent}
+              </div>
+            )}
           </div>
-          <div className="font-bold text-sm text-stone-900 truncate">
-            {conversation.customerName || "WhatsApp Customer"}
+        )}
+      </div>
+
+        {/* AI Thread Summary Card */}
+        <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-stone-50 border border-indigo-200/80 space-y-2.5 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+              <span>AI Thread Summary (TL;DR)</span>
+            </div>
+            <button
+              type="button"
+              onClick={generateSummary}
+              disabled={summaryLoading}
+              className="flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 border border-indigo-200/90 rounded-lg px-2 py-0.5 transition-all shadow-2xs disabled:opacity-50"
+            >
+              <Sparkles className={`h-3 w-3 text-indigo-600 ${summaryLoading ? "animate-spin" : ""}`} />
+              <span>{summaryLoading ? "Analyzing..." : summaryData ? "Refresh" : "Summarize"}</span>
+            </button>
           </div>
-          <div className="text-xs text-stone-500 font-mono mt-0.5">{conversation.customerPhone}</div>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300/80 text-[10px] font-bold">
-              {customer?.loyaltyTier || "STANDARD"}
-            </Badge>
-            <Badge variant="outline" className="text-[10px] text-stone-600">
-              {origin.country}
-            </Badge>
-          </div>
+
+          {summaryData ? (
+            <div className="space-y-1.5 text-xs text-indigo-950 pt-0.5">
+              <div className="p-2.5 rounded-xl bg-white/95 border border-indigo-100/90 space-y-1.5 shadow-2xs">
+                <div className="flex items-start gap-1.5">
+                  <span className="shrink-0 text-xs">📌</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-indigo-900 text-[10.5px] uppercase tracking-wide">Request: </span>
+                    <span className="text-stone-700">{summaryData.intent}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5 pt-1 border-t border-stone-100">
+                  <span className="shrink-0 text-xs">⚙️</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-indigo-900 text-[10.5px] uppercase tracking-wide">Status: </span>
+                    <span className="text-stone-700">{summaryData.status}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5 pt-1 border-t border-stone-100">
+                  <span className="shrink-0 text-xs">💡</span>
+                  <div className="min-w-0">
+                    <span className="font-bold text-emerald-800 text-[10.5px] uppercase tracking-wide">Next Step: </span>
+                    <span className="text-emerald-900 font-semibold">{summaryData.nextAction}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(summaryData.summary)
+                    toast.success("Summary copied to clipboard")
+                  }}
+                  className="flex items-center gap-1 text-[10.5px] font-semibold text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+                  title="Copy markdown summary"
+                >
+                  <Copy className="h-3 w-3" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={saveSummaryAsNote}
+                  disabled={savingSummaryNote}
+                  className="flex items-center gap-1 text-[10.5px] font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-2 py-1 transition-all shadow-2xs disabled:opacity-50"
+                  title="Save as team note"
+                >
+                  <StickyNote className="h-3 w-3 text-amber-600" />
+                  <span>{savingSummaryNote ? "Saving..." : "Save to Notes"}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-stone-500 leading-relaxed">
+              Get an instant 3-bullet breakdown of customer intent, thread status, and recommended next steps.
+            </p>
+          )}
         </div>
 
         {/* 24-Hour WhatsApp Session Window */}
@@ -218,6 +463,36 @@ export function ConversationDetails({
             />
           </div>
 
+          {/* Conversation Status */}
+          <div className="pt-1">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-stone-400 mb-1 flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Status
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[
+                { key: "OPEN", label: "Open", color: "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold shadow-2xs" },
+                { key: "PENDING", label: "Pending", color: "bg-amber-50 text-amber-800 border-amber-300 font-bold shadow-2xs" },
+                { key: "RESOLVED", label: "Resolved", color: "bg-blue-50 text-blue-800 border-blue-300 font-bold shadow-2xs" },
+              ].map(s => {
+                const active = (conversation.status || "OPEN") === s.key
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => patch({ status: s.key }, `Status marked as ${s.label}`)}
+                    className={`py-1 text-xs rounded-lg border text-center transition-all ${
+                      active
+                        ? s.color
+                        : "bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-200/70"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="pt-1">
             <div className="text-[10px] uppercase font-bold tracking-wider text-stone-400 mb-1 flex items-center gap-1">
               <UserRound className="h-3 w-3" /> Assigned Staff
@@ -248,7 +523,7 @@ export function ConversationDetails({
                     key={label}
                     onClick={() =>
                       patch(
-                        { labels: JSON.stringify(on ? labels.filter(l => l !== label) : [...labels, label]) },
+                        { labels: on ? labels.filter(l => l !== label) : [...labels, label] },
                         on ? "Label removed" : "Label added",
                       )
                     }
@@ -260,6 +535,58 @@ export function ConversationDetails({
                   </button>
                 )
               })}
+            </div>
+
+            {/* Custom non-standard tags */}
+            {labels.filter(l => !AVAILABLE_LABELS.includes(l)).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-stone-200/60">
+                {labels.filter(l => !AVAILABLE_LABELS.includes(l)).map(custom => (
+                  <span
+                    key={custom}
+                    className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200/60"
+                  >
+                    #{custom}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        patch(
+                          { labels: labels.filter(l => l !== custom) },
+                          `Tag #${custom} removed`,
+                        )
+                      }
+                      className="hover:text-red-600 transition-colors ml-0.5"
+                      title="Remove tag"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Inline Add Custom Tag */}
+            <div className="flex items-center gap-1.5 mt-2">
+              <input
+                type="text"
+                value={customTag}
+                onChange={e => setCustomTag(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    addCustomTag()
+                  }
+                }}
+                placeholder="Custom tag (e.g. vip-client)..."
+                className="flex-1 px-2.5 py-1 text-[10px] rounded-lg border border-stone-200 bg-white placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={addCustomTag}
+                disabled={!customTag.trim()}
+                className="px-2 py-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-40 text-white rounded-lg text-[10px] font-bold flex items-center gap-0.5 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Add
+              </button>
             </div>
           </div>
         </Section>

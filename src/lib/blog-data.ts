@@ -1637,5 +1637,11 @@ Want broadcasts that land? **[Start your free Fizmoh trial](/signup)** or compar
  */
 import { GUIDE_POSTS } from "@/lib/blog-guides"
 import { SEO_POSTS } from "@/lib/blog-seo-posts"
+import { NEW_SEO_POSTS } from "@/lib/blog-new-seo-posts"
 
-export const BLOG_POSTS: BlogPost[] = [...PRODUCT_POSTS, ...GUIDE_POSTS, ...SEO_POSTS]
+export const BLOG_POSTS: BlogPost[] = [
+  ...PRODUCT_POSTS,
+  ...GUIDE_POSTS,
+  ...SEO_POSTS,
+  ...NEW_SEO_POSTS,
+]

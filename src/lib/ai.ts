@@ -24,6 +24,7 @@ import {
   type ToolSpec,
 } from "@/lib/ai-provider"
 import { syncOrderToCalendar } from "@/lib/google-calendar"
+import { currentTenant } from "@/lib/tenant"
 
 export { isAIConfigured }
 
@@ -1100,6 +1101,7 @@ export async function aiChat(
   messages: { role: "user" | "assistant"; content: string }[],
   customerLang: string = "en",
   customerPhone?: string,
+  tenantId?: string | null,
 ): Promise<string> {
   const config = await getAIConfig()
   const key = config.provider === "openai" ? config.openaiKey : config.anthropicKey
@@ -1124,11 +1126,12 @@ export async function aiChat(
    * This guarantees that policies (e.g. cancellation notice, rules, training) are
    * accurately answered without depending on tool-calling latency or misses.
    */
+  const effectiveTenantId = tenantId || currentTenant()?.tenantId
   let retrievedKnowledge = ""
   try {
     const { searchKnowledge, knowledgeReady } = await import("@/lib/knowledge")
-    if (await knowledgeReady() && lastUserMsg.trim()) {
-      const chunks = await searchKnowledge(lastUserMsg, 5)
+    if (await knowledgeReady(effectiveTenantId) && lastUserMsg.trim()) {
+      const chunks = await searchKnowledge(lastUserMsg, 5, effectiveTenantId)
       if (chunks && chunks.length > 0) {
         retrievedKnowledge =
           "\n\n[OFFICIAL BUSINESS KNOWLEDGE BASE - VERIFIED FACTS]:\n" +
@@ -1152,7 +1155,7 @@ export async function aiChat(
   let knowledgeNote = ""
   try {
     const { knowledgeReady } = await import("@/lib/knowledge")
-    if (await knowledgeReady()) {
+    if (await knowledgeReady(effectiveTenantId)) {
       knowledgeNote =
         "\n\nThe company's own policies, FAQs and documents are searchable with the search_knowledge tool. " +
         "For anything that is not booking data — cancellations, refunds, what to bring, age limits, accessibility, " +
@@ -1360,6 +1363,20 @@ const INTENT_SCHEMA = {
   additionalProperties: false,
 }
 
+const HANDOFF_KEYWORDS_EN = [
+  "human", "agent", "representative", "operator", "real person",
+  "talk to someone", "speak to someone", "speak with someone",
+  "talk to a person", "speak to a person", "talk to human", "speak to human",
+  "support agent", "live agent", "transfer to human", "customer service",
+  "customer support", "escalate"
+]
+
+const HANDOFF_KEYWORDS_AR = [
+  "موظف", "خدمة العملاء", "خدمة الزبائن", "تحدث مع موظف", "تكلم مع موظف",
+  "تحدث مع شخص", "تكلم مع شخص", "شخص حقيقي", "انسان", "الدعم الفني",
+  "تحويل لموظف", "مندوب", "خدمه العملاء", "كلمني شخص", "محادثة شخص"
+]
+
 export async function detectIntent(message: string): Promise<Intent> {
   const fallback: Intent = {
     intent: "OTHER",
@@ -1367,6 +1384,23 @@ export async function detectIntent(message: string): Promise<Intent> {
     entities: {},
     sentiment: "NEUTRAL",
     needsHumanHandoff: false,
+  }
+
+  const text = (message || "").trim()
+  if (!text) return fallback
+
+  const lower = text.toLowerCase()
+  const isEnHandoff = HANDOFF_KEYWORDS_EN.some(kw => lower.includes(kw))
+  const isArHandoff = HANDOFF_KEYWORDS_AR.some(kw => text.includes(kw))
+
+  if (isEnHandoff || isArHandoff) {
+    return {
+      intent: "HUMAN_HANDOFF",
+      confidence: 0.99,
+      entities: {},
+      sentiment: "NEUTRAL",
+      needsHumanHandoff: true,
+    }
   }
 
   if (!(await isAIConfigured())) return fallback
@@ -1412,6 +1446,108 @@ export async function generateSmartReplies(
     return []
   }
 }
+
+// ─── AI Conversation Thread Summary (TL;DR) ───
+
+const CONVERSATION_SUMMARY_SCHEMA = {
+  type: "object",
+  properties: {
+    intent: { type: "string" },
+    status: { type: "string" },
+    nextAction: { type: "string" },
+  },
+  required: ["intent", "status", "nextAction"],
+  additionalProperties: false,
+}
+
+export async function summarizeConversationThread(
+  messages: { role: string; content: string; sender?: string }[],
+): Promise<{ intent: string; status: string; nextAction: string; summary: string }> {
+  const fallback = {
+    intent: "Customer inquiry or conversation review",
+    status: `${messages.length} messages in thread`,
+    nextAction: "Review customer message and respond appropriately",
+    summary: `• 📌 Customer Request: General inquiry\n• ⚙️ Current Status: ${messages.length} messages exchanged\n• 💡 Recommended Action: Check latest message and assist customer.`,
+  }
+
+  if (!(await isAIConfigured()) || messages.length === 0) return fallback
+
+  try {
+    const formatted = messages.map(m => `${m.sender || m.role}: ${m.content}`).join("\n")
+    const result = await structuredJSON<{ intent: string; status: string; nextAction: string }>(
+      "You are an expert AI customer support supervisor. Summarize the following customer service thread in 3 concise, highly actionable points: 1) What the customer asked for or reported (intent), 2) What happened so far or current status (status), 3) The single most important recommended next action for the staff agent (nextAction). Keep each under 120 characters.",
+      formatted,
+      CONVERSATION_SUMMARY_SCHEMA,
+      "thread_summary",
+    )
+    if (!result?.intent) return fallback
+    const summary = `• 📌 Request: ${result.intent}\n• ⚙️ Status: ${result.status}\n• 💡 Next Step: ${result.nextAction}`
+    return {
+      intent: result.intent,
+      status: result.status,
+      nextAction: result.nextAction,
+      summary,
+    }
+  } catch (error) {
+    console.error("Conversation summary error:", error)
+    return fallback
+  }
+}
+
+// ─── AI Tone Adjuster & Rephraser ───
+
+export async function rephraseMessage(
+  text: string,
+  tone: "professional" | "friendly" | "concise" | "translate_ar" | "translate_en",
+): Promise<string> {
+  if (!text.trim()) return text
+  if (!(await isAIConfigured())) return text
+
+  const prompts: Record<string, string> = {
+    professional: "Rewrite the following support message to be polite, polished, formal, and professional. Return ONLY the rewritten message without explanations or quotes.",
+    friendly: "Rewrite the following support message to be warm, friendly, approachable, and welcoming with appropriate emojis. Return ONLY the rewritten message without explanations or quotes.",
+    concise: "Rewrite the following support message to be short, punchy, clear, and WhatsApp-friendly. Remove filler words. Return ONLY the rewritten message without explanations or quotes.",
+    translate_ar: "Translate the following message into natural, professional Arabic (Gulf / Omani dialect friendly). Return ONLY the translated Arabic text without quotes or explanations.",
+    translate_en: "Translate the following message into natural, clear, professional English. Return ONLY the translated English text without quotes or explanations.",
+  }
+
+  const system = prompts[tone] || prompts.professional
+
+  try {
+    const config = await getAIConfig()
+    if (config.provider === "openai" && config.openaiKey) {
+      const { default: OpenAI } = await import("openai")
+      const client = new OpenAI({ apiKey: config.openaiKey })
+      const res = await client.chat.completions.create({
+        model: config.model || "gpt-4o-mini",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: text },
+        ],
+        temperature: 0.5,
+      })
+      return res.choices[0]?.message?.content?.trim() || text
+    } else if (config.anthropicKey) {
+      const { default: Anthropic } = await import("@anthropic-ai/sdk")
+      const client = new Anthropic({ apiKey: config.anthropicKey })
+      const res = await client.messages.create({
+        model: config.model || "claude-3-haiku-20240307",
+        system,
+        messages: [{ role: "user", content: text }],
+        max_tokens: 500,
+        temperature: 0.5,
+      })
+      const block = res.content[0]
+      return block?.type === "text" ? block.text.trim() : text
+    }
+    return text
+  } catch (err) {
+    console.error("Rephrase message error:", err)
+    return text
+  }
+}
+
+
 
 // ─── Connectivity test (Settings → AI) ───
 
@@ -1546,16 +1682,20 @@ export async function transcribeAudio(
  */
 async function businessIdentity(): Promise<string> {
   const { getConfigValue } = await import("@/lib/app-config")
-  const [name, about, tone, phone, address, website] = await Promise.all([
+  const [name, about, tone, phone, address, website, assistantName] = await Promise.all([
     getConfigValue("business_name"),
     getConfigValue("business_about"),
     getConfigValue("business_tone"),
     getConfigValue("business_phone"),
     getConfigValue("business_address"),
     getConfigValue("business_website"),
+    getConfigValue("assistant_name"),
   ])
 
   const lines: string[] = []
+  if (assistantName && assistantName.trim()) {
+    lines.push(`Your name is ${assistantName.trim()}. Always introduce yourself and refer to yourself as ${assistantName.trim()}. Never use the default name Najwa or Nizwa unless that is explicitly configured.`)
+  }
   if (name) lines.push(`You are answering on behalf of ${name}. Speak as them, never as a third party.`)
   if (about) lines.push(`About the business:\n${about}`)
   if (address) lines.push(`Address: ${address}`)

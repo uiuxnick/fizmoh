@@ -3,7 +3,7 @@
 import {
   BarChart3, Building2, CreditCard, FileText, Globe, Headphones,
   LayoutDashboard, Megaphone, Package, Activity, Shield, LogOut,
-  Settings, ChevronDown, ChevronRight, Smartphone, Gauge,
+  Settings, ChevronDown, ChevronRight, Smartphone, Gauge, Target,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ export type PlatformSection =
   | "command-center"
   | "tenants"
   | "tenant-detail"
+  | "marketing"
   | "billing"
   | "invoices"
   | "revenue"
@@ -49,6 +50,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Building2 className="h-4 w-4" />,
   },
   {
+    key: "marketing",
+    label: "Marketing Intel",
+    icon: <Target className="h-4 w-4" />,
+  },
+  {
     key: "billing",
     label: "Billing & Revenue",
     icon: <CreditCard className="h-4 w-4" />,
@@ -58,6 +64,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
       { key: "revenue", label: "Revenue Analytics" },
     ],
   },
+
   {
     key: "whatsapp-numbers",
     label: "WhatsApp Numbers",

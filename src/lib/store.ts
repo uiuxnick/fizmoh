@@ -40,6 +40,7 @@ export type ViewKey =
   | "website-builder"
   | "cloud-bridges"
   | "white-label"
+  | "training"
 
 type AuthMode = "login" | "admin" | "customer" | null
 

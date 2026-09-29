@@ -137,6 +137,50 @@ export default function ReportsView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Staff Leaderboard */}
+      {data.staffLeaderboard && data.staffLeaderboard.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-purple-600" />
+              Team Leaderboard
+              <span className="text-[11px] font-normal text-stone-400 ml-1">WhatsApp conversations in period</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {data.staffLeaderboard.map((s: any, i: number) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-stone-200 text-stone-700" : i === 2 ? "bg-orange-100 text-orange-700" : "bg-stone-100 text-stone-500"}`}>
+                    {i < 3 ? ["🥇","🥈","🥉"][i] : i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div>
+                        <span className="text-sm font-medium text-stone-800">{s.name}</span>
+                        {s.role && <span className="ml-1.5 text-[10px] text-stone-400 uppercase">{s.role}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs shrink-0">
+                        <span className="font-semibold text-stone-700">{s.conversations} chats</span>
+                        <span className="text-stone-400">·</span>
+                        <span className={`font-semibold ${s.resolutionRate >= 70 ? "text-emerald-600" : s.resolutionRate >= 40 ? "text-amber-600" : "text-rose-500"}`}>{s.resolutionRate}% resolved</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-stone-100 overflow-hidden">
+                        <div className={`h-full rounded-full ${s.resolutionRate >= 70 ? "bg-gradient-to-r from-emerald-500 to-teal-400" : s.resolutionRate >= 40 ? "bg-gradient-to-r from-amber-400 to-yellow-300" : "bg-gradient-to-r from-rose-400 to-orange-300"}`} style={{ width: `${s.resolutionRate}%` }} />
+                      </div>
+                      <span className="text-[10px] text-stone-400 shrink-0">{s.resolved}/{s.conversations} resolved</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
+

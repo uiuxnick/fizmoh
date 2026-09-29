@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import {
-  Loader2, Building2, TrendingUp, Users, ShieldAlert, ArrowLeft,
+  Loader2, Building2, TrendingUp, Users, ShieldAlert, ArrowLeft, Target,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
+
 import { useApp } from "@/lib/store"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { type PlatformSection } from "@/components/platform/platform-sidebar"
@@ -25,6 +27,7 @@ import { TenantsPanel, type TenantRow, type PlanOption } from "@/components/plat
 import { PlatformAnalyticsPanel } from "@/components/platform/analytics-panel"
 import { BackupsPanel } from "@/components/platform/backups-panel"
 import { PlatformLeadsPanel } from "@/components/platform/leads-panel"
+import { MarketingPanel } from "@/components/platform/marketing-panel"
 
 /**
  * Super Admin Operations Console
@@ -180,6 +183,68 @@ export default function PlatformView() {
         </div>
       </div>
 
+      {/* Quick Navigation Tabs for Platform Console */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 pt-1 border-b border-stone-200 scrollbar-none">
+        {[
+          { key: "command-center" as PlatformSection, label: "Command Center" },
+          { key: "tenants" as PlatformSection, label: "Workspaces", count: rows.length },
+          { key: "marketing" as PlatformSection, label: "Marketing Intel", count: rows.length, highlight: true },
+          { key: "leads" as PlatformSection, label: "Website Demos & Leads" },
+          { key: "billing" as PlatformSection, label: "Subscriptions" },
+          { key: "invoices" as PlatformSection, label: "Invoices" },
+          { key: "revenue" as PlatformSection, label: "Revenue" },
+          { key: "whatsapp-numbers" as PlatformSection, label: "WhatsApp Pool" },
+          { key: "support-tickets" as PlatformSection, label: "Tickets" },
+          { key: "announcements" as PlatformSection, label: "Announcements" },
+          { key: "plans" as PlatformSection, label: "Plans" },
+          { key: "usage" as PlatformSection, label: "Usage" },
+          { key: "webhooks" as PlatformSection, label: "Webhooks" },
+          { key: "audit" as PlatformSection, label: "Audit" },
+        ].map(item => {
+          const isActive = tab === item.key
+          return (
+            <button
+              key={item.key}
+              onClick={() => {
+                setTab(item.key)
+                if (typeof window !== "undefined") {
+                  window.history.pushState({ view: "platform", section: item.key }, "", `/platform/${item.key}`)
+                }
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0",
+                isActive
+                  ? item.highlight
+                    ? "bg-violet-600 text-white shadow-xs"
+                    : "bg-stone-900 text-white shadow-xs"
+                  : item.highlight
+                  ? "text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+              )}
+            >
+              {item.highlight && <Target className="h-3.5 w-3.5" />}
+              <span>{item.label}</span>
+              {item.count !== undefined && (
+                <span
+                  className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : item.highlight
+                      ? "bg-violet-200 text-violet-800"
+                      : "bg-stone-200 text-stone-700"
+                  )}
+                >
+                  {item.count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+
+
       {/* Top Metric Bar shown on overview/tenants tabs */}
       {(tab === "command-center" || tab === "tenants") && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
@@ -258,6 +323,8 @@ export default function PlatformView() {
         </div>
       )}
       {tab === "leads" && <PlatformLeadsPanel />}
+      {tab === "marketing" && <MarketingPanel rows={rows} />}
+
       {tab === "billing" && <BillingSubscriptionsPanel />}
       {tab === "invoices" && <InvoicesDunningPanel />}
       {tab === "revenue" && <RevenueAnalyticsPanel />}

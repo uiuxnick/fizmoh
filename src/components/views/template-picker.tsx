@@ -78,10 +78,14 @@ async function uploadFile(file: File): Promise<string | null> {
 
 export function TemplatePicker({
   conversationId,
+  customerName,
   onSent,
+  trigger,
 }: {
   conversationId: string
+  customerName?: string | null
   onSent: () => void
+  trigger?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [templates, setTemplates] = useState<TemplateItem[]>([])
@@ -124,9 +128,13 @@ export function TemplatePicker({
     // Detect variables like {{1}}, {{2}}
     const matches = tmpl.bodyContent.match(/\{\{(\d+)\}\}/g) || []
     const initialVars: Record<string, string> = {}
-    matches.forEach(m => {
+    matches.forEach((m, idx) => {
       const key = m.replace(/[\{\}]/g, "")
-      initialVars[key] = ""
+      if (idx === 0 && customerName && key === "1") {
+        initialVars[key] = customerName
+      } else {
+        initialVars[key] = ""
+      }
     })
     setVarValues(initialVars)
 
@@ -264,14 +272,16 @@ export function TemplatePicker({
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 text-stone-500 hover:text-emerald-600"
-            title="Send Meta WhatsApp Template"
-          >
-            <FileText className="h-4 w-4" />
-          </Button>
+          {trigger || (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-stone-500 hover:text-emerald-600"
+              title="Send Meta WhatsApp Template"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+          )}
         </PopoverTrigger>
 
         <PopoverContent align="start" className="w-[420px] max-h-[85vh] overflow-y-auto p-3">
@@ -364,9 +374,15 @@ export function TemplatePicker({
 
               {/* Body Content Preview */}
               <div>
-                <label className="text-[11px] font-semibold text-stone-700 block mb-1">Body Preview</label>
-                <div className="text-xs p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-stone-800 whitespace-pre-wrap font-sans">
-                  {selectedTmpl.bodyContent}
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-stone-700">Live Customer Preview</label>
+                  <span className="text-[10px] text-emerald-700 font-medium">As seen on WhatsApp</span>
+                </div>
+                <div className="text-xs p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/90 text-stone-800 whitespace-pre-wrap font-sans shadow-2xs leading-relaxed">
+                  {selectedTmpl.bodyContent.replace(/\{\{(\d+)\}\}/g, (_, key) => {
+                    const val = varValues[key]?.trim()
+                    return val ? val : `{{${key}}}`
+                  })}
                 </div>
               </div>
 

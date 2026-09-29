@@ -2,50 +2,51 @@ import { SUPPORT_PHONE } from "@/lib/platform-support"
 import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 
 export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: boolean } = {}) {
+  const organizationEntity = {
+    "@type": "Organization",
+    "@id": `${SITE_URL}/#organization`,
+    name: SITE_NAME,
+    alternateName: "منصة فيزموه لواتساب بزنس",
+    url: SITE_URL,
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/fizmoh-logo.png"),
+      width: 512,
+      height: 512,
+    },
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Muscat",
+      addressCountry: "OM",
+    },
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: SUPPORT_PHONE,
+        contactType: "customer service",
+        areaServed: ["OM", "AE", "SA", "QA", "KW", "BH"],
+        availableLanguage: ["English", "Arabic"],
+      },
+    ],
+    sameAs: [
+      "https://app.fizmoh.com",
+      "https://app.fizmoh.cloud",
+      "https://twitter.com/fizmohcloud",
+      "https://www.linkedin.com/company/fizmoh",
+    ],
+  }
+
+  const websiteEntity = {
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    url: SITE_URL,
+    name: SITE_NAME,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
+  }
+
   if (!isHomepage) {
-    const rootGraph = [
-      {
-        "@type": "Organization",
-        "@id": `${SITE_URL}/#organization`,
-        name: SITE_NAME,
-        alternateName: "منصة فيزموه لواتساب بزنس",
-        url: SITE_URL,
-        logo: {
-          "@type": "ImageObject",
-          url: absoluteUrl("/fizmoh-logo.png"),
-          width: 512,
-          height: 512,
-        },
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: "Muscat",
-          addressCountry: "OM",
-        },
-        contactPoint: [
-          {
-            "@type": "ContactPoint",
-            telephone: SUPPORT_PHONE,
-            contactType: "customer service",
-            areaServed: ["OM", "AE", "SA", "QA", "KW", "BH"],
-            availableLanguage: ["English", "Arabic"],
-          },
-        ],
-        sameAs: [
-          "https://app.fizmoh.com",
-          "https://app.fizmoh.cloud",
-          "https://twitter.com/fizmohcloud",
-          "https://www.linkedin.com/company/fizmoh",
-        ],
-      },
-      {
-        "@type": "WebSite",
-        "@id": `${SITE_URL}/#website`,
-        url: SITE_URL,
-        name: SITE_NAME,
-        publisher: { "@id": `${SITE_URL}/#organization` },
-        inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
-      },
-    ]
+    const rootGraph = [organizationEntity, websiteEntity]
 
     return (
       <script
@@ -93,6 +94,8 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
   }
 
   const homeGraph = [
+    organizationEntity,
+    websiteEntity,
     {
       "@type": "SoftwareApplication",
       name: "Fizmoh WhatsApp Business Platform",

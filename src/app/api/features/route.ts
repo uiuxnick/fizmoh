@@ -45,6 +45,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     website: has("WEBSITE") || has("TOURS") || has("RESTAURANT"),
     integration: has("INTEGRATION"),
     white_label: has("WHITE_LABEL"),
+    training: has("TRAINING"),
     modules,
     platform: !currentTenant()?.tenantId && !!(await requirePlatformAdmin(request)),
   })

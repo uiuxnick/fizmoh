@@ -169,16 +169,25 @@ async function isTestPhoneNumber(phone?: string | null): Promise<boolean> {
 async function resolveConversation(from: string, customerName: string, customerId: string) {
   const isWhitelisted = await isTestPhoneNumber(from)
 
+  const aiAssistantOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
   const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
   const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
   const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
   const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
 
-  const isBotDisabledForTenant =
-    botOn === "false" || botOn === "off" || botOn === "0" ||
-    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
-    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+  const anyExplicitlyEnabled =
+    aiAssistantOn === "true" || aiAssistantOn === "1" || aiAssistantOn === "on" ||
+    waBotOn === "true" || waBotOn === "1" || waBotOn === "on" ||
+    botOn === "true" || botOn === "1" || botOn === "on" ||
+    autoReplyOn === "true" || autoReplyOn === "1" || autoReplyOn === "on"
+
+  const allExplicitlyDisabled =
+    (aiAssistantOn === "false" || aiAssistantOn === "off" || aiAssistantOn === "0") &&
+    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0") &&
+    (botOn === "false" || botOn === "off" || botOn === "0")
+
+  const isBotDisabledForTenant = allExplicitlyDisabled && !anyExplicitlyEnabled
 
   // Whitelisted numbers always get the bot. Other numbers only if tenant hasn't disabled it and not whitelist-only.
   const isBotActive = isWhitelisted || (!isBotDisabledForTenant && !isWhitelistOnly)
@@ -203,6 +212,15 @@ async function resolveConversation(from: string, customerName: string, customerI
         return db.conversation.update({
           where: { id: existing.id },
           data: { botActive: false, automationPaused: true },
+        })
+      }
+    } else if (isBotActive) {
+      // If AI is turned ON and no human agent has explicitly claimed this conversation:
+      // ensure botActive is true and automationPaused is false so AI can reply!
+      if (!existing.assignedStaffId && (!existing.botActive || existing.automationPaused)) {
+        return db.conversation.update({
+          where: { id: existing.id },
+          data: { status: "OPEN", botActive: true, automationPaused: false },
         })
       }
     }
@@ -713,16 +731,25 @@ async function processMessage(msg: any, contact: any) {
    */
   const isWhitelisted = await isTestPhoneNumber(from)
 
+  const aiAssistantOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
   const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
   const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
   const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
   const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
   const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
 
-  const isBotDisabled =
-    botOn === "false" || botOn === "off" || botOn === "0" ||
-    waBotOn === "false" || waBotOn === "off" || waBotOn === "0" ||
-    autoReplyOn === "false" || autoReplyOn === "off" || autoReplyOn === "0"
+  const anyExplicitlyEnabled =
+    aiAssistantOn === "true" || aiAssistantOn === "1" || aiAssistantOn === "on" ||
+    waBotOn === "true" || waBotOn === "1" || waBotOn === "on" ||
+    botOn === "true" || botOn === "1" || botOn === "on" ||
+    autoReplyOn === "true" || autoReplyOn === "1" || autoReplyOn === "on"
+
+  const allExplicitlyDisabled =
+    (aiAssistantOn === "false" || aiAssistantOn === "off" || aiAssistantOn === "0") &&
+    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0") &&
+    (botOn === "false" || botOn === "off" || botOn === "0")
+
+  const isBotDisabled = allExplicitlyDisabled && !anyExplicitlyEnabled
 
   // Whitelisted numbers always receive bot replies.
   // Non-whitelisted numbers are rejected if bot is disabled or if workspace is in whitelist-only mode.
@@ -735,10 +762,9 @@ async function processMessage(msg: any, contact: any) {
       console.log(`[bot] Tenant ${currentTenant()?.tenantId || "default"} is in whitelist-only mode. Sender ${from} is not whitelisted. Ignoring.`)
       return
     }
-    // If the conversation's bot was paused or stopped (e.g. admin replied manually),
-    // do NOT auto-reply. Bot can ONLY be re-enabled manually by an admin.
-    if (!conversation.botActive || conversation.automationPaused) {
-      console.log(`[bot] Chat ${conversation.id} bot is paused/stopped (botActive=${conversation.botActive}, automationPaused=${conversation.automationPaused}). Awaiting manual re-enable by admin.`)
+    // If the conversation is currently claimed by an assigned staff member, let the agent reply.
+    if (!conversation.botActive && conversation.assignedStaffId) {
+      console.log(`[bot] Chat ${conversation.id} is assigned to agent ${conversation.assignedStaffId}. Awaiting human response.`)
       return
     }
   }
@@ -866,6 +892,12 @@ async function processMessage(msg: any, contact: any) {
         msg.interactive?.list_reply?.id ||
         null
 
+      const hardcodedOn = (await getConfigValue("hardcoded_flows_enabled").catch(() => "")).trim().toLowerCase()
+      const isHardcodedFlowsEnabled = hardcodedOn === "true" || hardcodedOn === "1" || hardcodedOn === "on"
+
+      const waFlowsOn = (await getConfigValue("wa_flows_enabled").catch(() => "")).trim().toLowerCase()
+      const isDynamicFlowsEnabled = !(waFlowsOn === "false" || waFlowsOn === "off" || waFlowsOn === "0")
+
       // ─── Post-Booking Action Buttons ───
       if (replyId === "bk_chat_ai") {
         await db.conversation.update({
@@ -892,7 +924,8 @@ async function processMessage(msg: any, contact: any) {
         return
       }
 
-      // ─── Restaurant Interactive Button Handlers ───
+      // ─── Restaurant Interactive Button Handlers (Legacy Hardcoded) ───
+      if (isHardcodedFlowsEnabled) {
       if (replyId?.startsWith("call_waiter_") || replyId === "rest_waiter") {
         const orderId = replyId.startsWith("call_waiter_") ? replyId.replace(/^call_waiter_/, "").trim() : null
         const tenantId = conversation.tenantId || currentTenant()?.tenantId || ""
@@ -1130,10 +1163,11 @@ async function processMessage(msg: any, contact: any) {
         }
         return
       }
+      } // end if (isHardcodedFlowsEnabled) for restaurant interactive buttons
 
-      // ─── 0. Restaurant Flow State Resumption ───
+      // ─── 0. Restaurant Flow State Resumption (Legacy Hardcoded) ───
       // Handles multi-step conversational state: TABLE_NUMBER, WAITER_TABLE_NUMBER, SEARCH_QUERY
-      {
+      if (isHardcodedFlowsEnabled) {
         const conv = await db.conversation.findUnique({
           where: { id: conversation.id },
           select: { flowState: true },
@@ -1280,46 +1314,13 @@ async function processMessage(msg: any, contact: any) {
           }
           return
         }
-      }
+      } // end if (isHardcodedFlowsEnabled) for section 0
 
-      // ─── 1. Active Visual Flow Session Resumption ───
-      // If the customer is mid-flow answering questions, buttons, or list choices, resume it.
-      const midFlow = await resumeFlow({
-        tenantId: currentTenant()?.tenantId || "",
-
-        conversationId: conversation.id,
-        customerId: customer.id,
-        customerPhone: from,
-        message: content,
-        buttonId: replyId || undefined,
-      })
-      if (midFlow.matched) {
-        if (midFlow.handoff) {
-          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "FLOW" })
-        }
-        return
-      }
-
-      // ─── 2. Dashboard Visual BotFlows (Keyword, Intent, Catch-All Triggers) ───
-      // Evaluates published visual BotFlows for this tenant.
-      const visualFlow = await runBotFlows({
-        tenantId: currentTenant()?.tenantId || "",
-        conversationId: conversation.id,
-        customerId: customer.id,
-        customerPhone: from,
-        message: content,
-        buttonId: replyId || undefined,
-      })
-      if (visualFlow.matched) {
-        if (visualFlow.handoff) {
-          await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
-        }
-        return
-      }
-
-      // ─── 3. Welcome BotFlow for First Contact ───
-      if (isFirstContact) {
-        const welcome = await runNewConversationFlow({
+      // ─── 1, 2, 3. Dynamic Visual BotFlows (Builder Flows & Welcome) ───
+      if (isDynamicFlowsEnabled) {
+        // ─── 1. Active Visual Flow Session Resumption ───
+        // If the customer is mid-flow answering questions, buttons, or list choices, resume it.
+        const midFlow = await resumeFlow({
           tenantId: currentTenant()?.tenantId || "",
           conversationId: conversation.id,
           customerId: customer.id,
@@ -1327,15 +1328,51 @@ async function processMessage(msg: any, contact: any) {
           message: content,
           buttonId: replyId || undefined,
         })
-        if (welcome.matched) {
-          if (welcome.handoff) {
+        if (midFlow.matched) {
+          if (midFlow.handoff) {
+            await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "FLOW" })
+          }
+          return
+        }
+
+        // ─── 2. Dashboard Visual BotFlows (Keyword, Intent, Catch-All Triggers) ───
+        // Evaluates published visual BotFlows for this tenant.
+        const visualFlow = await runBotFlows({
+          tenantId: currentTenant()?.tenantId || "",
+          conversationId: conversation.id,
+          customerId: customer.id,
+          customerPhone: from,
+          message: content,
+          buttonId: replyId || undefined,
+        })
+        if (visualFlow.matched) {
+          if (visualFlow.handoff) {
             await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
           }
           return
         }
-      }
 
-      // ─── 3.5 Restaurant Keyword Direct Response (Menu, Waiter, Bill) ───
+        // ─── 3. Welcome BotFlow for First Contact ───
+        if (isFirstContact) {
+          const welcome = await runNewConversationFlow({
+            tenantId: currentTenant()?.tenantId || "",
+            conversationId: conversation.id,
+            customerId: customer.id,
+            customerPhone: from,
+            message: content,
+            buttonId: replyId || undefined,
+          })
+          if (welcome.matched) {
+            if (welcome.handoff) {
+              await handoffToAgent({ from, conversationId: conversation.id, customerId: customer.id, intent: "BOT_FLOW_HANDOFF" })
+            }
+            return
+          }
+        }
+      } // end if (isDynamicFlowsEnabled)
+
+      // ─── 3.5 Restaurant Keyword Direct Response (Legacy Hardcoded) ───
+      if (isHardcodedFlowsEnabled) {
       const normText = content.trim().toLowerCase()
       const isMenuQuery = /^(menu|منيو|قائمة|the menu|show menu|digital menu|food|اكل|طعام)$/i.test(normText)
       const isWaiterQuery = /^(waiter|call waiter|نادل|طلب نادل|خدمة|جرس|احتاج نادل)$/i.test(normText)
@@ -1456,6 +1493,7 @@ async function processMessage(msg: any, contact: any) {
           }
         }
       }
+      } // end if (isHardcodedFlowsEnabled) for section 3.5
 
       // ─── 4. AI Assistant / Human Fallback (Knowledge Base & RAG) ───
       await handleTextMessage({
@@ -1942,8 +1980,20 @@ async function handleTextMessage(params: {
    * without losing the booking flow with it.
    */
   const isWhitelisted = await isTestPhoneNumber(from)
-  const aiOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  if (!isWhitelisted && (aiOn === "false" || aiOn === "off" || aiOn === "0")) {
+  const aiAssistantVal = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
+  const waBotVal = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
+  const botVal = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
+
+  const anyAiExplicitlyEnabled =
+    aiAssistantVal === "true" || aiAssistantVal === "1" || aiAssistantVal === "on" ||
+    waBotVal === "true" || waBotVal === "1" || waBotVal === "on" ||
+    botVal === "true" || botVal === "1" || botVal === "on"
+
+  const allAiExplicitlyDisabled =
+    (aiAssistantVal === "false" || aiAssistantVal === "off" || aiAssistantVal === "0") &&
+    (waBotVal === "false" || waBotVal === "off" || waBotVal === "0")
+
+  if (!isWhitelisted && allAiExplicitlyDisabled && !anyAiExplicitlyEnabled) {
     await db.conversation.update({
       where: { id: conversationId },
       data: { botActive: false, automationPaused: true, status: "PENDING" },
@@ -1951,40 +2001,57 @@ async function handleTextMessage(params: {
     return
   }
 
-  // A flow waiting on an answer takes precedence over everything: the customer
-  // is part-way through a form and their reply belongs to it.
-  const resumed = await resumeFlow({
-    tenantId: currentTenant()?.tenantId || "", conversationId, customerId, customerPhone: from, message: content,
-  })
-  if (resumed.matched) {
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: { lastMessageAt: new Date() },
-    })
-    return
+  const waFlowsOn = (await getConfigValue("wa_flows_enabled").catch(() => "")).trim().toLowerCase()
+  const isDynamicFlowsEnabled = !(waFlowsOn === "false" || waFlowsOn === "off" || waFlowsOn === "0")
+
+  let intent: { intent: string; sentiment: string; needsHumanHandoff: boolean } = {
+    intent: "GENERAL",
+    sentiment: "NEUTRAL",
+    needsHumanHandoff: false,
   }
+  try {
+    const detected = await detectIntent(content)
+    if (detected) intent = detected
+  } catch {}
 
-  const intent = await detectIntent(content)
-
-  // Operator-authored flows win over a generated reply: they're deterministic,
-  // free, and somebody deliberately built them for this exact case.
-  const flow = await runBotFlows({
-    tenantId: currentTenant()?.tenantId || "",
-    conversationId,
-    customerId,
-    customerPhone: from,
-    message: content,
-    intent: intent.intent,
-  })
-  if (flow.matched) {
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: { intent: intent.intent, sentiment: intent.sentiment },
+  if (isDynamicFlowsEnabled) {
+    // A flow waiting on an answer takes precedence over everything: the customer
+    // is part-way through a form and their reply belongs to it.
+    const resumed = await resumeFlow({
+      tenantId: currentTenant()?.tenantId || "",
+      conversationId,
+      customerId,
+      customerPhone: from,
+      message: content,
     })
-    if (flow.handoff) {
-      await handoffToAgent({ from, conversationId, customerId, intent: intent.intent })
+    if (resumed.matched) {
+      await db.conversation.update({
+        where: { id: conversationId },
+        data: { lastMessageAt: new Date() },
+      })
+      return
     }
-    return
+
+    // Operator-authored flows win over a generated reply: they're deterministic,
+    // free, and somebody deliberately built them for this exact case.
+    const flow = await runBotFlows({
+      tenantId: currentTenant()?.tenantId || "",
+      conversationId,
+      customerId,
+      customerPhone: from,
+      message: content,
+      intent: intent.intent,
+    })
+    if (flow.matched) {
+      await db.conversation.update({
+        where: { id: conversationId },
+        data: { intent: intent.intent, sentiment: intent.sentiment },
+      })
+      if (flow.handoff) {
+        await handoffToAgent({ from, conversationId, customerId, intent: intent.intent })
+      }
+      return
+    }
   }
 
   // Record what we detected, but only ever turn the bot OFF here. Flipping it
@@ -2044,7 +2111,7 @@ async function handleTextMessage(params: {
 
   await db.conversation.update({
     where: { id: conversationId },
-    data: { lastMessageAt: new Date(), lastMessageText: aiResponse },
+    data: { lastMessageAt: new Date(), lastMessageText: aiResponse, botActive: true, automationPaused: false },
   })
 
   publish({ type: "message", conversationId, direction: "BOT", preview: String(aiResponse).slice(0, 120), tenantId: currentTenant()?.tenantId || undefined })

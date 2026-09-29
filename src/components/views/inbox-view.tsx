@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,15 +15,17 @@ import {
   Send, Bot, Search, User, Sparkles, Phone, ExternalLink,
   Check, CheckCheck, AlertCircle, Image as ImageIcon, FileText, Music, Video,
   MapPin, Clock, ShieldCheck, MoreVertical, RefreshCw, Paperclip, Smile,
-  Facebook, Instagram, MessagesSquare,
+  Facebook, Instagram, MessagesSquare, Lock, X, CheckCircle2,
+  Languages, Mic, Copy, CornerDownLeft, CheckSquare, Square,
 } from "lucide-react"
 import { timeAgo } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
 import { useRealtime } from "@/lib/use-realtime"
-import { LabelPicker, AssignPicker, CannedPicker, labelClass } from "@/components/views/conversation-tools"
+import { LabelPicker, AssignPicker, CannedPicker, SnoozePicker, labelClass, parseLabels, AVAILABLE_LABELS } from "@/components/views/conversation-tools"
 import { TemplatePicker } from "@/components/views/template-picker"
 import { CatalogPicker } from "@/components/views/catalog-picker"
 import { ConversationDetails } from "@/components/views/conversation-details"
+import { ChatTrainingModal } from "@/components/views/chat-training-modal"
 import {
   ComposerAttachments, VoiceRecorder, AttachmentChip, MessageMedia, type Attachment,
 } from "@/components/views/composer-tools"
@@ -34,7 +36,7 @@ interface Conversation {
   customerName: string | null
   status: string
   botActive: boolean
-  labels: string | null
+  labels?: any
   lastMessageAt: string | null
   lastMessageText: string | null
   unreadCount: number
@@ -47,6 +49,7 @@ interface Conversation {
     loyaltyTier: string
     totalBookings: number
     totalSpent: number
+    tags?: any
   } | null
 }
 
@@ -157,9 +160,36 @@ export default function InboxView() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState("all")
   const [channelFilter, setChannelFilter] = useState("all")
+  const [labelFilter, setLabelFilter] = useState("all")
   const [search, setSearch] = useState("")
+
+  const allInboxLabels = useMemo(() => {
+    const fromConvos = conversations.flatMap(c => {
+      const convLabels = parseLabels(c.labels)
+      const custTags = parseLabels(c.customer?.tags)
+      return [...convLabels, ...custTags]
+    })
+    return Array.from(new Set([...AVAILABLE_LABELS, ...fromConvos])).filter(Boolean).sort()
+  }, [conversations])
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [session, setSession] = useState<{ open: boolean; expiresAt: string | null; hoursLeft: number } | null>(null)
+  const [assistantName, setAssistantName] = useState("AI")
+  const [notes, setNotes] = useState<any[]>([])
+  const [composerMode, setComposerMode] = useState<"reply" | "note">("reply")
+  const [noteSending, setNoteSending] = useState(false)
+  const [aiDrafting, setAiDrafting] = useState(false)
+  const [cannedList, setCannedList] = useState<{ id: string; title: string; content: string; category?: string | null; shortcut?: string | null }[]>([])
+  const [slashActiveIdx, setSlashActiveIdx] = useState(0)
+  const [rephrasing, setRephrasing] = useState(false)
+  const [showRephraseMenu, setShowRephraseMenu] = useState(false)
+  const [transcribingId, setTranscribingId] = useState<string | null>(null)
+  const [transcripts, setTranscripts] = useState<Record<string, string>>({})
+  const [translatingId, setTranslatingId] = useState<string | null>(null)
+  const [translations, setTranslations] = useState<Record<string, { text: string; lang: string }>>({})
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set())
+  const [bulkActionBusy, setBulkActionBusy] = useState(false)
+
 
   const loadConvos = () => {
     fetch("/api/conversations")
@@ -170,6 +200,17 @@ export default function InboxView() {
 
   useEffect(() => {
     loadConvos()
+    fetch("/api/canned-responses")
+      .then(r => r.json())
+      .then(d => setCannedList(d.responses || d.cannedResponses || []))
+      .catch(() => {})
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(d => {
+        const name = String(d?.settings?.assistant_name ?? "").trim()
+        if (name) setAssistantName(name)
+      })
+      .catch(() => {})
     const i = setInterval(loadConvos, 60000)
     return () => clearInterval(i)
   }, [])
@@ -178,7 +219,186 @@ export default function InboxView() {
     const res = await fetch(`/api/conversations/${id}/messages`)
     const data = await res.json()
     setMessages(data.conversation?.messages || [])
+    setNotes(data.conversation?.notes || [])
     setSession(data.session ?? null)
+  }
+
+  const addInternalNote = async () => {
+    if (!selectedId || !text.trim()) return
+    setNoteSending(true)
+    try {
+      const res = await fetch(`/api/conversations/${selectedId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Could not add internal note")
+        return
+      }
+      toast.success("Private staff note saved")
+      setText("")
+      loadMessages(selectedId)
+    } catch {
+      toast.error("Failed to add internal note")
+    } finally {
+      setNoteSending(false)
+    }
+  }
+
+  const handleAiSuggestReply = async () => {
+    if (!selectedId || messages.length === 0) return
+    setAiDrafting(true)
+    try {
+      const recent = messages.slice(-6).map(m => ({
+        role: m.direction === "INBOUND" ? "user" : "assistant",
+        content: m.content || m.caption || "",
+      }))
+      const res = await fetch("/api/ai/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            ...recent,
+            {
+              role: "user",
+              content: "Draft a concise, courteous, helpful reply for the customer in the same language they spoke (Arabic or English). Return ONLY the message text without quotes or explanations.",
+            },
+          ],
+        }),
+      })
+      const data = await res.json()
+      if (data.response) {
+        setText(data.response.trim())
+        toast.success("AI suggested reply drafted!")
+      } else {
+        toast.error("Could not generate suggestion")
+      }
+    } catch {
+      toast.error("AI service temporarily unavailable")
+    } finally {
+      setAiDrafting(false)
+    }
+  }
+
+  const handleRephrase = async (tone: "professional" | "friendly" | "concise" | "translate_ar" | "translate_en") => {
+    if (!text.trim()) {
+      toast.info("Please type a message first to rephrase")
+      return
+    }
+    setRephrasing(true)
+    setShowRephraseMenu(false)
+    try {
+      const res = await fetch("/api/ai/rephrase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, tone }),
+      })
+      const data = await res.json()
+      if (data.rephrased) {
+        setText(data.rephrased)
+        const toneLabels: Record<string, string> = {
+          professional: "Polite & Professional",
+          friendly: "Warm & Friendly",
+          concise: "Short & Punchy",
+          translate_ar: "Arabic (العربية)",
+          translate_en: "English",
+        }
+        toast.success(`Rewritten as ${toneLabels[tone] || tone}`)
+      } else {
+        toast.error("Could not rephrase message")
+      }
+    } catch {
+      toast.error("AI service temporarily unavailable")
+    } finally {
+      setRephrasing(false)
+    }
+  }
+
+  const handleTranscribe = async (messageId: string) => {
+    setTranscribingId(messageId)
+    try {
+      const res = await fetch("/api/ai/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      })
+      const data = await res.json()
+      if (data.success && data.text) {
+        setTranscripts(prev => ({ ...prev, [messageId]: data.text }))
+        setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, caption: `Transcript: ${data.text}` } : m)))
+        toast.success("Voice note transcribed successfully")
+      } else {
+        toast.error(data.error || "Could not transcribe audio")
+      }
+    } catch {
+      toast.error("Audio transcription service unavailable")
+    } finally {
+      setTranscribingId(null)
+    }
+  }
+
+  const handleTranslate = async (messageId: string, msgText: string) => {
+    if (translations[messageId]) {
+      setTranslations(prev => {
+        const next = { ...prev }
+        delete next[messageId]
+        return next
+      })
+      return
+    }
+    setTranslatingId(messageId)
+    try {
+      const res = await fetch("/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: msgText }),
+      })
+      const data = await res.json()
+      if (data.success && data.translatedText) {
+        setTranslations(prev => ({
+          ...prev,
+          [messageId]: { text: data.translatedText, lang: data.targetLang || "en" },
+        }))
+        toast.success(`Translated to ${data.targetLang?.toUpperCase() || "English"}`)
+      } else {
+        toast.error(data.error || "Translation failed")
+      }
+    } catch {
+      toast.error("Translation service temporarily unavailable")
+    } finally {
+      setTranslatingId(null)
+    }
+  }
+
+  const handleBulkAction = async (action: string, payload?: any) => {
+    if (selectedConvos.size === 0) return
+    setBulkActionBusy(true)
+    try {
+      const res = await fetch("/api/conversations/bulk-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationIds: Array.from(selectedConvos),
+          action,
+          ...payload,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Updated ${data.count} conversations`)
+        setSelectedConvos(new Set())
+        setSelectionMode(false)
+        loadConvos()
+      } else {
+        toast.error(data.error || "Bulk update failed")
+      }
+    } catch {
+      toast.error("Bulk update failed")
+    } finally {
+      setBulkActionBusy(false)
+    }
   }
 
   useEffect(() => {
@@ -249,12 +469,60 @@ export default function InboxView() {
   }
 
   const query = search.trim().toLowerCase()
-  const filtered = conversations.filter(c =>
-    (filter === "all" || (filter === "bot" && c.botActive) || (filter === "unread" && c.unreadCount > 0) || c.status === filter) &&
-    (channelFilter === "all" || (c.channel || "WHATSAPP") === channelFilter) &&
-    (!query || (c.customerName || "").toLowerCase().includes(query) || c.customerPhone.includes(query))
-  )
+  const filtered = conversations.filter(c => {
+    const statusMatch =
+      filter === "all" ||
+      (filter === "my_chats" && currentStaffId && c.assignedStaffId === currentStaffId) ||
+      (filter === "unassigned" && !c.assignedStaffId) ||
+      (filter === "bot" && c.botActive) ||
+      (filter === "unread" && c.unreadCount > 0) ||
+      c.status === filter
+
+    if (!statusMatch) return false
+
+    if (channelFilter !== "all" && (c.channel || "WHATSAPP") !== channelFilter) return false
+
+    const convLabels = parseLabels(c.labels)
+    const custTags = parseLabels(c.customer?.tags)
+    const combinedLabels = Array.from(new Set([...convLabels, ...custTags]))
+
+    if (labelFilter !== "all") {
+      const matchLabel = combinedLabels.some(l => l.toLowerCase() === labelFilter.toLowerCase())
+      if (!matchLabel) return false
+    }
+
+    if (query) {
+      const matchIdentity = (c.customerName || "").toLowerCase().includes(query)
+      const matchPhone = (c.customerPhone || "").includes(query)
+      const matchMsg = (c.lastMessageText || "").toLowerCase().includes(query)
+      const matchTag = combinedLabels.some(l => l.toLowerCase().includes(query))
+      if (!matchIdentity && !matchPhone && !matchMsg && !matchTag) return false
+    }
+
+    return true
+  })
   const selected = conversations.find(c => c.id === selectedId)
+
+  const isSlash = text.startsWith("/")
+  const slashQuery = isSlash ? text.slice(1).toLowerCase().trim() : ""
+  const filteredCanned = isSlash
+    ? cannedList.filter(
+        c =>
+          !slashQuery ||
+          c.title.toLowerCase().includes(slashQuery) ||
+          (c.shortcut && c.shortcut.toLowerCase().includes(slashQuery)) ||
+          c.content.toLowerCase().includes(slashQuery) ||
+          (c.category && c.category.toLowerCase().includes(slashQuery))
+      )
+    : []
+
+  const timelineItems = useMemo(() => {
+    const messageItems = messages.map(m => ({ ...m, _itemType: "message" as const }))
+    const noteItems = (notes || []).map(n => ({ ...n, _itemType: "note" as const }))
+    return [...messageItems, ...noteItems].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )
+  }, [messages, notes])
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-stone-100/50">
@@ -269,19 +537,56 @@ export default function InboxView() {
               </div>
               <span>Inbox</span>
             </h2>
-            <span className="text-[11px] font-bold text-stone-500 bg-stone-200/60 px-2 py-0.5 rounded-full font-mono">
-              {filtered.length} chats
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectionMode(!selectionMode)
+                  if (selectionMode) setSelectedConvos(new Set())
+                }}
+                className={`h-6 px-2 text-[11px] font-semibold rounded-lg ${
+                  selectionMode ? "bg-emerald-100 text-emerald-800" : "text-stone-500 hover:text-stone-800"
+                }`}
+              >
+                {selectionMode ? "Cancel" : "Select"}
+              </Button>
+              <span className="text-[11px] font-bold text-stone-500 bg-stone-200/60 px-2 py-0.5 rounded-full font-mono">
+                {filtered.length} chats
+              </span>
+            </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-            <Input
-              placeholder="Search name, phone, or message..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 h-8.5 text-xs bg-white border-stone-200 rounded-xl shadow-2xs focus-visible:ring-emerald-500"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+              <Input
+                placeholder="Search name, phone, tag, or message..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 pr-8 h-8.5 text-xs bg-white border-stone-200 rounded-xl shadow-2xs focus-visible:ring-emerald-500"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-0.5 rounded-full"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <select
+              value={labelFilter}
+              onChange={e => setLabelFilter(e.target.value)}
+              className="text-xs border border-stone-200 rounded-xl px-2.5 py-1 bg-white font-medium text-stone-700 h-8.5 max-w-[125px] truncate shrink-0 shadow-2xs"
+            >
+              <option value="all">All Labels</option>
+              {allInboxLabels.map(l => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
@@ -312,6 +617,10 @@ export default function InboxView() {
               ["all", "All"],
               ["unread", "Unread"],
               ["OPEN", "Open"],
+              ["my_chats", "Assigned to Me"],
+              ["unassigned", "Unassigned"],
+              ["RESOLVED", "Resolved"],
+              ["SNOOZED", "Snoozed ⏰"],
               ["bot", "Bot Active"],
               ["PENDING", "Pending"],
             ].map(([f, l]) => (
@@ -347,75 +656,185 @@ export default function InboxView() {
           ) : (
             <div className="divide-y divide-stone-100">
               {filtered.map(c => {
-                const labels = c.labels ? JSON.parse(c.labels) : []
+                const labels = Array.from(new Set([...parseLabels(c.labels), ...parseLabels(c.customer?.tags)])).filter(Boolean)
                 const isSelected = selectedId === c.id
+                const isChecked = selectedConvos.has(c.id)
+                const isSnoozed = c.status === "SNOOZED"
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => openConversation(c)}
-                    className={`w-full p-3.5 text-left transition-colors relative flex items-start gap-3 hover:bg-stone-50/90 ${
+                    className={`w-full p-3.5 transition-colors relative flex items-start gap-2.5 hover:bg-stone-50/90 ${
                       isSelected ? "bg-emerald-50/80 border-r-3 border-emerald-600" : ""
                     }`}
                   >
-                    <div className="relative shrink-0 mt-0.5">
-                      <Avatar className="h-11 w-11 rounded-2xl border border-stone-200/70 shadow-2xs">
-                        <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
-                          {displayIdentity(c)[0]?.toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div
-                        className="absolute -top-1 -left-1 h-4.5 w-4.5 rounded-full bg-white border border-stone-200 flex items-center justify-center shadow-xs"
-                        title={channelLabel(c.channel)}
+                    {selectionMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedConvos(prev => {
+                            const next = new Set(prev)
+                            if (next.has(c.id)) next.delete(c.id)
+                            else next.add(c.id)
+                            return next
+                          })
+                        }}
+                        className="mt-2.5 shrink-0 text-stone-400 hover:text-emerald-600 cursor-pointer"
                       >
-                        <ChannelIcon channel={c.channel} className="h-2.5 w-2.5" />
-                      </div>
-                      {c.botActive && (
+                        {isChecked ? (
+                          <CheckSquare className="h-4.5 w-4.5 text-emerald-600" />
+                        ) : (
+                          <Square className="h-4.5 w-4.5 text-stone-300" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectionMode) {
+                          setSelectedConvos(prev => {
+                            const next = new Set(prev)
+                            if (next.has(c.id)) next.delete(c.id)
+                            else next.add(c.id)
+                            return next
+                          })
+                        } else {
+                          openConversation(c)
+                        }
+                      }}
+                      className="flex-1 min-w-0 flex items-start gap-3 text-left cursor-pointer"
+                    >
+                      <div className="relative shrink-0 mt-0.5">
+                        <Avatar className="h-11 w-11 rounded-2xl border border-stone-200/70 shadow-2xs">
+                          <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
+                            {displayIdentity(c)[0]?.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                         <div
-                          className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center shadow-xs"
-                          title="Bot Automation Active"
+                          className="absolute -top-1 -left-1 h-4.5 w-4.5 rounded-full bg-white border border-stone-200 flex items-center justify-center shadow-xs"
+                          title={channelLabel(c.channel)}
                         >
-                          <Bot className="h-2.5 w-2.5 text-white" />
+                          <ChannelIcon channel={c.channel} className="h-2.5 w-2.5" />
                         </div>
-                      )}
-                    </div>
+                        {c.botActive && (
+                          <div
+                            className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center shadow-xs"
+                            title="Bot Automation Active"
+                          >
+                            <Bot className="h-2.5 w-2.5 text-white" />
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className={`text-xs font-bold truncate ${isSelected ? "text-emerald-950" : "text-stone-900"}`}>
-                          {displayIdentity(c)}
-                        </span>
-                        {c.lastMessageAt && (
-                          <span className="text-[10px] font-medium text-stone-400 shrink-0 font-mono">
-                            {timeAgo(c.lastMessageAt)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className={`text-xs font-bold truncate ${isSelected ? "text-emerald-950" : "text-stone-900"}`}>
+                            {displayIdentity(c)}
                           </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-stone-500 truncate leading-relaxed">
-                        {previewText(c.lastMessageText)}
-                      </p>
-
-                      <div className="flex items-center justify-between gap-1 mt-1.5">
-                        <div className="flex items-center gap-1 overflow-hidden">
-                          {labels.slice(0, 2).map((l: string) => (
-                            <Badge key={l} className={`text-[9px] font-semibold h-4 px-1.5 rounded ${labelClass(l)}`}>
-                              {l}
-                            </Badge>
-                          ))}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isSnoozed && (
+                              <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded border border-amber-300">
+                                ⏰ Snoozed
+                              </span>
+                            )}
+                            {c.lastMessageAt && (
+                              <span className="text-[10px] font-medium text-stone-400 font-mono">
+                                {timeAgo(c.lastMessageAt)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {c.unreadCount > 0 && (
-                          <Badge className="bg-emerald-600 text-white text-[10px] font-black h-4.5 min-w-4.5 px-1.5 rounded-full shadow-xs">
-                            {c.unreadCount}
-                          </Badge>
-                        )}
+
+                        <p className="text-xs text-stone-500 truncate leading-relaxed">
+                          {previewText(c.lastMessageText)}
+                        </p>
+
+                        <div className="flex items-center justify-between gap-1 mt-1.5">
+                          <div className="flex items-center gap-1 overflow-hidden">
+                            {labels.slice(0, 2).map((l: string) => (
+                              <Badge key={l} className={`text-[9px] font-semibold h-4 px-1.5 rounded ${labelClass(l)}`}>
+                                {l}
+                              </Badge>
+                            ))}
+                          </div>
+                          {c.unreadCount > 0 && (
+                            <Badge className="bg-emerald-600 text-white text-[10px] font-black h-4.5 min-w-4.5 px-1.5 rounded-full shadow-xs">
+                              {c.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 )
               })}
             </div>
           )}
         </div>
+
+        {/* Floating Bulk Actions Bar */}
+        {selectedConvos.size > 0 && (
+          <div className="p-3 bg-stone-900 text-white border-t border-stone-800 flex items-center justify-between gap-2 text-xs shadow-xl shrink-0 z-20">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-emerald-400">{selectedConvos.size} selected</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedConvos.size === filtered.length) setSelectedConvos(new Set())
+                  else setSelectedConvos(new Set(filtered.map(c => c.id)))
+                }}
+                className="text-[11px] text-stone-400 hover:text-white underline cursor-pointer"
+              >
+                {selectedConvos.size === filtered.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                size="sm"
+                disabled={bulkActionBusy}
+                onClick={() => handleBulkAction("resolve")}
+                className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              >
+                Resolve
+              </Button>
+              <Button
+                size="sm"
+                disabled={bulkActionBusy}
+                variant="secondary"
+                onClick={() => handleBulkAction("open")}
+                className="h-7 px-2.5 text-xs font-semibold"
+              >
+                Open
+              </Button>
+              <select
+                onChange={e => {
+                  if (e.target.value) {
+                    handleBulkAction("add_label", { label: e.target.value })
+                    e.target.value = ""
+                  }
+                }}
+                className="h-7 text-xs bg-stone-800 text-white border border-stone-700 rounded px-2"
+                defaultValue=""
+              >
+                <option value="" disabled>+ Add Label...</option>
+                {allInboxLabels.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedConvos(new Set())
+                  setSelectionMode(false)
+                }}
+                className="p-1 hover:text-rose-400 text-stone-400 ml-1 cursor-pointer"
+                title="Cancel selection"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Center Chat Pane (Screen stays stuck, messages scroll) ── */}
@@ -482,13 +901,65 @@ export default function InboxView() {
                       )
                     )}
                   </div>
+                  {(() => {
+                    const activeLabels = Array.from(new Set([
+                      ...parseLabels(selected.labels),
+                      ...parseLabels(selected.customer?.tags),
+                    ])).filter(Boolean)
+                    if (activeLabels.length === 0) return null
+                    return (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {activeLabels.map(l => (
+                          <span
+                            key={l}
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium border ${labelClass(l)}`}
+                          >
+                            {l}
+                          </span>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
 
               {/* Chat Header Actions */}
               <div className="flex items-center gap-2">
-                <LabelPicker conversationId={selected.id} labels={selected.labels} onChanged={loadConvos} />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const nextStatus = selected.status === "RESOLVED" ? "OPEN" : "RESOLVED"
+                    await fetch(`/api/conversations/${selected.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: nextStatus }),
+                    })
+                    toast.success(nextStatus === "RESOLVED" ? "Conversation marked resolved" : "Conversation reopened")
+                    loadConvos()
+                  }}
+                  className={`h-7 text-xs font-semibold gap-1.5 transition-all shadow-2xs ${
+                    selected.status === "RESOLVED"
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                      : "bg-white text-stone-700 border-stone-200 hover:text-emerald-700 hover:bg-emerald-50/70"
+                  }`}
+                  title={selected.status === "RESOLVED" ? "Reopen conversation" : "Mark conversation as resolved"}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{selected.status === "RESOLVED" ? "Resolved" : "Resolve"}</span>
+                </Button>
+
+                <LabelPicker
+                  conversationId={selected.id}
+                  labels={Array.from(new Set([
+                    ...parseLabels(selected.labels),
+                    ...parseLabels(selected.customer?.tags),
+                  ]))}
+                  onChanged={loadConvos}
+                />
                 <AssignPicker conversationId={selected.id} assignedStaffId={selected.assignedStaffId ?? null} onChanged={loadConvos} />
+                <SnoozePicker conversationId={selected.id} status={selected.status} onChanged={loadConvos} />
+                <ChatTrainingModal conversationId={selected.id} />
 
                 <div data-tour="inbox-bot-toggle" className="flex items-center gap-1.5 pl-2 border-l border-stone-200 ml-1">
                   <span className="text-xs font-semibold text-stone-600">Bot</span>
@@ -512,7 +983,26 @@ export default function InboxView() {
               ref={scrollRef}
               className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-[#e5ddd5]/25 bg-[radial-gradient(#0000000a_1px,transparent_1px)] [background-size:16px_16px]"
             >
-              {messages.map(m => {
+              {timelineItems.map(item => {
+                if (item._itemType === "note") {
+                  return (
+                    <div key={`note-${item.id}`} className="flex justify-center my-2 animate-in fade-in-50 duration-150">
+                      <div className="max-w-[90%] sm:max-w-[78%] rounded-2xl px-4 py-2.5 bg-amber-50/95 border border-amber-300 text-amber-950 shadow-xs">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 mb-1">
+                          <Lock className="h-3 w-3 text-amber-600 shrink-0" />
+                          <span>Internal Staff Note</span>
+                          <span className="text-amber-600/80 font-normal">· {item.staff?.name || "Staff"}</span>
+                        </div>
+                        <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap font-sans text-stone-800">{item.content}</p>
+                        <div className="text-[10px] text-amber-700/70 text-right mt-1 font-mono">
+                          {new Date(item.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                const m = item
                 const outgoing = m.direction !== "INBOUND"
                 const isBot = m.direction === "BOT"
                 const isTemplate = m.type === "TEMPLATE" || Boolean(m.templateName)
@@ -565,7 +1055,7 @@ export default function InboxView() {
                       {/* Sender Meta Badges */}
                       {m.isAiGenerated ? (
                         <div className={`flex items-center gap-1 text-[10px] font-bold mb-1 ${outgoing ? "text-emerald-200" : "text-amber-600"}`}>
-                          <Sparkles className="h-3 w-3" /> Najwa AI Assistant
+                          <Sparkles className="h-3 w-3" /> {assistantName} AI Assistant
                         </div>
                       ) : isBot ? (
                         <div className={`flex items-center gap-1 text-[10px] font-bold mb-1 ${outgoing ? "text-teal-200" : "text-blue-600"}`}>
@@ -605,11 +1095,113 @@ export default function InboxView() {
                         </div>
                       ) : null}
 
-                      {/* Message Text Content */}
+                      {/* Voice Note AI Transcription */}
+                      {(() => {
+                        const isAudio = m.type === "AUDIO" || m.type === "VOICE" || (m.mediaUrl && /\.(mp3|ogg|wav|m4a|aac)($|\?)/i.test(m.mediaUrl))
+                        if (!isAudio) return null
+                        const currentTranscript = transcripts[m.id] || (m.caption?.startsWith("Transcript: ") ? m.caption.replace(/^Transcript:\s*/, "") : null)
+                        return (
+                          <div className="mt-1.5 space-y-1">
+                            {currentTranscript ? (
+                              <div className={`p-2.5 rounded-xl text-xs border ${outgoing ? "bg-emerald-950/60 border-emerald-500/30 text-emerald-100" : "bg-stone-50 border-stone-200/80 text-stone-800"}`}>
+                                <div className="flex items-center justify-between text-[10px] font-bold text-stone-400 mb-1">
+                                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                    <Sparkles className="h-3 w-3" /> Voice Note Transcript
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(currentTranscript)
+                                        toast.success("Transcript copied to clipboard")
+                                      }}
+                                      className="hover:text-stone-700 flex items-center gap-0.5 cursor-pointer"
+                                      title="Copy transcript"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                      <span>Copy</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setText(prev => (prev ? `${prev}\n"${currentTranscript}"` : `"${currentTranscript}"`))
+                                        toast.success("Transcript inserted into reply")
+                                      }}
+                                      className="hover:text-stone-700 flex items-center gap-0.5 cursor-pointer"
+                                      title="Quote in reply"
+                                    >
+                                      <CornerDownLeft className="h-3 w-3" />
+                                      <span>Quote</span>
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="whitespace-pre-wrap leading-relaxed select-text">{currentTranscript}</p>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleTranscribe(m.id)}
+                                disabled={transcribingId === m.id}
+                                className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all shadow-2xs cursor-pointer ${
+                                  outgoing
+                                    ? "bg-emerald-900/60 border-emerald-600/50 text-emerald-100 hover:bg-emerald-800/80"
+                                    : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50 hover:text-emerald-700 hover:border-emerald-200"
+                                }`}
+                              >
+                                <Sparkles className={`h-3 w-3 text-emerald-600 ${transcribingId === m.id ? "animate-spin" : ""}`} />
+                                <span>{transcribingId === m.id ? "Transcribing Voice Note..." : "⚡ Transcribe Voice Note"}</span>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Message Text Content & Real-time Translation */}
                       {displayText && !isPlaceholder && (
-                        <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap">
-                          <FormattedMessageText text={displayText} isOutgoing={outgoing} />
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap">
+                            <FormattedMessageText text={displayText} isOutgoing={outgoing} />
+                          </p>
+
+                          {/* Inline Translation Display */}
+                          {translations[m.id] ? (
+                            <div className={`mt-1.5 p-2 rounded-lg text-xs border ${
+                              outgoing
+                                ? "bg-emerald-950/60 border-emerald-600/40 text-emerald-100"
+                                : "bg-stone-50 border-stone-200 text-stone-800"
+                            }`}>
+                              <div className="flex items-center justify-between text-[10px] text-stone-400 mb-1">
+                                <span className="flex items-center gap-1 font-semibold text-indigo-600">
+                                  <Languages className="h-3 w-3" /> Translated ({translations[m.id].lang.toUpperCase()})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTranslate(m.id, displayText)}
+                                  className="text-[10px] hover:text-stone-700 underline cursor-pointer"
+                                >
+                                  Hide
+                                </button>
+                              </div>
+                              <p className="whitespace-pre-wrap leading-relaxed select-text">{translations[m.id].text}</p>
+                            </div>
+                          ) : null}
+
+                          {/* Translate Action Trigger */}
+                          {!translations[m.id] && !outgoing && (
+                            <div className="pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleTranslate(m.id, displayText)}
+                                disabled={translatingId === m.id}
+                                className="text-[10px] text-stone-400 hover:text-indigo-600 transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Translate message with AI"
+                              >
+                                <Languages className={`h-3 w-3 ${translatingId === m.id ? "animate-spin" : ""}`} />
+                                <span>{translatingId === m.id ? "Translating..." : "Translate"}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Carousel Cards */}
@@ -703,7 +1295,7 @@ export default function InboxView() {
               {botTyping && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-stone-200 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 shadow-xs">
-                    <span className="text-xs font-semibold text-stone-500 mr-1">Najwa is typing</span>
+                    <span className="text-xs font-semibold text-stone-500 mr-1">{assistantName} is typing</span>
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "150ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -716,8 +1308,145 @@ export default function InboxView() {
             <div className="p-3.5 border-t border-stone-200/80 bg-white shrink-0 space-y-2.5">
               {attachment && <AttachmentChip attachment={attachment} onClear={() => setAttachment(null)} />}
 
+              {/* Mode Toggle & AI Suggest Reply */}
+              <div className="flex items-center justify-between gap-2 pb-0.5">
+                <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setComposerMode("reply")}
+                    className={`px-3 py-1 rounded-md font-medium transition-all ${
+                      composerMode === "reply"
+                        ? "bg-white text-emerald-900 shadow-2xs font-semibold"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    Reply to Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposerMode("note")}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md font-medium transition-all ${
+                      composerMode === "note"
+                        ? "bg-amber-100 text-amber-900 shadow-2xs font-semibold"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    <Lock className="h-3 w-3 text-amber-600" />
+                    Internal Note
+                  </button>
+                </div>
+
+                {composerMode === "reply" && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAiSuggestReply}
+                      disabled={aiDrafting || messages.length === 0}
+                      className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 shrink-0 font-medium"
+                    >
+                      <Sparkles className={`h-3.5 w-3.5 mr-1 text-emerald-600 ${aiDrafting ? "animate-spin" : ""}`} />
+                      {aiDrafting ? "Drafting..." : "AI Suggest Reply"}
+                    </Button>
+
+                    {text.trim().length > 0 && (
+                      <div className="relative">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowRephraseMenu(!showRephraseMenu)}
+                          disabled={rephrasing}
+                          className="h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 shrink-0 font-medium"
+                        >
+                          <Sparkles className={`h-3.5 w-3.5 mr-1 text-indigo-600 ${rephrasing ? "animate-spin" : ""}`} />
+                          {rephrasing ? "Rewriting..." : "AI Rephrase ▾"}
+                        </Button>
+                        {showRephraseMenu && (
+                          <div className="absolute right-0 bottom-full mb-1 w-48 bg-white rounded-xl border border-stone-200 shadow-xl py-1 z-30 text-xs">
+                            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                              Adjust Tone
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRephrase("professional")}
+                              className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-stone-700 hover:text-indigo-900 flex items-center gap-2"
+                            >
+                              <span>💼</span>
+                              <span>Polite & Professional</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRephrase("friendly")}
+                              className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-stone-700 hover:text-indigo-900 flex items-center gap-2"
+                            >
+                              <span>🤝</span>
+                              <span>Warm & Friendly</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRephrase("concise")}
+                              className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-stone-700 hover:text-indigo-900 flex items-center gap-2"
+                            >
+                              <span>⚡</span>
+                              <span>Short & Punchy</span>
+                            </button>
+                            <div className="my-1 border-t border-stone-100" />
+                            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                              Translate
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRephrase("translate_ar")}
+                              className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-stone-700 hover:text-indigo-900 flex items-center gap-2"
+                            >
+                              <span>🇸🇦</span>
+                              <span>Arabic (العربية)</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRephrase("translate_en")}
+                              className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-stone-700 hover:text-indigo-900 flex items-center gap-2"
+                            >
+                              <span>🇬🇧</span>
+                              <span>English</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+
+              {/* WhatsApp 24h Window Closed Banner with 1-Click Approved Template Fallback */}
+              {composerMode === "reply" && (!selected.channel || selected.channel === "WHATSAPP") && session && !session.open && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="flex items-start gap-2 text-xs">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-semibold text-amber-900">24-hour WhatsApp Window Closed.</span>{" "}
+                      <span className="text-amber-800">Free-form messages cannot be delivered. Send an approved Meta template to reopen the customer chat window.</span>
+                    </div>
+                  </div>
+                  <TemplatePicker
+                    conversationId={selected.id}
+                    customerName={selected.customerName || selected.customer?.name}
+                    onSent={() => loadMessages(selected.id)}
+                    trigger={
+                      <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0 font-medium shadow-2xs">
+                        <FileText className="h-3.5 w-3.5 mr-1" />
+                        Send Approved Template
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+
               {/* AI Smart Reply Suggestions */}
-              {(() => {
+              {composerMode === "reply" && (() => {
                 const latestInbound = [...messages].reverse().find(m => m.direction === "INBOUND")
                 const smartSuggestions: string[] = (latestInbound as any)?.aiSuggestions || (
                   (selected.channel === "LIVE_CHAT" || selected.channel === "WEBSITE") && messages.length > 0
@@ -749,42 +1478,145 @@ export default function InboxView() {
                 )
               })()}
 
-              <div data-tour="inbox-composer-tools" className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-stone-100/80 p-1 rounded-xl border border-stone-200/60">
-                  <CannedPicker onPick={value => setText(value)} />
-                  <ComposerAttachments onAttach={setAttachment} />
-                  <VoiceRecorder onRecorded={setAttachment} />
-                  {(!selected.channel || selected.channel === "WHATSAPP") && (
-                    <>
-                      <TemplatePicker conversationId={selected.id} onSent={() => loadMessages(selected.id)} />
-                      <CatalogPicker conversationId={selected.id} onSent={() => loadMessages(selected.id)} />
-                    </>
-                  )}
+              {composerMode === "note" ? (
+                /* Internal Note Composer */
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      placeholder="Type internal staff note (visible to team only)..."
+                      className="h-10 text-xs sm:text-sm bg-amber-50/50 border-amber-200 rounded-xl pl-3.5 pr-10 focus-visible:ring-amber-500 text-amber-950 placeholder:text-amber-600/60"
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+                          e.preventDefault()
+                          addInternalNote()
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    onClick={addInternalNote}
+                    disabled={!text.trim() || noteSending}
+                    className="h-10 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-sm shadow-amber-600/30 disabled:opacity-40 font-medium text-xs sm:text-sm"
+                  >
+                    <Lock className="h-4 w-4 mr-1.5" />
+                    {noteSending ? "Saving..." : "Save Note"}
+                  </Button>
                 </div>
+              ) : (
+                /* Standard Outbound Reply Composer */
+                <div data-tour="inbox-composer-tools" className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-stone-100/80 p-1 rounded-xl border border-stone-200/60">
+                    <CannedPicker onPick={value => setText(value)} />
+                    <ComposerAttachments onAttach={setAttachment} />
+                    <VoiceRecorder onRecorded={setAttachment} />
+                    {(!selected.channel || selected.channel === "WHATSAPP") && (
+                      <>
+                        <TemplatePicker
+                          conversationId={selected.id}
+                          customerName={selected.customerName || selected.customer?.name}
+                          onSent={() => loadMessages(selected.id)}
+                        />
+                        <CatalogPicker conversationId={selected.id} onSent={() => loadMessages(selected.id)} />
+                      </>
+                    )}
+                  </div>
 
-                <div className="flex-1 relative">
-                  <Input
-                    value={text}
-                    onChange={e => setText(e.target.value)}
-                    placeholder={attachment ? "Add a caption, or send directly…" : "Type a reply as agent..."}
-                    className="h-10 text-xs sm:text-sm bg-stone-50/70 border-stone-200 rounded-xl pl-3.5 pr-10 focus-visible:ring-emerald-500"
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && !e.shiftKey && (text.trim() || attachment)) {
-                        e.preventDefault()
-                        send(text, "OUTBOUND")
-                      }
-                    }}
-                  />
+                  <div className="flex-1 relative">
+                    {/* Floating Slash Quick Replies Menu */}
+                    {isSlash && filteredCanned.length > 0 && (
+                      <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-2xl border border-stone-200/90 shadow-2xl overflow-hidden z-30">
+                        <div className="px-3 py-1.5 bg-stone-50 border-b border-stone-200/70 flex items-center justify-between text-[11px] font-bold text-stone-600">
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="h-3 w-3 text-emerald-600" />
+                            <span>Quick Replies ({filteredCanned.length})</span>
+                          </span>
+                          <span className="text-[10px] text-stone-400 font-normal">↑↓ to navigate · Enter to select · Esc to close</span>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto divide-y divide-stone-100 p-1">
+                          {filteredCanned.map((item, idx) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setText(item.content)
+                                setSlashActiveIdx(0)
+                              }}
+                              className={`w-full p-2 text-left rounded-xl transition-all flex items-start justify-between gap-2 ${
+                                slashActiveIdx === idx ? "bg-emerald-50 text-emerald-950 font-medium" : "hover:bg-stone-50 text-stone-800"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className="text-xs font-bold text-stone-900">{item.title}</span>
+                                  {item.category && (
+                                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200">
+                                      {item.category}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-stone-500 truncate">{item.content}</p>
+                              </div>
+                              <span className="text-[10px] text-emerald-600 font-semibold shrink-0 mt-0.5">Insert ↵</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Input
+                      value={text}
+                      onChange={e => {
+                        setText(e.target.value)
+                        setSlashActiveIdx(0)
+                      }}
+                      placeholder={attachment ? "Add a caption, or send directly…" : "Type a reply, or type / for quick replies..."}
+                      className="h-10 text-xs sm:text-sm bg-stone-50/70 border-stone-200 rounded-xl pl-3.5 pr-10 focus-visible:ring-emerald-500"
+                      onKeyDown={e => {
+                        if (isSlash && filteredCanned.length > 0) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault()
+                            setSlashActiveIdx(prev => (prev + 1) % filteredCanned.length)
+                            return
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault()
+                            setSlashActiveIdx(prev => (prev - 1 + filteredCanned.length) % filteredCanned.length)
+                            return
+                          }
+                          if (e.key === "Enter" || e.key === "Tab") {
+                            e.preventDefault()
+                            const chosen = filteredCanned[slashActiveIdx] || filteredCanned[0]
+                            if (chosen) {
+                              setText(chosen.content)
+                              setSlashActiveIdx(0)
+                            }
+                            return
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault()
+                            setText("")
+                            return
+                          }
+                        }
+                        if (e.key === "Enter" && !e.shiftKey && (text.trim() || attachment)) {
+                          e.preventDefault()
+                          send(text, "OUTBOUND")
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() => (text.trim() || attachment) && send(text, "OUTBOUND")}
+                    disabled={!text.trim() && !attachment}
+                    className="h-10 w-10 p-0 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-sm shadow-emerald-600/30 disabled:opacity-40"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
-
-                <Button
-                  onClick={() => (text.trim() || attachment) && send(text, "OUTBOUND")}
-                  disabled={!text.trim() && !attachment}
-                  className="h-10 w-10 p-0 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-sm shadow-emerald-600/30 disabled:opacity-40"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+              )}
             </div>
           </>
         )}

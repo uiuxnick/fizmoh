@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
 import { currentTenant } from "@/lib/tenant"
+import { publish } from "@/lib/realtime"
 import { z } from "zod"
 
 /**
@@ -84,9 +85,15 @@ export const POST = withErrors(async (request: NextRequest) => {
   if (conversationId) {
     const conversation = await db.conversation.findFirst({ where: { id: conversationId, tenantId: tenant.tenantId }, select: { labels: true } })
     if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+    const updatedLabels = next(parseList(conversation.labels))
     await db.conversation.update({
       where: { id: conversationId },
-      data: { labels: JSON.stringify(next(parseList(conversation.labels))) },
+      data: { labels: updatedLabels },
+    })
+    publish({
+      type: "conversation",
+      conversationId,
+      tenantId: tenant.tenantId,
     })
   }
 
@@ -95,7 +102,7 @@ export const POST = withErrors(async (request: NextRequest) => {
     if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 })
     await db.customer.update({
       where: { id: customerId },
-      data: { tags: JSON.stringify(next(parseList(customer.tags))) },
+      data: { tags: next(parseList(customer.tags)) },
     })
   }
 

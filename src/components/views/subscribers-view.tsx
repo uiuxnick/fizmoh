@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
 import {
   Users, Search, Download, Upload, Tag, BellOff, BellRing,
@@ -19,8 +20,9 @@ import {
   Layers, FileText, Phone, Mail, UserCheck, RotateCcw, Check,
   Copy, ExternalLink, Briefcase, Clock, ArrowUpDown, ListFilter,
   LayoutList, LayoutGrid, Radio, Shield, Send, MoreHorizontal,
-  Facebook, Instagram, MessageCircle,
+  Facebook, Instagram, MessageCircle, X, Play, Pause,
 } from "lucide-react"
+import { AVAILABLE_LABELS, labelClass, parseLabels } from "@/components/views/conversation-tools"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { useApp } from "@/lib/store"
 import {
@@ -30,6 +32,9 @@ import {
   getChannelMeta,
   type SubscriberChannel,
 } from "@/lib/subscribers"
+import { matchesSegment, type Rule } from "@/lib/segments"
+import { SegmentBuilderModal } from "@/components/views/segment-builder-modal"
+import { CsvImportWizard } from "@/components/views/csv-import-wizard"
 
 type Subscriber = {
   id: string
@@ -118,6 +123,8 @@ export default function SubscribersView() {
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [tagFilter, setTagFilter] = useState("all")
+  const [bulkLabelOpen, setBulkLabelOpen] = useState(false)
+  const [bulkLabelSearch, setBulkLabelSearch] = useState("")
   const [sortBy, setSortBy] = useState<"latest" | "oldest" | "name">("latest")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -125,6 +132,16 @@ export default function SubscribersView() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<"overview" | "agent" | "labels" | "lists" | "sequences" | "input_flows" | "custom_fields" | "notes">("overview")
   const [workspaceName, setWorkspaceName] = useState("Fizmoh")
+
+  const allCombinedTags = useMemo(() => {
+    return Array.from(new Set([...tags, ...AVAILABLE_LABELS])).filter(Boolean).sort((a, b) => a.localeCompare(b))
+  }, [tags])
+
+  const filteredBulkLabels = useMemo(() => {
+    const q = bulkLabelSearch.trim().toLowerCase()
+    if (!q) return allCombinedTags
+    return allCombinedTags.filter(t => t.toLowerCase().includes(q))
+  }, [allCombinedTags, bulkLabelSearch])
 
   // Form states for right pane edit
   const [editForm, setEditForm] = useState({
@@ -134,7 +151,15 @@ export default function SubscribersView() {
     notes: "",
     newTagInput: "",
     preferredLang: "en",
+    customFields: {} as Record<string, any>,
   })
+
+  // Dynamic Custom CRM Fields
+  const [customFieldDefs, setCustomFieldDefs] = useState<
+    Array<{ key: string; label: string; type: string; options?: string[]; description?: string }>
+  >([])
+  const [newFieldModalOpen, setNewFieldModalOpen] = useState(false)
+  const [newFieldForm, setNewFieldForm] = useState({ key: "", label: "", type: "text", options: "" })
 
   // Modals
   const [addOpen, setAddOpen] = useState(false)
@@ -154,17 +179,129 @@ export default function SubscribersView() {
     optIn: true,
   })
   const [importOpen, setImportOpen] = useState(false)
-  const [importCsv, setImportCsv] = useState("")
-  const [importOptIn, setImportOptIn] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // Load workspace info
+  // Load workspace info and custom fields
   useEffect(() => {
     fetch("/api/workspaces")
       .then(r => r.json())
       .then(d => { if (d.current?.name) setWorkspaceName(d.current.name) })
       .catch(() => {})
+    fetch("/api/custom-fields")
+      .then(r => r.json())
+      .then(d => { if (d.fields && Array.isArray(d.fields)) setCustomFieldDefs(d.fields) })
+      .catch(() => {})
   }, [])
+
+  // Smart Dynamic Segments state
+  const [segments, setSegments] = useState<Array<{
+    id: string
+    name: string
+    channel: string
+    filterRules?: any
+    parsedRules?: Rule[]
+    contactCount?: number
+    createdAt?: string
+  }>>([])
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>("all")
+  const [segmentModalOpen, setSegmentModalOpen] = useState(false)
+  const [editingSegment, setEditingSegment] = useState<any | null>(null)
+
+  const loadSegments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/segments")
+      if (res.ok) {
+        const data = await res.json()
+        setSegments(data.segments || [])
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSegments()
+  }, [loadSegments])
+
+  // Drip Sequence state
+  const [subscriberSequences, setSubscriberSequences] = useState<any[]>([])
+  const [availableSequences, setAvailableSequences] = useState<any[]>([])
+  const [loadingSequences, setLoadingSequences] = useState(false)
+  const [enrollModalOpen, setEnrollModalOpen] = useState(false)
+  const [selectedSequenceToEnroll, setSelectedSequenceToEnroll] = useState<string>("")
+  const [enrolling, setEnrolling] = useState(false)
+
+  const loadSubscriberSequences = useCallback(async (customerId: string) => {
+    setLoadingSequences(true)
+    try {
+      const res = await fetch(`/api/subscribers/${customerId}/sequences`)
+      if (res.ok) {
+        const data = await res.json()
+        setSubscriberSequences(data.enrollments || [])
+        setAvailableSequences(data.availableSequences || [])
+        if (data.availableSequences?.[0]) {
+          setSelectedSequenceToEnroll(data.availableSequences[0].id)
+        }
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setLoadingSequences(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeCustomer?.id && activeTab === "sequences") {
+      loadSubscriberSequences(activeCustomer.id)
+    }
+  }, [activeCustomer?.id, activeTab, loadSubscriberSequences])
+
+  const handleEnrollSubscriber = async () => {
+    if (!activeCustomer?.id || !selectedSequenceToEnroll) return
+    setEnrolling(true)
+    try {
+      const res = await fetch(`/api/subscribers/${activeCustomer.id}/sequences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "enroll",
+          sequenceId: selectedSequenceToEnroll,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        toast.success("Enrolled subscriber in sequence!")
+        setEnrollModalOpen(false)
+        loadSubscriberSequences(activeCustomer.id)
+      } else {
+        toast.error(json.error || "Enrollment failed")
+      }
+    } catch {
+      toast.error("Network error enrolling subscriber")
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const handleSequenceAction = async (sequenceId: string, action: "pause" | "resume" | "cancel" | "trigger_next") => {
+    if (!activeCustomer?.id) return
+    try {
+      const res = await fetch(`/api/subscribers/${activeCustomer.id}/sequences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, sequenceId }),
+      })
+      const json = await res.json()
+      if (res.ok) {
+        toast.success(`Sequence ${action === "trigger_next" ? "step triggered" : action + "d"} successfully!`)
+        loadSubscriberSequences(activeCustomer.id)
+      } else {
+        toast.error(json.error || "Action failed")
+      }
+    } catch {
+      toast.error("Network error performing action")
+    }
+  }
 
   // Load subscribers list
   const load = useCallback(async (selectFirst = false) => {
@@ -174,6 +311,9 @@ export default function SubscribersView() {
       if (search) params.set("search", search)
       if (status !== "all") params.set("status", status)
       if (tagFilter !== "all") params.set("tag", tagFilter)
+      if (selectedSegmentId && selectedSegmentId !== "all") {
+        params.set("segmentId", selectedSegmentId)
+      }
       if (subscriberChannelFilter && subscriberChannelFilter !== "ALL") {
         params.set("channel", subscriberChannelFilter)
       }
@@ -197,7 +337,7 @@ export default function SubscribersView() {
     } finally {
       setLoading(false)
     }
-  }, [search, status, tagFilter, subscriberChannelFilter, activeId])
+  }, [search, status, tagFilter, selectedSegmentId, subscriberChannelFilter, activeId])
 
   useEffect(() => {
     const t = setTimeout(() => load(false), 200)
@@ -219,11 +359,12 @@ export default function SubscribersView() {
         if (data.customer) {
           const c = data.customer
           setActiveCustomer(c)
-          let tList: string[] = []
-          if (Array.isArray(c.tags)) tList = c.tags
-          else if (typeof c.tags === "string") {
-            try { tList = JSON.parse(c.tags) } catch { tList = [] }
-          }
+          const tList: string[] = parseLabels(c.tags)
+          let cf: Record<string, any> = {}
+          try {
+            if (c.customFields && typeof c.customFields === "object") cf = c.customFields
+            else if (typeof c.customFields === "string") cf = JSON.parse(c.customFields)
+          } catch {}
           setEditForm({
             name: c.name || "",
             email: c.email || "",
@@ -231,6 +372,7 @@ export default function SubscribersView() {
             notes: c.notes || "",
             newTagInput: "",
             preferredLang: c.preferredLang || "en",
+            customFields: cf,
           })
         }
       })
@@ -246,13 +388,32 @@ export default function SubscribersView() {
 
   // Sorted subscribers
   const sortedSubscribers = useMemo(() => {
-    return [...subscribers].sort((a, b) => {
+    let list = [...subscribers]
+    if (tagFilter && tagFilter !== "all") {
+      list = list.filter(s => (s.tagList || []).some(t => t.toLowerCase() === tagFilter.toLowerCase()))
+    }
+    return list.sort((a, b) => {
       if (sortBy === "latest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       if (sortBy === "name") return (a.name || a.phone).localeCompare(b.name || b.phone)
       return 0
     })
-  }, [subscribers, sortBy])
+  }, [subscribers, sortBy, tagFilter])
+
+  // Active Segment object
+  const activeSegmentObj = useMemo(() => {
+    if (!selectedSegmentId || selectedSegmentId === "all") return null
+    return segments.find(s => s.id === selectedSegmentId) || null
+  }, [segments, selectedSegmentId])
+
+  // Matching segments for active customer detail drawer
+  const matchingSegmentsForActive = useMemo(() => {
+    if (!activeCustomer || segments.length === 0) return []
+    return segments.filter(seg => {
+      const rules = seg.parsedRules || seg.filterRules
+      return matchesSegment(activeCustomer, rules, seg.channel)
+    })
+  }, [activeCustomer, segments])
 
   // Selection handlers
   const toggleSelect = (id: string, e: React.MouseEvent) => {
@@ -272,6 +433,31 @@ export default function SubscribersView() {
   const bulk = async (action: string, tagVal?: string) => {
     if (selected.size === 0) return
     setBusy(true)
+
+    // Optimistically update
+    if (tagVal) {
+      setSubscribers(prev => prev.map(s => {
+        if (!selected.has(s.id)) return s
+        const currentTags = s.tagList || []
+        const nextTags = action === "add_tag"
+          ? Array.from(new Set([...currentTags, tagVal]))
+          : currentTags.filter(t => t.toLowerCase() !== tagVal.toLowerCase())
+        return { ...s, tagList: nextTags }
+      }))
+      if (activeCustomer && selected.has(activeCustomer.id)) {
+        setEditForm(prev => {
+          const currentTags = prev.tags || []
+          const nextTags = action === "add_tag"
+            ? Array.from(new Set([...currentTags, tagVal]))
+            : currentTags.filter(t => t.toLowerCase() !== tagVal.toLowerCase())
+          return { ...prev, tags: nextTags }
+        })
+      }
+      if (action === "add_tag" && !tags.some(t => t.toLowerCase() === tagVal.toLowerCase())) {
+        setTags(prev => [...prev, tagVal].sort())
+      }
+    }
+
     try {
       const res = await fetch("/api/subscribers", {
         method: "PATCH",
@@ -280,8 +466,17 @@ export default function SubscribersView() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Action failed")
-      toast.success(`${data.updated} subscriber${data.updated === 1 ? "" : "s"} updated`)
-      setSelected(new Set())
+      const count = data.updated ?? selected.size
+      if (tagVal) {
+        toast.success(
+          action === "add_tag"
+            ? `Assigned label "${tagVal}" to ${count} contact${count === 1 ? "" : "s"}`
+            : `Removed label "${tagVal}" from ${count} contact${count === 1 ? "" : "s"}`
+        )
+      } else {
+        toast.success(`${count} subscriber${count === 1 ? "" : "s"} updated`)
+        setSelected(new Set())
+      }
       load()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action failed")
@@ -304,6 +499,7 @@ export default function SubscribersView() {
           tags: editForm.tags,
           notes: editForm.notes || null,
           preferredLang: editForm.preferredLang,
+          customFields: editForm.customFields,
         }),
       })
       if (!res.ok) {
@@ -408,27 +604,38 @@ export default function SubscribersView() {
     toast.success("Bot flow session reset. Next customer message will start fresh from greeting.")
   }
 
-  // Add tag chip in detail
-  const addTagChip = () => {
-    const val = editForm.newTagInput.trim()
-    if (!val) return
-    if (!editForm.tags.includes(val)) {
-      setEditForm(prev => ({
-        ...prev,
-        tags: [...prev.tags, val],
-        newTagInput: "",
-      }))
-    } else {
-      setEditForm(prev => ({ ...prev, newTagInput: "" }))
+  // Add or remove tag for active customer with immediate auto-save and optimistic update
+  const assignTagToActiveCustomer = async (explicitTag?: string, action: "add" | "remove" = "add") => {
+    const val = (explicitTag || editForm.newTagInput).trim()
+    if (!val || !activeCustomer) return
+
+    const currentTags = editForm.tags || []
+    const nextTags = action === "add"
+      ? Array.from(new Set([...currentTags, val]))
+      : currentTags.filter(t => t.toLowerCase() !== val.toLowerCase())
+
+    // Optimistically update
+    setEditForm(prev => ({ ...prev, tags: nextTags, newTagInput: "" }))
+    setSubscribers(prev => prev.map(s => s.id === activeCustomer.id ? { ...s, tagList: nextTags } : s))
+    if (action === "add" && !tags.some(t => t.toLowerCase() === val.toLowerCase())) {
+      setTags(prev => [...prev, val].sort())
+    }
+
+    try {
+      const res = await fetch(`/api/customers/${activeCustomer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: nextTags }),
+      })
+      if (!res.ok) throw new Error("Could not update tag")
+      toast.success(action === "add" ? `Label "${val}" assigned` : `Label "${val}" removed`)
+    } catch {
+      toast.error("Failed to update label on contact")
     }
   }
 
-  const removeTagChip = (t: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      tags: prev.tags.filter(x => x !== t),
-    }))
-  }
+  const addTagChip = (explicitTag?: string) => assignTagToActiveCustomer(explicitTag, "add")
+  const removeTagChip = (t: string) => assignTagToActiveCustomer(t, "remove")
 
   // Add subscriber modal (WhatsApp, Facebook, Instagram)
   const addSubscriber = async () => {
@@ -466,27 +673,7 @@ export default function SubscribersView() {
     }
   }
 
-  // Import CSV
-  const runImport = async () => {
-    setBusy(true)
-    try {
-      const res = await fetch("/api/subscribers/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: importCsv, optIn: importOptIn }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Import failed")
-      toast.success(`Imported ${data.created} new, updated ${data.updated}`)
-      setImportOpen(false)
-      setImportCsv("")
-      load(true)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Import failed")
-    } finally {
-      setBusy(false)
-    }
-  }
+
 
   const latestMessage = activeCustomer?.conversations?.[0]?.messages?.[0]
   const lastMsgTime = activeCustomer?.conversations?.[0]?.lastMessageAt || activeCustomer?.updatedAt || activeCustomer?.createdAt
@@ -705,7 +892,97 @@ export default function SubscribersView() {
               </div>
 
               {selected.size > 0 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Popover open={bulkLabelOpen} onOpenChange={setBulkLabelOpen}>
+                    <PopoverTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-7 text-xs px-2 gap-1 bg-white hover:bg-stone-50 border-stone-300 font-semibold text-stone-800">
+                        <Tag className="h-3 w-3 text-indigo-600" />
+                        <span>Assign Label</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-72 p-2.5 space-y-2.5">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-stone-100">
+                        <span className="text-xs font-bold text-stone-800">
+                          Bulk Labels ({selected.size} selected)
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-medium">Add or remove</span>
+                      </div>
+
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
+                        <Input
+                          placeholder="Search or type new label..."
+                          value={bulkLabelSearch}
+                          onChange={e => setBulkLabelSearch(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && bulkLabelSearch.trim()) {
+                              e.preventDefault()
+                              const newLabel = bulkLabelSearch.trim()
+                              bulk("add_tag", newLabel)
+                              setBulkLabelSearch("")
+                            }
+                          }}
+                          className="h-7 text-xs pl-7 bg-stone-50"
+                        />
+                      </div>
+
+                      {bulkLabelSearch.trim() && !allCombinedTags.some(t => t.toLowerCase() === bulkLabelSearch.trim().toLowerCase()) && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const newLabel = bulkLabelSearch.trim()
+                            bulk("add_tag", newLabel)
+                            setBulkLabelSearch("")
+                          }}
+                          className="w-full h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Create &amp; Assign &quot;{bulkLabelSearch.trim()}&quot;</span>
+                        </Button>
+                      )}
+
+                      <div className="space-y-1 max-h-52 overflow-y-auto pr-0.5">
+                        <div className="text-[10px] font-semibold uppercase text-stone-400 px-1 pt-1">
+                          Available Labels
+                        </div>
+                        {filteredBulkLabels.length === 0 ? (
+                          <div className="p-2 text-center text-xs text-stone-400 italic">
+                            No matching labels. Press enter or click above to create.
+                          </div>
+                        ) : (
+                          filteredBulkLabels.map(l => (
+                            <div
+                              key={l}
+                              className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg hover:bg-stone-50 group transition-colors"
+                            >
+                              <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${labelClass(l)}`}>
+                                {l}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => bulk("add_tag", l)}
+                                  title={`Assign "${l}" to selected contacts`}
+                                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                                >
+                                  + Add
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => bulk("remove_tag", l)}
+                                  title={`Remove "${l}" from selected contacts`}
+                                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors"
+                                >
+                                  × Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
                   <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => bulk("opt_in")}>
                     <Check className="h-3 w-3 mr-1 text-emerald-600" /> Opt-in
                   </Button>
@@ -729,7 +1006,7 @@ export default function SubscribersView() {
               </div>
             </div>
 
-            {/* Search & Status Filter */}
+            {/* Search, Status & Label Filter */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
@@ -757,7 +1034,72 @@ export default function SubscribersView() {
                 <option value="opted_in">Subscribed</option>
                 <option value="opted_out">Opted Out</option>
               </select>
+              <select
+                value={tagFilter}
+                onChange={e => setTagFilter(e.target.value)}
+                className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white font-medium text-stone-700 h-8 max-w-[120px] truncate"
+              >
+                <option value="all">All Labels</option>
+                {allCombinedTags.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <select
+                value={selectedSegmentId}
+                onChange={e => {
+                  if (e.target.value === "__create__") {
+                    setEditingSegment(null)
+                    setSegmentModalOpen(true)
+                  } else {
+                    setSelectedSegmentId(e.target.value)
+                  }
+                }}
+                className={`text-xs border rounded-lg px-2 py-1.5 font-semibold h-8 max-w-[130px] truncate transition-colors ${
+                  selectedSegmentId !== "all"
+                    ? "border-purple-300 bg-purple-50 text-purple-900 ring-1 ring-purple-300"
+                    : "border-stone-200 bg-white text-stone-700"
+                }`}
+              >
+                <option value="all">⚡ All Segments</option>
+                {segments.map(s => (
+                  <option key={s.id} value={s.id}>
+                    ⚡ {s.name} ({s.contactCount ?? 0})
+                  </option>
+                ))}
+                <option value="__create__">+ New Segment...</option>
+              </select>
             </div>
+
+            {/* Active Segment Info Banner */}
+            {activeSegmentObj && (
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-xs">
+                <div className="flex items-center gap-1.5 text-purple-900 font-medium truncate">
+                  <Layers className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                  <span className="truncate">
+                    Segment: <strong>{activeSegmentObj.name}</strong> ({subscribers.length} contacts)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSegment(activeSegmentObj)
+                      setSegmentModalOpen(true)
+                    }}
+                    className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 hover:underline px-1"
+                  >
+                    Edit Rules
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSegmentId("all")}
+                    className="text-[11px] text-stone-400 hover:text-stone-700 px-1 font-bold"
+                  >
+                    ✕ Clear
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Subscribers List Rows */}
@@ -869,6 +1211,23 @@ export default function SubscribersView() {
                         <div className="text-[10px] text-stone-400 font-medium truncate flex items-center gap-1 mt-0.5">
                           <span>🏛️ {workspaceName}</span>
                         </div>
+                        {sub.tagList && sub.tagList.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap mt-1">
+                            {sub.tagList.slice(0, 3).map(t => (
+                              <span
+                                key={t}
+                                className={`text-[9px] px-1.5 py-0.2 rounded-full font-medium border ${labelClass(t)}`}
+                              >
+                                {t}
+                              </span>
+                            ))}
+                            {sub.tagList.length > 3 && (
+                              <span className="text-[9px] text-stone-400 font-medium">
+                                +{sub.tagList.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1064,6 +1423,20 @@ export default function SubscribersView() {
                         </span>
                       )}
                     </div>
+
+                    {editForm.tags && editForm.tags.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[11px] text-stone-400 font-medium">Labels:</span>
+                        {editForm.tags.map(t => (
+                          <span
+                            key={t}
+                            className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${labelClass(t)}`}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )
               })()}
@@ -1327,67 +1700,366 @@ export default function SubscribersView() {
 
               {/* ─── TAB 3: LABELS / TAGS ─── */}
               {activeTab === "labels" && (
-                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-3 text-xs">
-                  <h4 className="font-bold text-stone-800">Labels &amp; Tags</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {editForm.tags.length === 0 ? (
-                      <span className="text-stone-400 italic">No labels attached.</span>
-                    ) : (
-                      editForm.tags.map(t => (
-                        <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-                          {t}
-                          <button onClick={() => removeTagChip(t)} className="text-emerald-600 hover:text-emerald-900 ml-1">×</button>
-                        </span>
-                      ))
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 max-w-sm pt-2">
-                    <Input
-                      placeholder="Add tag (e.g. VIP, Repeat Guest)..."
-                      value={editForm.newTagInput}
-                      onChange={e => setEditForm({ ...editForm, newTagInput: e.target.value })}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTagChip() } }}
-                      className="h-8 text-xs bg-white"
-                    />
-                    <Button size="sm" variant="outline" className="h-8" onClick={addTagChip}>
-                      Add
+                <div className="p-4 rounded-xl border border-stone-200/80 bg-white space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-stone-800 text-sm">Labels &amp; Tags</h4>
+                      <p className="text-[11px] text-stone-500">Categorize contacts for segmentation, campaigns, and team routing.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={saveActiveCustomer}
+                      disabled={busy}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs font-semibold"
+                    >
+                      Save Changes
                     </Button>
+                  </div>
+
+                  {/* Active Labels */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">Assigned Labels</span>
+                    <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-lg bg-stone-50 border border-stone-200/80 items-center">
+                      {editForm.tags.length === 0 ? (
+                        <span className="text-stone-400 italic text-xs">No labels currently attached to this contact.</span>
+                      ) : (
+                        editForm.tags.map(t => (
+                          <span
+                            key={t}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${labelClass(t)}`}
+                          >
+                            <span>{t}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeTagChip(t)}
+                              className="opacity-70 hover:opacity-100 hover:text-rose-600 transition-opacity ml-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Create New Label */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">Create New Label</span>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Type label name (e.g. VIP, Wholesale, Lead 2026)..."
+                        value={editForm.newTagInput}
+                        onChange={e => setEditForm(prev => ({ ...prev, newTagInput: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            addTagChip()
+                          }
+                        }}
+                        className="h-8 text-xs bg-white flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => addTagChip()}
+                        disabled={!editForm.newTagInput.trim()}
+                        className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Create &amp; Assign
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Quick Pick Workspace Labels */}
+                  <div className="space-y-1.5 pt-2 border-t border-stone-100">
+                    <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">Quick Pick from Workspace</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allCombinedTags.map(tag => {
+                        const isAssigned = editForm.tags.includes(tag)
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              if (isAssigned) {
+                                removeTagChip(tag)
+                              } else {
+                                addTagChip(tag)
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                              isAssigned
+                                ? `${labelClass(tag)} ring-2 ring-emerald-500/30 font-semibold shadow-2xs`
+                                : "bg-stone-50 hover:bg-white text-stone-600 border-stone-200 hover:border-stone-300"
+                            }`}
+                          >
+                            <span>{tag}</span>
+                            {isAssigned ? (
+                              <Check className="h-3 w-3 text-emerald-700" />
+                            ) : (
+                              <Plus className="h-3 w-3 text-stone-400" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* ─── TAB 4: LISTS & SEGMENTS ─── */}
               {activeTab === "lists" && (
-                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-3 text-xs">
-                  <h4 className="font-bold text-stone-800">Lists &amp; Marketing Segments</h4>
-                  <p className="text-stone-500">Audiences this contact belongs to based on tags and activity.</p>
-                  <div className="space-y-2">
-                    <div className="p-2.5 rounded-lg bg-white border border-stone-200 flex items-center justify-between">
-                      <span className="font-semibold text-stone-800">All WhatsApp Subscribers</span>
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700">Active</Badge>
+                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-stone-800 flex items-center gap-1.5">
+                        <Layers className="h-4 w-4 text-purple-600" />
+                        Lists &amp; Dynamic Audiences
+                      </h4>
+                      <p className="text-[11px] text-stone-500 mt-0.5">
+                        Segments this contact qualifies for in real time based on tags, channel, and custom fields.
+                      </p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingSegment(null)
+                        setSegmentModalOpen(true)
+                      }}
+                      className="h-7 text-xs px-2 gap-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                    >
+                      <Plus className="h-3 w-3" />
+                      New Segment
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Default channel audience */}
+                    <div className="p-2.5 rounded-lg bg-white border border-stone-200 flex items-center justify-between shadow-2xs">
+                      <div>
+                        <span className="font-semibold text-stone-800">
+                          All {activeCustomer?.channel || "WhatsApp"} Subscribers
+                        </span>
+                        <div className="text-[10px] text-stone-400">Default base channel audience</div>
+                      </div>
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                        Active
+                      </Badge>
+                    </div>
+
+                    {/* Tag-based audience */}
                     {editForm.tags.map(t => (
-                      <div key={t} className="p-2.5 rounded-lg bg-white border border-stone-200 flex items-center justify-between">
-                        <span className="font-semibold text-stone-800">Segment: {t}</span>
-                        <Badge variant="outline" className="bg-teal-50 text-teal-700">Tagged</Badge>
+                      <div key={t} className="p-2.5 rounded-lg bg-white border border-stone-200 flex items-center justify-between shadow-2xs">
+                        <span className="font-semibold text-stone-800">Label Segment: {t}</span>
+                        <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">Tagged</Badge>
                       </div>
                     ))}
+
+                    {/* Dynamic Smart Segments */}
+                    {matchingSegmentsForActive.map(seg => (
+                      <div key={seg.id} className="p-2.5 rounded-lg bg-white border border-purple-200 flex items-center justify-between shadow-2xs">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                            <Layers className="h-3.5 w-3.5" />
+                          </div>
+                          <div>
+                            <span className="font-semibold text-stone-800">{seg.name}</span>
+                            <div className="text-[10px] text-purple-600 font-medium">Smart Dynamic Segment</div>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold">
+                          ✓ Matches Criteria
+                        </Badge>
+                      </div>
+                    ))}
+
+                    {matchingSegmentsForActive.length === 0 && segments.length > 0 && (
+                      <div className="p-3 rounded-lg border border-dashed border-stone-200 text-stone-400 text-center text-[11px]">
+                        This subscriber does not match any of your {segments.length} custom dynamic segments.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* ─── TAB 5: SEQUENCES ─── */}
               {activeTab === "sequences" && (
-                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-3 text-xs">
-                  <h4 className="font-bold text-stone-800">Drip Sequences &amp; Campaigns</h4>
-                  <p className="text-stone-500">Automated scheduled nurture drips for this subscriber.</p>
-                  <div className="p-3 rounded-lg bg-white border border-stone-200 flex items-center justify-between">
+                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-semibold text-stone-800">Welcome &amp; Onboarding Drip</div>
-                      <div className="text-[11px] text-stone-400 mt-0.5">Completed 3/3 steps</div>
+                      <h4 className="font-bold text-stone-800 text-sm">Automated Drip Sequences &amp; Nurture</h4>
+                      <p className="text-[11px] text-stone-500">Multi-step scheduled campaigns and outreach progression</p>
                     </div>
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700">Finished</Badge>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEnrollModalOpen(true)}
+                      className="h-7 text-xs font-semibold gap-1 bg-white hover:bg-stone-50 text-indigo-700 border-indigo-200"
+                    >
+                      <Plus className="h-3 w-3" /> Enroll in Sequence
+                    </Button>
                   </div>
+
+                  {loadingSequences ? (
+                    <div className="p-8 flex flex-col items-center justify-center gap-2 text-stone-400">
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      <span className="text-xs">Loading sequences…</span>
+                    </div>
+                  ) : subscriberSequences.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-white border border-dashed border-stone-200 text-center space-y-2">
+                      <div className="text-2xl">📬</div>
+                      <div className="font-semibold text-stone-700">No Active Sequences</div>
+                      <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
+                        This contact is not currently enrolled in any automated drip campaigns.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEnrollModalOpen(true)}
+                        className="h-7 text-xs mt-2"
+                      >
+                        Enroll Now
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {subscriberSequences.map((enrollment: any, idx: number) => {
+                        const statusColors: Record<string, string> = {
+                          ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                          PAUSED: "bg-amber-50 text-amber-700 border-amber-200",
+                          COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
+                          CANCELLED: "bg-stone-50 text-stone-600 border-stone-200",
+                        }
+                        const progressPct = enrollment.totalSteps > 0
+                          ? Math.round(((enrollment.currentStepIndex) / enrollment.totalSteps) * 100)
+                          : 0
+
+                        return (
+                          <div key={enrollment.sequenceId || idx} className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-2xs space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="font-bold text-stone-800 text-sm">{enrollment.sequenceName}</div>
+                                <div className="text-[11px] text-stone-400 mt-0.5">
+                                  Enrolled: {new Date(enrollment.enrolledAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <Badge variant="outline" className={`text-[10px] font-semibold ${statusColors[enrollment.status] || "bg-stone-100"}`}>
+                                {enrollment.status}
+                              </Badge>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[11px] text-stone-500 font-medium">
+                                <span>
+                                  {enrollment.status === "COMPLETED"
+                                    ? `Completed all ${enrollment.totalSteps} steps`
+                                    : `Step ${enrollment.currentStepIndex + 1} of ${enrollment.totalSteps}`}
+                                </span>
+                                <span>{enrollment.status === "COMPLETED" ? "100%" : `${progressPct}%`}</span>
+                              </div>
+                              <div className="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className={`h-full transition-all rounded-full ${
+                                    enrollment.status === "COMPLETED" ? "bg-blue-500" : enrollment.status === "PAUSED" ? "bg-amber-500" : "bg-emerald-500"
+                                  }`}
+                                  style={{ width: `${enrollment.status === "COMPLETED" ? 100 : Math.max(10, progressPct)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Next scheduled info */}
+                            {enrollment.status === "ACTIVE" && enrollment.nextScheduledAt && (
+                              <div className="text-[11px] text-stone-500 flex items-center gap-1.5 bg-stone-50 p-2 rounded-lg">
+                                <Clock className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+                                <span>
+                                  Next step scheduled: <strong>{new Date(enrollment.nextScheduledAt).toLocaleString()}</strong>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-xs">
+                              <div className="flex items-center gap-1.5">
+                                {enrollment.status === "ACTIVE" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-2 text-[10px] gap-1 text-emerald-700 hover:bg-emerald-50"
+                                      onClick={() => handleSequenceAction(enrollment.sequenceId, "trigger_next")}
+                                      title="Send next message now"
+                                    >
+                                      <Play className="h-3 w-3" /> Trigger Next
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-2 text-[10px] gap-1 text-amber-700 hover:bg-amber-50"
+                                      onClick={() => handleSequenceAction(enrollment.sequenceId, "pause")}
+                                    >
+                                      <Pause className="h-3 w-3" /> Pause
+                                    </Button>
+                                  </>
+                                )}
+                                {enrollment.status === "PAUSED" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2 text-[10px] gap-1 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => handleSequenceAction(enrollment.sequenceId, "resume")}
+                                  >
+                                    <Play className="h-3 w-3" /> Resume
+                                  </Button>
+                                )}
+                                {enrollment.status !== "CANCELLED" && enrollment.status !== "COMPLETED" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2 text-[10px] gap-1 text-rose-600 hover:bg-rose-50"
+                                    onClick={() => handleSequenceAction(enrollment.sequenceId, "cancel")}
+                                  >
+                                    <X className="h-3 w-3" /> Cancel
+                                  </Button>
+                                )}
+                              </div>
+
+                              {/* History Count */}
+                              <span className="text-[10px] text-stone-400">
+                                {enrollment.history?.length || 0} messages sent
+                              </span>
+                            </div>
+
+                            {/* History Timeline */}
+                            {enrollment.history && enrollment.history.length > 0 && (
+                              <div className="pt-2 border-t border-stone-100 space-y-1.5">
+                                <div className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
+                                  Delivery Log
+                                </div>
+                                <div className="space-y-1">
+                                  {enrollment.history.map((hist: any, hIdx: number) => (
+                                    <div key={hIdx} className="p-2 rounded bg-stone-50 border border-stone-100 flex items-center justify-between text-[11px]">
+                                      <div className="truncate flex-1 pr-2">
+                                        <span className="font-semibold text-stone-700 mr-1.5">Step {hist.stepIndex + 1}:</span>
+                                        <span className="text-stone-500 italic">&quot;{hist.preview}&quot;</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 shrink-0 text-[10px]">
+                                        <Badge variant="outline" className={hist.status === "SENT" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700"}>
+                                          {hist.status}
+                                        </Badge>
+                                        <span className="text-stone-400">{new Date(hist.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1410,52 +2082,129 @@ export default function SubscribersView() {
 
               {/* ─── TAB 7: CUSTOM FIELDS ─── */}
               {activeTab === "custom_fields" && (
-                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-3 text-xs">
-                  <h4 className="font-bold text-stone-800">Custom Attributes</h4>
-                  {(() => {
-                    const ch = resolveSubscriberChannel(activeCustomer)
-                    return (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-2.5 rounded-lg bg-white border border-stone-200">
-                          <span className="text-[11px] text-stone-400 block">Preferred Language</span>
-                          <select
-                            value={editForm.preferredLang}
-                            onChange={e => setEditForm({ ...editForm, preferredLang: e.target.value })}
-                            className="text-xs font-semibold border border-stone-200 rounded px-2 py-1 mt-1 w-full"
-                          >
-                            <option value="en">English (en)</option>
-                            <option value="ar">Arabic (ar)</option>
-                          </select>
+                <div className="p-4 rounded-xl border border-stone-200/80 bg-stone-50/30 space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-stone-800 text-sm">Custom Attributes & Fields</h4>
+                      <p className="text-[11px] text-stone-400">Structured CRM properties for personalization & segmentation</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setNewFieldModalOpen(true)}
+                      className="h-7 text-xs font-semibold gap-1 bg-white hover:bg-stone-50"
+                    >
+                      <Plus className="h-3 w-3" /> Add Property
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Standard properties */}
+                    <div className="p-3 rounded-xl bg-white border border-stone-200 space-y-1">
+                      <span className="text-[11px] text-stone-400 block font-medium">Preferred Language</span>
+                      <select
+                        value={editForm.preferredLang}
+                        onChange={e => setEditForm({ ...editForm, preferredLang: e.target.value })}
+                        className="text-xs font-semibold border border-stone-200 rounded px-2.5 py-1.5 mt-1 w-full bg-white text-stone-800"
+                      >
+                        <option value="en">English (en)</option>
+                        <option value="ar">Arabic (العربية)</option>
+                      </select>
+                    </div>
+
+                    {/* Dynamic properties */}
+                    {customFieldDefs.map(def => {
+                      const val = editForm.customFields[def.key] ?? ""
+                      return (
+                        <div key={def.key} className="p-3 rounded-xl bg-white border border-stone-200 space-y-1 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-stone-500 font-bold block">{def.label}</span>
+                            <span className="text-[9px] text-stone-400 uppercase font-mono font-semibold">{def.type}</span>
+                          </div>
+
+                          {def.type === "select" && def.options && def.options.length > 0 ? (
+                            <select
+                              value={String(val)}
+                              onChange={e =>
+                                setEditForm({
+                                  ...editForm,
+                                  customFields: { ...editForm.customFields, [def.key]: e.target.value },
+                                })
+                              }
+                              className="text-xs font-medium border border-stone-200 rounded-lg px-2.5 py-1.5 mt-1 w-full bg-white text-stone-800"
+                            >
+                              <option value="">-- Select --</option>
+                              {def.options.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : def.type === "boolean" ? (
+                            <div className="flex items-center gap-2 pt-1.5">
+                              <input
+                                type="checkbox"
+                                id={`cf_${def.key}`}
+                                checked={!!val}
+                                onChange={e =>
+                                  setEditForm({
+                                    ...editForm,
+                                    customFields: { ...editForm.customFields, [def.key]: e.target.checked },
+                                  })
+                                }
+                                className="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                              />
+                              <label htmlFor={`cf_${def.key}`} className="text-xs font-medium text-stone-700 cursor-pointer">
+                                {val ? "Yes / Enabled" : "No / Disabled"}
+                              </label>
+                            </div>
+                          ) : def.type === "number" ? (
+                            <Input
+                              type="number"
+                              value={val}
+                              placeholder="0"
+                              onChange={e =>
+                                setEditForm({
+                                  ...editForm,
+                                  customFields: { ...editForm.customFields, [def.key]: e.target.value === "" ? null : Number(e.target.value) },
+                                })
+                              }
+                              className="h-8 text-xs bg-white mt-1"
+                            />
+                          ) : def.type === "date" ? (
+                            <Input
+                              type="date"
+                              value={val}
+                              onChange={e =>
+                                setEditForm({
+                                  ...editForm,
+                                  customFields: { ...editForm.customFields, [def.key]: e.target.value },
+                                })
+                              }
+                              className="h-8 text-xs bg-white mt-1"
+                            />
+                          ) : (
+                            <Input
+                              type="text"
+                              value={val}
+                              placeholder={`Enter ${def.label.toLowerCase()}...`}
+                              onChange={e =>
+                                setEditForm({
+                                  ...editForm,
+                                  customFields: { ...editForm.customFields, [def.key]: e.target.value },
+                                })
+                              }
+                              className="h-8 text-xs bg-white mt-1"
+                            />
+                          )}
                         </div>
-                        <div className="p-2.5 rounded-lg bg-white border border-stone-200">
-                          <span className="text-[11px] text-stone-400 block">Primary Channel</span>
-                          <span className="text-xs font-semibold text-stone-800 block mt-1">
-                            {ch === "INSTAGRAM"
-                              ? "Instagram Messaging Graph API"
-                              : ch === "FACEBOOK"
-                                ? "Facebook Messenger Platform"
-                                : "WhatsApp Cloud API"}
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-white border border-stone-200">
-                          <span className="text-[11px] text-stone-400 block">Channel Consent</span>
-                          <span className="text-xs font-semibold text-stone-800 block mt-1">
-                            {ch === "INSTAGRAM"
-                              ? (activeCustomer.instagramOptIn !== false ? "Opted In (Active)" : "Opted Out")
-                              : ch === "FACEBOOK"
-                                ? (activeCustomer.facebookOptIn !== false ? "Opted In (Active)" : "Opted Out")
-                                : (activeCustomer.whatsappOptIn ? "Opted In (Active)" : "Opted Out")}
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-white border border-stone-200">
-                          <span className="text-[11px] text-stone-400 block">Identifier Format</span>
-                          <span className="text-xs font-semibold text-stone-800 block mt-1 font-mono">
-                            {ch === "INSTAGRAM" ? "@handle" : ch === "FACEBOOK" ? "Profile / PSID" : "E.164 MSISDN"}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                      )
+                    })}
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Button size="sm" onClick={saveActiveCustomer} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 font-bold h-8 text-xs">
+                      Save Custom Attributes
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1653,31 +2402,187 @@ export default function SubscribersView() {
         </DialogContent>
       </Dialog>
 
-      {/* Import CSV Modal */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="w-[96vw] sm:max-w-2xl">
-          <DialogHeader><DialogTitle>Import Subscribers from CSV</DialogTitle></DialogHeader>
-          <div className="space-y-3 text-xs">
+      {/* Smart CSV Import & Column Mapping Wizard */}
+      <CsvImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImportComplete={() => load(true)}
+        customFieldDefs={customFieldDefs}
+      />
+
+      {/* Create Custom Field Modal */}
+      <Dialog open={newFieldModalOpen} onOpenChange={setNewFieldModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-stone-900">Add Custom CRM Property</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-xs pt-1">
+            <div>
+              <Label className="text-xs font-semibold text-stone-700">Property Label *</Label>
+              <Input
+                placeholder="e.g. VIP Tier, City, Annual Spend, Company"
+                value={newFieldForm.label}
+                onChange={e => {
+                  const lbl = e.target.value
+                  const autoKey = lbl.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_")
+                  setNewFieldForm({ ...newFieldForm, label: lbl, key: autoKey })
+                }}
+                className="mt-1 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-stone-700">Internal Key *</Label>
+              <Input
+                placeholder="e.g. vip_tier"
+                value={newFieldForm.key}
+                onChange={e => setNewFieldForm({ ...newFieldForm, key: e.target.value })}
+                className="mt-1 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-stone-700">Data Type</Label>
+              <select
+                value={newFieldForm.type}
+                onChange={e => setNewFieldForm({ ...newFieldForm, type: e.target.value })}
+                className="mt-1 w-full text-xs border border-stone-200 rounded-lg p-2 bg-white font-medium"
+              >
+                <option value="text">Text (e.g. City, Company Name)</option>
+                <option value="number">Number (e.g. Budget, Score)</option>
+                <option value="select">Dropdown Choices</option>
+                <option value="date">Date (e.g. Renewal Date)</option>
+                <option value="boolean">Yes / No Switch</option>
+              </select>
+            </div>
+            {newFieldForm.type === "select" && (
+              <div>
+                <Label className="text-xs font-semibold text-stone-700">Dropdown Options (comma-separated)</Label>
+                <Input
+                  placeholder="e.g. Standard, Silver, Gold, Platinum"
+                  value={newFieldForm.options}
+                  onChange={e => setNewFieldForm({ ...newFieldForm, options: e.target.value })}
+                  className="mt-1 text-xs"
+                />
+              </div>
+            )}
+            <div className="pt-2 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setNewFieldModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!newFieldForm.label.trim() || !newFieldForm.key.trim() || busy}
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/custom-fields", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        field: {
+                          label: newFieldForm.label.trim(),
+                          key: newFieldForm.key.trim(),
+                          type: newFieldForm.type,
+                          options: newFieldForm.options.split(",").map(s => s.trim()).filter(Boolean),
+                        },
+                      }),
+                    })
+                    const data = await res.json()
+                    if (data.success) {
+                      setCustomFieldDefs(data.fields)
+                      setNewFieldModalOpen(false)
+                      setNewFieldForm({ key: "", label: "", type: "text", options: "" })
+                      toast.success("Custom attribute created successfully")
+                    } else {
+                      toast.error(data.error || "Failed to create custom field")
+                    }
+                  } catch {
+                    toast.error("Failed to create custom field")
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              >
+                Save Property
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dynamic Segment Builder & Manager Modal */}
+      <SegmentBuilderModal
+        open={segmentModalOpen}
+        onOpenChange={setSegmentModalOpen}
+        segment={editingSegment}
+        onSaved={savedSeg => {
+          loadSegments()
+          setSelectedSegmentId(savedSeg.id)
+        }}
+        onDeleted={delId => {
+          loadSegments()
+          if (selectedSegmentId === delId) setSelectedSegmentId("all")
+        }}
+        availableTags={allCombinedTags}
+        customFieldDefs={customFieldDefs}
+      />
+
+      {/* Enroll in Sequence Modal */}
+      <Dialog open={enrollModalOpen} onOpenChange={setEnrollModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-stone-900 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              Enroll in Drip Sequence
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 text-xs">
             <p className="text-stone-500">
-              Paste CSV with a <code className="font-mono font-bold">phone</code> column. Optional headers: <code className="font-mono">name</code>, <code className="font-mono">email</code>.
+              Select an automated multi-step sequence for <strong>{activeCustomer?.name || activeCustomer?.phone}</strong>.
             </p>
-            <Textarea
-              className="min-h-[160px] font-mono text-xs"
-              placeholder={"phone,name,email\n+96891234567,Ahmed,ahmed@example.com"}
-              value={importCsv}
-              onChange={e => setImportCsv(e.target.value)}
-            />
-            <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <Checkbox checked={importOptIn} onCheckedChange={v => setImportOptIn(v === true)} className="mt-0.5" />
-              <span className="text-xs text-amber-900">
-                <span className="font-bold block">Mark contacts as opted-in</span>
-                Tick only if you hold verified consent for every contact in this list.
-              </span>
-            </label>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" onClick={() => setImportOpen(false)}>Cancel</Button>
-              <Button onClick={runImport} size="sm" disabled={busy || !importCsv.trim()} className="bg-emerald-600 hover:bg-emerald-700 font-semibold">
-                {busy ? "Importing…" : "Start Import"}
+
+            {availableSequences.length === 0 ? (
+              <div className="p-4 rounded-lg bg-stone-50 border text-center text-stone-400">
+                No active sequences found.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-stone-700 font-semibold">Available Sequences</Label>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {availableSequences.map((seq: any) => (
+                    <div
+                      key={seq.id}
+                      onClick={() => setSelectedSequenceToEnroll(seq.id)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        selectedSequenceToEnroll === seq.id
+                          ? "border-indigo-500 bg-indigo-50/50 shadow-2xs"
+                          : "border-stone-200 bg-white hover:bg-stone-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-stone-900">{seq.name}</span>
+                        <Badge variant="outline" className="text-[10px] bg-white">
+                          {seq.steps?.length || 0} steps
+                        </Badge>
+                      </div>
+                      {seq.description && (
+                        <p className="text-[11px] text-stone-500 mt-1 leading-snug">{seq.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button size="sm" variant="outline" onClick={() => setEnrollModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                onClick={handleEnrollSubscriber}
+                disabled={enrolling || !selectedSequenceToEnroll}
+              >
+                {enrolling ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                Confirm Enrollment
               </Button>
             </div>
           </div>

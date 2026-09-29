@@ -5,7 +5,7 @@ import { callWaiter } from "@/lib/restaurant"
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { tableToken, tenantSlug, requestType, message, roomNumber } = body
+    const { tableToken, tableNumber: reqTableNumber, tenantSlug, requestType, message, roomNumber } = body
 
     let tenantId: string | null = null
     let tableId: string | null = null
@@ -34,6 +34,20 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       })
       if (tenant) tenantId = tenant.id
+    }
+
+    // Resolve table if tableNumber passed manually without QR token
+    if (!tableId && reqTableNumber && tenantId) {
+      const table = await raw.restaurantTable.findFirst({
+        where: { number: String(reqTableNumber).trim(), tenantId },
+      })
+      if (table) {
+        tableId = table.id
+        tableNumber = table.number
+        if (!branchId && table.branchId) branchId = table.branchId
+      } else {
+        tableNumber = String(reqTableNumber).trim()
+      }
     }
 
     if (!tenantId) {

@@ -38,6 +38,7 @@ import CorporateView from "@/components/views/corporate-view"
 import WebsiteBuilderView from "@/components/views/website-builder-view"
 import CloudBridgesView from "@/components/views/cloud-bridges-view"
 import WhiteLabelView from "@/components/views/white-label-view"
+import TrainingView from "@/components/views/training-view"
 
 export default function ViewRouter() {
   const { view } = useApp()
@@ -47,6 +48,7 @@ export default function ViewRouter() {
     case "website-builder": return <WebsiteBuilderView />
     case "cloud-bridges": return <CloudBridgesView />
     case "white-label": return <WhiteLabelView />
+    case "training": return <TrainingView />
     case "tours": return <ToursView />
     case "bookings": return <BookingsView />
     case "calendar": return <CalendarView />

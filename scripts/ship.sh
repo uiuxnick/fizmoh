@@ -55,10 +55,7 @@ say "Staging from the release that is currently serving"
 $SSH $SSH_OPTS "$HOST" "set -e; mkdir -p $STAGING; rsync -a --exclude .next $ROOT/current/ $STAGING/"
 
 say "Copying $# changed file(s)"
-for f in "$@"; do
-  $SSH $SSH_OPTS "$HOST" "mkdir -p $STAGING/$(dirname "$f")"
-  $SCP $SSH_OPTS "$f" "$HOST:$STAGING/$f"
-done
+tar -cf - "$@" | $SSH $SSH_OPTS "$HOST" "tar -xf - -C $STAGING"
 
 say "What differs from what is live"
 $SSH $SSH_OPTS "$HOST" \
@@ -103,8 +100,11 @@ $SSH $SSH_OPTS "$HOST" "
   chown -R $OWNER $ROOT/releases/$STAMP
   ln -sfn $ROOT/releases/$STAMP $ROOT/current.new
   mv -Tf $ROOT/current.new $ROOT/current
-  systemctl restart wptour
-  sleep 9
+  systemctl stop wptour || true
+  fuser -k -9 3013/tcp 2>/dev/null || true
+  sleep 1
+  systemctl start wptour
+  sleep 6
   systemctl is-active wptour
 "
 

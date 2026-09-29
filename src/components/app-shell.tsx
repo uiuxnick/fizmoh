@@ -17,7 +17,7 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers, GraduationCap,
 } from "lucide-react"
 
 import { SessionGuard } from "@/components/session-guard"
@@ -75,7 +75,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "integration" | "white_label"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "integration" | "white_label" | "training"
   badge?: string
   accent?: string
   hash?: string
@@ -110,6 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { key: "corporate", label: "Corporate Systems", icon: Building2, group: "Operations", feature: "corporate", badge: "Addon", accent: "text-sky-600" },
+  { key: "training", label: "Training & Courses", icon: GraduationCap, group: "Operations", feature: "training", badge: "Addon", accent: "text-amber-500" },
   { key: "bookings", label: "Bookings & Orders", icon: ShoppingBag, group: "Operations", feature: "tours" },
   { key: "calendar", label: "Booking Calendar", icon: CalendarDays, group: "Operations", feature: "tours" },
   { key: "appointments", label: "Appointments", icon: CalendarClock, group: "Operations", feature: "appointments" },

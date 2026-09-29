@@ -218,6 +218,25 @@ function GoogleBusinessCard() {
     }
   }
 
+  async function recheck() {
+    setBusy(true)
+    try {
+      const res = await fetch("/api/google-business/status", { method: "POST" }).then(r => r.json())
+      setStatus(res)
+      if (res.connected && res.status === "CONNECTED" && !res.lastError) {
+        toast.success("Google Business Profile API access is APPROVED! Your business profile is now active.")
+      } else if (res.lastError?.startsWith("QUOTA_EXCEEDED")) {
+        toast.success("✅ Google API access is APPROVED — you're just hitting a rate limit right now. Reviews will sync automatically.", { duration: 6000 })
+      } else {
+        toast.info("Google API access is still pending approval. Check back in a few days.")
+      }
+    } catch {
+      toast.error("Failed to check status with Google")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!status) return null
 
   return (
@@ -230,7 +249,9 @@ function GoogleBusinessCard() {
               <p className="text-sm font-semibold text-stone-900">Google Business Profile</p>
               {status.connected ? (
                 status.status === "ERROR"
-                  ? <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700">Connected · pending Google approval</Badge>
+                  ? status.lastError?.startsWith("QUOTA_EXCEEDED")
+                    ? <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700">Approved · rate limited</Badge>
+                    : <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700">Connected · pending Google approval</Badge>
                   : <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700">Connected</Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px] bg-stone-100 text-stone-500">Not connected</Badge>
@@ -239,7 +260,9 @@ function GoogleBusinessCard() {
             <p className="text-xs text-stone-500 mt-0.5 max-w-lg">
               {status.connected
                 ? status.status === "ERROR"
-                  ? (status.lastError || "Signed in, but Google's Business Profile API has not approved this platform's access request yet. Locations and ratings will appear once it does.")
+                  ? status.lastError?.startsWith("QUOTA_EXCEEDED")
+                    ? "✅ Google has approved API access. You're hitting a rate limit right now — reviews will sync automatically once quota resets (usually within an hour)."
+                    : (status.lastError || "Signed in, but Google's Business Profile API has not approved this platform's access request yet. Locations and ratings will appear once it does.")
                   : `Signed in as ${status.email || status.accountName || "a Google account"}. Link a location on a campaign to pull its real rating.`
                 : "Connect a Google account to pull real average rating and review count onto this dashboard. This never fills in the review link itself — Google does not expose that via any API."}
             </p>
@@ -247,9 +270,15 @@ function GoogleBusinessCard() {
         </div>
         <div className="flex gap-2 shrink-0">
           {status.connected ? (
-            <Button size="sm" variant="ghost" onClick={disconnect} disabled={busy}>
-              <Unlink className="h-3.5 w-3.5 mr-1.5" />Disconnect
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="outline" onClick={recheck} disabled={busy} className="h-8 text-xs gap-1">
+                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Re-check Status
+              </Button>
+              <Button size="sm" variant="ghost" onClick={disconnect} disabled={busy} className="h-8 text-xs text-stone-500 hover:text-rose-600">
+                <Unlink className="h-3.5 w-3.5 mr-1" />Disconnect
+              </Button>
+            </div>
           ) : (
             <Button size="sm" variant="outline" onClick={connect} disabled={busy || !status.ready}>
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Link2 className="h-3.5 w-3.5 mr-1.5" />}

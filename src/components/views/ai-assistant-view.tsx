@@ -9,6 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sparkles, Send, Globe, Zap, Calendar, Search, CreditCard, HelpCircle, MapPin, Trash2, Bot } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 
+import { toast } from "sonner"
+
 interface Msg { role: "user" | "assistant"; content: string; ts: Date }
 
 export default function AIAssistantView() {
@@ -16,7 +18,54 @@ export default function AIAssistantView() {
   const [input, setInput] = useState("")
   const [lang, setLang] = useState<"en" | "ar">("en")
   const [typing, setTyping] = useState(false)
+  const [assistantName, setAssistantName] = useState("AI Assistant")
+  const [businessName, setBusinessName] = useState("")
+  const [newName, setNewName] = useState("")
+  const [savingName, setSavingName] = useState(false)
+  const [editingName, setEditingName] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(d => {
+        const aName = String(d?.settings?.assistant_name ?? "").trim()
+        const bName = String(d?.settings?.business_name ?? "").trim()
+        if (aName) {
+          setAssistantName(aName)
+          setNewName(aName)
+        } else if (bName) {
+          setAssistantName(`${bName} Assistant`)
+          setNewName(`${bName} Assistant`)
+        }
+        if (bName) setBusinessName(bName)
+      })
+      .catch(() => {})
+  }, [])
+
+  const saveAssistantName = async () => {
+    const trimmed = newName.trim()
+    if (!trimmed) {
+      toast.error("Please enter a valid assistant name")
+      return
+    }
+    setSavingName(true)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assistant_name: trimmed }),
+      })
+      if (!res.ok) throw new Error("Could not update assistant name")
+      setAssistantName(trimmed)
+      setEditingName(false)
+      toast.success(`AI Assistant name updated to "${trimmed}"`)
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save assistant name")
+    } finally {
+      setSavingName(false)
+    }
+  }
 
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages, typing])
 
@@ -59,10 +108,59 @@ export default function AIAssistantView() {
       {/* Left panel */}
       <div className="hidden md:flex w-72 border-r border-stone-200 bg-white flex-col">
         <div className="p-4 border-b">
-          <div className="flex items-center gap-3" data-tour="ai-assistant-toggle">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center"><Sparkles className="h-6 w-6 text-white" /></div>
-            <div><div className="font-bold text-stone-900">Najwa</div><div className="text-[11px] text-stone-500 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />Online 24/7</div></div>
+          <div className="flex items-center justify-between gap-2" data-tour="ai-assistant-toggle">
+            <div className="flex items-center gap-2.5 truncate">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div className="truncate">
+                <div className="font-bold text-stone-900 truncate text-sm">{assistantName}</div>
+                <div className="text-[11px] text-stone-500 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Online 24/7
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setEditingName(!editingName)}
+              className="text-[10px] font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-md transition"
+              title="Change Assistant Name"
+            >
+              {editingName ? "Close" : "Brand"}
+            </button>
           </div>
+
+          {editingName && (
+            <div className="mt-3 p-2.5 rounded-lg bg-stone-50 border border-stone-200 space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+                Assistant Name
+              </label>
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. EMADI Assistant"
+                className="h-8 text-xs bg-white"
+              />
+              <div className="flex items-center gap-1.5 justify-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs px-2"
+                  onClick={() => setEditingName(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs px-2.5 bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={saveAssistantName}
+                  disabled={savingName}
+                >
+                  {savingName ? "Saving..." : "Save Name"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
         <ScrollArea className="flex-1 p-4 space-y-4">
           <div data-tour="ai-instructions">
@@ -88,7 +186,7 @@ export default function AIAssistantView() {
       {/* Chat area */}
       <div className="flex-1 flex flex-col bg-stone-50">
         <div className="p-3 border-b bg-white flex items-center justify-between md:hidden">
-          <div className="flex items-center gap-2"><div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center"><Sparkles className="h-4 w-4 text-white" /></div><span className="font-semibold text-sm">Najwa AI</span></div>
+          <div className="flex items-center gap-2"><div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center"><Sparkles className="h-4 w-4 text-white" /></div><span className="font-semibold text-sm">{assistantName}</span></div>
           <div className="flex gap-1"><button onClick={() => setLang("en")} className={`px-2 py-0.5 rounded text-xs ${lang === "en" ? "bg-emerald-600 text-white" : "bg-stone-100"}`}>EN</button><button onClick={() => setLang("ar")} className={`px-2 py-0.5 rounded text-xs ${lang === "ar" ? "bg-emerald-600 text-white" : "bg-stone-100"}`}>عربي</button></div>
         </div>
 
@@ -96,15 +194,15 @@ export default function AIAssistantView() {
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4"><Sparkles className="h-8 w-8 text-white" /></div>
-              <h2 className="text-xl font-bold text-stone-900 mb-2">Hi, I'm Najwa! 🐪</h2>
-              <p className="text-sm text-stone-500 mb-4">Your AI travel assistant for Oman Adventures. I can help you discover tours, check availability, make bookings, and answer any questions.</p>
+              <h2 className="text-xl font-bold text-stone-900 mb-2">Hi, I'm {assistantName}! 👋</h2>
+              <p className="text-sm text-stone-500 mb-4">{businessName ? `Your AI assistant for ${businessName}.` : "Your 24/7 AI conversational assistant."} I can answer questions, quote requests, and handle customer support directly on WhatsApp.</p>
               <div className="grid grid-cols-2 gap-2 w-full">{quickPrompts.map((p, i) => <button key={i} onClick={() => send(p.text)} className="p-3 rounded-xl border hover:border-emerald-300 hover:bg-emerald-50 text-left"><p.icon className="h-4 w-4 text-emerald-600 mb-1" /><div className="text-xs font-medium text-stone-700">{p.text}</div></button>)}</div>
             </div>
           ) : (
             messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${m.role === "user" ? "bg-emerald-600 text-white" : "bg-white border border-stone-200 text-stone-800"}`}>
-                  {m.role === "assistant" && <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-1"><Sparkles className="h-2.5 w-2.5" />Najwa AI</div>}
+                  {m.role === "assistant" && <div className="flex items-center gap-1 text-[10px] text-amber-500 mb-1"><Sparkles className="h-2.5 w-2.5" />{assistantName}</div>}
                   <p className="text-sm whitespace-pre-wrap">{m.content}</p>
                   <div className={`text-[9px] mt-1 ${m.role === "user" ? "text-emerald-100" : "text-stone-400"}`}>{m.ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>

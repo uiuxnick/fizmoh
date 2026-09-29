@@ -79,7 +79,7 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   const body = await request.json()
   const {
     tags, notes, whatsappOptIn, facebookOptIn, instagramOptIn, emailOptIn,
-    channel, socialUsername, loyaltyTier, loyaltyPoints, preferredLang, name, email, ...rest
+    channel, socialUsername, loyaltyTier, loyaltyPoints, preferredLang, name, email, customFields, ...rest
   } = body
 
   const existing = await db.customer.findFirst({ where: { id } })
@@ -97,6 +97,13 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
   if (socialUsername !== undefined) data.socialUsername = socialUsername
   if (loyaltyTier !== undefined) data.loyaltyTier = loyaltyTier
   if (loyaltyPoints !== undefined) data.loyaltyPoints = loyaltyPoints
+  if (customFields !== undefined) {
+    try {
+      data.customFields = typeof customFields === "object" ? customFields : JSON.parse(customFields)
+    } catch {
+      data.customFields = {}
+    }
+  }
 
   // Track consent changes
   const consentLogsToCreate: any[] = []
@@ -155,6 +162,21 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
       _count: { select: { orders: true, conversations: true } },
     },
   })
+
+  if (data.tags !== undefined) {
+    let parsedTagList: string[] = []
+    if (Array.isArray(data.tags)) parsedTagList = data.tags.map(String)
+    else if (typeof data.tags === "string") {
+      try {
+        const parsed = JSON.parse(data.tags)
+        if (Array.isArray(parsed)) parsedTagList = parsed.map(String)
+      } catch {}
+    }
+    await db.conversation.updateMany({
+      where: { customerId: id },
+      data: { labels: parsedTagList },
+    }).catch(() => {})
+  }
 
   // Create consent logs (after update so the FK is solid)
   for (const cl of consentLogsToCreate) {

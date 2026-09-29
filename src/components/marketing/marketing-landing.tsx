@@ -9,6 +9,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ClientLogos } from "@/components/client-logos"
 import { WhatsAppDemo } from "@/components/whatsapp-demo"
 import { UseCaseIcon } from "@/components/marketing/icon-map"
+import { ProductInteractiveShowcase } from "@/components/marketing/product-interactive-showcases"
+import { ProductWalkthroughRemotion } from "@/components/marketing/product-walkthrough-remotion"
 import type { L, MarketingPage } from "@/lib/marketing/types"
 import { ArrowRight, Check, CircleAlert, Quote } from "lucide-react"
 
@@ -146,33 +148,58 @@ export function MarketingLanding({
               <p className="mt-4 text-[13px] text-[var(--mk-muted)]">{t(page.heroNote)}</p>
             </div>
 
-            <div className="relative overflow-hidden rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-surface-2)] shadow-sm">
-              {page.hero.kind === "css" ? (
-                <div
-                  role="img"
-                  aria-label={t(page.hero.alt)}
-                  className="relative flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-[var(--mk-green)]/20 via-[var(--mk-surface-2)] to-[var(--mk-gold)]/20"
-                >
-                  <div className="mk-aurora" aria-hidden="true" />
-                  <UseCaseIcon
-                    name={page.hero.icon ?? "Sparkles"}
-                    className="relative h-16 w-16 text-[var(--mk-gold)]"
-                  />
+            <div className="relative group">
+              <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-r from-emerald-500/20 via-sky-500/15 to-amber-500/20 blur-xl opacity-60 group-hover:opacity-100 transition duration-500 pointer-events-none" />
+
+              <div className="relative overflow-hidden rounded-2xl border border-[var(--mk-line)] bg-card shadow-2xl">
+                {/* Modern Browser Chrome Header */}
+                <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-4 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-0.5 text-[11px] font-mono text-muted-foreground border border-border/40">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>app.fizmoh.cloud/{variant === "product" ? "product" : "solutions"}/{page.slug}</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                    PROD
+                  </span>
                 </div>
-              ) : (
-                <Image
-                  src={page.hero.src}
-                  alt={t(page.hero.alt)}
-                  width={page.hero.width}
-                  height={page.hero.height}
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="h-auto w-full object-cover"
-                />
-              )}
+
+                {page.hero.kind === "css" ? (
+                  <div
+                    role="img"
+                    aria-label={t(page.hero.alt)}
+                    className="relative flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-[var(--mk-green)]/20 via-[var(--mk-surface-2)] to-[var(--mk-gold)]/20"
+                  >
+                    <div className="mk-aurora" aria-hidden="true" />
+                    <UseCaseIcon
+                      name={page.hero.icon ?? "Sparkles"}
+                      className="relative h-16 w-16 text-[var(--mk-gold)]"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative overflow-hidden bg-slate-950">
+                    <Image
+                      src={page.hero.src}
+                      alt={t(page.hero.alt)}
+                      width={page.hero.width}
+                      height={page.hero.height}
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 560px"
+                      className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
+
+        {/* ---- Interactive Product Showcase ----------------------------- */}
+        <ProductInteractiveShowcase slug={page.slug} isAr={isAr} />
 
         {/* ---- Interactive simulator (simulator product only) ---------- */}
         {showSimulator && (
@@ -240,6 +267,13 @@ export function MarketingLanding({
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        {/* ---- Remotion Walkthrough Studio --------------------------- */}
+        <section className="border-b border-[var(--mk-line)] px-4 py-16 sm:px-6 sm:py-24 bg-gradient-to-b from-[var(--mk-surface-2)] via-[var(--mk-surface)] to-[var(--mk-surface-2)]">
+          <div className="mx-auto max-w-6xl">
+            <ProductWalkthroughRemotion isAr={isAr} />
           </div>
         </section>
 

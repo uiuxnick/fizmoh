@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { WhatsAppDemo, type DemoMode } from "@/components/whatsapp-demo"
 import { ArrowRight, CheckCircle2, Video, Compass, Stethoscope, ShoppingBag, Sparkles } from "lucide-react"
@@ -207,16 +208,32 @@ export function HeroSlider({ isAr }: { isAr: boolean }) {
           </Link>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[var(--mk-muted)]">
-          {[
-            isAr ? "بدون بطاقة بنكية" : "No credit card required",
-            isAr ? "ربط API خلال 60 ثانية" : "60-second API setup",
-          ].map((item, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-[var(--mk-green-deep)]" aria-hidden="true" />
-              {item}
-            </span>
-          ))}
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div
+            className="inline-flex items-center gap-2.5 rounded-2xl bg-white border-2 border-emerald-600/35 px-3.5 py-1.5 shadow-[0_4px_16px_-4px_rgba(4,120,87,0.16)] ring-4 ring-emerald-500/10"
+            title={isAr ? "شريك أعمال ميتا المعتمد" : "Official Meta Business Partner"}
+          >
+            <Image
+              src="/meta_business_partner.webp"
+              alt="Official Meta Business Partner"
+              width={160}
+              height={48}
+              className="h-9 sm:h-10 w-auto object-contain"
+              priority
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[var(--mk-muted)]">
+            {[
+              isAr ? "بدون بطاقة بنكية" : "No credit card required",
+              isAr ? "ربط API خلال 60 ثانية" : "60-second API setup",
+            ].map((item, i) => (
+              <span key={i} className="flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="h-4 w-4 text-[var(--mk-green-deep)]" aria-hidden="true" />
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Figures the page already stands behind, brought above the fold. */}

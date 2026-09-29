@@ -10,8 +10,9 @@ import { toast } from "sonner"
 import {
   Loader2, Building2, PauseCircle, PlayCircle, CalendarPlus, Plus,
   Trash2, Save, LogIn, Store, Pencil, KeyRound, Search, Filter,
-  AlertTriangle, ShieldAlert, CheckCircle2, Ban, RefreshCw, ExternalLink,
+  AlertTriangle, ShieldAlert, CheckCircle2, Ban, RefreshCw, ExternalLink, Target,
 } from "lucide-react"
+
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 
 export interface TenantRow {
@@ -39,6 +40,13 @@ export interface TenantRow {
   businessAddress?: string
   businessWebsite?: string
   businessAbout?: string
+  // Marketing intelligence fields
+  ownerName?: string
+  ownerEmail?: string
+  ownerPhone?: string
+  whatsappNumber?: string
+  whatsappPhoneId?: string
+  lastMessageAt?: string | null
 }
 
 export interface PlanOption {
@@ -210,6 +218,19 @@ export function TenantsPanel({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.history.pushState({ view: "platform" }, "", "/platform/marketing")
+                window.dispatchEvent(new Event("popstate"))
+              }
+            }}
+            className="border-violet-300 text-violet-700 hover:bg-violet-50 text-xs font-semibold"
+          >
+            <Target className="h-3.5 w-3.5 mr-1.5 text-violet-600" /> Marketing Intel
+          </Button>
           <Button size="sm" variant="outline" onClick={onRefresh} className="text-xs">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
           </Button>
@@ -217,6 +238,7 @@ export function TenantsPanel({
             <Plus className="h-3.5 w-3.5 mr-1.5" /> New Workspace
           </Button>
         </div>
+
       </div>
 
       {/* Table */}

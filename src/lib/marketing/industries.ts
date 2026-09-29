@@ -2040,8 +2040,35 @@ export const INDUSTRY_PAGES: MarketingPage[] = [
   },
 ]
 
+const INDUSTRY_ALIASES: Record<string, string> = {
+  restaurants: "restaurants-dining",
+  dining: "restaurants-dining",
+  cafes: "cafes-coffee",
+  coffee: "cafes-coffee",
+  ecommerce: "ecommerce-online-stores",
+  "online-stores": "ecommerce-online-stores",
+  fashion: "fashion-perfumes-retail",
+  retail: "fashion-perfumes-retail",
+  perfumes: "fashion-perfumes-retail",
+  salons: "salons-beauty-spas",
+  spas: "salons-beauty-spas",
+  beauty: "salons-beauty-spas",
+  supermarkets: "supermarkets-marts",
+  marts: "supermarkets-marts",
+  grocery: "supermarkets-marts",
+  tours: "tours-safari-musandam",
+  safari: "tours-safari-musandam",
+  musandam: "tours-safari-musandam",
+  clinics: "clinics-hospitals-health",
+  hospitals: "clinics-hospitals-health",
+  health: "clinics-hospitals-health",
+}
+
 export function industryBySlug(slug: string): MarketingPage | undefined {
-  return INDUSTRY_PAGES.find(p => p.slug === slug.toLowerCase())
+  const normalized = (slug || "").toLowerCase().trim()
+  const targetSlug = INDUSTRY_ALIASES[normalized] || normalized
+  return INDUSTRY_PAGES.find(p => p.slug === targetSlug)
 }
 
 export const INDUSTRY_SLUGS = INDUSTRY_PAGES.map(p => p.slug)
+
