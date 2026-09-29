@@ -28,9 +28,20 @@ interface Props {
   course: Course
   registrationId?: string
   initialSource?: string
+  bankAccounts?: Array<{
+    id: string
+    bankName: string
+    accountName: string
+    accountNumber: string
+    iban?: string | null
+    branch?: string | null
+    swiftCode?: string | null
+    currency?: string | null
+    isDefault?: boolean
+  }>
 }
 
-export default function TrainingLandingClient({ course, registrationId, initialSource }: Props) {
+export default function TrainingLandingClient({ course, registrationId, initialSource, bankAccounts = [] }: Props) {
   // State for Booking Modal
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestedSeats, setRequestedSeats] = useState<number>(1)
@@ -42,7 +53,8 @@ export default function TrainingLandingClient({ course, registrationId, initialS
   const [companyName, setCompanyName] = useState("")
   const [jobTitle, setJobTitle] = useState("")
   const [country, setCountry] = useState("Sultanate of Oman")
-  const [paymentMethod, setPaymentMethod] = useState<"PAYMENT_LINK" | "BANK_TRANSFER" | "CASH">("PAYMENT_LINK")
+  const [paymentMethod, setPaymentMethod] = useState<"PAYMENT_LINK" | "BANK_TRANSFER" | "CASH">("BANK_TRANSFER")
+  const [paymentReference, setPaymentReference] = useState("")
   const [notes, setNotes] = useState("")
   const [customValues, setCustomValues] = useState<Record<string, any>>({})
 
@@ -93,7 +105,7 @@ export default function TrainingLandingClient({ course, registrationId, initialS
         companyName,
         jobTitle,
         country,
-        notes,
+        notes: [notes, paymentReference ? `Payment Ref / Bank: ${paymentReference}` : ""].filter(Boolean).join(" | "),
         numberOfSeats: requestedSeats,
         paymentMethod,
         source: (initialSource as any) || "WEBSITE",
@@ -636,41 +648,69 @@ export default function TrainingLandingClient({ course, registrationId, initialS
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 text-left text-xs space-y-2 max-w-md mx-auto">
-                  <div className="flex justify-between">
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 text-left text-xs space-y-2.5 max-w-md mx-auto">
+                  <div className="flex justify-between border-b border-stone-200 pb-2">
                     <span className="text-stone-500">Total Delegates:</span>
                     <span className="font-bold text-stone-800">
                       {bookingSuccess.registration?.numberOfSeats} Participants
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-stone-500">Amount Due:</span>
-                    <span className="font-bold text-amber-700">
+                  <div className="flex justify-between border-b border-stone-200 pb-2">
+                    <span className="text-stone-500">Total Payable:</span>
+                    <span className="font-bold text-amber-700 text-sm">
                       {course.currency} {bookingSuccess.registration?.totalAmount?.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between border-b border-stone-200 pb-2">
                     <span className="text-stone-500">Dates:</span>
                     <span className="font-medium text-stone-800">
                       {course.startDate} to {course.endDate}
                     </span>
                   </div>
+
+                  {/* Bank transfer instructions if bank accounts exist */}
+                  {bankAccounts && bankAccounts.length > 0 ? (
+                    <div className="pt-1 text-[11px] space-y-1">
+                      <span className="font-bold text-stone-900 block">Bank Transfer Instructions:</span>
+                      <div className="bg-white p-2.5 rounded-lg border border-stone-200 space-y-1">
+                        <div><strong>Bank:</strong> {bankAccounts[0].bankName}</div>
+                        <div><strong>Beneficiary:</strong> {bankAccounts[0].accountName}</div>
+                        <div><strong>Account No:</strong> <span className="font-mono">{bankAccounts[0].accountNumber}</span></div>
+                        {bankAccounts[0].iban && <div><strong>IBAN:</strong> <span className="font-mono">{bankAccounts[0].iban}</span></div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-1 text-[11px] text-stone-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                      <strong>Payment Method:</strong> Direct Bank Transfer. An official invoice with complete bank details has been issued.
+                    </div>
+                  )}
                 </div>
 
                 {bookingSuccess.whatsappSent && (
-                  <div className="text-xs text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center justify-center gap-1.5">
-                    <WhatsAppIcon className="h-4 w-4 fill-emerald-600" />
+                  <div className="text-xs text-emerald-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center justify-center gap-1.5 max-w-md mx-auto">
+                    <WhatsAppIcon className="h-4 w-4 fill-emerald-600 shrink-0" />
                     <span>WhatsApp confirmation & receipt message dispatched to your phone!</span>
                   </div>
                 )}
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+                  <a
+                    href={`https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(
+                      `Hello Tanfidh Consultants! I have registered for "${course.name}" (Reference: ${bookingSuccess.registration?.registrationNumber || ""}). Here is my payment receipt for verification.`,
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:flex-1 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow transition-colors"
+                  >
+                    <WhatsAppIcon className="h-3.5 w-3.5 fill-current" />
+                    <span>Send Transfer Receipt via WhatsApp</span>
+                  </a>
                   <button
                     onClick={() => {
                       setIsModalOpen(false)
                       setBookingSuccess(null)
                     }}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-stone-900 text-white text-xs font-bold hover:bg-stone-800"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-stone-900 text-white text-xs font-bold hover:bg-stone-800 transition-colors"
                   >
                     Done
                   </button>
@@ -965,34 +1005,27 @@ export default function TrainingLandingClient({ course, registrationId, initialS
 
                 {/* 5. PAYMENT METHOD */}
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 border-b border-stone-200 pb-1.5">
-                    Payment Method
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("PAYMENT_LINK")}
-                      className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
-                        paymentMethod === "PAYMENT_LINK"
-                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20"
-                          : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-                      }`}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      <span>Online Card / Link</span>
-                    </button>
+                  <div className="flex items-center justify-between border-b border-stone-200 pb-1.5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                      Payment Method
+                    </h4>
+                    <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      Direct Bank Transfer / Wire
+                    </span>
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("BANK_TRANSFER")}
                       className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
                         paymentMethod === "BANK_TRANSFER"
-                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20"
+                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs"
                           : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
                       }`}
                     >
-                      <Building className="h-4 w-4" />
-                      <span>Bank Wire / PO</span>
+                      <Building className="h-4 w-4 text-amber-600" />
+                      <span>Bank Wire Transfer</span>
                     </button>
 
                     <button
@@ -1000,14 +1033,69 @@ export default function TrainingLandingClient({ course, registrationId, initialS
                       onClick={() => setPaymentMethod("CASH")}
                       className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
                         paymentMethod === "CASH"
-                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20"
+                          ? "border-amber-600 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs"
                           : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
                       }`}
                     >
                       <Ticket className="h-4 w-4" />
-                      <span>Manual / Cash</span>
+                      <span>Purchase Order / Cheque</span>
                     </button>
                   </div>
+
+                  {/* Bank Details Display Card */}
+                  {paymentMethod === "BANK_TRANSFER" && (
+                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-amber-50/90 to-stone-50 border border-amber-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                          <Building className="h-3.5 w-3.5 text-amber-700" />
+                          Official Bank Transfer Account
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300">
+                          Manual Payment
+                        </span>
+                      </div>
+
+                      {bankAccounts && bankAccounts.length > 0 ? (
+                        <div className="bg-white p-2.5 rounded-lg border border-amber-200/80 space-y-1.5 text-[11px]">
+                          <div className="flex justify-between">
+                            <span className="text-stone-500">Bank Name:</span>
+                            <span className="font-bold text-stone-900">{bankAccounts[0].bankName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-500">Beneficiary:</span>
+                            <span className="font-bold text-stone-900">{bankAccounts[0].accountName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-500">Account No:</span>
+                            <span className="font-mono font-bold text-stone-900">{bankAccounts[0].accountNumber}</span>
+                          </div>
+                          {bankAccounts[0].iban && (
+                            <div className="flex justify-between">
+                              <span className="text-stone-500">IBAN:</span>
+                              <span className="font-mono font-bold text-stone-900">{bankAccounts[0].iban}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-white p-2.5 rounded-lg border border-amber-200/80 text-[11px] text-stone-600">
+                          Bank transfer details and pro-forma invoice will be provided immediately upon submitting your registration.
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                          Payment Reference / Bank Transaction ID (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentReference}
+                          onChange={e => setPaymentReference(e.target.value)}
+                          placeholder="e.g. Bank Muscat Transfer Ref #12345 or In Progress"
+                          className="w-full h-8 px-2.5 rounded border border-stone-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* TOTAL SUMMARY & SUBMIT */}

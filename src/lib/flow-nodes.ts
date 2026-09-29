@@ -1234,16 +1234,37 @@ async function resolveSlot(tourId: string, tenantId: string, answer: string, dat
     }
 
     case "BANK_TRANSFER": {
-      const bName = fill(data.bankName || "Bank Muscat", ctx)
-      const accNum = fill(data.accountNumber || "0123-456789-001", ctx)
-      const accTitle = fill(data.accountTitle || "AL BAHR STABLE", ctx)
+      let bName = data.bankName
+      let accNum = data.accountNumber
+      let accTitle = data.accountTitle
+      let iban = (data as any).iban
+
+      if (!bName || !accNum) {
+        const bank = await db.bankAccount.findFirst({
+          where: { tenantId: ctx.tenantId, isActive: true },
+          orderBy: { isDefault: "desc" },
+        })
+        if (bank) {
+          bName = bName || bank.bankName
+          accNum = accNum || bank.accountNumber
+          accTitle = accTitle || bank.accountName
+          iban = iban || bank.iban
+        }
+      }
+
+      const tenantObj = await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } }).catch(() => null)
+
+      bName = fill(bName || ctx.variables["bank_name"] || "Direct Bank Transfer", ctx)
+      accNum = fill(accNum || ctx.variables["account_number"] || "Account details provided on request", ctx)
+      accTitle = fill(accTitle || ctx.variables["account_name"] || tenantObj?.name || "Official Account", ctx)
       const intro = fill(data.text || "🏦 *Bank Transfer Payment Details*", ctx)
 
       const msg = `${intro}\n\n` +
         `🏛️ *Bank Name:* ${bName}\n` +
         `🏷️ *Account Title:* ${accTitle}\n` +
-        `🔢 *Account / IBAN:* \`${accNum}\`\n\n` +
-        `📸 *Please take a screenshot of your transfer receipt and send it here to verify your booking.*`
+        `🔢 *Account Number:* \`${accNum}\`\n` +
+        (iban ? `🌐 *IBAN:* \`${fill(iban, ctx)}\`\n` : "") +
+        `\n📸 *Please take a screenshot of your transfer receipt and send it here to verify your booking.*`
 
       await sendWhatsApp({ to: ctx.customerPhone, body: msg })
       return { wait: "reply" }

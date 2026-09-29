@@ -38,6 +38,9 @@ import {
   ArrowRight,
   Download,
   Share2,
+  BookOpen,
+  User,
+  Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,6 +103,7 @@ export default function TrainingView() {
   // Course Editor Modal State
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Partial<Course> | null>(null)
+  const [availableFlows, setAvailableFlows] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
   const [editorSubTab, setEditorSubTab] = useState<
     "basic" | "trainer" | "schedule" | "pricing" | "offers" | "whatsapp"
   >("basic")
@@ -114,12 +118,13 @@ export default function TrainingView() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [coursesRes, regRes, certRes, fbRes, statsRes] = await Promise.all([
+      const [coursesRes, regRes, certRes, fbRes, statsRes, flowsRes] = await Promise.all([
         fetch("/api/training/courses").then(r => r.json()),
         fetch("/api/training/registrations").then(r => r.json()),
         fetch("/api/training/certificates").then(r => r.json()),
         fetch("/api/training/feedback").then(r => r.json()),
         fetch("/api/training/stats").then(r => r.json()),
+        fetch("/api/botflows").then(r => r.json()).catch(() => ({ flows: [] })),
       ])
 
       if (coursesRes.courses) setCourses(coursesRes.courses)
@@ -127,6 +132,7 @@ export default function TrainingView() {
       if (certRes.certificates) setCertificates(certRes.certificates)
       if (fbRes.feedback) setFeedback(fbRes.feedback)
       if (statsRes.kpis) setStats(statsRes.kpis)
+      if (flowsRes.flows) setAvailableFlows(flowsRes.flows)
     } catch (err) {
       console.error("Error loading training data:", err)
       toast.error("Failed to load training module data")
@@ -794,6 +800,23 @@ export default function TrainingView() {
                       <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-semibold flex items-center gap-1.5">
                         <Ticket className="h-3.5 w-3.5 text-amber-700 shrink-0" />
                         <span className="truncate">{c.offerTitle}</span>
+                      </div>
+                    )}
+
+                    {c.botFlowId && (
+                      <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 font-medium flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Bot className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                          <span className="truncate">WhatsApp Flow: <strong>{c.keyword || "BSC"}</strong></span>
+                        </div>
+                        <a
+                          href={`https://wa.me/${(c.whatsappNumber || "+96899355438").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(c.keyword || "BSC")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-emerald-700 hover:underline shrink-0 font-bold ml-1"
+                        >
+                          Test &rarr;
+                        </a>
                       </div>
                     )}
                   </div>
@@ -1608,36 +1631,46 @@ export default function TrainingView() {
       {/* ==================================================================== */}
       {isCourseModalOpen && editingCourse && (
         <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold">
-                {editingCourse.id ? `Edit Course: ${editingCourse.name}` : "Create Training Course Program"}
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full sm:rounded-2xl p-6">
+            <DialogHeader className="pb-2 border-b border-stone-200">
+              <DialogTitle className="text-base font-bold flex items-center justify-between">
+                <span>{editingCourse.id ? `Edit Course: ${editingCourse.name}` : "Create Training Course Program"}</span>
+                {editingCourse.courseId && (
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300">
+                    {editingCourse.courseId}
+                  </span>
+                )}
               </DialogTitle>
             </DialogHeader>
 
-            {/* Sub-tabs */}
-            <div className="flex items-center gap-1 border-b border-stone-200 text-xs font-semibold overflow-x-auto pb-1">
+            {/* Sub-tabs: Pill Navigation with icons and no truncation */}
+            <div className="flex items-center gap-1.5 p-1 bg-stone-100 rounded-xl overflow-x-auto text-xs font-semibold scrollbar-none my-2">
               {[
-                { key: "basic", label: "Basic Info" },
-                { key: "trainer", label: "Trainer" },
-                { key: "schedule", label: "Schedule & Venue" },
-                { key: "pricing", label: "Pricing & Capacity" },
-                { key: "offers", label: "Dynamic Offers (BOGO)" },
-                { key: "whatsapp", label: "WhatsApp Automation" },
-              ].map(st => (
-                <button
-                  key={st.key}
-                  type="button"
-                  onClick={() => setEditorSubTab(st.key as any)}
-                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-                    editorSubTab === st.key
-                      ? "bg-stone-900 text-white"
-                      : "text-stone-600 hover:bg-stone-100"
-                  }`}
-                >
-                  {st.label}
-                </button>
-              ))}
+                { key: "basic", label: "Basic Info", icon: BookOpen },
+                { key: "trainer", label: "Trainer", icon: User },
+                { key: "schedule", label: "Schedule & Venue", icon: Calendar },
+                { key: "pricing", label: "Pricing & Capacity", icon: DollarSign },
+                { key: "offers", label: "Offers & BOGO", icon: Sparkles },
+                { key: "whatsapp", label: "WhatsApp & Bot Flow", icon: Bot },
+              ].map(st => {
+                const Icon = st.icon
+                const isActive = editorSubTab === st.key
+                return (
+                  <button
+                    key={st.key}
+                    type="button"
+                    onClick={() => setEditorSubTab(st.key as any)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap text-xs font-medium ${
+                      isActive
+                        ? "bg-white text-stone-900 shadow-xs font-bold"
+                        : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isActive ? "text-amber-600" : "text-stone-400"}`} />
+                    <span>{st.label}</span>
+                  </button>
+                )
+              })}
             </div>
 
             <form onSubmit={handleSaveCourse} className="space-y-4 pt-2 text-xs">
@@ -2019,23 +2052,57 @@ export default function TrainingView() {
 
               {/* SUBTAB: WHATSAPP AUTOMATION */}
               {editorSubTab === "whatsapp" && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
+                  {/* Interactive Bot Flow Link */}
+                  <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-emerald-700" />
+                        <span className="text-xs font-bold text-emerald-950">Connected WhatsApp Booking Flow</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] bg-white text-emerald-800 border-emerald-300">
+                        Visual Bot Engine
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-emerald-800">
+                      Connect an interactive visual Flow to guide prospective delegates through seat selection, attendee details collection, BOGO offer application, and direct Bank Transfer instructions.
+                    </p>
+                    <div>
+                      <label className="text-[11px] font-semibold text-emerald-950 block mb-1">
+                        Select Connected Bot Flow
+                      </label>
+                      <select
+                        value={editingCourse.botFlowId || ""}
+                        onChange={e => setEditingCourse({ ...editingCourse, botFlowId: e.target.value || undefined })}
+                        className="w-full h-8 px-2.5 rounded border border-emerald-300 text-xs bg-white font-medium text-stone-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      >
+                        <option value="">-- No Flow Attached (AI Assistant handles inquiries) --</option>
+                        {availableFlows.map(f => (
+                          <option key={f.id} value={f.id}>
+                            {f.name} {f.isActive ? "(Active)" : "(Draft)"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold text-stone-600 block mb-1">
-                        WhatsApp Cloud Phone
+                        WhatsApp Business Phone
                       </label>
                       <Input
-                        value={editingCourse.whatsappNumber || "+96892009161"}
+                        value={editingCourse.whatsappNumber || "+96899355438"}
                         onChange={e =>
                           setEditingCourse({ ...editingCourse, whatsappNumber: e.target.value })
                         }
+                        placeholder="+968 99355438"
                         className="h-8 text-xs font-mono"
                       />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold text-stone-600 block mb-1">
-                        Trigger Keyword
+                        Trigger Keyword (Auto-launches Flow)
                       </label>
                       <Input
                         value={editingCourse.keyword || "BSC"}
@@ -2046,9 +2113,20 @@ export default function TrainingView() {
                     </div>
                   </div>
 
+                  {/* Payment Gateway: Bank Manual Only */}
+                  <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                      <Building className="h-3.5 w-3.5 text-amber-700" />
+                      <span>Payment Gateway / Method: Bank Manual Wire</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/90 leading-relaxed">
+                      Payments for training courses are processed via <strong>Direct Bank Transfer / Manual Wire</strong>. Your bank accounts configured in <em>Settings → Bank Accounts</em> will automatically populate on pro-forma invoices, checkout pages, and WhatsApp automated replies.
+                    </p>
+                  </div>
+
                   <div className="space-y-2 pt-2 border-t border-stone-200">
-                    <div className="text-xs font-bold text-stone-800">Automated Reminders:</div>
-                    <label className="flex items-center gap-2">
+                    <div className="text-xs font-bold text-stone-800">Automated WhatsApp Reminders:</div>
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingCourse.reminderSettings?.days7 !== false}
@@ -2064,7 +2142,7 @@ export default function TrainingView() {
                       />
                       <span>7 Days Before Course Reminder</span>
                     </label>
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingCourse.reminderSettings?.day1 !== false}
@@ -2080,7 +2158,7 @@ export default function TrainingView() {
                       />
                       <span>1 Day Before Course Reminder (Starts Tomorrow)</span>
                     </label>
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={editingCourse.reminderSettings?.hours2 !== false}

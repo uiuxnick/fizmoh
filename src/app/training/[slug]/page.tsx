@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { db } from "@/lib/db"
 import { getCourseByIdOrSlug, getTenantCourses } from "@/lib/training-service"
 import { PLATFORM } from "@/lib/tenant"
 import TrainingLandingClient from "./training-landing-client"
@@ -39,5 +40,10 @@ export default async function TrainingCourseLandingPage({ params, searchParams }
     notFound()
   }
 
-  return <TrainingLandingClient course={course} registrationId={reg} initialSource={src} />
+  const bankAccounts = await db.bankAccount.findMany({
+    where: { tenantId: course.tenantId || undefined, isActive: true },
+    orderBy: { isDefault: "desc" },
+  })
+
+  return <TrainingLandingClient course={course} registrationId={reg} initialSource={src} bankAccounts={bankAccounts} />
 }

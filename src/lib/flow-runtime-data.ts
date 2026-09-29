@@ -12,7 +12,7 @@ export type FlowRuntimeContext = {
  * are also safe to pass to the AI node as a small, readable context block.
  */
 export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Record<string, string>> {
-  const [customer, latestOrder, latestAppointment, latestRestaurantOrder, patient] = await Promise.all([
+  const [customer, latestOrder, latestAppointment, latestRestaurantOrder, patient, defaultBank] = await Promise.all([
     db.customer.findFirst({
       where: { id: ctx.customerId, tenantId: ctx.tenantId },
       select: { name: true, email: true, phone: true, stage: true, preferredLang: true, preferredCurrency: true, tags: true, customFields: true },
@@ -36,6 +36,10 @@ export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Reco
       where: { tenantId: ctx.tenantId, OR: [{ mobile: ctx.customerPhone }, { id: ctx.customerId }] },
       orderBy: { updatedAt: "desc" },
       select: { id: true, mrn: true, fullName: true, mobile: true, email: true, dob: true, gender: true, emergContact: true },
+    }).catch(() => null),
+    db.bankAccount.findFirst({
+      where: { tenantId: ctx.tenantId, isActive: true },
+      orderBy: { isDefault: "desc" },
     }).catch(() => null),
   ])
 
@@ -70,6 +74,16 @@ export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Reco
     "hospital.patient.dob": patient?.dob?.toISOString().slice(0, 10) || "",
     "hospital.patient.gender": patient?.gender || "",
     "hospital.patient.emergency_contact": patient?.emergContact || "",
+    "bank.name": defaultBank?.bankName || "",
+    "bank.account_name": defaultBank?.accountName || "",
+    "bank.account_number": defaultBank?.accountNumber || "",
+    "bank.iban": defaultBank?.iban || defaultBank?.accountNumber || "",
+    "bank.swift": defaultBank?.swiftCode || "",
+    "bank.branch": defaultBank?.branch || "",
+    "bank_name": defaultBank?.bankName || "",
+    "account_name": defaultBank?.accountName || "",
+    "account_number": defaultBank?.accountNumber || "",
+    "iban": defaultBank?.iban || defaultBank?.accountNumber || "",
   }
 
   if (Array.isArray(customer?.tags)) out["customer.tags"] = customer.tags.map(String).join(", ")

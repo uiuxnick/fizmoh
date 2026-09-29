@@ -73,8 +73,25 @@ export async function getTenantCourses(tenantId: string): Promise<Course[]> {
  * Find single course by ID or slug
  */
 export async function getCourseByIdOrSlug(tenantId: string, idOrSlug: string): Promise<Course | null> {
-  const courses = await getTenantCourses(tenantId)
-  return courses.find(c => c.id === idOrSlug || c.slug === idOrSlug || c.courseId === idOrSlug) || null
+  if (tenantId) {
+    const courses = await getTenantCourses(tenantId)
+    const match = courses.find(c => c.id === idOrSlug || c.slug === idOrSlug || c.courseId === idOrSlug)
+    if (match) return match
+  }
+
+  // Fallback: search all tenant catalogs across system settings
+  const settings = await db.systemSetting.findMany({
+    where: { key: COURSES_SETTING_KEY },
+  })
+  for (const s of settings) {
+    if (!s.value) continue
+    try {
+      const list: Course[] = JSON.parse(s.value)
+      const found = list.find(c => c.id === idOrSlug || c.slug === idOrSlug || c.courseId === idOrSlug)
+      if (found) return found
+    } catch {}
+  }
+  return null
 }
 
 /**

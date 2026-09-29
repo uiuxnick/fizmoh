@@ -743,6 +743,72 @@ async function walkSteps(
     // Reaching the execution budget is an error, never a successful completion.
     throw new Error("Flow exceeded its synchronous execution budget")
   }
+
+  // Check if this flow collected training course booking answers
+  const isTrainingFlow =
+    answers.full_name &&
+    (answers.number_attendees || answers.job_title || answers.company_name || answers.second_full_name)
+  if (isTrainingFlow) {
+    try {
+      const { getTenantCourses, createCourseRegistration, getTenantRegistrations } = await import("@/lib/training-service")
+      const courses = await getTenantCourses(ctx.tenantId)
+      const matchedCourse = courses.find(c => c.botFlowId === flow.id) || courses[0]
+      if (matchedCourse) {
+        const existingRegs = await getTenantRegistrations(ctx.tenantId)
+        const alreadyRegistered = existingRegs.some(
+          r =>
+            r.courseId === matchedCourse.id &&
+            (r.customerPhone === (answers.mobile_number || ctx.customerPhone) || r.customerWhatsApp === ctx.customerPhone) &&
+            Date.now() - new Date(r.createdAt).getTime() < 60 * 60 * 1000
+        )
+        if (!alreadyRegistered) {
+          const seats = Math.max(1, parseInt(answers.number_attendees || "1", 10) || 1)
+          const inputAttendees = [
+            {
+              name: answers.full_name,
+              email: answers.email || "",
+              phone: answers.mobile_number || ctx.customerPhone,
+              designation: answers.job_title || "",
+              company: answers.company_name || "",
+            },
+          ]
+          if (answers.second_full_name) {
+            inputAttendees.push({
+              name: answers.second_full_name,
+              email: answers.second_email || answers.email || "",
+              phone: answers.second_mobile || ctx.customerPhone,
+              designation: answers.second_job_title || "",
+              company: answers.company_name || "",
+            })
+          }
+          const regResult = await createCourseRegistration(ctx.tenantId, {
+            courseId: matchedCourse.id,
+            customerName: answers.full_name,
+            customerPhone: answers.mobile_number || ctx.customerPhone,
+            customerWhatsApp: answers.mobile_number || ctx.customerPhone,
+            customerEmail: answers.email || `${ctx.customerPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
+            companyName: answers.company_name,
+            jobTitle: answers.job_title,
+            numberOfSeats: seats,
+            paymentMethod: "BANK_TRANSFER",
+            source: "WHATSAPP",
+            attendees: inputAttendees,
+          })
+
+          const { notifyStaff } = await import("@/lib/realtime")
+          await notifyStaff({
+            type: "NEW_BOOKING",
+            title: `New Course Registration — ${regResult.registration.registrationNumber}`,
+            message: `${answers.full_name} (${answers.company_name || "Self"}) booked ${matchedCourse.shortTitle || matchedCourse.name}. Payment: Manual Bank Transfer`,
+            data: { conversationId: ctx.conversationId, registrationId: regResult.registration.id },
+          })
+        }
+      }
+    } catch (regErr) {
+      console.error("Error creating training registration from BotFlow:", regErr)
+    }
+  }
+
   // The flow is finished, so the customer returns to open conversation.
   await db.conversation.update({
     where: { id: ctx.conversationId },
