@@ -756,7 +756,23 @@ async function processMessage(msg: any, contact: any) {
   // unless the operator explicitly turned that off — a booking assistant that
   // clocks off with the staff is not much of an assistant.
   {
-    const away = await shouldSendAwayMessage(conversation.id)
+    const tenantId = conversation.tenantId || currentTenant()?.tenantId || null
+    let willFlowMatch = false
+    if (Boolean(conversation.flowState)) {
+      willFlowMatch = true
+    } else {
+      try {
+        willFlowMatch = await flowWouldMatch({
+          tenantId: tenantId || "",
+          conversationId: conversation.id,
+          customerId: customer.id,
+          customerPhone: from,
+          message: content,
+        })
+      } catch {}
+    }
+
+    const away = await shouldSendAwayMessage(conversation.id, tenantId, willFlowMatch)
     if (away.send) {
       await sendWhatsApp({ to: from, body: away.message, allowOutsideSession: true })
       await db.message.create({

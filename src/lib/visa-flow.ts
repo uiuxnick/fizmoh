@@ -58,6 +58,7 @@ export type FlowContext = {
   conversationId: string
   customerId: string
   phone: string
+  tenantId?: string | null
 }
 
 const PREFIX = "vs_"
@@ -409,7 +410,8 @@ async function toConsultant(ctx: FlowContext, note: string) {
   const { name: brandName } = await brand()
   await setState(ctx.conversationId, null)
 
-  const settings = await getBusinessHoursSettings()
+  const tenantId = ctx.tenantId || (await db.conversation.findUnique({ where: { id: ctx.conversationId }, select: { tenantId: true } }))?.tenantId || null
+  const settings = await getBusinessHoursSettings(tenantId)
   const open = isWithinHours(settings)
 
   await ask(ctx, open

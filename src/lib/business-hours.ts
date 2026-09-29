@@ -52,10 +52,17 @@ function readSetting(rows: { key: string; value: string; type: string }[], key: 
   return row.value
 }
 
-export async function getBusinessHoursSettings(): Promise<Settings> {
-  const rows = await db.systemSetting.findMany({
-    where: { key: { in: ["wa_hours_enabled", "wa_timezone", "wa_business_hours", "wa_away_message", "wa_ai_always_on"] } },
-  })
+export async function getBusinessHoursSettings(tenantId?: string | null): Promise<Settings> {
+  const tId = tenantId?.trim() || null
+  // Business hours are strictly per-tenant. Default to disabled if tenant has not explicitly configured it.
+  const rows = tId
+    ? await db.systemSetting.findMany({
+        where: {
+          tenantId: tId,
+          key: { in: ["wa_hours_enabled", "wa_timezone", "wa_business_hours", "wa_away_message", "wa_ai_always_on"] },
+        },
+      })
+    : []
 
   return {
     enabled: (readSetting(rows, "wa_hours_enabled") as boolean) ?? false,
@@ -107,8 +114,17 @@ export function isWithinHours(settings: Settings): boolean {
  * Rate-limited to once per session so a customer sending five messages after
  * hours gets one away notice, not five.
  */
-export async function shouldSendAwayMessage(conversationId: string): Promise<{ send: boolean; message: string; blockBot: boolean }> {
-  const settings = await getBusinessHoursSettings()
+export async function shouldSendAwayMessage(
+  conversationId: string,
+  tenantId?: string | null,
+  isFlowActiveOrMatched: boolean = false
+): Promise<{ send: boolean; message: string; blockBot: boolean }> {
+  // If an automated bot flow or interactive flow session is responding, NEVER send an away notice!
+  if (isFlowActiveOrMatched) {
+    return { send: false, message: "", blockBot: false }
+  }
+
+  const settings = await getBusinessHoursSettings(tenantId)
   if (!settings.enabled || isWithinHours(settings)) {
     return { send: false, message: "", blockBot: false }
   }
