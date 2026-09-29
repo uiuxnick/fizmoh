@@ -55,7 +55,7 @@ say "Staging from the release that is currently serving"
 $SSH $SSH_OPTS "$HOST" "set -e; mkdir -p $STAGING; rsync -a --exclude .next $ROOT/current/ $STAGING/"
 
 say "Copying $# changed file(s)"
-tar -cf - "$@" | $SSH $SSH_OPTS "$HOST" "tar -xf - -C $STAGING"
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude="._*" -cf - "$@" | $SSH $SSH_OPTS "$HOST" "tar -xf - -C $STAGING && find $STAGING -name '._*' -delete"
 
 say "What differs from what is live"
 $SSH $SSH_OPTS "$HOST" \
