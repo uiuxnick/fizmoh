@@ -854,6 +854,7 @@ async function processMessage(msg: any, contact: any) {
       const flowHandled = await handleFlowMediaUpload({
         from,
         mediaId,
+        externalId: msg.id || undefined,
         mediaType: type as "image" | "document",
         mimeType: msg.image?.mime_type || msg.document?.mime_type || "image/jpeg",
         filename: msg.document?.filename || undefined,
@@ -1618,13 +1619,14 @@ async function handleVoiceNote(
 async function handleFlowMediaUpload(params: {
   from: string
   mediaId: string
+  externalId?: string
   mediaType: "image" | "document"
   mimeType: string
   filename?: string
   customerId: string
   conversationId: string
 }): Promise<boolean> {
-  const { from, mediaId, mediaType, mimeType, filename, customerId, conversationId } = params
+  const { from, mediaId, externalId, mediaType, mimeType, filename, customerId, conversationId } = params
 
   // ── 1. Check for an active flow session ──
   const conv = await db.conversation.findUnique({
@@ -1679,20 +1681,34 @@ async function handleFlowMediaUpload(params: {
     }
   } catch { /* keep whatsapp_media:// fallback */ }
 
-  // ── 5. Save message row so the agent inbox shows the attachment ──
-  await db.message.create({
-    data: {
-      conversationId,
-      customerId,
-      direction: "INBOUND",
-      type: mediaType === "image" ? "IMAGE" : "DOCUMENT",
-      content: filename ? `[Document: ${filename}]` : "[Image attachment]",
-      mediaUrl: storedUrl,
-      caption: filename || undefined,
-      status: "SENT",
-      isAiGenerated: false,
-    },
-  })
+  // ── 5. Update the existing message row (never create a duplicate row) ──
+  try {
+    if (externalId) {
+      await db.message.updateMany({
+        where: { conversationId, externalId },
+        data: {
+          mediaUrl: storedUrl,
+          type: mediaType === "image" ? "IMAGE" : "DOCUMENT",
+          caption: filename || undefined,
+        },
+      })
+    } else {
+      const recent = await db.message.findFirst({
+        where: { conversationId, direction: "INBOUND" },
+        orderBy: { createdAt: "desc" },
+      })
+      if (recent && Date.now() - new Date(recent.createdAt).getTime() < 15000) {
+        await db.message.update({
+          where: { id: recent.id },
+          data: {
+            mediaUrl: storedUrl,
+            type: mediaType === "image" ? "IMAGE" : "DOCUMENT",
+            caption: filename || undefined,
+          },
+        })
+      }
+    }
+  } catch { /* non-critical */ }
 
   // ── 6. Append the attachment to the EMADI lead if one exists ──
   try {

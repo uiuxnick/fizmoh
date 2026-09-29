@@ -1618,7 +1618,12 @@ export default function TrainingView() {
 
                   <button
                     onClick={() => {
-                      setTargetPhone(activeRegistration.customerPhone)
+                      const candidate = (activeRegistration.customerPhone && !activeRegistration.customerPhone.toLowerCase().includes("same") && activeRegistration.customerPhone.replace(/\D/g, "").length >= 6)
+                        ? activeRegistration.customerPhone
+                        : (activeRegistration.customerWhatsApp && !activeRegistration.customerWhatsApp.toLowerCase().includes("same") && activeRegistration.customerWhatsApp.replace(/\D/g, "").length >= 6)
+                        ? activeRegistration.customerWhatsApp
+                        : ""
+                      setTargetPhone(candidate)
                       setWhatsAppModalOpen(true)
                     }}
                     className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1"

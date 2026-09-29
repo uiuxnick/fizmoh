@@ -762,31 +762,50 @@ async function walkSteps(
             Date.now() - new Date(r.createdAt).getTime() < 60 * 60 * 1000
         )
         if (!alreadyRegistered) {
-          const seats = Math.max(1, parseInt(answers.number_attendees || "1", 10) || 1)
+          const resolveCustomerPhone = (val?: string) => {
+            if (!val) return ctx.customerPhone
+            const clean = val.trim().toLowerCase()
+            if (clean === "same" || clean.includes("same") || clean.replace(/\D/g, "").length < 6) {
+              return ctx.customerPhone
+            }
+            return val.trim()
+          }
+
+          const primaryPhone = resolveCustomerPhone(answers.mobile_number)
+          const isBogo = matchedCourse.offerType === "BOGO" || (matchedCourse.offerTitle || "").toLowerCase().includes("free")
+          const requestedSeats = parseInt(answers.number_attendees || "1", 10) || 1
+          const seats = isBogo ? Math.max(2, requestedSeats) : requestedSeats
+
           const inputAttendees = [
             {
               name: answers.full_name,
               email: answers.email || "",
-              phone: answers.mobile_number || ctx.customerPhone,
+              phone: primaryPhone,
               designation: answers.job_title || "",
               company: answers.company_name || "",
             },
           ]
-          if (answers.second_full_name) {
+
+          if (isBogo || answers.second_full_name) {
+            const hasRealSecondName = answers.second_full_name && !answers.second_full_name.toLowerCase().includes("skip")
+            const secondEmail = answers.second_email && !answers.second_email.toLowerCase().includes("skip")
+              ? answers.second_email
+              : answers.email || ""
             inputAttendees.push({
-              name: answers.second_full_name,
-              email: answers.second_email || answers.email || "",
-              phone: answers.second_mobile || ctx.customerPhone,
+              name: hasRealSecondName ? answers.second_full_name : "Attendee 2 (Nomination Pending)",
+              email: secondEmail,
+              phone: resolveCustomerPhone(answers.second_mobile),
               designation: answers.second_job_title || "",
               company: answers.company_name || "",
             })
           }
+
           const regResult = await createCourseRegistration(ctx.tenantId, {
             courseId: matchedCourse.id,
             customerName: answers.full_name,
-            customerPhone: answers.mobile_number || ctx.customerPhone,
-            customerWhatsApp: answers.mobile_number || ctx.customerPhone,
-            customerEmail: answers.email || `${ctx.customerPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
+            customerPhone: primaryPhone,
+            customerWhatsApp: primaryPhone,
+            customerEmail: answers.email || `${primaryPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
             companyName: answers.company_name,
             jobTitle: answers.job_title,
             numberOfSeats: seats,

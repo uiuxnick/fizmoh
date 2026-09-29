@@ -18,65 +18,52 @@ async function main() {
       data: {
         text: "Welcome to Tanfidh Management Consultants 👋\nExecutive Strategy & Corporate Transformation Advisors.\n\nHow may we assist you today?",
         buttons: [
-          { id: "btn_courses", title: "View Our Courses" },
-          { id: "btn_fees", title: "Course Fees" },
-          { id: "btn_contact", title: "Contact Us" }
+          { id: "btn_book", title: "Book My seat" },
+          { id: "btn_details", title: "Course details" },
+          { id: "btn_fees", title: "View Fees" }
         ]
       },
       x: 400,
       y: 180
     },
     {
-      id: "courses_list",
-      type: "BUTTONS",
-      data: {
-        text: "📚 *Tanfidh Executive Masterclasses (2026)*\n\nSelect a program below to review the curriculum, lead trainer profile, and schedule:",
-        buttons: [
-          { id: "btn_select_bsc", title: "Certified BSC Pro" },
-          { id: "btn_back_main", title: "Back to Menu" }
-        ]
-      },
-      x: 200,
-      y: 380
-    },
-    {
       id: "bsc_media",
       type: "MEDIA",
       data: {
         mediaType: "image",
-        mediaUrl: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=1600&auto=format&fit=crop",
-        caption: "🎓 *AI-Powered Certified Balanced Scorecard Professional*\n🏛️ *Institution:* Tanfidh Management Consultants\n👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant & Senior Strategy Advisor)\n\n📅 *Dates:* 13–14 October 2026 (2 Days | 14 Hours)\n📍 *Venue:* Sheraton Oman Hotel, Ruwi Financial District, Muscat\n🏆 *Credential:* Certified Balanced Scorecard Professional (Cryptographic QR Verifiable)\n\n*Key Masterclass Topics:*\n✓ Design 4-Perspective Balanced Scorecards (Financial, Customer, Process, Learning)\n✓ Real-time Strategy Mapping with Generative AI\n✓ Cascading Corporate KPIs to Business Units & Departments\n✓ Designing Executive Dashboards & Automated Exception Alerts\n\n✨ *Executive Package:* 5-Star Sheraton lunches, full course toolkit (Excel/PowerBI), and 2 verifiable credentials."
+        mediaUrl: "{{course.banner_url}}",
+        caption: "🎓 *{{course.name}}*\n🏛️ *Institution:* Tanfidh Management Consultants\n👨‍💼 *Lead Trainer:* {{course.trainer}} ({{course.trainer_designation}})\n\n📅 *Dates:* {{course.dates}} ({{course.duration}})\n📍 *Venue:* {{course.venue}}\n🏆 *Credential:* Certified Balanced Scorecard Professional (Cryptographic QR Verifiable)\n\n*Key Highlights:*\n{{course.highlights}}\n\n✨ *Executive Package:* 5-Star Sheraton lunches, full course toolkit (Excel/PowerBI), and 2 verifiable credentials."
       },
       x: 200,
-      y: 560
+      y: 400
     },
     {
       id: "bsc_actions",
       type: "BUTTONS",
       data: {
-        text: "🎓 *AI-Powered Certified Balanced Scorecard Professional*\n📁 *Category:* Strategy & Executive Leadership (Certification)\n\n📅 *Dates:* 13–14 October 2026 (2 Days | 14 Hours)\n📍 *Venue:* Sheraton Oman Hotel, Muscat\n👥 *Seats:* 26 of 30 seats available\n🎟️ *Special Offer:* Pay for 1 seat, get 1 seat FREE (Buy 1 Get 1 Free)\n💰 *Investment:* OMR 500 (Covers 2 Attendees)\n👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant)\n\nReserve your seat or speak with our team:",
+        text: "🎓 *{{course.name}}*\n📁 *Category:* {{course.category}} ({{course.type}})\n\n📅 *Dates:* {{course.dates}} ({{course.duration}})\n📍 *Venue:* {{course.venue}}\n👥 *Availability:* {{course.seats}}\n🎟️ *Special Offer:* {{course.offer}}\n💰 *Investment:* {{course.price}}\n👨‍💼 *Lead Trainer:* {{course.trainer}}\n\nReserve your seat or speak with our team:",
         buttons: [
-          { id: "btn_book", title: "Book Now" },
-          { id: "btn_support", title: "Talk with Support" },
-          { id: "btn_back_main", title: "Back to Menu" }
+          { id: "btn_book", title: "Book My seat" },
+          { id: "btn_fees", title: "View Fees" },
+          { id: "btn_support", title: "Talk with Support" }
         ]
       },
       x: 200,
-      y: 740
+      y: 580
     },
     {
       id: "fees_view",
       type: "BUTTONS",
       data: {
-        text: "💳 *Course Investment & Special BOGO Offer — 2026*\n\n• *Standard Investment:* OMR 500 per delegate\n• *Special Offer:* Pay for 1 seat, get 1 seat FREE (Buy 1 Get 1 Free)\n• *Corporate Nominations (3+ seats):* Custom enterprise pricing available\n\n🎁 *BOGO Offer Benefits:*\nRegister 1 paid delegate and bring a colleague or team member at ZERO additional cost. Both attendees receive full masterclass access, executive materials, 5-star hotel lunches, and individual credentials.\n\n🏦 *Payment Terms:* Direct Bank Transfer / Wire (Official Corporate Tax Invoice provided).",
+        text: "💳 *Masterclass Investment & Executive Offers*\n\n• *Program:* {{course.name}}\n• *Standard Investment:* {{course.price}} per delegate\n• *Special Offer:* {{course.offer}}\n• *Corporate Nominations (3+ seats):* Custom enterprise pricing available\n\n🎁 *Offer Benefits:*\nRegister 1 paid delegate and bring a colleague or team member at ZERO additional cost. Both attendees receive full masterclass access, executive materials, 5-star hotel lunches, and individual credentials.\n\n🏦 *Payment Terms:* Direct Bank Transfer / Wire (Official Corporate Tax Invoice provided).",
         buttons: [
-          { id: "btn_book", title: "Book Now" },
-          { id: "btn_support", title: "Talk with Support" },
-          { id: "btn_back_main", title: "Back to Menu" }
+          { id: "btn_book", title: "Book My seat" },
+          { id: "btn_details", title: "Course details" },
+          { id: "btn_support", title: "Talk with Support" }
         ]
       },
-      x: 500,
-      y: 380
+      x: 550,
+      y: 400
     },
     {
       id: "contact_view",
@@ -84,24 +71,24 @@ async function main() {
       data: {
         text: "🤝 *Tanfidh Executive Client Support*\n\nOur senior strategy consultants are ready to assist you:\n\n📞 *Direct Line / WhatsApp:* +968 7178 4454 / +968 9935 5438\n✉️ *Email:* saidalharthy@tanfidh.com\n🌐 *Website:* www.tanfidh.com\n📍 *Headquarters:* Ruwi Financial District, Muscat, Sultanate of Oman\n\nAn advisor has been notified. You can also type your questions directly here, and our team will reply shortly.",
         buttons: [
-          { id: "btn_book", title: "Book Now" },
-          { id: "btn_courses", title: "View Our Courses" }
+          { id: "btn_book", title: "Book My seat" },
+          { id: "btn_details", title: "Course details" }
         ]
       },
-      x: 800,
-      y: 380
+      x: 850,
+      y: 400
     },
     {
       id: "ask_name",
       type: "QUESTION",
       data: {
-        text: "To register your seat, please provide your *Full Name* and *Organization / Company*:",
+        text: "To register your seat for *{{course.name}}*, please provide your *Full Name* and *Organization / Company*:",
         name: "full_name",
         inputType: "text",
         required: true
       },
       x: 350,
-      y: 920
+      y: 800
     },
     {
       id: "ask_email",
@@ -113,7 +100,7 @@ async function main() {
         required: true
       },
       x: 350,
-      y: 1100
+      y: 980
     },
     {
       id: "ask_phone",
@@ -125,62 +112,85 @@ async function main() {
         required: true
       },
       x: 350,
-      y: 1280
+      y: 1160
+    },
+    {
+      id: "ask_second_name",
+      type: "QUESTION",
+      data: {
+        text: "🎁 *Special Offer Included (Buy 1 Get 1 Free)*\nYour registration includes a complimentary 2nd seat!\n\nPlease provide the *Full Name* of the second attendee (or reply *'skip'* to nominate later):",
+        name: "second_full_name",
+        inputType: "text",
+        required: false
+      },
+      x: 350,
+      y: 1340
+    },
+    {
+      id: "ask_second_email",
+      type: "QUESTION",
+      data: {
+        text: "Please provide the *Email Address* of the second attendee (or reply *'skip'* to provide later):",
+        name: "second_email",
+        inputType: "text",
+        required: false
+      },
+      x: 350,
+      y: 1520
     },
     {
       id: "payment_instructions",
       type: "QUESTION",
       data: {
-        text: "📋 *Registration Summary:*\n• *Primary Delegate:* {{full_name}}\n• *Email:* {{email}}\n• *Program:* AI-Powered Certified Balanced Scorecard Professional\n• *Total Investment:* OMR 500 (Pay 1 Get 1 Free Applied — 2 Attendees)\n\n🏦 *Official Bank Transfer Details:*\n• *Bank:* {{bank_name}}\n• *Beneficiary:* {{account_name}}\n• *Account Number:* {{account_number}}\n• *IBAN:* {{iban}}\n\n📸 *Final Step:* Please transfer the fee and reply here with a *screenshot or photo of your payment transfer receipt*.",
+        text: "📋 *Registration Summary:*\n• *Primary Delegate:* {{full_name}}\n• *Email:* {{email}}\n• *Program:* {{course.name}}\n• *Schedule:* {{course.dates}} ({{course.duration}})\n• *Venue:* {{course.venue}}\n• *Offer Applied:* {{course.offer}}\n• *Total Investment:* {{course.price}}\n\n🏦 *Official Bank Transfer Details:*\n• *Bank:* {{bank_name}}\n• *Beneficiary:* {{account_name}}\n• *Account Number:* {{account_number}}\n• *IBAN:* {{iban}}\n\n📸 *Final Step:* Please transfer the fee and reply here with a *screenshot or photo of your payment transfer receipt*.",
         name: "payment_receipt",
         inputType: "text",
         required: true
       },
       x: 350,
-      y: 1460
+      y: 1700
     },
     {
       id: "thank_you_receipt",
       type: "MESSAGE",
       data: {
-        text: "✅ *Thank you, {{full_name}}!*\n\nWe have safely received your payment receipt for the *AI-Powered Certified Balanced Scorecard Professional* masterclass.\n\n⏳ Our finance and admissions team is currently reviewing and verifying the bank transfer.\n\nOnce verified, you will receive:\n1. Official Tax Invoice & Payment Receipt (Paid Balance: OMR 500, Balance Due: OMR 0)\n2. Confirmed Seat Allocation & Attendance Voucher\n3. Digital QR Check-In Access Code\n\nIf you need any immediate assistance, our team is right here to help!"
+        text: "✅ *Thank you, {{full_name}}!*\n\nWe have safely received your payment receipt for the *{{course.name}}* masterclass.\n\n⏳ Our finance and admissions team is currently reviewing and verifying the bank transfer.\n\nOnce verified, you will receive:\n1. 📄 Official Tax Invoice & Payment Receipt PDF\n2. 🎟️ Confirmed Seat Allocation & Attendance Voucher\n3. 📲 Digital QR Check-In Access Code\n\nIf you need any immediate assistance, our team is right here to help!"
       },
       x: 350,
-      "y": 1640
+      y: 1880
     },
     {
       id: "end_flow",
       type: "END",
       data: {},
       x: 350,
-      y: 1820
+      y: 2060
     }
   ]
 
   const edges = [
     { id: "e_trig", source: "trigger", target: "greeting" },
-    { id: "e_g_courses", source: "greeting", target: "courses_list", label: "View Our Courses" },
-    { id: "e_g_fees", source: "greeting", target: "fees_view", label: "Course Fees" },
-    { id: "e_g_contact", source: "greeting", target: "contact_view", label: "Contact Us" },
-    
-    { id: "e_c_bsc", source: "courses_list", target: "bsc_media", label: "Certified BSC Pro" },
-    { id: "e_c_back", source: "courses_list", target: "greeting", label: "Back to Menu" },
+    { id: "e_g_book", source: "greeting", target: "ask_name", label: "Book My seat" },
+    { id: "e_g_details", source: "greeting", target: "bsc_media", label: "Course details" },
+    { id: "e_g_fees", source: "greeting", target: "fees_view", label: "View Fees" },
     
     { id: "e_media_act", source: "bsc_media", target: "bsc_actions" },
-    { id: "e_bsc_book", source: "bsc_actions", target: "ask_name", label: "Book Now" },
+    { id: "e_bsc_book", source: "bsc_actions", target: "ask_name", label: "Book My seat" },
+    { id: "e_bsc_fees", source: "bsc_actions", target: "fees_view", label: "View Fees" },
     { id: "e_bsc_sup", source: "bsc_actions", target: "contact_view", label: "Talk with Support" },
-    { id: "e_bsc_back", source: "bsc_actions", target: "greeting", label: "Back to Menu" },
     
-    { id: "e_fees_book", source: "fees_view", target: "ask_name", label: "Book Now" },
+    { id: "e_fees_book", source: "fees_view", target: "ask_name", label: "Book My seat" },
+    { id: "e_fees_details", source: "fees_view", target: "bsc_media", label: "Course details" },
     { id: "e_fees_sup", source: "fees_view", target: "contact_view", label: "Talk with Support" },
-    { id: "e_fees_back", source: "fees_view", target: "greeting", label: "Back to Menu" },
     
-    { id: "e_con_book", source: "contact_view", target: "ask_name", label: "Book Now" },
-    { id: "e_con_courses", source: "contact_view", target: "courses_list", label: "View Our Courses" },
+    { id: "e_con_book", source: "contact_view", target: "ask_name", label: "Book My seat" },
+    { id: "e_con_details", source: "contact_view", target: "bsc_media", label: "Course details" },
     
     { id: "e_name_email", source: "ask_name", target: "ask_email" },
     { id: "e_email_phone", source: "ask_email", target: "ask_phone" },
-    { id: "e_phone_pay", source: "ask_phone", target: "payment_instructions" },
+    { id: "e_phone_sname", source: "ask_phone", target: "ask_second_name" },
+    { id: "e_sname_semail", source: "ask_second_name", target: "ask_second_email" },
+    { id: "e_semail_pay", source: "ask_second_email", target: "payment_instructions" },
     { id: "e_pay_thanks", source: "payment_instructions", target: "thank_you_receipt" },
     { id: "e_thanks_end", source: "thank_you_receipt", target: "end_flow" }
   ]
@@ -196,6 +206,9 @@ async function main() {
       "balanced scorecard",
       "scorecard",
       "register",
+      "seat",
+      "fees",
+      "fee",
       "تسجيل",
       "احجز",
       "دورة",

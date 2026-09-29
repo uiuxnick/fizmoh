@@ -1,9 +1,36 @@
 import { db } from "@/lib/db"
+import { getTenantCourses } from "@/lib/training-service"
 
 export type FlowRuntimeContext = {
   tenantId: string
   customerId: string
   customerPhone: string
+}
+
+function formatCourseDates(start?: string, end?: string): string {
+  if (!start) return ""
+  if (!end || start === end) {
+    try {
+      const d = new Date(start)
+      return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    } catch {
+      return start
+    }
+  }
+  try {
+    const d1 = new Date(start)
+    const d2 = new Date(end)
+    const m1 = d1.toLocaleDateString("en-GB", { month: "short" })
+    const m2 = d2.toLocaleDateString("en-GB", { month: "short" })
+    const y1 = d1.getFullYear()
+    const y2 = d2.getFullYear()
+    if (m1 === m2 && y1 === y2) {
+      return `${d1.getDate()}–${d2.getDate()} ${m1} ${y1}`
+    }
+    return `${d1.getDate()} ${m1} – ${d2.getDate()} ${m2} ${y2}`
+  } catch {
+    return `${start} – ${end}`
+  }
 }
 
 /**
@@ -12,7 +39,7 @@ export type FlowRuntimeContext = {
  * are also safe to pass to the AI node as a small, readable context block.
  */
 export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Record<string, string>> {
-  const [customer, latestOrder, latestAppointment, latestRestaurantOrder, patient, defaultBank] = await Promise.all([
+  const [customer, latestOrder, latestAppointment, latestRestaurantOrder, patient, defaultBank, courses] = await Promise.all([
     db.customer.findFirst({
       where: { id: ctx.customerId, tenantId: ctx.tenantId },
       select: { name: true, email: true, phone: true, stage: true, preferredLang: true, preferredCurrency: true, tags: true, customFields: true },
@@ -41,6 +68,7 @@ export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Reco
       where: { tenantId: ctx.tenantId, isActive: true },
       orderBy: { isDefault: "desc" },
     }).catch(() => null),
+    getTenantCourses(ctx.tenantId).catch(() => []),
   ])
 
   const out: Record<string, string> = {
@@ -84,6 +112,43 @@ export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Reco
     "account_name": defaultBank?.accountName || "",
     "account_number": defaultBank?.accountNumber || "",
     "iban": defaultBank?.iban || defaultBank?.accountNumber || "",
+  }
+
+  const activeCourse = courses.find((c) => c.status === "PUBLISHED") || courses[0]
+  if (activeCourse) {
+    const datesFormatted = formatCourseDates(activeCourse.startDate, activeCourse.endDate) || activeCourse.startDate || ""
+    out["course.id"] = activeCourse.id
+    out["course.name"] = activeCourse.name
+    out["course.short_title"] = activeCourse.shortTitle || activeCourse.name
+    out["course.category"] = activeCourse.category || ""
+    out["course.type"] = activeCourse.type || "Certification"
+    out["course.description"] = activeCourse.description || ""
+    out["course.trainer"] = activeCourse.trainerName || ""
+    out["course.trainer_name"] = activeCourse.trainerName || ""
+    out["course.trainer_designation"] = activeCourse.trainerDesignation || ""
+    out["course.trainer_company"] = activeCourse.trainerCompany || ""
+    out["course.trainer_bio"] = activeCourse.trainerBio || ""
+    out["course.dates"] = datesFormatted
+    out["course.duration"] = activeCourse.duration || `${activeCourse.numDays || 2} Days`
+    out["course.venue"] = `${activeCourse.venueName || ""}${activeCourse.city ? `, ${activeCourse.city}` : ""}`
+    out["course.venue_name"] = activeCourse.venueName || ""
+    out["course.city"] = activeCourse.city || ""
+    out["course.seats"] = `${activeCourse.availableSeats ?? 26} of ${activeCourse.maxSeats ?? 30} seats available`
+    out["course.available_seats"] = String(activeCourse.availableSeats ?? "")
+    out["course.max_seats"] = String(activeCourse.maxSeats ?? "")
+    out["course.price"] = `${activeCourse.currency || "OMR"} ${activeCourse.standardPrice}`
+    out["course_price"] = `${activeCourse.currency || "OMR"} ${activeCourse.standardPrice}`
+    out["course.standard_price"] = String(activeCourse.standardPrice)
+    out["course.currency"] = activeCourse.currency || "OMR"
+    out["course.offer_type"] = activeCourse.offerType || "NONE"
+    out["course.offer"] = activeCourse.offerType === "BOGO"
+      ? "Pay for 1 seat, get 1 seat FREE (Buy 1 Get 1 Free)"
+      : (activeCourse.offerTitle || activeCourse.offerDescription || "Standard Registration")
+    out["course.offer_title"] = activeCourse.offerTitle || ""
+    out["course.offer_description"] = activeCourse.offerDescription || ""
+    out["course.banner_url"] = activeCourse.bannerUrl || "https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=1600&auto=format&fit=crop"
+    out["course.highlights"] = (activeCourse.highlights || []).map(h => `✓ ${h}`).join("\n")
+    out["course.objectives"] = (activeCourse.learningObjectives || []).map(o => `• ${o}`).join("\n")
   }
 
   if (Array.isArray(customer?.tags)) out["customer.tags"] = customer.tags.map(String).join(", ")

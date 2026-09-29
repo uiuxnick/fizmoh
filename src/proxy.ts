@@ -53,6 +53,7 @@ function isPublic(request: NextRequest) {
   // Same arrangement as the voucher above: WhatsApp fetches the document by
   // URL, and the cuid is what makes the address unguessable.
   if (request.method === "GET" && /^\/api\/invoices\/[^/]+\/pdf$/.test(path)) return true
+  if ((request.method === "GET" || request.method === "HEAD") && /^\/api\/training\/registrations\/[^/]+\/pdf$/.test(path)) return true
   // GET only used to be enough for WhatsApp's own fetch, but Messenger/
   // Instagram's Send API sends a HEAD probe first to check content-type and
   // size before downloading — a HEAD here fell through to auth and got a 401,

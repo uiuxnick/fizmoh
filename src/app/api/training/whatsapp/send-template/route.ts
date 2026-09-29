@@ -134,7 +134,27 @@ export const POST = withErrors(async (request: NextRequest) => {
   }
 
   const finalMessage = interpolateTrainingText(textToSend, vars)
-  const cleanPhone = recipientPhone.replace(/[^0-9+]/g, "")
+
+  let targetPhone = recipientPhone
+  if (targetPhone.toLowerCase().includes("same") || targetPhone.replace(/\D/g, "").length < 6) {
+    if (registration?.customerPhone && !registration.customerPhone.toLowerCase().includes("same") && registration.customerPhone.replace(/\D/g, "").length >= 6) {
+      targetPhone = registration.customerPhone
+    } else if (registration?.customerWhatsApp && !registration.customerWhatsApp.toLowerCase().includes("same") && registration.customerWhatsApp.replace(/\D/g, "").length >= 6) {
+      targetPhone = registration.customerWhatsApp
+    } else {
+      const { db } = await import("@/lib/db")
+      const cust = await db.customer.findFirst({
+        where: { tenantId, OR: [{ email: registration?.customerEmail }, { name: registration?.customerName }] },
+        select: { phone: true },
+      })
+      if (cust?.phone) targetPhone = cust.phone
+    }
+  }
+
+  const cleanPhone = targetPhone.replace(/[^0-9+]/g, "")
+  if (!cleanPhone || cleanPhone.length < 6) {
+    return NextResponse.json({ error: "A valid recipient phone number is required" }, { status: 400 })
+  }
 
   const result = await sendWhatsApp({
     to: cleanPhone,

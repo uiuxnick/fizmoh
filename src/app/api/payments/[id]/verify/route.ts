@@ -78,6 +78,21 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
             body: confirmationMsg,
             allowOutsideSession: true,
           })
+
+          // Also dispatch the official PDF receipt document directly to WhatsApp
+          try {
+            const { sendMediaMessage } = await import("@/lib/flow-delivery")
+            const pdfUrl = `https://app.fizmoh.cloud/api/training/registrations/${updatedReg.id}/pdf`
+            await sendMediaMessage({
+              to: cleanPhone,
+              type: "document",
+              mediaUrl: pdfUrl,
+              filename: `Tanfidh-Receipt-${updatedReg.registrationNumber}.pdf`,
+              caption: `Official Payment Receipt & Confirmation Voucher — ${updatedReg.registrationNumber}`,
+            })
+          } catch (pdfErr) {
+            console.warn("[training] Failed to send PDF receipt document via WhatsApp from payments verify:", pdfErr)
+          }
         }
       } catch (err) {
         console.warn("[training] Failed to send receipt from payments verify:", err)
