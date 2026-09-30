@@ -43,6 +43,8 @@ import {
   Bot,
   FileImage,
   Camera,
+  Palette,
+  Save,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -83,7 +85,7 @@ const PIPELINE_STAGES: Array<{ key: RegistrationStage; label: string; color: str
 
 export default function TrainingView() {
   const [activeTab, setActiveTab] = useState<
-    "overview" | "courses" | "registrations" | "attendees" | "certificates" | "feedback" | "reports"
+    "overview" | "courses" | "registrations" | "attendees" | "certificates" | "customize-certificate" | "feedback" | "reports"
   >("overview")
 
   const [loading, setLoading] = useState(true)
@@ -126,6 +128,47 @@ export default function TrainingView() {
   // Certificate Edit Modal State
   const [editingCert, setEditingCert] = useState<CertificateRecord | null>(null)
 
+  // Certificate Customizer Studio State (Outside Dedicated Designer Tab)
+  const [studioTargetId, setStudioTargetId] = useState<string>("")
+  const [studioSaving, setStudioSaving] = useState(false)
+  const [studioForm, setStudioForm] = useState<{
+    id: string
+    isTemplate: boolean
+    courseId: string
+    recipientName: string
+    recipientEmail: string
+    certificateTitle: string
+    certificateSubtitle: string
+    certificateBodyText: string
+    trainerCompany: string
+    trainerName: string
+    trainerDesignation: string
+    showTrainerDesignation: boolean
+    courseDates: string
+    showCourseDates: boolean
+    courseName: string
+    issueDate: string
+    durationHours: string
+  }>({
+    id: "",
+    isTemplate: false,
+    courseId: "",
+    recipientName: "",
+    recipientEmail: "",
+    certificateTitle: "Certificate of Completion",
+    certificateSubtitle: "This is proudly presented to",
+    certificateBodyText: "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+    trainerCompany: "Tanfidh Management Consultants",
+    trainerName: "Said bin Saif Al Harthi",
+    trainerDesignation: "Managing Consultant",
+    showTrainerDesignation: true,
+    courseDates: "October 14–15, 2026",
+    showCourseDates: true,
+    courseName: "Balanced Scorecard Execution Mastery",
+    issueDate: new Date().toISOString().slice(0, 10),
+    durationHours: "2 Days (16 Hours)",
+  })
+
   // WhatsApp manual template trigger modal
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
   const [selectedMsgType, setSelectedMsgType] = useState<string>("CONFIRMATION")
@@ -162,6 +205,143 @@ export default function TrainingView() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Synchronize Studio Customizer Form when Target Changes or Data Loads
+  useEffect(() => {
+    if (!studioTargetId) {
+      if (certificates.length > 0) {
+        setStudioTargetId(`cert:${certificates[0].id}`)
+      } else if (courses.length > 0) {
+        setStudioTargetId(`course:${courses[0].id}`)
+      }
+      return
+    }
+
+    if (studioTargetId.startsWith("cert:")) {
+      const cId = studioTargetId.replace("cert:", "")
+      const found = certificates.find(c => c.id === cId)
+      if (found) {
+        setStudioForm({
+          id: found.id,
+          isTemplate: false,
+          courseId: found.courseId,
+          recipientName: found.recipientName || "",
+          recipientEmail: found.recipientEmail || "",
+          certificateTitle: found.certificateTitle || "Certificate of Completion",
+          certificateSubtitle: found.certificateSubtitle || "This is proudly presented to",
+          certificateBodyText:
+            found.certificateBodyText ||
+            "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+          trainerCompany: found.trainerCompany || "Tanfidh Management Consultants",
+          trainerName: found.trainerName || "Said bin Saif Al Harthi",
+          trainerDesignation: found.trainerDesignation || "Managing Consultant",
+          showTrainerDesignation: found.showTrainerDesignation !== false,
+          courseDates: found.courseDates || "",
+          showCourseDates: found.showCourseDates !== false,
+          courseName: found.courseName || "",
+          issueDate: found.issueDate || new Date().toISOString().slice(0, 10),
+          durationHours: found.durationHours || "16 Hours",
+        })
+      }
+    } else if (studioTargetId.startsWith("course:")) {
+      const cId = studioTargetId.replace("course:", "")
+      const found = courses.find(c => c.id === cId)
+      if (found) {
+        setStudioForm({
+          id: found.id,
+          isTemplate: true,
+          courseId: found.id,
+          recipientName: "Sample Recipient Delegate",
+          recipientEmail: "delegate@example.com",
+          certificateTitle: found.certificateTitle || "Certificate of Completion",
+          certificateSubtitle: found.certificateSubtitle || "This is proudly presented to",
+          certificateBodyText:
+            found.certificateBodyText ||
+            "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+          trainerCompany: found.trainerCompany || "Tanfidh Management Consultants",
+          trainerName: found.trainerName || "Said bin Saif Al Harthi",
+          trainerDesignation: found.trainerDesignation || "Managing Consultant",
+          showTrainerDesignation: found.showTrainerDesignation !== false,
+          courseDates:
+            found.customCourseDates ||
+            (found.startDate && found.endDate ? `${found.startDate} to ${found.endDate}` : "October 14–15, 2026"),
+          showCourseDates: found.showCourseDates !== false,
+          courseName: found.name || "",
+          issueDate: new Date().toISOString().slice(0, 10),
+          durationHours: found.duration || "16 Hours",
+        })
+      }
+    }
+  }, [studioTargetId, certificates, courses])
+
+  // Save Certificate Customizer Form (Live Sync)
+  const handleSaveStudioCertificate = async () => {
+    setStudioSaving(true)
+    try {
+      if (studioForm.isTemplate) {
+        const foundCourse = courses.find(c => c.id === studioForm.courseId)
+        if (!foundCourse) throw new Error("Course template not found")
+        const res = await fetch(`/api/training/courses/${foundCourse.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...foundCourse,
+            certificateTitle: studioForm.certificateTitle,
+            certificateSubtitle: studioForm.certificateSubtitle,
+            certificateBodyText: studioForm.certificateBodyText,
+            trainerCompany: studioForm.trainerCompany,
+            trainerName: studioForm.trainerName,
+            trainerDesignation: studioForm.trainerDesignation,
+            showTrainerDesignation: studioForm.showTrainerDesignation,
+            customCourseDates: studioForm.courseDates,
+            showCourseDates: studioForm.showCourseDates,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success("Course Master Certificate Template saved!")
+          fetchData()
+        } else {
+          toast.error(data.error || "Failed to save template")
+        }
+      } else {
+        const res = await fetch(`/api/training/certificates`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: studioForm.id,
+            updates: {
+              recipientName: studioForm.recipientName,
+              recipientEmail: studioForm.recipientEmail,
+              certificateTitle: studioForm.certificateTitle,
+              certificateSubtitle: studioForm.certificateSubtitle,
+              certificateBodyText: studioForm.certificateBodyText,
+              trainerCompany: studioForm.trainerCompany,
+              trainerName: studioForm.trainerName,
+              trainerDesignation: studioForm.trainerDesignation,
+              showTrainerDesignation: studioForm.showTrainerDesignation,
+              courseDates: studioForm.courseDates,
+              showCourseDates: studioForm.showCourseDates,
+              courseName: studioForm.courseName,
+              issueDate: studioForm.issueDate,
+              durationHours: studioForm.durationHours,
+            },
+          }),
+        })
+        const data = await res.json()
+        if (data.success || data.certificate) {
+          toast.success("Certificate customized & live credential updated!")
+          fetchData()
+        } else {
+          toast.error(data.error || "Failed to update certificate")
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error saving certificate customization")
+    } finally {
+      setStudioSaving(false)
+    }
+  }
 
   // Duplicate Course Action
   const handleDuplicateCourse = async (courseId: string) => {
@@ -574,6 +754,19 @@ export default function TrainingView() {
           </Button>
 
           <Button
+            onClick={() => {
+              if (certificates.length > 0 && !studioTargetId) {
+                setStudioTargetId(`cert:${certificates[0].id}`)
+              }
+              setActiveTab("customize-certificate")
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold gap-1.5 shadow"
+          >
+            <Palette className="h-4 w-4" />
+            <span>Customize Certificate</span>
+          </Button>
+
+          <Button
             variant="outline"
             size="sm"
             onClick={fetchData}
@@ -659,6 +852,7 @@ export default function TrainingView() {
           { key: "registrations", label: `Registrations (${registrations.length})` },
           { key: "attendees", label: `Delegates Roster (${allAttendees.length})` },
           { key: "certificates", label: `Certificates (${certificates.length})` },
+          { key: "customize-certificate", label: "🎨 Customize Certificate" },
           { key: "feedback", label: `Feedback (${feedback.length})` },
           { key: "reports", label: "Financial & Export" },
         ].map(tab => (
@@ -1324,8 +1518,23 @@ export default function TrainingView() {
                 Online verifiable cryptographic credentials issued to delegates
               </p>
             </div>
-            <div className="text-xs font-semibold text-stone-600">
-              {certificates.length} Issued Credentials
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (certificates.length > 0) {
+                    setStudioTargetId(`cert:${certificates[0].id}`)
+                  }
+                  setActiveTab("customize-certificate")
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                <span>Customize Certificate Studio</span>
+              </Button>
+              <div className="text-xs font-semibold text-stone-600">
+                {certificates.length} Issued Credentials
+              </div>
             </div>
           </div>
 
@@ -1353,12 +1562,23 @@ export default function TrainingView() {
                     </td>
                     <td className="p-3 text-right pr-4 space-x-1.5 whitespace-nowrap">
                       <button
+                        onClick={() => {
+                          setStudioTargetId(`cert:${cert.id}`)
+                          setActiveTab("customize-certificate")
+                        }}
+                        className="px-2.5 py-1 rounded bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold text-[10px] border border-purple-200 inline-flex items-center gap-1 shadow-xs transition-colors"
+                        title="Open in Dedicated Certificate Customizer Studio"
+                      >
+                        <Palette className="h-3 w-3" />
+                        <span>Customize Studio</span>
+                      </button>
+                      <button
                         onClick={() => setEditingCert(cert)}
                         className="px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-[10px] inline-flex items-center gap-1"
-                        title="Customize Certificate Template & Details"
+                        title="Quick Edit Modal"
                       >
                         <Edit className="h-3 w-3" />
-                        <span>Edit / Customize</span>
+                        <span>Quick Edit</span>
                       </button>
                       <a
                         href={`/training/verify-certificate/${cert.id}`}
@@ -1374,6 +1594,471 @@ export default function TrainingView() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED TAB: CERTIFICATE CUSTOMIZER STUDIO */}
+      {activeTab === "customize-certificate" && (
+        <div className="space-y-6">
+          {/* Studio Top Control Banner */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                  <Palette className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                    <span>Certificate Customizer Studio</span>
+                    <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200 font-bold">
+                      Live Designer
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Directly customize recipient credentials or master templates. Adjust typography, position styling, course dates, and view live updates.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {!studioForm.isTemplate && studioForm.id && (
+                  <a
+                    href={`/training/verify-certificate/${studioForm.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-semibold text-xs inline-flex items-center gap-1.5 shadow-xs"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-stone-500" />
+                    <span>View Live Credential</span>
+                  </a>
+                )}
+                <Button
+                  onClick={handleSaveStudioCertificate}
+                  disabled={studioSaving}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow"
+                >
+                  <Save className={`h-4 w-4 ${studioSaving ? "animate-spin" : ""}`} />
+                  <span>{studioSaving ? "Saving Live..." : "Save Certificate & Sync Live"}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Target Selector Selector */}
+            <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-50/70 p-3 rounded-xl border border-stone-200">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-700 whitespace-nowrap">Select to Customize:</span>
+                <select
+                  value={studioTargetId}
+                  onChange={e => setStudioTargetId(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-stone-300 bg-white text-xs font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-md"
+                >
+                  <optgroup label="Issued Delegate Certificates">
+                    {certificates.map(c => (
+                      <option key={c.id} value={`cert:${c.id}`}>
+                        [Certificate] {c.recipientName} ({c.id})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Course Master Certificate Templates">
+                    {courses.map(course => (
+                      <option key={course.id} value={`course:${course.id}`}>
+                        [Master Template] {course.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                {studioForm.isTemplate ? (
+                  <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 font-semibold text-[11px]">
+                    Editing Course Master Template (applies to future certificates)
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-[11px] font-mono">
+                    Editing Credential: {studioForm.id}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Studio Two-Column Work Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* LEFT 6 COLS: Customization Controls Form */}
+            <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Settings className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Customization Settings</span>
+                </h4>
+                <span className="text-[11px] text-stone-400">All fields update preview in real-time</span>
+              </div>
+
+              {/* Recipient Details (Active when customizing certificate) */}
+              {!studioForm.isTemplate && (
+                <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-100 space-y-3">
+                  <div className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-purple-700" />
+                    <span>Delegate / Recipient Name</span>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                      Recipient Full Name (as shown on certificate)
+                    </label>
+                    <Input
+                      value={studioForm.recipientName}
+                      onChange={e => setStudioForm({ ...studioForm, recipientName: e.target.value })}
+                      placeholder="e.g. Said bin Saif Al Harthi"
+                      className="h-9 text-xs font-bold text-stone-900 bg-white"
+                    />
+                    <p className="text-[10px] text-stone-500 mt-1">
+                      You can replace placeholders like "Attendee 2 (Nomination Pending)" with the delegate's real name. Saving also updates the attendee roster.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                      Recipient Email (for credential lookup & dispatch)
+                    </label>
+                    <Input
+                      value={studioForm.recipientEmail}
+                      onChange={e => setStudioForm({ ...studioForm, recipientEmail: e.target.value })}
+                      placeholder="delegate@company.com"
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Certificate Titles & Branding */}
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-stone-800">Certificate Header & Titles</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                      Certificate Main Title
+                    </label>
+                    <Input
+                      value={studioForm.certificateTitle}
+                      onChange={e => setStudioForm({ ...studioForm, certificateTitle: e.target.value })}
+                      placeholder="Certificate of Completion"
+                      className="h-8 text-xs font-bold text-stone-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                      Presentation Subtitle
+                    </label>
+                    <Input
+                      value={studioForm.certificateSubtitle}
+                      onChange={e => setStudioForm({ ...studioForm, certificateSubtitle: e.target.value })}
+                      placeholder="This is proudly presented to"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                    Issuing Organization / Company Header
+                  </label>
+                  <Input
+                    value={studioForm.trainerCompany}
+                    onChange={e => setStudioForm({ ...studioForm, trainerCompany: e.target.value })}
+                    placeholder="e.g. Tanfidh Management Consultants (or leave empty to hide)"
+                    className="h-8 text-xs"
+                  />
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    Displays at the very top of the certificate in uppercase gold lettering. Leave blank to omit.
+                  </p>
+                </div>
+              </div>
+
+              {/* Course Title & Dates */}
+              <div className="space-y-3 pt-3 border-t border-stone-100">
+                <div className="text-xs font-bold text-stone-800">Course Program & Dates</div>
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                    Course Program Title
+                  </label>
+                  <Input
+                    value={studioForm.courseName}
+                    onChange={e => setStudioForm({ ...studioForm, courseName: e.target.value })}
+                    placeholder="Balanced Scorecard Execution Mastery"
+                    className="h-8 text-xs font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-stone-600 block">
+                        Course Dates on Certificate
+                      </label>
+                      <label className="inline-flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={studioForm.showCourseDates}
+                          onChange={e => setStudioForm({ ...studioForm, showCourseDates: e.target.checked })}
+                          className="rounded text-purple-600"
+                        />
+                        <span className="text-[10px] text-stone-600 font-medium">Show Dates</span>
+                      </label>
+                    </div>
+                    <Input
+                      value={studioForm.courseDates}
+                      onChange={e => setStudioForm({ ...studioForm, courseDates: e.target.value })}
+                      disabled={!studioForm.showCourseDates}
+                      placeholder="e.g. October 14–15, 2026"
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Clearly mentions the cohort dates on the certificate.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                      Program Duration
+                    </label>
+                    <Input
+                      value={studioForm.durationHours}
+                      onChange={e => setStudioForm({ ...studioForm, durationHours: e.target.value })}
+                      placeholder="e.g. 2 Days (16 Hours)"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                    Award Body Description
+                  </label>
+                  <Textarea
+                    rows={2}
+                    value={studioForm.certificateBodyText}
+                    onChange={e => setStudioForm({ ...studioForm, certificateBodyText: e.target.value })}
+                    className="text-xs resize-none"
+                    placeholder="for successfully completing the rigorous executive requirements for"
+                  />
+                </div>
+              </div>
+
+              {/* Trainer Signatory & Designation Settings */}
+              <div className="space-y-3 pt-3 border-t border-stone-100">
+                <div className="text-xs font-bold text-stone-800">Trainer & Signatory Details</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                      Lead Instructor / Signatory Name
+                    </label>
+                    <Input
+                      value={studioForm.trainerName}
+                      onChange={e => setStudioForm({ ...studioForm, trainerName: e.target.value })}
+                      placeholder="Said bin Saif Al Harthi"
+                      className="h-8 text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-stone-600 block">
+                        Position Below Trainer Name
+                      </label>
+                      <label className="inline-flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={studioForm.showTrainerDesignation}
+                          onChange={e =>
+                            setStudioForm({ ...studioForm, showTrainerDesignation: e.target.checked })
+                          }
+                          className="rounded text-purple-600"
+                        />
+                        <span className="text-[10px] text-stone-600 font-medium">Show Position</span>
+                      </label>
+                    </div>
+                    <Input
+                      value={studioForm.trainerDesignation}
+                      onChange={e => setStudioForm({ ...studioForm, trainerDesignation: e.target.value })}
+                      disabled={!studioForm.showTrainerDesignation}
+                      placeholder="Managing Consultant"
+                      className="h-8 text-xs"
+                    />
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Uncheck "Show Position" or leave empty to remove position below trainer's name. When enabled, it displays in small elegant typography.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                    Date of Issuance
+                  </label>
+                  <Input
+                    type="date"
+                    value={studioForm.issueDate}
+                    onChange={e => setStudioForm({ ...studioForm, issueDate: e.target.value })}
+                    className="h-8 text-xs max-w-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Bottom Action Button */}
+              <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (certificates.length > 0) setStudioTargetId(`cert:${certificates[0].id}`)
+                  }}
+                  className="text-xs text-stone-600"
+                >
+                  Reset Defaults
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveStudioCertificate}
+                  disabled={studioSaving}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow"
+                >
+                  <Save className={`h-4 w-4 ${studioSaving ? "animate-spin" : ""}`} />
+                  <span>{studioSaving ? "Saving Live..." : "Save Certificate & Sync Live"}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* RIGHT 6 COLS: Live WYSIWYG Interactive Certificate Preview */}
+            <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-4">
+              <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold text-stone-900">Real-Time Live Preview</span>
+                </div>
+                <span className="text-[10px] font-mono text-stone-400">
+                  {studioForm.id || "PREVIEW-MODE"}
+                </span>
+              </div>
+
+              {/* Certificate Canvas Card */}
+              <div className="bg-stone-900/90 p-4 sm:p-6 rounded-2xl shadow-xl border border-stone-800">
+                <div className="bg-white rounded-xl border-4 border-double border-amber-300/80 p-6 sm:p-8 text-center space-y-4 shadow-inner relative overflow-hidden">
+                  {/* Watermark / Subtle Seal Background */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                    <Award className="h-96 w-96 text-stone-900" />
+                  </div>
+
+                  {/* Top Bar: Verification ID */}
+                  <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono border-b border-stone-100 pb-2">
+                    <span>CREDENTIAL: {studioForm.id || "CERT-BSC-2026-OM-359924"}</span>
+                    <span>VERIFIED DIGITAL REGISTRY</span>
+                  </div>
+
+                  {/* Medal / Seal Icon */}
+                  <div className="flex justify-center pt-2">
+                    <div className="h-14 w-14 rounded-full bg-amber-50 border-2 border-amber-300 text-amber-600 flex items-center justify-center shadow-xs">
+                      <Award className="h-8 w-8" />
+                    </div>
+                  </div>
+
+                  {/* Company / Issuing Header */}
+                  {studioForm.trainerCompany ? (
+                    <div className="text-[11px] font-bold uppercase tracking-widest text-amber-700">
+                      {studioForm.trainerCompany}
+                    </div>
+                  ) : null}
+
+                  {/* Title & Subtitle */}
+                  <div className="space-y-1">
+                    <h2 className="text-xl sm:text-2xl font-serif font-black text-stone-900 tracking-tight">
+                      {studioForm.certificateTitle || "Certificate of Completion"}
+                    </h2>
+                    <p className="text-xs text-stone-400 italic">
+                      {studioForm.certificateSubtitle || "This is proudly presented to"}
+                    </p>
+                  </div>
+
+                  {/* Recipient Name in Large Typography */}
+                  <div className="py-2">
+                    <div className="text-2xl sm:text-3xl font-black text-stone-900 underline decoration-amber-400 decoration-2 underline-offset-8">
+                      {studioForm.recipientName || "Recipient Delegate Name"}
+                    </div>
+                  </div>
+
+                  {/* Award Body Description */}
+                  <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
+                    {studioForm.certificateBodyText ||
+                      "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"}
+                  </p>
+
+                  {/* Course Program Pill & Dates */}
+                  <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 max-w-md mx-auto space-y-1.5">
+                    <div className="text-sm font-bold text-stone-900">
+                      {studioForm.courseName || "Course Program Title"}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
+                      {studioForm.showCourseDates && studioForm.courseDates ? (
+                        <div className="inline-flex items-center gap-1 font-semibold text-stone-700 bg-white px-2 py-0.5 rounded-full border border-stone-200">
+                          <Calendar className="h-3 w-3 text-amber-600 shrink-0" />
+                          <span>Course Dates: {studioForm.courseDates}</span>
+                        </div>
+                      ) : null}
+                      {studioForm.durationHours ? (
+                        <div className="inline-flex items-center gap-1 text-stone-600 bg-white px-2 py-0.5 rounded-full border border-stone-200">
+                          <Clock className="h-3 w-3 text-amber-600 shrink-0" />
+                          <span>Duration: {studioForm.durationHours}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Signatures & Seal Grid */}
+                  <div className="pt-6 grid grid-cols-2 gap-6 max-w-md mx-auto text-center border-t border-stone-100">
+                    <div>
+                      <div className="text-xs font-bold text-stone-900">{studioForm.trainerName || "Said bin Saif Al Harthi"}</div>
+                      {studioForm.showTrainerDesignation && studioForm.trainerDesignation ? (
+                        <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
+                          {studioForm.trainerDesignation}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-stone-900">{studioForm.issueDate || "2026-09-30"}</div>
+                      <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
+                        Date of Issuance
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Authenticity Bar */}
+                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[10px] text-emerald-700 font-medium">
+                    <span className="inline-flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Authenticated via Fizmoh Registry</span>
+                    </span>
+                    <span className="font-mono text-stone-400">HASH: SHA-256</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Quick Links for Preview */}
+              <div className="flex items-center justify-between text-xs text-stone-500 px-2">
+                <span>Direct Public Link:</span>
+                {!studioForm.isTemplate && studioForm.id ? (
+                  <a
+                    href={`/training/verify-certificate/${studioForm.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-800 font-bold hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>https://app.fizmoh.cloud/training/verify-certificate/{studioForm.id}</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-stone-400 italic">Select an issued credential above to view live link</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
