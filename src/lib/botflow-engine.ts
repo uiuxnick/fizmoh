@@ -1138,6 +1138,50 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
   const flow = flows.find(f => triggerMatches(f, ctx))
   if (!flow) return { matched: false }
 
+  // Suppress training booking flow if customer already has a confirmed or submitted registration
+  const isTrainingFlow =
+    flow.name.toLowerCase().includes("training") ||
+    flow.name.toLowerCase().includes("tanfidh") ||
+    JSON.stringify(flow.nodes).includes("payment_receipt") ||
+    JSON.stringify(flow.nodes).includes("second_full_name")
+
+  if (isTrainingFlow) {
+    try {
+      const { getTenantRegistrations } = await import("@/lib/training-service")
+      const regs = await getTenantRegistrations(ctx.tenantId).catch(() => [])
+      const cleanPhone = (ctx.customerPhone || "").replace(/[^0-9]/g, "")
+      const existingReg = regs.find(r => {
+        const hasBooking =
+          r.status === "CONFIRMED" ||
+          r.paymentStatus === "PAID" ||
+          r.status === "AWAITING_PAYMENT" ||
+          (r.notes && r.notes.includes("Payment receipt proof uploaded"))
+        if (!hasBooking) return false
+        const p1 = (r.customerPhone || "").replace(/[^0-9]/g, "")
+        const p2 = (r.customerWhatsApp || "").replace(/[^0-9]/g, "")
+        return (p1 && (cleanPhone.endsWith(p1.slice(-8)) || p1.endsWith(cleanPhone.slice(-8)))) ||
+               (p2 && (cleanPhone.endsWith(p2.slice(-8)) || p2.endsWith(cleanPhone.slice(-8))))
+      })
+
+      if (existingReg) {
+        const msgLower = (ctx.message || "").toLowerCase().trim()
+        const explicitlyWantsNewBooking =
+          msgLower === "book my seat" ||
+          msgLower.includes("book another") ||
+          msgLower.includes("register new") ||
+          msgLower.includes("new booking") ||
+          msgLower.includes("register another")
+
+        if (!explicitlyWantsNewBooking) {
+          console.log(`[botflow] Customer ${ctx.customerPhone} already has registration (${existingReg.registrationNumber}, status: ${existingReg.status}). Bypassing booking flow -> routing to AI Assistant with Knowledge Base.`)
+          return { matched: false }
+        }
+      }
+    } catch (err) {
+      console.warn("[botflow] Error checking confirmed registration in runBotFlows:", err)
+    }
+  }
+
   const normalized = activeGraph(flow)
   const nodes = normalized.nodes as FlowNode[]
   if (nodes.length === 0) return { matched: false }

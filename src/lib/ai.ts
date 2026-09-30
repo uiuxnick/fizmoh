@@ -1046,8 +1046,11 @@ async function chatOpenAI(
  * already confirmed was asked to send a screenshot again, in the same sentence
  * that congratulated him on the confirmed booking.
  */
-async function customerContext(customerPhone?: string): Promise<string> {
+async function customerContext(customerPhone?: string, tenantId?: string | null): Promise<string> {
   if (!customerPhone) return ""
+
+  const cleanTarget = customerPhone.replace(/[^0-9]/g, "")
+  const effectiveTenantId = tenantId || currentTenant()?.tenantId || ""
 
   const customer = await db.customer.findFirst({
     where: { phone: customerPhone },
@@ -1060,22 +1063,41 @@ async function customerContext(customerPhone?: string): Promise<string> {
     },
   })
 
-  if (!customer) {
-    return `\nAbout this customer:\n- WhatsApp number: ${customerPhone} (use this for bookings; never ask for it)\n- No previous bookings.`
+  // Also query training course registrations for this customer
+  let trainingRegs: any[] = []
+  let courses: any[] = []
+  if (effectiveTenantId) {
+    try {
+      const { getTenantRegistrations, getTenantCourses } = await import("@/lib/training-service")
+      const [allRegs, allCourses] = await Promise.all([
+        getTenantRegistrations(effectiveTenantId).catch(() => []),
+        getTenantCourses(effectiveTenantId).catch(() => []),
+      ])
+      courses = allCourses
+      trainingRegs = allRegs.filter(r => {
+        const p1 = (r.customerPhone || "").replace(/[^0-9]/g, "")
+        const p2 = (r.customerWhatsApp || "").replace(/[^0-9]/g, "")
+        return (p1 && (cleanTarget.endsWith(p1.slice(-8)) || p1.endsWith(cleanTarget.slice(-8)))) ||
+               (p2 && (cleanTarget.endsWith(p2.slice(-8)) || p2.endsWith(cleanTarget.slice(-8))))
+      })
+    } catch (err) {
+      console.warn("[ai] Error fetching training registrations for customerContext:", err)
+    }
   }
 
   const lines = [
     "\nAbout this customer:",
-    `- Name: ${customer.name || "not given yet"}`,
-    `- WhatsApp number: ${customer.phone} (use this for bookings; never ask for it)`,
-    `- Email: ${customer.email || "not given yet"}`,
-    `- Preferred language: ${customer.preferredLang || "en"}`,
-    `- Lifetime: ${customer.totalBookings} bookings, ${customer.totalSpent.toFixed(3)} OMR`,
+    `- Name: ${customer?.name || (trainingRegs[0]?.customerName) || "not given yet"}`,
+    `- WhatsApp number: ${customerPhone} (use this for bookings; never ask for it)`,
+    `- Email: ${customer?.email || (trainingRegs[0]?.customerEmail) || "not given yet"}`,
+    `- Preferred language: ${customer?.preferredLang || "en"}`,
   ]
 
-  if (customer.orders.length === 0) {
-    lines.push("- No bookings yet.")
-  } else {
+  if (customer) {
+    lines.push(`- Lifetime: ${customer.totalBookings} bookings, ${customer.totalSpent.toFixed(3)} OMR`)
+  }
+
+  if (customer && customer.orders.length > 0) {
     lines.push("\nTheir recent orders — trust this over anything earlier in the conversation:")
     for (const order of customer.orders) {
       const payment = order.payments[0]
@@ -1091,6 +1113,42 @@ async function customerContext(customerPhone?: string): Promise<string> {
         `${order.paxAdult} adults${order.paxChild ? ` + ${order.paxChild} children` : ""}, ` +
         `${order.totalAmount.toFixed(3)} OMR — status ${order.orderStatus}, ${outstanding}`,
       )
+    }
+  }
+
+  if (trainingRegs.length > 0) {
+    lines.push("\nExecutive Masterclass & Training Registrations:")
+    for (const reg of trainingRegs) {
+      const cMatch = courses.find((c: any) => c.id === reg.courseId)
+      const courseName = cMatch?.name || reg.courseName || "AI-Powered Certified Balanced Scorecard Professional"
+      const isConfirmed = reg.status === "CONFIRMED" || reg.paymentStatus === "PAID"
+      const attendeeList = (reg.attendees || []).map((a: any) => a.name).filter(Boolean).join(", ") || reg.customerName
+
+      if (isConfirmed) {
+        lines.push(
+          `• ENROLLED & FULLY CONFIRMED ATTENDEE:\n` +
+          `  - Registration Reference: ${reg.registrationNumber}\n` +
+          `  - Program: ${courseName}\n` +
+          `  - Primary Delegate: ${reg.customerName}\n` +
+          `  - Confirmed Seats: ${reg.numberOfSeats} Attendee(s)\n` +
+          `  - Attendees: ${attendeeList}\n` +
+          `  - Payment: OMR ${reg.totalAmount} (PAID & VERIFIED, Balance: OMR 0.00)\n` +
+          `  - Schedule: ${cMatch?.startDate || "13-14 Oct 2026"} to ${cMatch?.endDate || "14-15 Dec 2026"} (08:30–16:30)\n` +
+          `  - Venue: ${cMatch?.venueName || "Sheraton Oman Hotel"}, Muscat\n` +
+          `  - Lead Trainer: Said Al Harthi (Managing Consultant)\n` +
+          `  - Digital Check-In Pass: https://app.fizmoh.cloud/training/checkin?ref=${reg.registrationNumber}\n` +
+          `  - Official PDF Receipt: https://app.fizmoh.cloud/api/training/registrations/${reg.id}/pdf\n` +
+          `  - MANDATORY RULE: This customer has ALREADY BOOKED AND PAID. Never ask them to register, book, or pay again! Address them warmly as a confirmed executive delegate, answer their questions using the Knowledge Base, and provide check-in pass or receipt links if they ask.`
+        )
+      } else {
+        lines.push(
+          `• REGISTRATION SUBMITTED (PENDING VERIFICATION):\n` +
+          `  - Registration Reference: ${reg.registrationNumber}\n` +
+          `  - Program: ${courseName}\n` +
+          `  - Delegate: ${reg.customerName}\n` +
+          `  - Status: Bank transfer receipt submitted, finance team reviewing. Do not ask for another screenshot.`
+        )
+      }
     }
   }
 
@@ -1119,14 +1177,14 @@ export async function aiChat(
         ? "CRITICAL LANGUAGE DIRECTIVE: The customer's preferred language is Arabic. Reply warmly and naturally in Arabic unless they explicitly wrote in another language."
         : `CRITICAL LANGUAGE DIRECTIVE: Reply in the same language the customer just used (${customerLang || "English"}). Write the way a helpful colleague speaks: warm, direct, contractions are fine.`)
 
-  const context = await customerContext(customerPhone)
+  const effectiveTenantId = tenantId || currentTenant()?.tenantId
+  const context = await customerContext(customerPhone, effectiveTenantId)
 
   /*
    * Retrieve official verified business knowledge chunks directly into the prompt.
    * This guarantees that policies (e.g. cancellation notice, rules, training) are
    * accurately answered without depending on tool-calling latency or misses.
    */
-  const effectiveTenantId = tenantId || currentTenant()?.tenantId
   let retrievedKnowledge = ""
   try {
     const { searchKnowledge, knowledgeReady } = await import("@/lib/knowledge")
@@ -1168,7 +1226,7 @@ export async function aiChat(
   /*
    * Who the assistant is working for.
    */
-  const identity = await businessIdentity()
+  const identity = await businessIdentity(effectiveTenantId)
 
   const system = `${ASSISTANT_SYSTEM_PROMPT}\n\n${identity}\n${langInstruction}\n${context}${knowledgeNote}${retrievedKnowledge}`
 
@@ -1680,7 +1738,7 @@ export async function transcribeAudio(
  * guess, because a guess about a refund policy is repeated to a customer as a
  * commitment.
  */
-async function businessIdentity(): Promise<string> {
+async function businessIdentity(tenantId?: string | null): Promise<string> {
   const { getConfigValue } = await import("@/lib/app-config")
   const [name, about, tone, phone, address, website, assistantName] = await Promise.all([
     getConfigValue("business_name"),
@@ -1693,20 +1751,44 @@ async function businessIdentity(): Promise<string> {
   ])
 
   const lines: string[] = []
-  if (assistantName && assistantName.trim()) {
-    lines.push(`Your name is ${assistantName.trim()}. Always introduce yourself and refer to yourself as ${assistantName.trim()}. Never use the default name Najwa or Nizwa unless that is explicitly configured.`)
+
+  let isTanfidh = false
+  if (tenantId) {
+    try {
+      const tenant = await db.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true, customDomain: true },
+      })
+      if (tenant?.name?.toLowerCase().includes("tanfidh") || tenantId === "cmujurq9w005ci36afzax588l") {
+        isTanfidh = true
+      }
+    } catch {}
   }
-  if (name) lines.push(`You are answering on behalf of ${name}. Speak as them, never as a third party.`)
-  if (about) lines.push(`About the business:\n${about}`)
-  if (address) lines.push(`Address: ${address}`)
-  if (phone) lines.push(`Contact number: ${phone}`)
-  if (website) lines.push(`Website: ${website}`)
-  if (tone) lines.push(`Tone to use: ${tone}`)
+
+  if (isTanfidh) {
+    lines.push(
+      `You represent Tanfidh Management Consultants (Muscat, Sultanate of Oman).\n` +
+      `• Organization: Tanfidh Management Consultants — Executive Strategy, Balanced Scorecards (BSC) & Corporate Transformation Advisors.\n` +
+      `• Lead Advisor & Managing Consultant: Said Al Harthi.\n` +
+      `• Tone & Style: Executive, prestigious, articulate, warm, and natural corporate advisory tone.\n` +
+      `• Masterclass Programs: AI-Powered Certified Balanced Scorecard (BSC) Professional, KPI Cascading & Strategy Execution.\n` +
+      `• Schedule & Agendas: Consult the verified Knowledge Base facts for all module details, timings (08:30–16:30), venue, fees, and deliverables.\n` +
+      `• Customer Status: Respect the customer's confirmed booking status. If already confirmed, greet them as an enrolled executive delegate.`
+    )
+  } else {
+    if (assistantName && assistantName.trim()) {
+      lines.push(`Your name is ${assistantName.trim()}. Always introduce yourself and refer to yourself as ${assistantName.trim()}. Never use the default name Najwa or Nizwa unless that is explicitly configured.`)
+    }
+    if (name) lines.push(`You are answering on behalf of ${name}. Speak as them, never as a third party.`)
+    if (about) lines.push(`About the business:\n${about}`)
+    if (address) lines.push(`Address: ${address}`)
+    if (phone) lines.push(`Contact number: ${phone}`)
+    if (website) lines.push(`Website: ${website}`)
+    if (tone) lines.push(`Tone to use: ${tone}`)
+  }
 
   lines.push(
-    "Anything not stated above you do not know. Say you will check rather than " +
-    "inventing a policy, a price or an opening time — an invented answer is remembered " +
-    "as a promise.",
+    "Anything not stated above or in the verified knowledge base facts you do not know. Say you will check with the admissions/consulting team rather than inventing a policy, a price or an opening time — an invented answer is remembered as a promise.",
   )
   return lines.join("\n")
 }

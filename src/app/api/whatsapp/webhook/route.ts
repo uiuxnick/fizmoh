@@ -2042,11 +2042,17 @@ async function handleTextMessage(params: {
     if (detected) intent = detected
   } catch {}
 
+  const convRow = await db.conversation.findUnique({
+    where: { id: conversationId },
+    select: { tenantId: true },
+  })
+  const effectiveTenantId = convRow?.tenantId || currentTenant()?.tenantId || ""
+
   if (isDynamicFlowsEnabled) {
     // A flow waiting on an answer takes precedence over everything: the customer
     // is part-way through a form and their reply belongs to it.
     const resumed = await resumeFlow({
-      tenantId: currentTenant()?.tenantId || "",
+      tenantId: effectiveTenantId,
       conversationId,
       customerId,
       customerPhone: from,
@@ -2063,7 +2069,7 @@ async function handleTextMessage(params: {
     // Operator-authored flows win over a generated reply: they're deterministic,
     // free, and somebody deliberately built them for this exact case.
     const flow = await runBotFlows({
-      tenantId: currentTenant()?.tenantId || "",
+      tenantId: effectiveTenantId,
       conversationId,
       customerId,
       customerPhone: from,
@@ -2120,9 +2126,9 @@ async function handleTextMessage(params: {
 
   // The agent watching the inbox sees the same "typing" the customer does,
   // so a slow reply reads as work in progress rather than a dead conversation.
-  publish({ type: "typing", conversationId, who: "bot", tenantId: currentTenant()?.tenantId || undefined })
+  publish({ type: "typing", conversationId, who: "bot", tenantId: effectiveTenantId || undefined })
 
-  const aiResponse = await aiChat(aiMessages, preferredLang, from)
+  const aiResponse = await aiChat(aiMessages, preferredLang, from, effectiveTenantId)
   const sendResult = await sendWhatsApp({ to: from, body: aiResponse, allowOutsideSession: true })
 
   await db.message.create({
