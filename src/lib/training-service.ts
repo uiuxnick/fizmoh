@@ -701,6 +701,9 @@ export async function issueAttendeeCertificate(
     durationHours: overrides?.durationHours || course.duration,
     credentialUrl: `https://app.fizmoh.cloud/training/verify-certificate/${certId}`,
     accentColor: overrides?.accentColor || course.certificateAccentColor || "amber",
+    templateTheme: overrides?.templateTheme || course.templateTheme || "classic-gold",
+    borderStyle: overrides?.borderStyle || course.borderStyle || "double-border",
+    sealType: overrides?.sealType || course.sealType || "award-seal",
     createdAt: now,
   }
 
@@ -775,6 +778,37 @@ export async function updateCertificateRecord(
   }
 
   return updated
+}
+
+/**
+ * Propagate updated template styling, text, and parameters dynamically to all certificates issued for a course
+ */
+export async function propagateCourseTemplateToCertificates(
+  tenantId: string,
+  courseId: string,
+  templateUpdates: Partial<CertificateRecord>,
+): Promise<number> {
+  const tid = tenantId || PLATFORM
+  const certificates = await getTenantCertificates(tid)
+  let count = 0
+  for (let i = 0; i < certificates.length; i++) {
+    if (certificates[i].courseId === courseId) {
+      certificates[i] = {
+        ...certificates[i],
+        ...templateUpdates,
+        updatedAt: new Date().toISOString(),
+      }
+      count++
+    }
+  }
+  if (count > 0) {
+    await db.systemSetting.upsert({
+      where: { tenantId_key: { tenantId: tid, key: CERTIFICATES_SETTING_KEY } },
+      update: { value: JSON.stringify(certificates), type: "JSON", category: "TRAINING" },
+      create: { tenantId: tid, key: CERTIFICATES_SETTING_KEY, value: JSON.stringify(certificates), type: "JSON", category: "TRAINING" },
+    })
+  }
+  return count
 }
 
 export async function updateAttendeeDetails(

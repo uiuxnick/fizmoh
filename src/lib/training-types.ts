@@ -161,6 +161,9 @@ export interface Course {
   showCourseDates?: boolean
   customCourseDates?: string
   certificateAccentColor?: string
+  templateTheme?: "classic-gold" | "modern-slate" | "royal-navy" | "emerald-prestige"
+  borderStyle?: "double-border" | "solid-border" | "minimal-border" | "none"
+  sealType?: "award-seal" | "ribbon-crest" | "shield-check" | "none"
 
   // Form & Content
   customFields: CustomFormField[]
@@ -261,8 +264,44 @@ export interface CertificateRecord {
   durationHours: string
   credentialUrl: string
   accentColor?: string
+  templateTheme?: "classic-gold" | "modern-slate" | "royal-navy" | "emerald-prestige"
+  borderStyle?: "double-border" | "solid-border" | "minimal-border" | "none"
+  sealType?: "award-seal" | "ribbon-crest" | "shield-check" | "none"
   createdAt: string
   updatedAt?: string
+}
+
+export function interpolateCertificateVariables(
+  text: string = "",
+  ctx: {
+    recipientName?: string
+    courseName?: string
+    courseDates?: string
+    issueDate?: string
+    durationHours?: string
+    trainerCompany?: string
+    trainerName?: string
+    trainerDesignation?: string
+    certificateId?: string
+    verificationHash?: string
+  } = {},
+): string {
+  if (!text) return ""
+  return text
+    .replace(/\{\{\s*recipient_name\s*\}\}/gi, ctx.recipientName || "Recipient Delegate Name")
+    .replace(/\{\{\s*customer_name\s*\}\}/gi, ctx.recipientName || "Recipient Delegate Name")
+    .replace(/\{\{\s*course_name\s*\}\}/gi, ctx.courseName || "Course Program")
+    .replace(/\{\{\s*course_dates\s*\}\}/gi, ctx.courseDates || "")
+    .replace(/\{\{\s*issue_date\s*\}\}/gi, ctx.issueDate || "")
+    .replace(/\{\{\s*duration\s*\}\}/gi, ctx.durationHours || "")
+    .replace(/\{\{\s*duration_hours\s*\}\}/gi, ctx.durationHours || "")
+    .replace(/\{\{\s*company\s*\}\}/gi, ctx.trainerCompany || "")
+    .replace(/\{\{\s*trainer_company\s*\}\}/gi, ctx.trainerCompany || "")
+    .replace(/\{\{\s*trainer_name\s*\}\}/gi, ctx.trainerName || "")
+    .replace(/\{\{\s*trainer_designation\s*\}\}/gi, ctx.trainerDesignation || "")
+    .replace(/\{\{\s*position\s*\}\}/gi, ctx.trainerDesignation || "")
+    .replace(/\{\{\s*certificate_id\s*\}\}/gi, ctx.certificateId || "")
+    .replace(/\{\{\s*verification_hash\s*\}\}/gi, ctx.verificationHash || "")
 }
 
 export interface FeedbackRecord {

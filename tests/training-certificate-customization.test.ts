@@ -5,7 +5,11 @@ import {
   updateCertificateRecord,
   updateAttendeeDetails,
 } from "@/lib/training-service"
-import { calculateRegistrationPricing, Course } from "@/lib/training-types"
+import {
+  calculateRegistrationPricing,
+  Course,
+  interpolateCertificateVariables,
+} from "@/lib/training-types"
 
 describe("Certificate Customization & VAT Features", () => {
   describe("formatCourseDates", () => {
@@ -60,4 +64,40 @@ describe("Certificate Customization & VAT Features", () => {
       expect(result.totalAmount).toBe(500)
     })
   })
+
+  describe("interpolateCertificateVariables", () => {
+    it("interpolates dynamic recipient and course tokens in template text", () => {
+      const template =
+        "Presented to {{recipient_name}} for completing {{course_name}} held on {{course_dates}} by {{trainer_name}} ({{trainer_designation}}) at {{company}}."
+      const output = interpolateCertificateVariables(template, {
+        recipientName: "Said bin Saif Al Harthi",
+        courseName: "Balanced Scorecard Execution Mastery",
+        courseDates: "October 14–15, 2026",
+        trainerName: "Said Al Harthi",
+        trainerDesignation: "Managing Consultant",
+        trainerCompany: "Tanfidh Management Consultants",
+      })
+
+      expect(output).toBe(
+        "Presented to Said bin Saif Al Harthi for completing Balanced Scorecard Execution Mastery held on October 14–15, 2026 by Said Al Harthi (Managing Consultant) at Tanfidh Management Consultants.",
+      )
+    })
+
+    it("handles case-insensitive variable tokens with spaces", () => {
+      const template = "Certificate for {{ RECIPIENT_NAME }} in {{ Course_Name }}"
+      const output = interpolateCertificateVariables(template, {
+        recipientName: "Fatima Al Lawati",
+        courseName: "Strategic KPI Modeling",
+      })
+
+      expect(output).toBe("Certificate for Fatima Al Lawati in Strategic KPI Modeling")
+    })
+
+    it("provides clean fallbacks when variables are missing", () => {
+      const template = "Awarded to {{recipient_name}} for {{course_name}}"
+      const output = interpolateCertificateVariables(template, {})
+      expect(output).toBe("Awarded to Recipient Delegate Name for Course Program")
+    })
+  })
 })
+

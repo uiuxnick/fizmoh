@@ -5,6 +5,7 @@ import {
   getCourseByIdOrSlug,
   saveTenantCourse,
   deleteTenantCourse,
+  propagateCourseTemplateToCertificates,
   type Course,
 } from "@/lib/training-service"
 
@@ -30,20 +31,41 @@ export const PUT = withErrors(
     const { id } = await params
     const tenant = currentTenant()
     const tenantId = tenant?.tenantId || PLATFORM
-    const body = (await request.json()) as Partial<Course>
+    const body = (await request.json()) as any
 
     const existing = await getCourseByIdOrSlug(tenantId, id)
     if (!existing) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
+    const { applyToExistingCertificates, ...courseData } = body
+
     const updated = await saveTenantCourse(tenantId, {
       ...existing,
-      ...body,
+      ...courseData,
       id: existing.id,
     })
 
-    return NextResponse.json({ success: true, course: updated })
+    let propagatedCount = 0
+    if (applyToExistingCertificates) {
+      propagatedCount = await propagateCourseTemplateToCertificates(tenantId, existing.id, {
+        certificateTitle: updated.certificateTitle,
+        certificateSubtitle: updated.certificateSubtitle,
+        certificateBodyText: updated.certificateBodyText,
+        trainerCompany: updated.trainerCompany,
+        trainerName: updated.trainerName,
+        trainerDesignation: updated.trainerDesignation,
+        showTrainerDesignation: updated.showTrainerDesignation,
+        courseDates: updated.customCourseDates,
+        showCourseDates: updated.showCourseDates,
+        templateTheme: updated.templateTheme,
+        borderStyle: updated.borderStyle,
+        sealType: updated.sealType,
+        accentColor: updated.certificateAccentColor,
+      })
+    }
+
+    return NextResponse.json({ success: true, course: updated, propagatedCount })
   },
 )
 

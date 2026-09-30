@@ -45,6 +45,7 @@ import {
   Camera,
   Palette,
   Save,
+  ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,6 +68,7 @@ import {
   PaymentStatus,
   SEED_COURSE_BSC,
   calculateRegistrationPricing,
+  interpolateCertificateVariables,
 } from "@/lib/training-types"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 
@@ -149,6 +151,10 @@ export default function TrainingView() {
     courseName: string
     issueDate: string
     durationHours: string
+    templateTheme: "classic-gold" | "modern-slate" | "royal-navy" | "emerald-prestige"
+    borderStyle: "double-border" | "solid-border" | "minimal-border" | "none"
+    sealType: "award-seal" | "ribbon-crest" | "shield-check" | "none"
+    applyToExistingCertificates: boolean
   }>({
     id: "",
     isTemplate: false,
@@ -167,6 +173,10 @@ export default function TrainingView() {
     courseName: "Balanced Scorecard Execution Mastery",
     issueDate: new Date().toISOString().slice(0, 10),
     durationHours: "2 Days (16 Hours)",
+    templateTheme: "classic-gold",
+    borderStyle: "double-border",
+    sealType: "award-seal",
+    applyToExistingCertificates: true,
   })
 
   // WhatsApp manual template trigger modal
@@ -241,6 +251,10 @@ export default function TrainingView() {
           courseName: found.courseName || "",
           issueDate: found.issueDate || new Date().toISOString().slice(0, 10),
           durationHours: found.durationHours || "16 Hours",
+          templateTheme: found.templateTheme || "classic-gold",
+          borderStyle: found.borderStyle || "double-border",
+          sealType: found.sealType || "award-seal",
+          applyToExistingCertificates: false,
         })
       }
     } else if (studioTargetId.startsWith("course:")) {
@@ -269,6 +283,10 @@ export default function TrainingView() {
           courseName: found.name || "",
           issueDate: new Date().toISOString().slice(0, 10),
           durationHours: found.duration || "16 Hours",
+          templateTheme: found.templateTheme || "classic-gold",
+          borderStyle: found.borderStyle || "double-border",
+          sealType: found.sealType || "award-seal",
+          applyToExistingCertificates: true,
         })
       }
     }
@@ -295,11 +313,18 @@ export default function TrainingView() {
             showTrainerDesignation: studioForm.showTrainerDesignation,
             customCourseDates: studioForm.courseDates,
             showCourseDates: studioForm.showCourseDates,
+            templateTheme: studioForm.templateTheme,
+            borderStyle: studioForm.borderStyle,
+            sealType: studioForm.sealType,
+            applyToExistingCertificates: studioForm.applyToExistingCertificates,
           }),
         })
         const data = await res.json()
         if (data.success) {
-          toast.success("Course Master Certificate Template saved!")
+          const msg = data.propagatedCount
+            ? `Course Master Certificate Template saved and updated ${data.propagatedCount} existing certificate(s)!`
+            : "Course Master Certificate Template saved!"
+          toast.success(msg)
           fetchData()
         } else {
           toast.error(data.error || "Failed to save template")
@@ -325,6 +350,9 @@ export default function TrainingView() {
               courseName: studioForm.courseName,
               issueDate: studioForm.issueDate,
               durationHours: studioForm.durationHours,
+              templateTheme: studioForm.templateTheme,
+              borderStyle: studioForm.borderStyle,
+              sealType: studioForm.sealType,
             },
           }),
         })
@@ -1696,6 +1724,136 @@ export default function TrainingView() {
                 <span className="text-[11px] text-stone-400">All fields update preview in real-time</span>
               </div>
 
+              {/* Template Theme Selector Cards */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                    <Palette className="h-3.5 w-3.5 text-purple-600" />
+                    <span>Certificate Theme & Design Style</span>
+                  </label>
+                  <span className="text-[10px] text-stone-400 font-medium">4 Executive Palettes</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      id: "classic-gold" as const,
+                      name: "Classic Gold",
+                      sub: "Ornate & Amber",
+                      accent: "bg-amber-500",
+                    },
+                    {
+                      id: "modern-slate" as const,
+                      name: "Modern Slate",
+                      sub: "Corporate Minimal",
+                      accent: "bg-slate-800",
+                    },
+                    {
+                      id: "royal-navy" as const,
+                      name: "Royal Navy",
+                      sub: "Academic Blue",
+                      accent: "bg-blue-800",
+                    },
+                    {
+                      id: "emerald-prestige" as const,
+                      name: "Emerald",
+                      sub: "Honors Prestige",
+                      accent: "bg-emerald-700",
+                    },
+                  ].map(thm => {
+                    const isSelected = studioForm.templateTheme === thm.id
+                    return (
+                      <button
+                        key={thm.id}
+                        type="button"
+                        onClick={() => setStudioForm({ ...studioForm, templateTheme: thm.id })}
+                        className={`p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                          isSelected
+                            ? "border-purple-600 bg-purple-50/40 ring-2 ring-purple-500/20 shadow-xs"
+                            : "border-stone-200 hover:border-stone-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className={`h-3 w-8 rounded-full ${thm.accent}`} />
+                          {isSelected && (
+                            <span className="h-4 w-4 rounded-full bg-purple-600 text-white flex items-center justify-center">
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] font-bold text-stone-900 leading-tight">{thm.name}</div>
+                        <div className="text-[9px] text-stone-500 leading-tight mt-0.5">{thm.sub}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Border & Seal Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Frame Border Style
+                  </label>
+                  <select
+                    value={studioForm.borderStyle}
+                    onChange={e =>
+                      setStudioForm({
+                        ...studioForm,
+                        borderStyle: e.target.value as any,
+                      })
+                    }
+                    className="w-full h-8 px-2.5 rounded-lg border border-stone-300 bg-white text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="double-border">Classic Double Ornate</option>
+                    <option value="solid-border">Solid Line Executive</option>
+                    <option value="minimal-border">Minimal Thin Border</option>
+                    <option value="none">Frameless (Clean Flat)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Seal & Crest Style
+                  </label>
+                  <select
+                    value={studioForm.sealType}
+                    onChange={e =>
+                      setStudioForm({
+                        ...studioForm,
+                        sealType: e.target.value as any,
+                      })
+                    }
+                    className="w-full h-8 px-2.5 rounded-lg border border-stone-300 bg-white text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="award-seal">Award Medallion Seal</option>
+                    <option value="shield-check">Security Shield Check</option>
+                    <option value="none">No Seal (Omit)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Master Course Propagation Toggle */}
+              {studioForm.isTemplate && (
+                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="propagate-toggle"
+                      checked={studioForm.applyToExistingCertificates}
+                      onChange={e => setStudioForm({ ...studioForm, applyToExistingCertificates: e.target.checked })}
+                      className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div>
+                      <label htmlFor="propagate-toggle" className="text-xs font-bold text-blue-950 cursor-pointer">
+                        Apply to All Issued Certificates for this Course
+                      </label>
+                      <p className="text-[10px] text-blue-800 leading-tight mt-0.5">
+                        When enabled, saving instantly propagates theme, wording, and layout changes to all existing issued certificates and their live public verification URLs.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Recipient Details (Active when customizing certificate) */}
               {!studioForm.isTemplate && (
                 <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-100 space-y-3">
@@ -1731,8 +1889,47 @@ export default function TrainingView() {
                 </div>
               )}
 
+              {/* Dynamic Variables Inserter Toolbar */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-stone-700 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-purple-600" />
+                    <span>Dynamic Variables (Click to insert into Body)</span>
+                  </label>
+                  <span className="text-[10px] text-stone-400">Resolves in real-time</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { token: "{{recipient_name}}", label: "Recipient" },
+                    { token: "{{course_name}}", label: "Course" },
+                    { token: "{{course_dates}}", label: "Dates" },
+                    { token: "{{duration}}", label: "Duration" },
+                    { token: "{{company}}", label: "Company" },
+                    { token: "{{trainer_name}}", label: "Trainer" },
+                    { token: "{{trainer_designation}}", label: "Position" },
+                    { token: "{{issue_date}}", label: "Issue Date" },
+                  ].map(item => (
+                    <button
+                      key={item.token}
+                      type="button"
+                      onClick={() => {
+                        setStudioForm(prev => ({
+                          ...prev,
+                          certificateBodyText: (prev.certificateBodyText ? `${prev.certificateBodyText} ` : "") + item.token,
+                        }))
+                        toast.success(`Inserted ${item.token}`)
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-stone-100 hover:bg-purple-100 text-stone-700 hover:text-purple-700 border border-stone-200 hover:border-purple-300 text-[10px] font-mono transition-colors"
+                      title={`Insert ${item.token}`}
+                    >
+                      +{item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Certificate Titles & Branding */}
-              <div className="space-y-3">
+              <div className="space-y-3 pt-3 border-t border-stone-100">
                 <div className="text-xs font-bold text-stone-800">Certificate Header & Titles</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -1770,7 +1967,7 @@ export default function TrainingView() {
                     className="h-8 text-xs"
                   />
                   <p className="text-[10px] text-stone-400 mt-1">
-                    Displays at the very top of the certificate in uppercase gold lettering. Leave blank to omit.
+                    Displays at the very top of the certificate in uppercase lettering. Leave blank to omit.
                   </p>
                 </div>
               </div>
@@ -1935,111 +2132,219 @@ export default function TrainingView() {
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs font-bold text-stone-900">Real-Time Live Preview</span>
                 </div>
-                <span className="text-[10px] font-mono text-stone-400">
-                  {studioForm.id || "PREVIEW-MODE"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] font-medium capitalize bg-stone-50">
+                    {studioForm.templateTheme.replace("-", " ")}
+                  </Badge>
+                  <span className="text-[10px] font-mono text-stone-400">
+                    {studioForm.id || "PREVIEW-MODE"}
+                  </span>
+                </div>
               </div>
 
               {/* Certificate Canvas Card */}
-              <div className="bg-stone-900/90 p-4 sm:p-6 rounded-2xl shadow-xl border border-stone-800">
-                <div className="bg-white rounded-xl border-4 border-double border-amber-300/80 p-6 sm:p-8 text-center space-y-4 shadow-inner relative overflow-hidden">
-                  {/* Watermark / Subtle Seal Background */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-                    <Award className="h-96 w-96 text-stone-900" />
-                  </div>
+              {(() => {
+                const previewCtx = {
+                  recipientName: studioForm.recipientName || "Sample Recipient Delegate",
+                  courseName: studioForm.courseName || "Balanced Scorecard Execution Mastery",
+                  courseDates: studioForm.courseDates || "October 14–15, 2026",
+                  issueDate: studioForm.issueDate || new Date().toISOString().slice(0, 10),
+                  durationHours: studioForm.durationHours || "16 Hours",
+                  trainerCompany: studioForm.trainerCompany || "Tanfidh Management Consultants",
+                  trainerName: studioForm.trainerName || "Said bin Saif Al Harthi",
+                  trainerDesignation: studioForm.trainerDesignation || "Managing Consultant",
+                  certificateId: studioForm.id || "CERT-BSC-2026-OM-359924",
+                }
 
-                  {/* Top Bar: Verification ID */}
-                  <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono border-b border-stone-100 pb-2">
-                    <span>CREDENTIAL: {studioForm.id || "CERT-BSC-2026-OM-359924"}</span>
-                    <span>VERIFIED DIGITAL REGISTRY</span>
-                  </div>
+                const theme = studioForm.templateTheme || "classic-gold"
+                const borderStyle = studioForm.borderStyle || "double-border"
+                const sealType = studioForm.sealType || "award-seal"
 
-                  {/* Medal / Seal Icon */}
-                  <div className="flex justify-center pt-2">
-                    <div className="h-14 w-14 rounded-full bg-amber-50 border-2 border-amber-300 text-amber-600 flex items-center justify-center shadow-xs">
-                      <Award className="h-8 w-8" />
-                    </div>
-                  </div>
+                const previewTitle = interpolateCertificateVariables(studioForm.certificateTitle, previewCtx) || "Certificate of Completion"
+                const previewSubtitle = interpolateCertificateVariables(studioForm.certificateSubtitle, previewCtx) || "This is proudly presented to"
+                const previewBody = interpolateCertificateVariables(studioForm.certificateBodyText, previewCtx) || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"
+                const previewCompany = interpolateCertificateVariables(studioForm.trainerCompany, previewCtx)
 
-                  {/* Company / Issuing Header */}
-                  {studioForm.trainerCompany ? (
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-amber-700">
-                      {studioForm.trainerCompany}
-                    </div>
-                  ) : null}
+                const themeStyles: Record<string, {
+                  cardBorder: string
+                  companyText: string
+                  titleFont: string
+                  recipientText: string
+                  sealBg: string
+                  topBar: string
+                  topBarBadge: string
+                  coursePill: string
+                  accentIcon: string
+                }> = {
+                  "classic-gold": {
+                    cardBorder: borderStyle === "double-border" ? "border-4 border-double border-amber-300/90" : borderStyle === "solid-border" ? "border-2 border-amber-400" : borderStyle === "minimal-border" ? "border border-amber-200" : "border-0",
+                    companyText: "text-amber-700 font-bold",
+                    titleFont: "font-serif font-black text-stone-900",
+                    recipientText: "text-stone-900 underline decoration-amber-400 decoration-2",
+                    sealBg: "bg-amber-50 border-2 border-amber-300 text-amber-700",
+                    topBar: "bg-amber-600 text-white",
+                    topBarBadge: "bg-amber-700/60 text-amber-100",
+                    coursePill: "bg-stone-50 border-stone-200",
+                    accentIcon: "text-amber-600",
+                  },
+                  "modern-slate": {
+                    cardBorder: borderStyle === "double-border" ? "border-4 border-double border-slate-400/90" : borderStyle === "solid-border" ? "border-2 border-slate-700" : borderStyle === "minimal-border" ? "border border-slate-300" : "border-0",
+                    companyText: "text-slate-700 font-bold",
+                    titleFont: "font-sans font-extrabold text-slate-900 tracking-tight",
+                    recipientText: "text-slate-900 underline decoration-slate-400 decoration-2",
+                    sealBg: "bg-slate-100 border-2 border-slate-400 text-slate-800",
+                    topBar: "bg-slate-900 text-white",
+                    topBarBadge: "bg-slate-800 text-slate-200",
+                    coursePill: "bg-slate-50 border-slate-200",
+                    accentIcon: "text-slate-700",
+                  },
+                  "royal-navy": {
+                    cardBorder: borderStyle === "double-border" ? "border-4 border-double border-blue-400/90" : borderStyle === "solid-border" ? "border-2 border-blue-600" : borderStyle === "minimal-border" ? "border border-blue-200" : "border-0",
+                    companyText: "text-blue-900 font-bold",
+                    titleFont: "font-serif font-black text-blue-950",
+                    recipientText: "text-blue-950 underline decoration-blue-500 decoration-2",
+                    sealBg: "bg-blue-50 border-2 border-blue-300 text-blue-800",
+                    topBar: "bg-blue-800 text-white",
+                    topBarBadge: "bg-blue-900 text-blue-100",
+                    coursePill: "bg-blue-50/50 border-blue-200",
+                    accentIcon: "text-blue-700",
+                  },
+                  "emerald-prestige": {
+                    cardBorder: borderStyle === "double-border" ? "border-4 border-double border-emerald-400/90" : borderStyle === "solid-border" ? "border-2 border-emerald-400" : borderStyle === "minimal-border" ? "border border-emerald-200" : "border-0",
+                    companyText: "text-emerald-800 font-bold",
+                    titleFont: "font-serif font-black text-emerald-950",
+                    recipientText: "text-emerald-950 underline decoration-emerald-400 decoration-2",
+                    sealBg: "bg-emerald-50 border-2 border-emerald-300 text-emerald-800",
+                    topBar: "bg-emerald-700 text-white",
+                    topBarBadge: "bg-emerald-800 text-emerald-100",
+                    coursePill: "bg-emerald-50/50 border-emerald-200",
+                    accentIcon: "text-emerald-700",
+                  },
+                }
 
-                  {/* Title & Subtitle */}
-                  <div className="space-y-1">
-                    <h2 className="text-xl sm:text-2xl font-serif font-black text-stone-900 tracking-tight">
-                      {studioForm.certificateTitle || "Certificate of Completion"}
-                    </h2>
-                    <p className="text-xs text-stone-400 italic">
-                      {studioForm.certificateSubtitle || "This is proudly presented to"}
-                    </p>
-                  </div>
+                const currentTheme = themeStyles[theme] || themeStyles["classic-gold"]
 
-                  {/* Recipient Name in Large Typography */}
-                  <div className="py-2">
-                    <div className="text-2xl sm:text-3xl font-black text-stone-900 underline decoration-amber-400 decoration-2 underline-offset-8">
-                      {studioForm.recipientName || "Recipient Delegate Name"}
-                    </div>
-                  </div>
-
-                  {/* Award Body Description */}
-                  <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
-                    {studioForm.certificateBodyText ||
-                      "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"}
-                  </p>
-
-                  {/* Course Program Pill & Dates */}
-                  <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 max-w-md mx-auto space-y-1.5">
-                    <div className="text-sm font-bold text-stone-900">
-                      {studioForm.courseName || "Course Program Title"}
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
-                      {studioForm.showCourseDates && studioForm.courseDates ? (
-                        <div className="inline-flex items-center gap-1 font-semibold text-stone-700 bg-white px-2 py-0.5 rounded-full border border-stone-200">
-                          <Calendar className="h-3 w-3 text-amber-600 shrink-0" />
-                          <span>Course Dates: {studioForm.courseDates}</span>
+                return (
+                  <div className="bg-stone-900/90 p-4 sm:p-6 rounded-2xl shadow-xl border border-stone-800">
+                    <div className="rounded-xl overflow-hidden shadow-2xl">
+                      {/* Top Bar: Verification ID */}
+                      <div className={`${currentTheme.topBar} p-3 sm:p-4 px-4 sm:px-6 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 opacity-90" />
+                          <span className="text-[11px] font-bold tracking-wider uppercase">Official Verified Credential</span>
                         </div>
-                      ) : null}
-                      {studioForm.durationHours ? (
-                        <div className="inline-flex items-center gap-1 text-stone-600 bg-white px-2 py-0.5 rounded-full border border-stone-200">
-                          <Clock className="h-3 w-3 text-amber-600 shrink-0" />
-                          <span>Duration: {studioForm.durationHours}</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${currentTheme.topBarBadge}`}>
+                          {studioForm.id || "CERT-PREVIEW-MODE"}
+                        </span>
+                      </div>
 
-                  {/* Signatures & Seal Grid */}
-                  <div className="pt-6 grid grid-cols-2 gap-6 max-w-md mx-auto text-center border-t border-stone-100">
-                    <div>
-                      <div className="text-xs font-bold text-stone-900">{studioForm.trainerName || "Said bin Saif Al Harthi"}</div>
-                      {studioForm.showTrainerDesignation && studioForm.trainerDesignation ? (
-                        <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
-                          {studioForm.trainerDesignation}
+                      {/* Main Canvas Body */}
+                      <div className={`bg-white ${currentTheme.cardBorder} p-6 sm:p-8 text-center space-y-4 shadow-inner relative overflow-hidden`}>
+                        {/* Watermark / Subtle Seal Background */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                          <Award className="h-96 w-96 text-stone-900" />
                         </div>
-                      ) : null}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-stone-900">{studioForm.issueDate || "2026-09-30"}</div>
-                      <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
-                        Date of Issuance
+
+                        {/* Top Hash Bar */}
+                        <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono border-b border-stone-100 pb-2">
+                          <span>CREDENTIAL: {studioForm.id || "CERT-BSC-2026-OM-359924"}</span>
+                          <span>VERIFIED DIGITAL REGISTRY</span>
+                        </div>
+
+                        {/* Seal Icon */}
+                        {sealType !== "none" && (
+                          <div className="flex justify-center pt-2">
+                            <div className={`h-14 w-14 rounded-full flex items-center justify-center shadow-xs ${currentTheme.sealBg}`}>
+                              {sealType === "shield-check" ? (
+                                <ShieldCheck className="h-8 w-8" />
+                              ) : (
+                                <Award className="h-8 w-8" />
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Company / Issuing Header */}
+                        {previewCompany ? (
+                          <div className={`text-[11px] uppercase tracking-widest ${currentTheme.companyText}`}>
+                            {previewCompany}
+                          </div>
+                        ) : null}
+
+                        {/* Title & Subtitle */}
+                        <div className="space-y-1">
+                          <h2 className={`text-xl sm:text-2xl tracking-tight ${currentTheme.titleFont}`}>
+                            {previewTitle}
+                          </h2>
+                          <p className="text-xs text-stone-400 italic">
+                            {previewSubtitle}
+                          </p>
+                        </div>
+
+                        {/* Recipient Name in Large Typography */}
+                        <div className="py-2">
+                          <div className={`text-2xl sm:text-3xl font-black ${currentTheme.recipientText}`}>
+                            {previewCtx.recipientName}
+                          </div>
+                        </div>
+
+                        {/* Award Body Description */}
+                        <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
+                          {previewBody}
+                        </p>
+
+                        {/* Course Program Pill & Dates */}
+                        <div className={`p-3.5 rounded-xl border max-w-md mx-auto space-y-1.5 ${currentTheme.coursePill}`}>
+                          <div className="text-sm font-bold text-stone-900">
+                            {studioForm.courseName || "Course Program Title"}
+                          </div>
+                          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
+                            {studioForm.showCourseDates && studioForm.courseDates ? (
+                              <div className="inline-flex items-center gap-1 font-semibold text-stone-700 bg-white px-2 py-0.5 rounded-full border border-stone-200">
+                                <Calendar className={`h-3 w-3 shrink-0 ${currentTheme.accentIcon}`} />
+                                <span>Course Dates: {studioForm.courseDates}</span>
+                              </div>
+                            ) : null}
+                            {studioForm.durationHours ? (
+                              <div className="inline-flex items-center gap-1 text-stone-600 bg-white px-2 py-0.5 rounded-full border border-stone-200">
+                                <Clock className={`h-3 w-3 shrink-0 ${currentTheme.accentIcon}`} />
+                                <span>Duration: {studioForm.durationHours}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Signatures & Seal Grid */}
+                        <div className="pt-6 grid grid-cols-2 gap-6 max-w-md mx-auto text-center border-t border-stone-100">
+                          <div>
+                            <div className="text-xs font-bold text-stone-900">{studioForm.trainerName || "Said bin Saif Al Harthi"}</div>
+                            {studioForm.showTrainerDesignation && studioForm.trainerDesignation ? (
+                              <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
+                                {studioForm.trainerDesignation}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-stone-900">{studioForm.issueDate || "2026-09-30"}</div>
+                            <div className="text-[9px] text-stone-400 font-medium tracking-wide uppercase mt-0.5">
+                              Date of Issuance
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer Authenticity Bar */}
+                        <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[10px] text-emerald-700 font-medium">
+                          <span className="inline-flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Authenticated via Fizmoh Registry</span>
+                          </span>
+                          <span className="font-mono text-stone-400">HASH: SHA-256</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Footer Authenticity Bar */}
-                  <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-[10px] text-emerald-700 font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Authenticated via Fizmoh Registry</span>
-                    </span>
-                    <span className="font-mono text-stone-400">HASH: SHA-256</span>
-                  </div>
-                </div>
-              </div>
+                )
+              })()}
 
               {/* Bottom Quick Links for Preview */}
               <div className="flex items-center justify-between text-xs text-stone-500 px-2">
