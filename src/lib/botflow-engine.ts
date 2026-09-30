@@ -496,7 +496,7 @@ async function walkSteps(
     if (ctx.runId) await db.flowRun.update({ where: { id: ctx.runId }, data: { currentNodeId: current.id, path: path.slice(-500) } })
     // Refresh before every node so an order, appointment or hospital record
     // created by an earlier node is visible immediately to later nodes.
-    const live = await loadFlowRuntimeData({ tenantId: ctx.tenantId, customerId: ctx.customerId, customerPhone: ctx.customerPhone })
+    const live = await loadFlowRuntimeData({ tenantId: ctx.tenantId, customerId: ctx.customerId, customerPhone: ctx.customerPhone, answers })
     const variables = { ...live, ...answers, name }
     if (DELEGATED.has(current.type)) {
       const outcome = await runNode(current.type as NodeKind, (current.data ?? {}) as never, {
@@ -752,7 +752,16 @@ async function walkSteps(
     try {
       const { getTenantCourses, createCourseRegistration, getTenantRegistrations } = await import("@/lib/training-service")
       const courses = await getTenantCourses(ctx.tenantId)
-      const matchedCourse = courses.find(c => c.botFlowId === flow.id) || courses[0]
+      const selectedCourse = answers.selected_course_id
+        ? courses.find(c =>
+            c.id === answers.selected_course_id ||
+            c.courseId === answers.selected_course_id ||
+            c.slug === answers.selected_course_id ||
+            c.name.toLowerCase().includes(String(answers.selected_course_id).toLowerCase()) ||
+            String(answers.selected_course_id).toLowerCase().includes(c.id.toLowerCase())
+          )
+        : null
+      const matchedCourse = selectedCourse || courses.find(c => c.botFlowId === flow.id) || courses[0]
       if (matchedCourse) {
         const existingRegs = await getTenantRegistrations(ctx.tenantId)
         const alreadyRegistered = existingRegs.some(
@@ -811,7 +820,10 @@ async function walkSteps(
             numberOfSeats: seats,
             paymentMethod: "BANK_TRANSFER",
             source: "WHATSAPP",
-            notes: answers.payment_receipt ? `Payment receipt proof uploaded: ${answers.payment_receipt}` : undefined,
+            notes: [
+              answers.chosen_slot ? `Cohort Dates: ${answers.chosen_slot}` : null,
+              answers.payment_receipt ? `Payment receipt proof uploaded: ${answers.payment_receipt}` : null,
+            ].filter(Boolean).join(" · ") || undefined,
             attendees: inputAttendees,
           })
 

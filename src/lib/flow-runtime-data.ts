@@ -5,6 +5,7 @@ export type FlowRuntimeContext = {
   tenantId: string
   customerId: string
   customerPhone: string
+  answers?: Record<string, any>
 }
 
 function formatCourseDates(start?: string, end?: string): string {
@@ -114,9 +115,20 @@ export async function loadFlowRuntimeData(ctx: FlowRuntimeContext): Promise<Reco
     "iban": defaultBank?.iban || defaultBank?.accountNumber || "",
   }
 
-  const activeCourse = courses.find((c) => c.status === "PUBLISHED") || courses[0]
+  const selectedCourseId = ctx.answers?.selected_course_id || ctx.answers?.course_id || ctx.answers?.chosen_course
+  const selectedCourse = selectedCourseId
+    ? courses.find(c =>
+        c.id === selectedCourseId ||
+        c.slug === selectedCourseId ||
+        c.courseId === selectedCourseId ||
+        c.name.toLowerCase().includes(String(selectedCourseId).toLowerCase()) ||
+        String(selectedCourseId).toLowerCase().includes(c.id.toLowerCase())
+      )
+    : null
+
+  const activeCourse = selectedCourse || courses.find((c) => c.status === "PUBLISHED") || courses[0]
   if (activeCourse) {
-    const datesFormatted = formatCourseDates(activeCourse.startDate, activeCourse.endDate) || activeCourse.startDate || ""
+    const datesFormatted = ctx.answers?.chosen_slot || formatCourseDates(activeCourse.startDate, activeCourse.endDate) || activeCourse.startDate || ""
     out["course.id"] = activeCourse.id
     out["course.name"] = activeCourse.name
     out["course.short_title"] = activeCourse.shortTitle || activeCourse.name
