@@ -5,7 +5,7 @@ import {
   Sparkles, Rocket, Building2, Video, Workflow, CreditCard, ShieldCheck,
   ShoppingBag, Utensils, Calendar, Users, Bot, Zap, Download,
   CheckCircle2, ArrowRight, Layers, Smartphone, FileText, Code2, ShieldAlert, KeyRound, Database,
-  QrCode, MessageCircleQuestion, Megaphone,
+  QrCode, MessageCircleQuestion, Megaphone, Bell,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
@@ -29,6 +29,33 @@ interface Release {
 }
 
 const RELEASES: Release[] = [
+  {
+    dateEn: "30 September 2026",
+    dateAr: "30 سبتمبر 2026",
+    version: "Meta Pricing Notice",
+    titleEn: "Official Meta WhatsApp Business Platform Pricing Updates (Effective October 1, 2026) — Complete Market Rates in OMR & USD",
+    titleAr: "تحديثات أسعار منصة واتساب للأعمال الرسمية من ميتا (تسري بدءاً من 1 أكتوبر 2026) — جدول الأسعار الكامل بالريال العُماني والدولار",
+    badgeEn: "Official Meta Policy Update",
+    badgeAr: "تحديث سياسة وأسعار ميتا",
+    badgeColor: "bg-emerald-100 text-emerald-900 border-emerald-300",
+    icon: Bell,
+    itemsEn: [
+      "The 45-Second Summary: Service Messages sent during an open 24-hour window will no longer be free starting October 1, 2026. Every business phone number receives a free allowance of 1,000 Service Messages per month.",
+      "Service Messages Pricing: Non-template customer service replies beyond the 1,000 monthly allowance will be charged at the standard Utility rate for the destination country.",
+      "In-Window Utility Templates: Order confirmations, tracking, and account alerts sent within an active 24-hour customer service window will now be billed at the standard Utility rate.",
+      "Transparent OMR & USD Market Rates: In Oman, Marketing is ~0.0160 OMR ($0.0415 USD), and Utility / Service is ~0.0060 OMR ($0.0155 USD). All rates are passed directly at cost with 0% Fizmoh markup.",
+      "72-Hour Free Ad Window Preserved: Conversations initiated via Click-to-WhatsApp ads on Facebook and Instagram remain 100% free of conversation charges for 72 full hours.",
+      "Dedicated Interactive Rate Bulletin: Explore the full country-by-country breakdown and currency toggle (OMR / USD) at app.fizmoh.cloud/meta-pricing-update.",
+    ],
+    itemsAr: [
+      "الملخص السريع في 45 ثانية: رسائل الخدمة المرسلة أثناء نافذة الـ 24 ساعة المفتوحة لخدمة العملاء لن تعد مجانية بالكامل بدءاً من 1 أكتوبر 2026. تحصل كل منشأة على 1,000 رسالة خدمة مجانية شهرياً لكل رقم هاتف تجاري.",
+      "تسعيرة رسائل الخدمة (Service Messages): يتم احتساب الردود الحرة غير المقولبة بعد استهلاك الـ 1,000 المجانية بنفس سعر رسائل الخدمة (Utility) المحددة لكل دولة.",
+      "قوالب الخدمة داخل نافذة الـ 24 ساعة: إشعارات الطلبات وتأكيدات الحجز والفواتير المرسلة داخل نافذة الـ 24 ساعة تصبح خاضعة لرسوم رسائل الخدمة المعتمدة.",
+      "تسعيرة شفافة بالريال العُماني والدولار: في سلطنة عُمان، تبلغ رسوم الرسالة التسويقية قرابة 0.0160 ر.ع ($0.0415 دولار)، والخدمية 0.0060 ر.ع ($0.0155 دولار)، وتمررها فزموه مباشرة بـ 0% عمولة.",
+      "الحفاظ على نافذة الإعلانات المجانية لـ 72 ساعة: المحادثات الناتجة عن إعلانات فيسبوك وإنستغرام (Click-to-WhatsApp) تبقى مجانية بالكامل لمدة 3 أيام دون أي رسوم محادثة.",
+      "صفحة ونشرة تفاعلية مخصصة: يمكنك مراجعة جدول التسعيرة لجميع الدول مع إمكانية التبديل بين الريال العُماني والدولار عبر الرابط: app.fizmoh.cloud/meta-pricing-update.",
+    ],
+  },
   {
     dateEn: "28 September 2026",
     dateAr: "28 سبتمبر 2026",
@@ -414,6 +441,49 @@ export default function WhatsNewPage() {
 
         {/* Releases Timeline */}
         <section className="mx-auto max-w-4xl px-4 sm:px-6 py-10 sm:py-12 space-y-5">
+          {/* Featured Meta Pricing Update Callout */}
+          <div className="rounded-2xl border-2 border-emerald-600/40 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white p-5 sm:p-6 shadow-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-400/30 shrink-0 mt-0.5">
+                  <Bell className="h-5 w-5 text-emerald-300 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-400/40">
+                      {isAr ? "إشعار سياسة وأسعار ميتا" : "Official Meta Notice"}
+                    </span>
+                    <span className="text-xs text-emerald-200/90 font-medium">
+                      {isAr ? "1 أكتوبر 2026" : "Oct 1, 2026"}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white leading-snug">
+                    {isAr
+                      ? "تحديثات تسعيرة واتساب الرسمية: رسوم الرسائل بالريال العُماني والدولار الأمريكي"
+                      : "WhatsApp Business Platform Pricing Changes: Rates in OMR & USD"}
+                  </h3>
+                  <p className="text-xs text-emerald-100/80 leading-relaxed max-w-xl">
+                    {isAr
+                      ? "اطلع على التغييرات الجديدة في احتساب رسائل الخدمة والقوالب الخدمية، وحصتك المجانية من 1,000 رسالة شهرياً."
+                      : "Learn about the new rules for service messages, utility templates, 1,000 free monthly tier, and market rates in OMR & USD."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 self-stretch sm:self-auto">
+                <Button
+                  className="w-full sm:w-auto bg-white hover:bg-emerald-50 text-emerald-950 font-bold text-xs rounded-xl h-10 px-4 shadow-sm"
+                  asChild
+                >
+                  <Link href="/meta-pricing-update">
+                    <span>{isAr ? "استعراض جدول الأسعار" : "View Rate Bulletin (OMR & USD)"}</span>
+                    <ArrowRight className={`ml-1.5 h-3.5 w-3.5 ${isAr ? "rotate-180" : ""}`} />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {RELEASES.map((rel, idx) => (
             <article
               key={idx}

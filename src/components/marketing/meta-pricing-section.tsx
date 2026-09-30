@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MetaPricingUpdateBulletin } from "./meta-pricing-update-bulletin"
 import {
   CheckCircle2, ShieldCheck, Sparkles, MessageSquare, Bell, KeyRound,
-  Headphones, Info, ArrowRight, Calculator, Check, X, ExternalLink
+  Headphones, Info, ArrowRight, Calculator, Check, X, ExternalLink, ChevronDown, ChevronUp
 } from "lucide-react"
 
 interface CountryRate {
@@ -125,6 +126,7 @@ const COUNTRY_RATES: CountryRate[] = [
 ]
 
 export function MetaPricingSection({ isAr }: { isAr: boolean }) {
+  const [showBulletin, setShowBulletin] = useState<boolean>(false)
   const [selectedCountry, setSelectedCountry] = useState<string>("OM")
   const [marketingCount, setMarketingCount] = useState<number>(1000)
   const [utilityCount, setUtilityCount] = useState<number>(500)
@@ -146,6 +148,65 @@ export function MetaPricingSection({ isAr }: { isAr: boolean }) {
 
   return (
     <div className="pt-12 border-t border-[var(--mk-line)] space-y-10">
+      {/* Official Meta October 1, 2026 Pricing Notice Banner */}
+      <div className="rounded-2xl border-2 border-emerald-600/40 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white p-5 sm:p-6 shadow-md">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-400/30 shrink-0 mt-0.5">
+              <Bell className="h-5 w-5 text-emerald-300 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 border border-emerald-400/40">
+                  {isAr ? "إشعار هام من ميتا" : "Important Meta Notice"}
+                </span>
+                <span className="text-xs text-emerald-200/90 font-medium">
+                  {isAr ? "يسري من 1 أكتوبر 2026" : "Effective October 1, 2026"}
+                </span>
+              </div>
+              <h4 className="text-base sm:text-lg font-bold text-white leading-snug">
+                {isAr
+                  ? "تحديثات تسعيرة منصة واتساب للأعمال الرسمية من ميتا (OMR & USD)"
+                  : "Meta WhatsApp Business Platform Pricing Updates (OMR & USD Rates)"}
+              </h4>
+              <p className="text-xs text-emerald-100/80 max-w-2xl leading-relaxed">
+                {isAr
+                  ? "تغييرات في احتساب رسائل الخدمة وقوالب Utility مع تخصيص 1,000 محادثة مجانية شهرياً. فزموه تطبق 0% عمولة وتمرر الأسعار بأسعار التكلفة المباشرة."
+                  : "Service messages and utility templates within 24h window become chargeable after 1,000 free monthly allowance. Fizmoh passes official rates at 0% markup."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-stretch md:self-auto justify-end">
+            <button
+              type="button"
+              onClick={() => setShowBulletin(!showBulletin)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white text-emerald-950 hover:bg-emerald-50 transition shadow-xs cursor-pointer"
+            >
+              <span>{showBulletin ? (isAr ? "إخفاء التفاصيل" : "Collapse Bulletin") : (isAr ? "عرض التفاصيل بالريال والدولار" : "View Bulletin (OMR & USD)")}</span>
+              {showBulletin ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-400/50 bg-emerald-900/50 text-emerald-100 hover:bg-emerald-800 text-xs font-bold rounded-xl h-9"
+              asChild
+            >
+              <Link href="/meta-pricing-update">
+                <span>{isAr ? "الصفحة المخصصة" : "Dedicated Page"}</span>
+                <ExternalLink className="h-3.5 w-3.5 ml-1" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Expandable Bulletin */}
+        {showBulletin && (
+          <div className="mt-6 pt-6 border-t border-emerald-800/80 animate-in fade-in duration-300">
+            <MetaPricingUpdateBulletin isAr={isAr} />
+          </div>
+        )}
+      </div>
       {/* Header & Meta Partner Strip */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
         <div className="space-y-3 max-w-3xl">
@@ -350,7 +411,7 @@ export function MetaPricingSection({ isAr }: { isAr: boolean }) {
       </div>
 
       {/* Interactive Meta Cost Estimator */}
-      <div className="rounded-3xl border border-[var(--mk-line)] bg-gradient-to-br from-stone-50 via-white to-stone-50 p-6 sm:p-8 space-y-6 shadow-sm">
+      <div id="meta-calculator" className="rounded-3xl border border-[var(--mk-line)] bg-gradient-to-br from-stone-50 via-white to-stone-50 p-6 sm:p-8 space-y-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
