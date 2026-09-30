@@ -1569,13 +1569,16 @@ export async function syncTrainingCourseRegistration(params: {
     const requestedSeats = parseInt(answers.number_attendees || "1", 10) || 1
     const seats = isBogo ? Math.max(2, requestedSeats) : requestedSeats
 
+    const userCompany = answers.company_name || answers.company || ""
+    const userPosition = answers.position || answers.job_title || answers.designation || ""
+
     const inputAttendees = [
       {
         name: answers.full_name,
         email: answers.email || "",
         phone: primaryPhone,
-        designation: answers.job_title || "",
-        company: answers.company_name || "",
+        designation: userPosition,
+        company: userCompany,
       },
     ]
 
@@ -1588,8 +1591,8 @@ export async function syncTrainingCourseRegistration(params: {
         name: hasRealSecondName ? answers.second_full_name : "Attendee 2 (Nomination Pending)",
         email: secondEmail,
         phone: resolveCustomerPhone(answers.second_mobile),
-        designation: answers.second_job_title || "",
-        company: answers.company_name || "",
+        designation: answers.second_job_title || answers.second_position || "",
+        company: userCompany,
       })
     }
 
@@ -1599,8 +1602,8 @@ export async function syncTrainingCourseRegistration(params: {
       customerPhone: primaryPhone,
       customerWhatsApp: primaryPhone,
       customerEmail: answers.email || `${primaryPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
-      companyName: answers.company_name,
-      jobTitle: answers.job_title,
+      companyName: userCompany,
+      jobTitle: userPosition,
       numberOfSeats: seats,
       paymentMethod: "BANK_TRANSFER",
       paymentStatus: receiptUrl ? "PENDING" : "UNPAID",
