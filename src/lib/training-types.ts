@@ -469,8 +469,9 @@ export function calculateRegistrationPricing(
   couponCode?: string,
 ): PricingCalculationResult {
   const seats = Math.max(1, Number(requestedSeats) || 1)
-  const unitPrice = course.discountPrice && course.discountPrice > 0 ? course.discountPrice : course.standardPrice
-  const vatRate = (course.vatPercent || 0) / 100
+  const unitPrice = Number(course?.discountPrice && course.discountPrice > 0 ? course.discountPrice : course?.standardPrice) || 650
+  const currency = course?.currency || "OMR"
+  const vatRate = (Number(course?.vatPercent) || 0) / 100
 
   let paidSeats = seats
   let freeSeats = 0
@@ -486,7 +487,7 @@ export function calculateRegistrationPricing(
       const regularPriceForAttendees = (paidSeats + freeSeats) * unitPrice
       const actualCharge = paidSeats * unitPrice
       discountAmount = regularPriceForAttendees - actualCharge
-      savingsDescription = `You saved ${course.currency} ${discountAmount.toFixed(2)} with Buy 1 Get 1 Free offer!`
+      savingsDescription = `You saved ${currency} ${discountAmount.toFixed(2)} with Buy 1 Get 1 Free offer!`
       break
     }
 
@@ -512,7 +513,7 @@ export function calculateRegistrationPricing(
       const pct = (course.discountPercent || 10) / 100
       discountAmount = paidSeats * unitPrice * pct
       offerApplied = course.offerTitle || `${course.discountPercent || 10}% Special Discount`
-      savingsDescription = `Saved ${course.currency} ${discountAmount.toFixed(2)} (${(course.discountPercent || 10)}% off)`
+      savingsDescription = `Saved ${currency} ${discountAmount.toFixed(2)} (${(course.discountPercent || 10)}% off)`
       break
     }
 
@@ -520,8 +521,8 @@ export function calculateRegistrationPricing(
       paidSeats = seats
       freeSeats = 0
       discountAmount = Math.min((course.discountAmount || 0) * seats, paidSeats * unitPrice)
-      offerApplied = course.offerTitle || `Fixed Discount of ${course.currency} ${course.discountAmount}`
-      savingsDescription = `Saved ${course.currency} ${discountAmount.toFixed(2)} total`
+      offerApplied = course.offerTitle || `Fixed Discount of ${currency} ${course.discountAmount}`
+      savingsDescription = `Saved ${currency} ${discountAmount.toFixed(2)} total`
       break
     }
 
@@ -531,7 +532,7 @@ export function calculateRegistrationPricing(
       const corpPrice = course.corporatePrice || unitPrice * 0.8
       discountAmount = seats >= 3 ? (unitPrice - corpPrice) * seats : 0
       offerApplied = seats >= 3 ? (course.offerTitle || "Corporate Volume Package") : "Standard"
-      savingsDescription = seats >= 3 ? `Corporate volume rate applied (${course.currency} ${corpPrice} / seat)` : ""
+      savingsDescription = seats >= 3 ? `Corporate volume rate applied (${currency} ${corpPrice} / seat)` : ""
       break
     }
 
@@ -543,7 +544,7 @@ export function calculateRegistrationPricing(
       if (isStillEarly) {
         discountAmount = (unitPrice - ebPrice) * seats
         offerApplied = course.offerTitle || "Early Bird Registration Offer"
-        savingsDescription = `Early bird rate applied (${course.currency} ${ebPrice} / seat)`
+        savingsDescription = `Early bird rate applied (${currency} ${ebPrice} / seat)`
       }
       break
     }

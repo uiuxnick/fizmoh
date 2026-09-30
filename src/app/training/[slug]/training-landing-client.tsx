@@ -41,7 +41,33 @@ interface Props {
   }>
 }
 
-export default function TrainingLandingClient({ course, registrationId, initialSource, bankAccounts = [] }: Props) {
+export default function TrainingLandingClient({ course: rawCourse, registrationId, initialSource, bankAccounts = [] }: Props) {
+  // Normalize course with safe defaults so missing properties never trigger client exceptions
+  const course: Course = {
+    ...rawCourse,
+    shortTitle: rawCourse.shortTitle || rawCourse.name || "",
+    category: rawCourse.category || "Executive Masterclass",
+    type: rawCourse.type || "Certification",
+    mode: rawCourse.mode || "In-person",
+    description: rawCourse.description || "",
+    learningObjectives: Array.isArray(rawCourse.learningObjectives) ? rawCourse.learningObjectives : [],
+    highlights: Array.isArray(rawCourse.highlights) ? rawCourse.highlights : [],
+    targetAudience: Array.isArray(rawCourse.targetAudience) ? rawCourse.targetAudience : [],
+    prerequisites: Array.isArray(rawCourse.prerequisites) ? rawCourse.prerequisites : [],
+    faqs: Array.isArray(rawCourse.faqs) ? rawCourse.faqs : [],
+    customFields: Array.isArray(rawCourse.customFields) ? rawCourse.customFields : [],
+    currency: rawCourse.currency || "OMR",
+    standardPrice: Number(rawCourse.standardPrice) || 650,
+    offerType: rawCourse.offerType || "NONE",
+    offerTitle: rawCourse.offerTitle || "",
+    offerDescription: rawCourse.offerDescription || "",
+    venueName: rawCourse.venueName || "Sheraton Oman Hotel",
+    city: rawCourse.city || "Muscat",
+    maxSeats: Number(rawCourse.maxSeats) || 30,
+    availableSeats: Number(rawCourse.availableSeats) || 24,
+    termsAndConditions: rawCourse.termsAndConditions || "",
+  }
+
   // State for Booking Modal
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestedSeats, setRequestedSeats] = useState<number>(1)
