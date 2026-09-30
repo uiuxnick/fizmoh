@@ -875,13 +875,13 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     return { matched: false }
   }
 
-  // If the flow has been abandoned for more than 4 hours and the customer says "hi" or greeting, start fresh
+  // If the customer sends a greeting, restart or reset keyword, or if flow has been abandoned for > 4 hours, start fresh
   const startedAt = session.startedAt ? new Date(session.startedAt).getTime() : 0
   const isStale = startedAt > 0 && (Date.now() - startedAt) > 4 * 60 * 60 * 1000
-  // What people actually type to start over. "book" was missing while the
-  // Arabic حجز was already here, so an English speaker had no way out.
-  const isGreeting = /^(hi|hii|hello|helo|hey|start|restart|menu|book|booking|مرحبا|مرحباً|أهلا|حجز|احجز|هلا|السلام عليكم|ابدأ)$/i.test(ctx.message.trim())
-  if (isStale && isGreeting) {
+  const isGreeting = /^(hi|hii|hello|helo|hey|start|restart|reset|start over|menu|clear|book|booking|مرحبا|مرحباً|أهلا|حجز|احجز|هلا|السلام عليكم|ابدأ)$/i.test(ctx.message.trim())
+  const isCourseRequest = /^(courses?|masterclass(es)?|programs?|training|curriculum|show courses?|view courses?|list courses?|دورات|دورة|كورس)$/i.test(ctx.message.trim())
+
+  if (isGreeting || isStale || isCourseRequest) {
     await db.conversation.update({ where: { id: ctx.conversationId }, data: { flowState: Prisma.DbNull } })
     return { matched: false }
   }
@@ -979,9 +979,13 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     ]
 
     if (retryChoices.length >= 2) {
+      const buttonPrompt = (smartRecoveryMessage && smartRecoveryMessage !== checked.retry)
+        ? smartRecoveryMessage
+        : (node.data?.text || "Please select an option below:")
+
       await ask(
         ctx,
-        { ...node, data: { ...node.data, text: smartRecoveryMessage, inputType: "select", options: retryChoices } },
+        { ...node, data: { ...node.data, text: buttonPrompt, inputType: "select", options: retryChoices } },
         node.data?.name || node.id,
         session.answers ?? {},
       )
