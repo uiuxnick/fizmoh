@@ -4,6 +4,7 @@ import { db, raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { resolveHospTenantId } from "@/lib/hospital"
 import { currentTenant } from "@/lib/tenant"
+import { withModule } from "@/lib/entitlements"
 
 const DEFAULT_THERAPIES = [
   { id: "th_chemo_std", name: "Chemotherapy Infusion Protocol", category: "Chemotherapy", durationMins: 240, wardType: "Normal & Special Wards", price: 65, currency: "OMR", description: "Standard intravenous chemotherapy infusion with oncology nursing monitoring." },
@@ -14,7 +15,7 @@ const DEFAULT_THERAPIES = [
   { id: "th_nutrition", name: "Oncology Diet & Nutrition Counseling", category: "Wellness", durationMins: 30, wardType: "Consultation Suite", price: 15, currency: "OMR", description: "Personalized dietary plans to counteract chemotherapy side effects and maintain strength." },
 ]
 
-export const GET = withErrors(async (request: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
   const tenantId = await resolveHospTenantId(request)
   const depts = await db.hospDepartment.findMany({
     where: { tenantId },
@@ -32,9 +33,9 @@ export const GET = withErrors(async (request: NextRequest) => {
     therapies,
     departments: depts,
   })
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER"].includes(tenant.role)) {
@@ -64,4 +65,5 @@ export const POST = withErrors(async (request: NextRequest) => {
     create: { tenantId: tenant.tenantId, key: "hospital_therapies", value: JSON.stringify(therapies), type: "JSON", category: "HOSPITAL" },
   })
   return NextResponse.json({ ok: true, therapy }, { status: 201 })
-})
+}))
+

@@ -3,8 +3,9 @@ import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   const b = await db.hospChemoBooking.findFirst({
@@ -13,9 +14,9 @@ export const GET = withErrors(async (req: NextRequest, { params }: { params: Pro
   })
   if (!b) return NextResponse.json({ error: "Not found" }, { status: 404 })
   return NextResponse.json(b)
-})
+}))
 
-export const PUT = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const PUT = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
@@ -28,9 +29,9 @@ export const PUT = withErrors(async (req: NextRequest, { params }: { params: Pro
     data,
   })
   return NextResponse.json({ updated: b.count })
-})
+}))
 
-export const DELETE = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   await db.hospChemoBooking.updateMany({
@@ -38,4 +39,5 @@ export const DELETE = withErrors(async (req: NextRequest, { params }: { params: 
     data: { status: "CANCELLED" },
   })
   return NextResponse.json({ ok: true })
-})
+}))
+

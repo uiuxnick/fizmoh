@@ -16,20 +16,18 @@ export async function resolveHospTenantId(req?: Request): Promise<string> {
   const t = currentTenant()
   if (t?.tenantId) return t.tenantId
 
-  // Public patient routes run on the shared hostname. A tenantId supplied in
-  // the query string is caller-controlled and must never select a workspace.
-  // The public hospital is configured explicitly, then resolved from the
-  // hospital settings row for backwards compatibility with the existing seed.
+  // Public hospital tenant can be explicitly configured via env
   const configured = process.env.HOSPITAL_PUBLIC_TENANT_ID?.trim()
   if (configured) return configured
 
-  // Preserve the existing single-hospital installation, but never choose an
-  // arbitrary row once a second hospital is configured.
+  // Public patient booking routes run on shared hostname without workspace cookie.
+  // Preserve single-hospital fallback for public patient booking, but never choose
+  // an arbitrary row once multiple hospitals exist in the platform.
   const settings = await raw.hospSettings.findMany({ select: { tenantId: true }, take: 2 })
   if (settings.length === 1 && settings[0].tenantId) return settings[0].tenantId
 
   throw new Error(
-    "No hospital workspace could be resolved. Set HOSPITAL_PUBLIC_TENANT_ID, or configure hospital settings for the workspace.",
+    "403 – Access Denied: No hospital workspace context could be resolved for this request.",
   )
 }
 

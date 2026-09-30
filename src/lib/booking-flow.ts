@@ -332,13 +332,17 @@ const DEFAULT_VAT_PERCENT = 5
 
 async function vatRate(): Promise<number> {
   const { getConfigValue } = await import("@/lib/app-config")
+  const enabledRaw = await getConfigValue("vat_enabled").catch(() => "")
+  if (String(enabledRaw).trim().toLowerCase() === "false" || enabledRaw === "0") {
+    return 0
+  }
   const raw = String((await getConfigValue("vat_rate").catch(() => "")) ?? "").trim().replace("%", "")
   // `Number("")` is 0, not NaN — so an unset rate has to be caught before the
   // range check, or "no VAT configured" silently becomes "charge no VAT".
   if (!raw) return DEFAULT_VAT_PERCENT / 100
   const pct = Number(raw)
   if (!Number.isFinite(pct) || pct < 0 || pct > 100) return DEFAULT_VAT_PERCENT / 100
-  return pct / 100
+  return pct > 1 ? pct / 100 : pct
 }
 
 /**

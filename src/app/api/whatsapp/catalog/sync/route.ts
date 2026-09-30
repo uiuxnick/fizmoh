@@ -2,28 +2,44 @@ import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { getWhatsAppConfig } from "@/lib/whatsapp"
+import { getTenantCourses } from "@/lib/training-service"
 import { NextRequest, NextResponse } from "next/server"
 
 /**
  * Meta WhatsApp Catalog Synchronization API
- * Generates and syncs products from MenuItems, Tours & WooCommerce DB Cache into Meta Commerce Catalog
+ * Strictly multi-tenant: products are isolated by the caller's tenantId.
+ * Generates and syncs items from MenuItems, Tours, Training Courses & WooCommerce Cache into Meta Commerce Catalog.
  */
 export const GET = withErrors(async () => {
-  const tenantId = currentTenant()?.tenantId || null
+  const tenant = currentTenant()
+  if (!tenant?.tenantId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "403 – Access Denied: Workspace context required to access catalog feed.",
+        totalItems: 0,
+        feed: [],
+      },
+      { status: 401 },
+    )
+  }
 
-  const [menuItems, tours, wcCache] = await Promise.all([
+  const tenantId = tenant.tenantId
+
+  const [menuItems, tours, wcCache, courses] = await Promise.all([
     db.menuItem.findMany({
-      where: tenantId ? { tenantId } : {},
+      where: { tenantId },
       include: { category: true },
       orderBy: { name: "asc" },
     }),
     db.tour.findMany({
-      where: tenantId ? { tenantId, status: "ACTIVE" } : { status: "ACTIVE" },
+      where: { tenantId, status: "ACTIVE" },
       orderBy: { name: "asc" },
     }),
-    tenantId
-      ? db.systemSetting.findFirst({ where: { tenantId, key: "WOOCOMMERCE_PRODUCTS_CACHE" } })
-      : null,
+    db.systemSetting.findFirst({
+      where: { tenantId, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+    }),
+    getTenantCourses(tenantId).catch(() => []),
   ])
 
   let wcProducts: any[] = []
@@ -38,7 +54,30 @@ export const GET = withErrors(async () => {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
 
+  const courseItems = courses
+    .filter((c: any) => c.status === "PUBLISHED" || !c.status)
+    .map((c: any) => {
+      const priceNum = Number(c.discountPrice && c.discountPrice > 0 ? c.discountPrice : c.standardPrice || c.price || 0)
+      const img = c.bannerImage || c.heroImage || `${baseUrl}/logo.png`
+      const currency = c.currency || "OMR"
+      return {
+        id: `course_${c.id}`,
+        retailer_id: `course_${c.id}`,
+        title: c.name || c.title || "Professional Course",
+        description: (c.subtitle || c.description || c.title || "Training Course").replace(/<[^>]*>?/gm, "").slice(0, 300),
+        availability: "in stock",
+        condition: "new",
+        price: `${priceNum.toFixed(3)} ${currency}`,
+        currency,
+        link: `${baseUrl}/training/${c.slug || c.id}`,
+        image_link: img,
+        brand: "Training Academy",
+        category: c.category || "Professional Training",
+      }
+    })
+
   const catalogFeed = [
+    ...courseItems,
     ...menuItems.map((item) => ({
       id: `item_${item.id}`,
       retailer_id: `dish_${item.id}`,
@@ -95,6 +134,7 @@ export const GET = withErrors(async () => {
   return NextResponse.json({
     success: true,
     totalItems: catalogFeed.length,
+    coursesCount: courseItems.length,
     menuItemsCount: menuItems.length,
     toursCount: tours.length,
     wooCommerceCount: wcProducts.length,
@@ -103,6 +143,15 @@ export const GET = withErrors(async () => {
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  if (!tenant?.tenantId) {
+    return NextResponse.json(
+      { error: "403 – Access Denied: Workspace context required to sync catalog." },
+      { status: 401 },
+    )
+  }
+
+  const tenantId = tenant.tenantId
   const body = await request.json().catch(() => ({}))
   const catalogId = body.catalogId || process.env.META_CATALOG_ID
 
@@ -110,24 +159,24 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Missing Meta catalogId parameter" }, { status: 400 })
   }
 
-  const tenantId = currentTenant()?.tenantId || null
   const config = await getWhatsAppConfig()
 
   if (!config.accessToken) {
     return NextResponse.json({ error: "WhatsApp Access Token not configured" }, { status: 400 })
   }
 
-  const [menuItems, tours, wcCache] = await Promise.all([
+  const [menuItems, tours, wcCache, courses] = await Promise.all([
     db.menuItem.findMany({
-      where: tenantId ? { tenantId } : {},
+      where: { tenantId },
       include: { category: true },
     }),
     db.tour.findMany({
-      where: tenantId ? { tenantId, status: "ACTIVE" } : { status: "ACTIVE" },
+      where: { tenantId, status: "ACTIVE" },
     }),
-    tenantId
-      ? db.systemSetting.findFirst({ where: { tenantId, key: "WOOCOMMERCE_PRODUCTS_CACHE" } })
-      : null,
+    db.systemSetting.findFirst({
+      where: { tenantId, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+    }),
+    getTenantCourses(tenantId).catch(() => []),
   ])
 
   let wcProducts: any[] = []
@@ -142,7 +191,31 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
 
+  const courseRequests = courses
+    .filter((c: any) => c.status === "PUBLISHED" || !c.status)
+    .map((c: any) => {
+      const priceNum = Number(c.discountPrice && c.discountPrice > 0 ? c.discountPrice : c.standardPrice || c.price || 0)
+      const img = c.bannerImage || c.heroImage || `${baseUrl}/logo.png`
+      const currency = c.currency || "OMR"
+      return {
+        method: "UPDATE",
+        retailer_id: `course_${c.id}`,
+        data: {
+          title: c.name || c.title || "Professional Course",
+          description: (c.subtitle || c.description || c.title || "Training Course").replace(/<[^>]*>?/gm, "").slice(0, 300),
+          availability: "in stock",
+          price: Math.round(priceNum * 100),
+          currency,
+          link: `${baseUrl}/training/${c.slug || c.id}`,
+          image_url: img,
+          brand: "Training Academy",
+          category: c.category || "Professional Training",
+        },
+      }
+    })
+
   const requests = [
+    ...courseRequests,
     ...menuItems.map((item) => ({
       method: "UPDATE",
       retailer_id: `dish_${item.id}`,
@@ -226,6 +299,7 @@ export const POST = withErrors(async (request: NextRequest) => {
       success: true,
       catalogId,
       syncedCount: requests.length,
+      coursesCount: courseRequests.length,
       menuItemsCount: menuItems.length,
       toursCount: tours.length,
       wooCommerceCount: wcProducts.length,

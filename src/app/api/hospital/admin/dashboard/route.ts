@@ -4,8 +4,9 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { startOfDay, endOfDay } from "date-fns"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req?: Request) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
   const tenantId = await resolveHospTenantId(req)
   const today = new Date()
 
@@ -44,4 +45,4 @@ export const GET = withErrors(async (req?: Request) => {
     totalAvailable: (normal?.available || 0) + (special?.available || 0),
     doctorAppointmentsToday: totalApts,
   })
-})
+}))

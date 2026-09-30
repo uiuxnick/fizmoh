@@ -3,17 +3,18 @@ import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req?: Request) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
   const tenantId = await resolveHospTenantId(req)
   let s = await db.hospSettings.findUnique({ where: { tenantId } })
   if (!s) {
     s = await db.hospSettings.create({ data: { tenantId } })
   }
   return NextResponse.json(s)
-})
+}))
 
-export const PUT = withErrors(async (req: NextRequest) => {
+export const PUT = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
   const data = {
@@ -27,4 +28,5 @@ export const PUT = withErrors(async (req: NextRequest) => {
     update: data,
   })
   return NextResponse.json(s)
-})
+}))
+

@@ -455,8 +455,8 @@ export default function TrainingView() {
                 address: "Ruwi, Muscat",
                 city: "Muscat",
                 country: "Oman",
-                maxSeats: 30,
-                availableSeats: 30,
+                maxSeats: null,
+                availableSeats: null,
                 standardPrice: 500,
                 currency: "OMR",
                 taxPercent: 0,
@@ -636,7 +636,7 @@ export default function TrainingView() {
                 <div>
                   <span className="text-stone-400 block text-[10px]">Seats Availability:</span>
                   <span className="font-semibold text-emerald-400">
-                    {courses[0].availableSeats} / {courses[0].maxSeats} remaining
+                    {courses[0].maxSeats ? `${courses[0].availableSeats ?? courses[0].maxSeats} / ${courses[0].maxSeats} remaining` : "Unlimited / Open Enrollment"}
                   </span>
                 </div>
               </div>
@@ -793,7 +793,11 @@ export default function TrainingView() {
                       <div className="flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-stone-400 shrink-0" />
                         <span>
-                          <strong>{c.availableSeats}</strong> of {c.maxSeats} seats available
+                          {c.maxSeats ? (
+                            <><strong>{c.availableSeats ?? c.maxSeats}</strong> of {c.maxSeats} seats available</>
+                          ) : (
+                            <strong className="text-emerald-700">Unlimited Capacity (Open Enrollment)</strong>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -2046,19 +2050,24 @@ export default function TrainingView() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-stone-600 block mb-1">
-                        Maximum Seats
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-stone-600 block">
+                          Maximum Seats (Optional)
+                        </label>
+                        <span className="text-[10px] text-stone-400">Leave blank for unlimited</span>
+                      </div>
                       <Input
                         type="number"
-                        value={editingCourse.maxSeats ?? 30}
-                        onChange={e =>
+                        placeholder="Unlimited (Optional)"
+                        value={editingCourse.maxSeats !== null && editingCourse.maxSeats !== undefined ? editingCourse.maxSeats : ""}
+                        onChange={e => {
+                          const val = e.target.value.trim() === "" ? null : Number(e.target.value)
                           setEditingCourse({
                             ...editingCourse,
-                            maxSeats: Number(e.target.value),
-                            availableSeats: Number(e.target.value),
+                            maxSeats: val,
+                            availableSeats: val,
                           })
-                        }
+                        }}
                         className="h-8 text-xs"
                       />
                     </div>

@@ -570,164 +570,9 @@ export default function SettingsView() {
         )}
 
         <TabsContent value="business" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Business Information</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {/*
-                * Three of these four fields used to be decorative: a hardcoded
-                * placeholder with no save handler, so an operator could type a
-                * new support email, tab away, and watch nothing happen — and
-                * find out weeks later that customers were still being given
-                * the old one. Every field here now writes what it shows.
-                */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Business name</Label>
-                  <Input
-                    defaultValue={settings.business_name || ""}
-                    placeholder="Your business"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">AI Assistant Name (Persona Branding)</Label>
-                  <Input
-                    defaultValue={settings.assistant_name || ""}
-                    placeholder="e.g. EMADI Assistant, Nizwa, etc."
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ assistant_name: e.target.value })}
-                  />
-                  <p className="text-[10px] text-stone-500 mt-0.5">The persona name your WhatsApp AI bot introduces itself with.</p>
-                </div>
-                <div>
-                  <Label className="text-xs">Support phone</Label>
-                  <Input
-                    defaultValue={settings.business_phone || ""}
-                    placeholder="+968 …"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_phone: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Support email</Label>
-                  <Input
-                    defaultValue={settings.business_email || ""}
-                    placeholder="support@yourbusiness.com"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Website</Label>
-                  <Input
-                    defaultValue={settings.business_website || ""}
-                    placeholder="https://…"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_website: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Address</Label>
-                  <Input
-                    defaultValue={settings.business_address || ""}
-                    placeholder="Where you are"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_address: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Logo URL</Label>
-                  <Input
-                    defaultValue={settings.business_logo || ""}
-                    placeholder="https://… (square image)"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ business_logo: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs">About your business</Label>
-                <textarea
-                  defaultValue={settings.business_about || ""}
-                  placeholder="What you sell, where you operate, opening hours, policies…"
-                  rows={5}
-                  className="mt-1 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-sm"
-                  onBlur={e => saveSettings({ business_about: e.target.value })}
-                />
-                <p className="mt-1 text-[11px] text-stone-500">
-                  Written for the assistant as much as for people. Everything here is context it
-                  can use when answering a customer, so vagueness here becomes vagueness in the
-                  replies.
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-xs">How replies should sound</Label>
-                <Input
-                  defaultValue={settings.business_tone || ""}
-                  placeholder="e.g. warm and brief; formal; Arabic and English"
-                  className="mt-1 bg-white"
-                  onBlur={e => saveSettings({ business_tone: e.target.value })}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Languages className="h-4 w-4" />Localization</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Base Currency</Label>
-                  <Select defaultValue="OMR">
-                    <SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OMR">OMR — Omani Rial</SelectItem>
-                      <SelectItem value="USD">USD — US Dollar</SelectItem>
-                      <SelectItem value="AED">AED — UAE Dirham</SelectItem>
-                      <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Primary Language</Label>
-                  <Select defaultValue="en">
-                    <SelectTrigger className="mt-1 bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="ar">Arabic (RTL)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">VAT Rate (%)</Label>
-                  <Input type="number" step="0.01" defaultValue="5" className="mt-1 bg-white" onBlur={e => saveSettings({ vat_rate: parseFloat(e.target.value) / 100 })} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />Working Hours</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Opening Time</Label>
-                  <Input type="time" defaultValue="08:00" className="mt-1 bg-white" />
-                </div>
-                <div>
-                  <Label className="text-xs">Closing Time</Label>
-                  <Input type="time" defaultValue="22:00" className="mt-1 bg-white" />
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Switch defaultChecked />
-                <Label className="text-sm">AI assistant handles bookings 24/7 (even outside working hours)</Label>
-              </div>
-            </CardContent>
-          </Card>
+          <BusinessProfileCard settings={settings} saveSettings={saveSettings} />
+          <LocalizationAndTaxCard settings={settings} saveSettings={saveSettings} />
+          <WorkingHoursCard settings={settings} saveSettings={saveSettings} />
         </TabsContent>
 
         {/* Payment */}
@@ -1455,80 +1300,7 @@ export default function SettingsView() {
 
         {/* Email */}
         <TabsContent value="email" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Email Configuration (SMTP)</CardTitle>
-                <Badge className={settings.smtp_host ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
-                  {settings.smtp_host ? "SMTP Active" : "Simulation Mode"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">SMTP Host</Label>
-                  <Input
-                    defaultValue={settings.smtp_host || ""}
-                    placeholder="smtp.sendgrid.net"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_host: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Port</Label>
-                  <Input
-                    type="number"
-                    defaultValue={settings.smtp_port || "587"}
-                    placeholder="587"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_port: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Username</Label>
-                  <Input
-                    defaultValue={settings.smtp_user || ""}
-                    placeholder="apikey"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_user: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Password / API Key</Label>
-                  <Input
-                    type="password"
-                    defaultValue={settings.smtp_password || ""}
-                    placeholder="••••••••••••"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_password: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">From Email</Label>
-                  <Input
-                    defaultValue={settings.smtp_from || ""}
-                    placeholder="bookings@omanadventures.om"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_from: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">From Name</Label>
-                  <Input
-                    defaultValue={settings.smtp_from_name || ""}
-                    placeholder="Oman Adventures"
-                    className="mt-1 bg-white"
-                    onBlur={e => saveSettings({ smtp_from_name: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="p-3 rounded-lg bg-stone-50 border text-xs text-stone-600">
-                <Shield className="h-3.5 w-3.5 inline mr-1 text-emerald-600" />
-                Recommended ESPs: Amazon SES, SendGrid, Postmark. Configure SPF/DKIM/DMARC for deliverability.
-              </div>
-            </CardContent>
-          </Card>
+          <EmailConfigCard settings={settings} saveSettings={saveSettings} />
         </TabsContent>
 
         {/* Notifications */}
@@ -2711,3 +2483,617 @@ function WebsiteAndDomainSection({
     </div>
   )
 }
+
+function BusinessProfileCard({
+  settings,
+  saveSettings,
+}: {
+  settings: Record<string, any>
+  saveSettings: (updates: Record<string, any>) => Promise<void>
+}) {
+  const [form, setForm] = useState({
+    business_name: "",
+    assistant_name: "",
+    business_phone: "",
+    business_email: "",
+    business_website: "",
+    business_address: "",
+    business_logo: "",
+    business_about: "",
+    business_tone: "",
+  })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setForm({
+      business_name: settings.business_name || "",
+      assistant_name: settings.assistant_name || "",
+      business_phone: settings.business_phone || "",
+      business_email: settings.business_email || "",
+      business_website: settings.business_website || "",
+      business_address: settings.business_address || "",
+      business_logo: settings.business_logo || "",
+      business_about: settings.business_about || "",
+      business_tone: settings.business_tone || "",
+    })
+  }, [settings])
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSaving(true)
+    try {
+      await saveSettings(form)
+      toast.success("Business profile saved successfully")
+    } catch {
+      // Handled in saveSettings
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-emerald-600" />
+            Business Information
+          </CardTitle>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Identity and contact details used across customer chats, bot greetings, and booking confirmations.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          {saving ? "Saving..." : "Save Business Information"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Business Name</Label>
+            <Input
+              value={form.business_name}
+              placeholder="e.g. Tanfidh Institute"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">AI Assistant Name (Persona Branding)</Label>
+            <Input
+              value={form.assistant_name}
+              placeholder="e.g. Tanfidh Advisor, Najwa, etc."
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, assistant_name: e.target.value }))}
+            />
+            <p className="text-[10px] text-stone-500 mt-0.5">The persona name your WhatsApp AI bot introduces itself with.</p>
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Support Phone</Label>
+            <Input
+              value={form.business_phone}
+              placeholder="+968 …"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_phone: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Support Email</Label>
+            <Input
+              type="email"
+              value={form.business_email}
+              placeholder="support@yourbusiness.com"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_email: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Website</Label>
+            <Input
+              value={form.business_website}
+              placeholder="https://…"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_website: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Address</Label>
+            <Input
+              value={form.business_address}
+              placeholder="Office, City, Sultanate of Oman"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_address: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <Label className="text-xs font-medium text-stone-700">Logo URL</Label>
+            <Input
+              value={form.business_logo}
+              placeholder="https://… (square image)"
+              className="mt-1 bg-white text-xs"
+              onChange={e => setForm(f => ({ ...f, business_logo: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-stone-700">About Your Business</Label>
+          <textarea
+            value={form.business_about}
+            placeholder="What you offer, target audience, operating locations, and policies…"
+            rows={4}
+            className="mt-1 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            onChange={e => setForm(f => ({ ...f, business_about: e.target.value }))}
+          />
+          <p className="mt-1 text-[11px] text-stone-500">
+            Provided as context to the AI assistant so it accurately answers customer questions on WhatsApp.
+          </p>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-stone-700">How Replies Should Sound (Tone & Language)</Label>
+          <Input
+            value={form.business_tone}
+            placeholder="e.g. professional and warm; bilingual Arabic & English; concise"
+            className="mt-1 bg-white text-xs"
+            onChange={e => setForm(f => ({ ...f, business_tone: e.target.value }))}
+          />
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? "Saving..." : "Save Business Information"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function LocalizationAndTaxCard({
+  settings,
+  saveSettings,
+}: {
+  settings: Record<string, any>
+  saveSettings: (updates: Record<string, any>) => Promise<void>
+}) {
+  const [currency, setCurrency] = useState(settings.currency || "OMR")
+  const [language, setLanguage] = useState(settings.primary_language || "en")
+  const [vatEnabled, setVatEnabled] = useState<boolean>(() => {
+    if (settings.vat_enabled === false || settings.vat_enabled === "false" || settings.vat_enabled === "0") return false
+    return true
+  })
+  const [vatRate, setVatRate] = useState<string>(() => {
+    if (settings.vat_rate === undefined || settings.vat_rate === null || settings.vat_rate === "") return "5"
+    const num = Number(settings.vat_rate)
+    if (!Number.isFinite(num)) return "5"
+    return num <= 1 && num > 0 ? String(Number((num * 100).toFixed(2))) : String(num)
+  })
+  const [vatNumber, setVatNumber] = useState(settings.vat_number || "")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setCurrency(settings.currency || "OMR")
+    setLanguage(settings.primary_language || "en")
+    setVatEnabled(settings.vat_enabled !== false && settings.vat_enabled !== "false" && settings.vat_enabled !== "0")
+    if (settings.vat_rate !== undefined && settings.vat_rate !== null && settings.vat_rate !== "") {
+      const num = Number(settings.vat_rate)
+      if (Number.isFinite(num)) {
+        setVatRate(num <= 1 && num > 0 ? String(Number((num * 100).toFixed(2))) : String(num))
+      }
+    }
+    setVatNumber(settings.vat_number || "")
+  }, [settings])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const parsedRate = parseFloat(vatRate)
+      const validRate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0
+      await saveSettings({
+        currency,
+        primary_language: language,
+        vat_enabled: vatEnabled,
+        vat_rate: validRate,
+        vat_number: vatNumber.trim(),
+      })
+      toast.success("Localization & Tax settings saved successfully")
+    } catch {
+      // Handled in saveSettings
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Languages className="h-4 w-4 text-emerald-600" />
+            Localization &amp; Tax Settings
+          </CardTitle>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Configure currency, primary system language, and value-added tax (VAT) compliance rules.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          {saving ? "Saving..." : "Save Localization & Tax"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Base Currency</Label>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="mt-1 bg-white text-xs"><SelectValue placeholder="Select currency" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="OMR">OMR — Omani Rial (ر.ع.)</SelectItem>
+                <SelectItem value="AED">AED — UAE Dirham (د.إ)</SelectItem>
+                <SelectItem value="SAR">SAR — Saudi Riyal (ر.س)</SelectItem>
+                <SelectItem value="USD">USD — US Dollar ($)</SelectItem>
+                <SelectItem value="EUR">EUR — Euro (€)</SelectItem>
+                <SelectItem value="GBP">GBP — British Pound (£)</SelectItem>
+                <SelectItem value="QAR">QAR — Qatari Riyal (ر.ق)</SelectItem>
+                <SelectItem value="KWD">KWD — Kuwaiti Dinar (د.ك)</SelectItem>
+                <SelectItem value="BHD">BHD — Bahraini Dinar (د.ب)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-stone-500 mt-1">Applied to store items, tours, training courses, and invoices.</p>
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Primary Language</Label>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="mt-1 bg-white text-xs"><SelectValue placeholder="Select language" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English (LTR)</SelectItem>
+                <SelectItem value="ar">العربية — Arabic (RTL)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-stone-500 mt-1">Default language for web templates, automated notifications, and vouchers.</p>
+          </div>
+        </div>
+
+        {/* VAT Section with Toggle */}
+        <div className="rounded-xl border border-stone-200/90 bg-stone-50/60 p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Percent className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm font-semibold text-stone-800">Value Added Tax (VAT)</span>
+                {vatEnabled ? (
+                  <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                    VAT Active ({vatRate || 5}%)
+                  </Badge>
+                ) : (
+                  <Badge className="bg-stone-200 text-stone-600 border border-stone-300 text-[10px] font-medium">
+                    VAT Disabled (0% / Exempt)
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-stone-500">
+                Enable or disable VAT charges across all bookings, course orders, and generated receipts.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-stone-600">{vatEnabled ? "ON" : "OFF"}</span>
+              <Switch checked={vatEnabled} onCheckedChange={setVatEnabled} />
+            </div>
+          </div>
+
+          {vatEnabled ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-stone-200/60">
+              <div>
+                <Label className="text-xs font-medium text-stone-700">VAT Rate (%)</Label>
+                <div className="relative mt-1">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={vatRate}
+                    onChange={e => setVatRate(e.target.value)}
+                    className="bg-white pr-8 text-xs"
+                    placeholder="5"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-stone-400 font-semibold">%</span>
+                </div>
+                <p className="text-[10px] text-stone-500 mt-1">Standard rate in the Sultanate of Oman is 5%.</p>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-stone-700">VAT Registration / Tax ID Number</Label>
+                <Input
+                  value={vatNumber}
+                  onChange={e => setVatNumber(e.target.value)}
+                  placeholder="e.g. OM12345678"
+                  className="mt-1 bg-white text-xs"
+                />
+                <p className="text-[10px] text-stone-500 mt-1">Printed on formal tax receipts and booking vouchers.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200/80 text-xs text-amber-800 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Tax Exempt Mode:</strong> VAT calculation is disabled. Customers will not be charged VAT at checkout, and invoices will show 0% tax.
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? "Saving..." : "Save Localization & Tax"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function WorkingHoursCard({
+  settings,
+  saveSettings,
+}: {
+  settings: Record<string, any>
+  saveSettings: (updates: Record<string, any>) => Promise<void>
+}) {
+  const [openTime, setOpenTime] = useState(settings.working_hours_open || "08:00")
+  const [closeTime, setCloseTime] = useState(settings.working_hours_close || "22:00")
+  const [ai247, setAi247] = useState<boolean>(settings.ai_24_7 !== false && settings.ai_24_7 !== "false")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setOpenTime(settings.working_hours_open || "08:00")
+    setCloseTime(settings.working_hours_close || "22:00")
+    setAi247(settings.ai_24_7 !== false && settings.ai_24_7 !== "false")
+  }, [settings])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await saveSettings({
+        working_hours_open: openTime,
+        working_hours_close: closeTime,
+        ai_24_7: ai247,
+      })
+      toast.success("Working hours saved successfully")
+    } catch {
+      // Handled in saveSettings
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-emerald-600" />
+            Working Hours &amp; Availability
+          </CardTitle>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Define your operational business hours and automated 24/7 AI response rules.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          {saving ? "Saving..." : "Save Working Hours"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Opening Time</Label>
+            <Input
+              type="time"
+              value={openTime}
+              onChange={e => setOpenTime(e.target.value)}
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Closing Time</Label>
+            <Input
+              type="time"
+              value={closeTime}
+              onChange={e => setCloseTime(e.target.value)}
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between p-3 rounded-lg border bg-stone-50/60">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium text-stone-800">24/7 Automated AI Assistant</Label>
+            <p className="text-xs text-stone-500">AI assistant continues answering inquiries and booking appointments even outside working hours.</p>
+          </div>
+          <Switch checked={ai247} onCheckedChange={setAi247} />
+        </div>
+        <div className="flex justify-end pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? "Saving..." : "Save Working Hours"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function EmailConfigCard({
+  settings,
+  saveSettings,
+}: {
+  settings: Record<string, any>
+  saveSettings: (updates: Record<string, any>) => Promise<void>
+}) {
+  const [host, setHost] = useState(settings.smtp_host || "")
+  const [port, setPort] = useState(settings.smtp_port || "587")
+  const [user, setUser] = useState(settings.smtp_user || "")
+  const [password, setPassword] = useState(settings.smtp_password || "")
+  const [from, setFrom] = useState(settings.smtp_from || "")
+  const [fromName, setFromName] = useState(settings.smtp_from_name || "")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setHost(settings.smtp_host || "")
+    setPort(settings.smtp_port || "587")
+    setUser(settings.smtp_user || "")
+    setPassword(settings.smtp_password || "")
+    setFrom(settings.smtp_from || "")
+    setFromName(settings.smtp_from_name || "")
+  }, [settings])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await saveSettings({
+        smtp_host: host.trim(),
+        smtp_port: port ? parseInt(port, 10) : 587,
+        smtp_user: user.trim(),
+        smtp_password: password,
+        smtp_from: from.trim(),
+        smtp_from_name: fromName.trim(),
+      })
+      toast.success("Email configuration saved successfully")
+    } catch {
+      // Handled in saveSettings
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4 text-emerald-600" />
+              Email Configuration (SMTP)
+            </CardTitle>
+            <Badge className={host ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
+              {host ? "SMTP Active" : "Simulation Mode"}
+            </Badge>
+          </div>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Configure your custom outgoing SMTP server for transactional booking confirmations and invoices.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          {saving ? "Saving..." : "Save Email Config"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-medium text-stone-700">SMTP Host</Label>
+            <Input
+              value={host}
+              onChange={e => setHost(e.target.value)}
+              placeholder="smtp.sendgrid.net"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Port</Label>
+            <Input
+              type="number"
+              value={port}
+              onChange={e => setPort(e.target.value)}
+              placeholder="587"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Username</Label>
+            <Input
+              value={user}
+              onChange={e => setUser(e.target.value)}
+              placeholder="apikey"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">Password / API Key</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••••••"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">From Email</Label>
+            <Input
+              type="email"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              placeholder="bookings@yourbusiness.com"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-stone-700">From Name</Label>
+            <Input
+              value={fromName}
+              onChange={e => setFromName(e.target.value)}
+              placeholder="Your Business Name"
+              className="mt-1 bg-white text-xs"
+            />
+          </div>
+        </div>
+        <div className="p-3 rounded-lg bg-stone-50 border text-xs text-stone-600 flex items-center gap-2">
+          <Shield className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          <span>Recommended ESPs: Amazon SES, SendGrid, Postmark, Resend. Configure SPF/DKIM/DMARC on your domain for inbox deliverability.</span>
+        </div>
+        <div className="flex justify-end pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? "Saving..." : "Save Email Config"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+

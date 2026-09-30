@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { addMinutes, format, parse, isBefore, isAfter, startOfDay, endOfDay } from "date-fns"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
@@ -49,4 +50,5 @@ export const GET = withErrors(async (req: NextRequest, { params }: { params: Pro
   }
 
   return NextResponse.json({ slots })
-})
+}))
+

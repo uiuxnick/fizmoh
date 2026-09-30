@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { startOfDay, endOfDay, addMinutes } from "date-fns"
+import { withModule } from "@/lib/entitlements"
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const { bedId, bookingDate, sessionId, patientRef } = await req.json()
   if (!bedId || !bookingDate || !patientRef || String(patientRef).length < 8) {
@@ -66,9 +67,9 @@ export const POST = withErrors(async (req: NextRequest) => {
   })
 
   return NextResponse.json({ hold, expiresAt: hold.expiresAt, holdMins })
-})
+}))
 
-export const DELETE = withErrors(async (req: NextRequest) => {
+export const DELETE = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const url = new URL(req.url)
   const holdId = url.searchParams.get("holdId")
   const patientRef = url.searchParams.get("patientRef")
@@ -76,4 +77,5 @@ export const DELETE = withErrors(async (req: NextRequest) => {
     await db.hospBedHold.deleteMany({ where: { id: holdId, patientRef } })
   }
   return NextResponse.json({ ok: true })
-})
+}))
+

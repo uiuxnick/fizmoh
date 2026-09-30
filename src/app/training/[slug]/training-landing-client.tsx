@@ -65,11 +65,10 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
     standardPrice: Number(rawCourse.standardPrice) || 650,
     offerType: rawCourse.offerType || "NONE",
     offerTitle: rawCourse.offerTitle || "",
-    offerDescription: rawCourse.offerDescription || "",
     venueName: rawCourse.venueName || "Sheraton Oman Hotel",
     city: rawCourse.city || "Muscat",
-    maxSeats: Number(rawCourse.maxSeats) || 30,
-    availableSeats: Number(rawCourse.availableSeats) || 24,
+    maxSeats: rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null,
+    availableSeats: rawCourse.availableSeats != null ? Number(rawCourse.availableSeats) : (rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null),
     termsAndConditions: rawCourse.termsAndConditions || "",
     trainerName: rawCourse.trainerName || "Said bin Saif Al Harthi",
     trainerDesignation: rawCourse.trainerDesignation || "Executive Director and Senior Consultant and Trainer",
@@ -377,12 +376,18 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                 </a>
               </div>
 
-              {/* Seats scarcity badge */}
+              {/* Seats capacity badge */}
               <div className="flex items-center gap-2 text-xs text-stone-500 pt-1">
                 <Users className="h-4 w-4 text-amber-600" />
                 <span>
-                  Limited Cohort Size: <strong>{course.maxSeats} seats total</strong> &bull;{" "}
-                  <span className="text-emerald-700 font-semibold">{course.availableSeats} seats remaining</span>
+                  {course.maxSeats ? (
+                    <>
+                      Limited Cohort Size: <strong>{course.maxSeats} seats total</strong> &bull;{" "}
+                      <span className="text-emerald-700 font-semibold">{course.availableSeats ?? course.maxSeats} seats remaining</span>
+                    </>
+                  ) : (
+                    <span className="text-emerald-700 font-semibold">Open Cohort Enrollment &bull; Flexible Capacity</span>
+                  )}
                 </span>
               </div>
             </div>

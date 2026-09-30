@@ -3,8 +3,9 @@ import { resolveHospTenantId } from "@/lib/hospital"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req?: Request) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
   const tenantId = await resolveHospTenantId(req)
   const includeInactive = req ? new URL(req.url).searchParams.get("includeInactive") === "1" : false
   const docs = await db.hospDoctor.findMany({
@@ -13,9 +14,9 @@ export const GET = withErrors(async (req?: Request) => {
     orderBy: { name: "asc" },
   })
   return NextResponse.json(docs)
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const actor = currentTenant()
   if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN"].includes(actor.role)) return NextResponse.json({ error: "Only hospital administrators can manage doctors" }, { status: 403 })
@@ -51,4 +52,5 @@ export const POST = withErrors(async (req: NextRequest) => {
     })
   }
   return NextResponse.json(doc, { status: 201 })
-})
+}))
+

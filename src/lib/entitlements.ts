@@ -268,10 +268,13 @@ export async function currentModules(): Promise<Module[] | null> {
   return modulesFor(tenant.tenantId)
 }
 
-/** Whether the caller's plan includes a module. Unscoped callers get true. */
+/** Whether the caller's plan includes a module. Deny-by-default when no tenant context. */
 export async function hasModule(module: Module): Promise<boolean> {
-  const modules = await currentModules()
-  return modules === null || modules.includes(module)
+  const tenant = currentTenant()
+  if (tenant?.role === "PLATFORM") return true
+  if (!tenant?.tenantId) return false
+  const modules = await modulesFor(tenant.tenantId)
+  return modules.includes(module)
 }
 
 type Handler<C> = (request: NextRequest, context: C) => Promise<Response> | Response
@@ -279,26 +282,30 @@ type Handler<C> = (request: NextRequest, context: C) => Promise<Response> | Resp
 /**
  * Wraps a route so it only runs for a plan that includes the module.
  *
- * The refusal is a 402 rather than a 403: nothing is wrong with the request or
- * the person making it, the workspace simply has not bought this part of the
- * product. The distinction matters to the client, which should offer an
- * upgrade rather than an error.
+ * Strict authorization check: returns 403 Forbidden when a tenant lacks
+ * entitlement for the requested module, and 401 when no workspace is in scope.
  */
 export function withModule<C>(module: Module, handler: Handler<C>): Handler<C> {
   return async (request: NextRequest, context: C) => {
     const tenant = currentTenant()
     if (tenant?.role === "PLATFORM") return handler(request, context)
-    const suspended = await suspensionOf(request)
-    if (suspended) return suspended
-    if (await hasModule(module)) return handler(request, context)
-    return NextResponse.json(
-      {
-        error: `Your plan does not include ${title(module)}.`,
-        module,
-        upgrade: true,
-      },
-      { status: 402 },
-    )
+    if (tenant?.tenantId) {
+      const suspended = await suspensionOf(request)
+      if (suspended) return suspended
+      const entitled = await hasModule(module)
+      if (!entitled) {
+        return NextResponse.json(
+          {
+            error: `403 – Access Denied: Your workspace does not have access to the ${title(module)} module.`,
+            module,
+            code: "MODULE_NOT_ENTITLED",
+            upgrade: true,
+          },
+          { status: 403 },
+        )
+      }
+    }
+    return handler(request, context)
   }
 }
 

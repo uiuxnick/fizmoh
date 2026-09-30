@@ -78,25 +78,29 @@ export function buildVoucherPayload(voucher: any, order: any): string {
 async function issuer(tenantId: string | null) {
   const { getConfigValue } = await import("@/lib/app-config")
   const { raw } = await import("@/lib/db")
-  const [name, email, phone, vatNumber, vatRate] = await Promise.all([
+  const [name, email, phone, vatNumber, vatRate, vatEnabled] = await Promise.all([
     getConfigValue("business_name").catch(() => ""),
     getConfigValue("business_email").catch(() => ""),
     getConfigValue("business_phone").catch(() => ""),
     getConfigValue("vat_number").catch(() => ""),
     getConfigValue("vat_rate").catch(() => ""),
+    getConfigValue("vat_enabled").catch(() => ""),
   ])
   let business = (name || "").trim()
   if (!business && tenantId) {
     business = (await raw.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }))?.name || ""
   }
-  // Blank must fall through to the default, not to 0 — see `Number("")`.
+  const isVatOn = !(String(vatEnabled).trim().toLowerCase() === "false" || vatEnabled === "0")
   const rawRate = String(vatRate ?? "").trim().replace("%", "")
-  const pct = rawRate ? Number(rawRate) : 5
+  let pct = rawRate ? Number(rawRate) : 5
+  if (!Number.isFinite(pct) || pct < 0) pct = 5
+  if (pct > 0 && pct <= 1) pct = pct * 100
+  const displayPct = isVatOn ? pct : 0
   return {
     name: business,
     contact: [business, (email || "").trim(), (phone || "").trim()].filter(Boolean).join(" · "),
-    vatNumber: (vatNumber || "").trim(),
-    vatLabel: Number.isFinite(pct) && pct >= 0 && pct <= 100 ? `${Number(pct.toFixed(2))}%` : "5%",
+    vatNumber: isVatOn ? (vatNumber || "").trim() : "",
+    vatLabel: isVatOn ? `${Number(displayPct.toFixed(2))}%` : "0%",
   }
 }
 

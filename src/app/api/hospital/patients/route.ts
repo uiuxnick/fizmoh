@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { canReadPatient } from "@/lib/hospital-patient-access"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const actor = currentTenant()
   if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN"].includes(actor.role)) return NextResponse.json({ error: "Patient directory access is restricted" }, { status: 403 })
@@ -28,9 +29,9 @@ export const GET = withErrors(async (req: NextRequest) => {
     orderBy: { createdAt: "desc" },
   })
   return NextResponse.json(patients)
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   // Public registration is required by the patient booking portal; ownership
   // is enforced by the tenant resolved from the public hospital configuration.
   const tenantId = await resolveHospTenantId(req)
@@ -61,4 +62,5 @@ export const POST = withErrors(async (req: NextRequest) => {
 
   const patient = await db.hospPatient.create({ data })
   return NextResponse.json(patient, { status: 201 })
-})
+}))
+

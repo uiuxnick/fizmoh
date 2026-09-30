@@ -156,8 +156,8 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     mapUrl: courseData.mapUrl || "",
     meetingUrl: courseData.meetingUrl || "",
 
-    maxSeats: Number(courseData.maxSeats) || 30,
-    availableSeats: Number(courseData.availableSeats ?? courseData.maxSeats ?? 30),
+    maxSeats: courseData.maxSeats != null ? Number(courseData.maxSeats) : null,
+    availableSeats: courseData.availableSeats != null ? Number(courseData.availableSeats) : (courseData.maxSeats != null ? Number(courseData.maxSeats) : null),
     reservedSeats: Number(courseData.reservedSeats) || 0,
     confirmedSeats: Number(courseData.confirmedSeats) || 0,
     waitingList: Number(courseData.waitingList) || 0,
@@ -281,8 +281,8 @@ export async function createCourseRegistration(
   // 1. Calculate pricing & seats breakdown
   const pricing = calculateRegistrationPricing(course, input.numberOfSeats)
 
-  // Validate seat capacity
-  if (course.availableSeats < pricing.totalAttendeesAllowed) {
+  // Validate seat capacity if limited
+  if (course.availableSeats != null && course.availableSeats < pricing.totalAttendeesAllowed) {
     // If capacity exceeded, allow waitlist status
     if (course.availableSeats <= 0) {
       // Course is full
@@ -402,7 +402,7 @@ export async function createCourseRegistration(
   const updatedCourse = {
     ...course,
     reservedSeats: course.reservedSeats + pricing.totalAttendeesAllowed,
-    availableSeats: Math.max(0, course.availableSeats - pricing.totalAttendeesAllowed),
+    availableSeats: course.availableSeats != null ? Math.max(0, course.availableSeats - pricing.totalAttendeesAllowed) : null,
     updatedAt: now,
   }
   await saveTenantCourse(tid, updatedCourse)

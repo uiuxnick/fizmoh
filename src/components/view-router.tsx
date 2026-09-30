@@ -40,46 +40,48 @@ import CloudBridgesView from "@/components/views/cloud-bridges-view"
 import WhiteLabelView from "@/components/views/white-label-view"
 import TrainingView from "@/components/views/training-view"
 
+import { ModuleGate } from "@/components/module-gate"
+
 export default function ViewRouter() {
   const { view } = useApp()
   switch (view) {
     case "dashboard": return <DashboardView />
     case "customer-site": return <CustomerSiteView />
-    case "website-builder": return <WebsiteBuilderView />
-    case "cloud-bridges": return <CloudBridgesView />
-    case "white-label": return <WhiteLabelView />
-    case "training": return <TrainingView />
-    case "tours": return <ToursView />
-    case "bookings": return <BookingsView />
-    case "calendar": return <CalendarView />
-    case "appointments": return <AppointmentsView />
-    case "visa": return <VisaView />
-    case "restaurant": return <RestaurantView />
-    case "corporate": return <CorporateView />
+    case "website-builder": return <ModuleGate module="WEBSITE"><WebsiteBuilderView /></ModuleGate>
+    case "cloud-bridges": return <ModuleGate module="INTEGRATION"><CloudBridgesView /></ModuleGate>
+    case "white-label": return <ModuleGate module="WHITE_LABEL"><WhiteLabelView /></ModuleGate>
+    case "training": return <ModuleGate module="TRAINING"><TrainingView /></ModuleGate>
+    case "tours": return <ModuleGate module="TOURS"><ToursView /></ModuleGate>
+    case "bookings": return <ModuleGate module="TOURS"><BookingsView /></ModuleGate>
+    case "calendar": return <ModuleGate module="TOURS"><CalendarView /></ModuleGate>
+    case "appointments": return <ModuleGate module="APPOINTMENTS"><AppointmentsView /></ModuleGate>
+    case "visa": return <ModuleGate module="VISA"><VisaView /></ModuleGate>
+    case "restaurant": return <ModuleGate module="RESTAURANT"><RestaurantView /></ModuleGate>
+    case "corporate": return <ModuleGate module="CORPORATE"><CorporateView /></ModuleGate>
     case "knowledge": return <KnowledgeView />
     case "payments": return <PaymentsView />
     case "inbox": return <InboxView />
-    case "catalog": return <CatalogView />
-    case "woocommerce": return <WooCommerceView />
+    case "catalog": return <ModuleGate module="CATALOG"><CatalogView /></ModuleGate>
+    case "woocommerce": return <ModuleGate module="WOOCOMMERCE"><WooCommerceView /></ModuleGate>
     case "ai-assistant": return <AIAssistantView />
     case "templates": return <TemplatesView />
-    case "campaigns": return <CampaignsView />
+    case "campaigns": return <ModuleGate module="BROADCAST"><CampaignsView /></ModuleGate>
     case "staff": return <StaffView />
     case "bot-builder": return <BotBuilderView />
     case "whatsapp-setup": return <WhatsAppSetupView />
     case "whatsapp-numbers": return <WhatsAppAccountsView />
-    case "subscribers": return <SubscribersView />
+    case "subscribers": return <ModuleGate module="BROADCAST"><SubscribersView /></ModuleGate>
     case "reports": return <ReportsView />
     case "digital-qr": return <DigitalQrView />
     case "digital-vcard": return <DigitalVCardView />
     case "live-chat": return <LiveChatWidgetView />
     case "settings": return <SettingsView />
-    case "coupons": return <CouponsView />
+    case "coupons": return <ModuleGate module="TOURS"><CouponsView /></ModuleGate>
     case "content": return <ContentView />
     case "audit-logs": return <AuditLogsView />
     case "billing": return <BillingView />
     case "customers": return <CrmView />
-    case "hospital": return <HospitalView />
+    case "hospital": return <ModuleGate module="HOSPITAL"><HospitalView /></ModuleGate>
     case "platform": return <PlatformView />
     default: return <DashboardView />
   }

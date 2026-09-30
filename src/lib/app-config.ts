@@ -331,6 +331,12 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
         hint: "Who the bot says it is, e.g. Najwa. Left empty, it greets on behalf of the business instead.",
       },
       {
+        key: "vat_enabled",
+        label: "Enable VAT / Tax",
+        envVar: "VAT_ENABLED",
+        hint: "Toggle VAT calculation and compliance on invoices, checkout, and bookings. Set to false to disable VAT entirely.",
+      },
+      {
         key: "vat_rate",
         label: "VAT rate (%)",
         envVar: "VAT_RATE",

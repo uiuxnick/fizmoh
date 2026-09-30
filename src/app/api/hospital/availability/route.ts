@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { addDays, startOfDay, endOfDay, format } from "date-fns"
+import { withModule } from "@/lib/entitlements"
 
 async function calcWardAvail(tenantId: string, wardType: string, date: Date, sessionId?: string) {
   const ward = await db.hospWard.findFirst({ where: { tenantId, wardType } })
@@ -41,7 +42,7 @@ async function calcWardAvail(tenantId: string, wardType: string, date: Date, ses
   return { total, available, booked: confirmed, held, blocked }
 }
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const days = parseInt(url.searchParams.get("days") || "14")
@@ -66,4 +67,4 @@ export const GET = withErrors(async (req: NextRequest) => {
     })
   }
   return NextResponse.json(results)
-})
+}))

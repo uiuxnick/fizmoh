@@ -1,8 +1,37 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
+import { cookies, headers } from "next/headers"
 import AppShell from "@/components/app-shell"
 import { viewForPath } from "@/lib/admin-routes"
 import { raw } from "@/lib/db"
+import { STAFF_COOKIE, verifySession } from "@/lib/auth"
+import { resolveTenant } from "@/lib/tenant"
+import { modulesFor } from "@/lib/entitlements"
+import { MODULE_BY_KEY, type Module } from "@/lib/module-registry"
+import ModuleAccessDenied from "@/components/module-access-denied"
 import CustomerSiteView from "@/components/views/customer-site-view"
+import type { ViewKey } from "@/lib/store"
+
+const VIEW_MODULE_REQUIREMENTS: Partial<Record<ViewKey, Module>> = {
+  hospital: "HOSPITAL",
+  restaurant: "RESTAURANT",
+  tours: "TOURS",
+  bookings: "TOURS",
+  calendar: "TOURS",
+  coupons: "TOURS",
+  visa: "VISA",
+  corporate: "CORPORATE",
+  woocommerce: "WOOCOMMERCE",
+  training: "TRAINING",
+  catalog: "CATALOG",
+  "website-builder": "WEBSITE",
+  "cloud-bridges": "INTEGRATION",
+  "white-label": "WHITE_LABEL",
+  "digital-qr": "DIGITAL_QR",
+  "social-channels": "SOCIAL_INBOX",
+  campaigns: "BROADCAST",
+  subscribers: "BROADCAST",
+  appointments: "APPOINTMENTS",
+}
 
 /**
  * One segment, two meanings.
@@ -61,7 +90,48 @@ export default async function SegmentPage({ params }: { params: Promise<{ view: 
   const clean = view.toLowerCase()
 
   const key = viewForPath(clean)
-  if (key) return <AppShell adminEntry initialView={key} />
+  if (key) {
+    const requiredModule = VIEW_MODULE_REQUIREMENTS[key]
+    if (requiredModule) {
+      const cookieJar = await cookies()
+      const staffToken = cookieJar.get(STAFF_COOKIE)?.value
+      let staffId: string | null = null
+      if (staffToken) {
+        const session = await verifySession(staffToken).catch(() => null)
+        if (session?.staffId) staffId = session.staffId
+      }
+
+      const headerList = await headers()
+      const host = headerList.get("host")
+      const cookieWorkspace = cookieJar.get("fizmoh_workspace")?.value || null
+      const tenant = await resolveTenant({
+        host,
+        staffId,
+        slug: cookieWorkspace,
+        trustedSlug: cookieWorkspace,
+      })
+
+      if (!staffId || !tenant) {
+        redirect(`/login?returnUrl=/${clean}`)
+      }
+
+      if (tenant.role !== "PLATFORM") {
+        const activeModules = await modulesFor(tenant.tenantId)
+        if (!activeModules.includes(requiredModule)) {
+          const modInfo = MODULE_BY_KEY[requiredModule]
+          return (
+            <ModuleAccessDenied
+              moduleName={modInfo?.label || requiredModule}
+              moduleKey={requiredModule}
+              workspaceName={tenant.slug}
+            />
+          )
+        }
+      }
+    }
+
+    return <AppShell adminEntry initialView={key} />
+  }
 
   const tenant = await raw.tenant.findFirst({
     where: {

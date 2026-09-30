@@ -7,8 +7,9 @@ import { startOfDay, endOfDay, format } from "date-fns"
 import { nanoid } from "nanoid"
 import { sendHospitalBookingUpdate } from "@/lib/vertical-whatsapp"
 import { canReadPatient } from "@/lib/hospital-patient-access"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const dateStr = url.searchParams.get("date")
@@ -27,9 +28,9 @@ export const GET = withErrors(async (req: NextRequest) => {
     orderBy: { appointmentDate: "asc" },
   })
   return NextResponse.json(apts)
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
   const { patientId, doctorId, appointmentDate, appointmentTime, source = "WEB" } = body
@@ -53,4 +54,4 @@ export const POST = withErrors(async (req: NextRequest) => {
   })
   await sendHospitalBookingUpdate({ phone: apt.patient.mobile, patientName: apt.patient.fullName, reference: apt.appointmentRef, type: "doctor", date: format(apt.appointmentDate, "yyyy-MM-dd"), time: apt.appointmentTime, doctor: apt.doctor.name })
   return NextResponse.json(apt, { status: 201 })
-})
+}))

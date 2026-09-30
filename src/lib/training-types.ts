@@ -115,9 +115,9 @@ export interface Course {
   mapUrl: string
   meetingUrl?: string
 
-  // Capacity
-  maxSeats: number
-  availableSeats: number
+  // Capacity (optional / unlimited if null)
+  maxSeats?: number | null
+  availableSeats?: number | null
   reservedSeats: number
   confirmedSeats: number
   waitingList: number

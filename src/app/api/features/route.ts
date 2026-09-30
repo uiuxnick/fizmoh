@@ -13,8 +13,10 @@ export const revalidate = 0
  * Which optional sections are switched on as per the tenant's plan.
  */
 export const GET = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  const isPlatform = tenant?.role === "PLATFORM"
   const modules = await currentModules()
-  const has = (module: Module) => modules === null ? true : modules.includes(module)
+  const has = (module: Module) => isPlatform || (modules ? modules.includes(module) : false)
 
   const res = NextResponse.json({
     inbox: has("INBOX"),

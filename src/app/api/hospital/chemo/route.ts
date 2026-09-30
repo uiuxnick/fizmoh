@@ -7,13 +7,14 @@ import { startOfDay, endOfDay, format } from "date-fns"
 import { nanoid } from "nanoid"
 import { sendHospitalBookingUpdate } from "@/lib/vertical-whatsapp"
 import { canReadPatient } from "@/lib/hospital-patient-access"
+import { withModule } from "@/lib/entitlements"
 
 function makeRef(date: Date, suffix: string) {
   const d = format(date, "yyMMdd")
   return "CHEMO-" + d + "-" + suffix.padStart(3, "0")
 }
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const dateStr = url.searchParams.get("date")
@@ -39,9 +40,9 @@ export const GET = withErrors(async (req: NextRequest) => {
     orderBy: { bookingDate: "asc" },
   })
   return NextResponse.json(bookings)
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
   const { bedId, bookingDate, sessionId, patientId, doctorId, holdId, patientRef, source = "WEB" } = body
@@ -105,4 +106,5 @@ export const POST = withErrors(async (req: NextRequest) => {
   await sendHospitalBookingUpdate({ phone: booking.patient.mobile, patientName: booking.patient.fullName, reference: booking.bookingRef, type: "chemo", date: format(booking.bookingDate, "yyyy-MM-dd"), time: booking.session ? `${booking.session.startTime} - ${booking.session.endTime}` : null, doctor: booking.doctor.name, bed: booking.bed.bedNumber })
 
   return NextResponse.json(booking, { status: 201 })
-})
+}))
+

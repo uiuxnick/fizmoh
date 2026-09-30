@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { startOfDay, endOfDay } from "date-fns"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const wardType = url.searchParams.get("wardType") // NORMAL | SPECIAL
@@ -59,4 +60,5 @@ export const GET = withErrors(async (req: NextRequest) => {
   })
 
   return NextResponse.json({ ward: { id: ward.id, name: ward.name, wardType: ward.wardType, totalBeds: ward.totalBeds }, beds: result })
-})
+}))
+
