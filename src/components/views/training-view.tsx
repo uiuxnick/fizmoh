@@ -155,6 +155,7 @@ export default function TrainingView() {
     borderStyle: "double-border" | "solid-border" | "minimal-border" | "none"
     sealType: "award-seal" | "ribbon-crest" | "shield-check" | "none"
     applyToExistingCertificates: boolean
+    applyToAllPastAndFuture: boolean
   }>({
     id: "",
     isTemplate: false,
@@ -177,6 +178,7 @@ export default function TrainingView() {
     borderStyle: "double-border",
     sealType: "award-seal",
     applyToExistingCertificates: true,
+    applyToAllPastAndFuture: true,
   })
 
   // WhatsApp manual template trigger modal
@@ -231,7 +233,8 @@ export default function TrainingView() {
       const cId = studioTargetId.replace("cert:", "")
       const found = certificates.find(c => c.id === cId)
       if (found) {
-        setStudioForm({
+        setStudioForm(prev => ({
+          ...prev,
           id: found.id,
           isTemplate: false,
           courseId: found.courseId,
@@ -255,13 +258,15 @@ export default function TrainingView() {
           borderStyle: found.borderStyle || "double-border",
           sealType: found.sealType || "award-seal",
           applyToExistingCertificates: false,
-        })
+          applyToAllPastAndFuture: prev.applyToAllPastAndFuture ?? true,
+        }))
       }
     } else if (studioTargetId.startsWith("course:")) {
       const cId = studioTargetId.replace("course:", "")
       const found = courses.find(c => c.id === cId)
       if (found) {
-        setStudioForm({
+        setStudioForm(prev => ({
+          ...prev,
           id: found.id,
           isTemplate: true,
           courseId: found.id,
@@ -287,10 +292,49 @@ export default function TrainingView() {
           borderStyle: found.borderStyle || "double-border",
           sealType: found.sealType || "award-seal",
           applyToExistingCertificates: true,
-        })
+          applyToAllPastAndFuture: prev.applyToAllPastAndFuture ?? true,
+        }))
       }
     }
   }, [studioTargetId, certificates, courses])
+
+  // Dedicated Action: Apply current template to ALL past and future certificates
+  const handleApplyToAllPastAndFuture = async () => {
+    setStudioSaving(true)
+    try {
+      const res = await fetch(`/api/training/certificates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "apply-global-template",
+          certificateTitle: studioForm.certificateTitle,
+          certificateSubtitle: studioForm.certificateSubtitle,
+          certificateBodyText: studioForm.certificateBodyText,
+          trainerCompany: studioForm.trainerCompany,
+          trainerName: studioForm.trainerName,
+          trainerDesignation: studioForm.trainerDesignation,
+          showTrainerDesignation: studioForm.showTrainerDesignation,
+          showCourseDates: studioForm.showCourseDates,
+          templateTheme: studioForm.templateTheme,
+          borderStyle: studioForm.borderStyle,
+          sealType: studioForm.sealType,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(
+          `Template applied to all past certificates (${data.propagatedCount} updated) and set as default for all future certificates!`,
+        )
+        fetchData()
+      } else {
+        toast.error(data.error || "Failed to apply template globally")
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to apply template to all certificates")
+    } finally {
+      setStudioSaving(false)
+    }
+  }
 
   // Save Certificate Customizer Form (Live Sync)
   const handleSaveStudioCertificate = async () => {
@@ -317,11 +361,14 @@ export default function TrainingView() {
             borderStyle: studioForm.borderStyle,
             sealType: studioForm.sealType,
             applyToExistingCertificates: studioForm.applyToExistingCertificates,
+            applyToAllPastAndFuture: studioForm.applyToAllPastAndFuture,
           }),
         })
         const data = await res.json()
         if (data.success) {
-          const msg = data.propagatedCount
+          const msg = studioForm.applyToAllPastAndFuture
+            ? `Master Template saved! Applied to all past certificates (${data.propagatedCount} updated) & set for all future certificates.`
+            : data.propagatedCount
             ? `Course Master Certificate Template saved and updated ${data.propagatedCount} existing certificate(s)!`
             : "Course Master Certificate Template saved!"
           toast.success(msg)
@@ -335,6 +382,7 @@ export default function TrainingView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: studioForm.id,
+            applyToAllPastAndFuture: studioForm.applyToAllPastAndFuture,
             updates: {
               recipientName: studioForm.recipientName,
               recipientEmail: studioForm.recipientEmail,
@@ -353,12 +401,16 @@ export default function TrainingView() {
               templateTheme: studioForm.templateTheme,
               borderStyle: studioForm.borderStyle,
               sealType: studioForm.sealType,
+              applyToAllPastAndFuture: studioForm.applyToAllPastAndFuture,
             },
           }),
         })
         const data = await res.json()
         if (data.success || data.certificate) {
-          toast.success("Certificate customized & live credential updated!")
+          const msg = studioForm.applyToAllPastAndFuture
+            ? `Certificate updated & template applied to all past and future certificates!`
+            : "Certificate customized & live credential updated!"
+          toast.success(msg)
           fetchData()
         } else {
           toast.error(data.error || "Failed to update certificate")
@@ -1662,6 +1714,15 @@ export default function TrainingView() {
                   </a>
                 )}
                 <Button
+                  onClick={handleApplyToAllPastAndFuture}
+                  disabled={studioSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow"
+                  title="Make this certificate template the standard for all past and future certificates"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Make Template for All Past & Future Certificates</span>
+                </Button>
+                <Button
                   onClick={handleSaveStudioCertificate}
                   disabled={studioSaving}
                   className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow"
@@ -1831,28 +1892,69 @@ export default function TrainingView() {
                 </div>
               </div>
 
-              {/* Master Course Propagation Toggle */}
-              {studioForm.isTemplate && (
-                <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
-                  <div className="flex items-start gap-2.5">
+              {/* Template Application Scope */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-blue-50/90 to-purple-50/70 border border-blue-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Template Application Scope</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                    Past & Future Control
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                      studioForm.applyToAllPastAndFuture
+                        ? "bg-white border-blue-500 ring-2 ring-blue-400/20 shadow-xs"
+                        : "bg-white/60 border-stone-200 hover:border-stone-300"
+                    }`}
+                  >
                     <input
-                      type="checkbox"
-                      id="propagate-toggle"
-                      checked={studioForm.applyToExistingCertificates}
-                      onChange={e => setStudioForm({ ...studioForm, applyToExistingCertificates: e.target.checked })}
-                      className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      type="radio"
+                      name="applyScope"
+                      checked={studioForm.applyToAllPastAndFuture}
+                      onChange={() => setStudioForm({ ...studioForm, applyToAllPastAndFuture: true })}
+                      className="mt-0.5 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <label htmlFor="propagate-toggle" className="text-xs font-bold text-blue-950 cursor-pointer">
-                        Apply to All Issued Certificates for this Course
-                      </label>
-                      <p className="text-[10px] text-blue-800 leading-tight mt-0.5">
-                        When enabled, saving instantly propagates theme, wording, and layout changes to all existing issued certificates and their live public verification URLs.
+                      <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                        <span>Apply to ALL Past & Future Certificates (Global Master Template)</span>
+                        <Badge className="bg-emerald-600 text-white text-[9px] px-1.5 py-0 h-4 font-bold">Standard</Badge>
+                      </div>
+                      <p className="text-[10px] text-stone-600 leading-tight mt-0.5">
+                        Applies this template design, theme, wording & signatory to all past issued certificates across all courses, and establishes it as the default for all future certificates.
                       </p>
                     </div>
-                  </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                      !studioForm.applyToAllPastAndFuture
+                        ? "bg-white border-purple-500 ring-2 ring-purple-400/20 shadow-xs"
+                        : "bg-white/60 border-stone-200 hover:border-stone-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="applyScope"
+                      checked={!studioForm.applyToAllPastAndFuture}
+                      onChange={() => setStudioForm({ ...studioForm, applyToAllPastAndFuture: false })}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-stone-900">
+                        Apply to {studioForm.isTemplate ? "This Course Program Only" : "This Certificate Only"}
+                      </div>
+                      <p className="text-[10px] text-stone-600 leading-tight mt-0.5">
+                        Restricts template changes only to {studioForm.isTemplate ? "certificates of this course" : "this individual delegate credential"}.
+                      </p>
+                    </div>
+                  </label>
                 </div>
-              )}
+              </div>
 
               {/* Recipient Details (Active when customizing certificate) */}
               {!studioForm.isTemplate && (
@@ -2102,7 +2204,7 @@ export default function TrainingView() {
               </div>
 
               {/* Bottom Action Button */}
-              <div className="pt-4 border-t border-stone-100 flex items-center justify-between">
+              <div className="pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -2113,15 +2215,28 @@ export default function TrainingView() {
                 >
                   Reset Defaults
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveStudioCertificate}
-                  disabled={studioSaving}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow"
-                >
-                  <Save className={`h-4 w-4 ${studioSaving ? "animate-spin" : ""}`} />
-                  <span>{studioSaving ? "Saving Live..." : "Save Certificate & Sync Live"}</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleApplyToAllPastAndFuture}
+                    disabled={studioSaving}
+                    className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold gap-1.5"
+                    title="Apply this template across all past issued certificates and future cohorts"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Apply to All Past & Future</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveStudioCertificate}
+                    disabled={studioSaving}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow"
+                  >
+                    <Save className={`h-4 w-4 ${studioSaving ? "animate-spin" : ""}`} />
+                    <span>{studioSaving ? "Saving Live..." : "Save Certificate & Sync Live"}</span>
+                  </Button>
+                </div>
               </div>
             </div>
 

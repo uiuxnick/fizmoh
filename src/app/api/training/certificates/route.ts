@@ -7,6 +7,7 @@ import {
   updateCertificateRecord,
   verifyCertificateById,
   getCourseByIdOrSlug,
+  applyTemplateToAllPastAndFuture,
 } from "@/lib/training-service"
 import { sendWhatsApp } from "@/lib/flow-delivery"
 
@@ -34,6 +35,28 @@ export const POST = withErrors(async (request: NextRequest) => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId || PLATFORM
   const body = await request.json()
+
+  if (body.action === "apply-global-template") {
+    const res = await applyTemplateToAllPastAndFuture(tenantId, {
+      certificateTitle: body.certificateTitle,
+      certificateSubtitle: body.certificateSubtitle,
+      certificateBodyText: body.certificateBodyText,
+      trainerCompany: body.trainerCompany,
+      trainerName: body.trainerName,
+      trainerDesignation: body.trainerDesignation,
+      showTrainerDesignation: body.showTrainerDesignation,
+      showCourseDates: body.showCourseDates,
+      templateTheme: body.templateTheme,
+      borderStyle: body.borderStyle,
+      sealType: body.sealType,
+      accentColor: body.accentColor,
+    })
+    return NextResponse.json({
+      success: true,
+      propagatedCount: res.propagatedCertificates,
+      coursesUpdated: res.updatedCourses,
+    })
+  }
 
   const { registrationId, attendeeId, sendWhatsAppNotice, overrides } = body
   if (!registrationId || !attendeeId) {
@@ -95,5 +118,31 @@ export const PUT = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Certificate not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ success: true, certificate: updated })
+  let propagatedCount = 0
+  let coursesUpdated = 0
+  if (body.applyToAllPastAndFuture || updates.applyToAllPastAndFuture) {
+    const res = await applyTemplateToAllPastAndFuture(tenantId, {
+      certificateTitle: updated.certificateTitle,
+      certificateSubtitle: updated.certificateSubtitle,
+      certificateBodyText: updated.certificateBodyText,
+      trainerCompany: updated.trainerCompany,
+      trainerName: updated.trainerName,
+      trainerDesignation: updated.trainerDesignation,
+      showTrainerDesignation: updated.showTrainerDesignation,
+      showCourseDates: updated.showCourseDates,
+      templateTheme: updated.templateTheme,
+      borderStyle: updated.borderStyle,
+      sealType: updated.sealType,
+      accentColor: updated.accentColor,
+    })
+    propagatedCount = res.propagatedCertificates
+    coursesUpdated = res.updatedCourses
+  }
+
+  return NextResponse.json({
+    success: true,
+    certificate: updated,
+    propagatedCount,
+    coursesUpdated,
+  })
 })

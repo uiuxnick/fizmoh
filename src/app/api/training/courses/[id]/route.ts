@@ -6,6 +6,7 @@ import {
   saveTenantCourse,
   deleteTenantCourse,
   propagateCourseTemplateToCertificates,
+  applyTemplateToAllPastAndFuture,
   type Course,
 } from "@/lib/training-service"
 
@@ -38,7 +39,7 @@ export const PUT = withErrors(
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
 
-    const { applyToExistingCertificates, ...courseData } = body
+    const { applyToExistingCertificates, applyToAllPastAndFuture, ...courseData } = body
 
     const updated = await saveTenantCourse(tenantId, {
       ...existing,
@@ -47,7 +48,26 @@ export const PUT = withErrors(
     })
 
     let propagatedCount = 0
-    if (applyToExistingCertificates) {
+    let coursesUpdated = 0
+
+    if (applyToAllPastAndFuture) {
+      const res = await applyTemplateToAllPastAndFuture(tenantId, {
+        certificateTitle: updated.certificateTitle,
+        certificateSubtitle: updated.certificateSubtitle,
+        certificateBodyText: updated.certificateBodyText,
+        trainerCompany: updated.trainerCompany,
+        trainerName: updated.trainerName,
+        trainerDesignation: updated.trainerDesignation,
+        showTrainerDesignation: updated.showTrainerDesignation,
+        showCourseDates: updated.showCourseDates,
+        templateTheme: updated.templateTheme,
+        borderStyle: updated.borderStyle,
+        sealType: updated.sealType,
+        accentColor: updated.certificateAccentColor,
+      })
+      propagatedCount = res.propagatedCertificates
+      coursesUpdated = res.updatedCourses
+    } else if (applyToExistingCertificates) {
       propagatedCount = await propagateCourseTemplateToCertificates(tenantId, existing.id, {
         certificateTitle: updated.certificateTitle,
         certificateSubtitle: updated.certificateSubtitle,
@@ -65,7 +85,7 @@ export const PUT = withErrors(
       })
     }
 
-    return NextResponse.json({ success: true, course: updated, propagatedCount })
+    return NextResponse.json({ success: true, course: updated, propagatedCount, coursesUpdated })
   },
 )
 

@@ -654,6 +654,39 @@ export function formatCourseDates(startDate?: string, endDate?: string): string 
   }
 }
 
+export const GLOBAL_CERTIFICATE_TEMPLATE_KEY = "training_global_certificate_template"
+
+export interface GlobalCertificateTemplate {
+  certificateTitle?: string
+  certificateSubtitle?: string
+  certificateBodyText?: string
+  trainerCompany?: string
+  trainerName?: string
+  trainerDesignation?: string
+  showTrainerDesignation?: boolean
+  showCourseDates?: boolean
+  templateTheme?: "classic-gold" | "modern-slate" | "royal-navy" | "emerald-prestige"
+  borderStyle?: "double-border" | "solid-border" | "minimal-border" | "none"
+  sealType?: "award-seal" | "ribbon-crest" | "shield-check" | "none"
+  accentColor?: string
+  updatedAt?: string
+}
+
+export async function getGlobalCertificateTemplate(tenantId: string): Promise<GlobalCertificateTemplate | null> {
+  const tid = tenantId || PLATFORM
+  try {
+    const setting = await db.systemSetting.findUnique({
+      where: { tenantId_key: { tenantId: tid, key: GLOBAL_CERTIFICATE_TEMPLATE_KEY } },
+    })
+    if (setting?.value) {
+      return JSON.parse(setting.value)
+    }
+  } catch (e) {
+    console.error("[training] Error fetching global certificate template:", e)
+  }
+  return null
+}
+
 export async function issueAttendeeCertificate(
   tenantId: string,
   registrationId: string,
@@ -670,6 +703,8 @@ export async function issueAttendeeCertificate(
 
   const course = await getCourseByIdOrSlug(tid, reg.courseId)
   if (!course) throw new Error("Course not found")
+
+  const globalTemplate = await getGlobalCertificateTemplate(tid)
 
   const certId = overrides?.id || `CERT-${course.courseId || "CRS"}-${Math.floor(100000 + Math.random() * 900000)}`
   const recipientName = overrides?.recipientName || attendee.name
@@ -689,21 +724,21 @@ export async function issueAttendeeCertificate(
     recipientName,
     recipientEmail: overrides?.recipientEmail || attendee.email || reg.customerEmail,
     issueDate: overrides?.issueDate || now.slice(0, 10),
-    trainerName: overrides?.trainerName || course.trainerName || "Said bin Saif Al Harthi",
-    trainerCompany: overrides?.trainerCompany !== undefined ? overrides.trainerCompany : (course.trainerCompany || "Tanfidh Management Consultants"),
-    trainerDesignation: overrides?.trainerDesignation !== undefined ? overrides.trainerDesignation : (course.trainerDesignation || "Lead Instructor & Managing Consultant"),
-    showTrainerDesignation: overrides?.showTrainerDesignation !== undefined ? overrides.showTrainerDesignation : (course.showTrainerDesignation !== false),
-    certificateTitle: overrides?.certificateTitle || course.certificateTitle || "Certificate of Completion",
-    certificateSubtitle: overrides?.certificateSubtitle || course.certificateSubtitle || "This is proudly presented to",
-    certificateBodyText: overrides?.certificateBodyText || course.certificateBodyText || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+    trainerName: overrides?.trainerName || course.trainerName || globalTemplate?.trainerName || "Said bin Saif Al Harthi",
+    trainerCompany: overrides?.trainerCompany !== undefined ? overrides.trainerCompany : (course.trainerCompany || globalTemplate?.trainerCompany || "Tanfidh Management Consultants"),
+    trainerDesignation: overrides?.trainerDesignation !== undefined ? overrides.trainerDesignation : (course.trainerDesignation || globalTemplate?.trainerDesignation || "Lead Instructor & Managing Consultant"),
+    showTrainerDesignation: overrides?.showTrainerDesignation !== undefined ? overrides.showTrainerDesignation : (course.showTrainerDesignation ?? globalTemplate?.showTrainerDesignation ?? true),
+    certificateTitle: overrides?.certificateTitle || course.certificateTitle || globalTemplate?.certificateTitle || "Certificate of Completion",
+    certificateSubtitle: overrides?.certificateSubtitle || course.certificateSubtitle || globalTemplate?.certificateSubtitle || "This is proudly presented to",
+    certificateBodyText: overrides?.certificateBodyText || course.certificateBodyText || globalTemplate?.certificateBodyText || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
     courseDates,
-    showCourseDates: overrides?.showCourseDates !== undefined ? overrides.showCourseDates : (course.showCourseDates !== false),
+    showCourseDates: overrides?.showCourseDates !== undefined ? overrides.showCourseDates : (course.showCourseDates ?? globalTemplate?.showCourseDates ?? true),
     durationHours: overrides?.durationHours || course.duration,
     credentialUrl: `https://app.fizmoh.cloud/training/verify-certificate/${certId}`,
-    accentColor: overrides?.accentColor || course.certificateAccentColor || "amber",
-    templateTheme: overrides?.templateTheme || course.templateTheme || "classic-gold",
-    borderStyle: overrides?.borderStyle || course.borderStyle || "double-border",
-    sealType: overrides?.sealType || course.sealType || "award-seal",
+    accentColor: overrides?.accentColor || course.certificateAccentColor || globalTemplate?.accentColor || "amber",
+    templateTheme: overrides?.templateTheme || course.templateTheme || globalTemplate?.templateTheme || "classic-gold",
+    borderStyle: overrides?.borderStyle || course.borderStyle || globalTemplate?.borderStyle || "double-border",
+    sealType: overrides?.sealType || course.sealType || globalTemplate?.sealType || "award-seal",
     createdAt: now,
   }
 
@@ -781,18 +816,21 @@ export async function updateCertificateRecord(
 }
 
 /**
- * Propagate updated template styling, text, and parameters dynamically to all certificates issued for a course
+ * Propagate updated template styling, text, and parameters dynamically to all certificates issued for a course (or globally)
  */
 export async function propagateCourseTemplateToCertificates(
   tenantId: string,
   courseId: string,
   templateUpdates: Partial<CertificateRecord>,
+  options?: { applyToAllCertificates?: boolean },
 ): Promise<number> {
   const tid = tenantId || PLATFORM
   const certificates = await getTenantCertificates(tid)
   let count = 0
+  const applyAll = !!options?.applyToAllCertificates || courseId === "all"
+
   for (let i = 0; i < certificates.length; i++) {
-    if (certificates[i].courseId === courseId) {
+    if (applyAll || certificates[i].courseId === courseId) {
       certificates[i] = {
         ...certificates[i],
         ...templateUpdates,
@@ -809,6 +847,80 @@ export async function propagateCourseTemplateToCertificates(
     })
   }
   return count
+}
+
+/**
+ * Apply template as Global Master Standard to ALL past certificates and all future certificates across the tenant
+ */
+export async function applyTemplateToAllPastAndFuture(
+  tenantId: string,
+  template: Partial<GlobalCertificateTemplate>,
+): Promise<{ propagatedCertificates: number; updatedCourses: number }> {
+  const tid = tenantId || PLATFORM
+  const now = new Date().toISOString()
+  const globalTemplate: GlobalCertificateTemplate = {
+    ...template,
+    updatedAt: now,
+  }
+
+  // 1. Save global template setting
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: GLOBAL_CERTIFICATE_TEMPLATE_KEY } },
+    update: { value: JSON.stringify(globalTemplate), type: "JSON", category: "TRAINING" },
+    create: { tenantId: tid, key: GLOBAL_CERTIFICATE_TEMPLATE_KEY, value: JSON.stringify(globalTemplate), type: "JSON", category: "TRAINING" },
+  })
+
+  // 2. Propagate to ALL courses in tenant catalog so all courses have this template for future certificates
+  const courses = await getTenantCourses(tid)
+  let updatedCourses = 0
+  for (let i = 0; i < courses.length; i++) {
+    courses[i] = {
+      ...courses[i],
+      certificateTitle: template.certificateTitle ?? courses[i].certificateTitle,
+      certificateSubtitle: template.certificateSubtitle ?? courses[i].certificateSubtitle,
+      certificateBodyText: template.certificateBodyText ?? courses[i].certificateBodyText,
+      trainerCompany: template.trainerCompany !== undefined ? template.trainerCompany : courses[i].trainerCompany,
+      trainerName: template.trainerName ?? courses[i].trainerName,
+      trainerDesignation: template.trainerDesignation ?? courses[i].trainerDesignation,
+      showTrainerDesignation: template.showTrainerDesignation ?? courses[i].showTrainerDesignation,
+      showCourseDates: template.showCourseDates ?? courses[i].showCourseDates,
+      templateTheme: template.templateTheme ?? courses[i].templateTheme,
+      borderStyle: template.borderStyle ?? courses[i].borderStyle,
+      sealType: template.sealType ?? courses[i].sealType,
+      certificateAccentColor: template.accentColor ?? courses[i].certificateAccentColor,
+    }
+    updatedCourses++
+  }
+  if (updatedCourses > 0) {
+    await db.systemSetting.upsert({
+      where: { tenantId_key: { tenantId: tid, key: COURSES_SETTING_KEY } },
+      update: { value: JSON.stringify(courses), type: "JSON", category: "TRAINING" },
+      create: { tenantId: tid, key: COURSES_SETTING_KEY, value: JSON.stringify(courses), type: "JSON", category: "TRAINING" },
+    })
+  }
+
+  // 3. Propagate to ALL past issued certificates in tenant
+  const propagatedCertificates = await propagateCourseTemplateToCertificates(
+    tid,
+    "all",
+    {
+      certificateTitle: template.certificateTitle,
+      certificateSubtitle: template.certificateSubtitle,
+      certificateBodyText: template.certificateBodyText,
+      trainerCompany: template.trainerCompany,
+      trainerName: template.trainerName,
+      trainerDesignation: template.trainerDesignation,
+      showTrainerDesignation: template.showTrainerDesignation,
+      showCourseDates: template.showCourseDates,
+      templateTheme: template.templateTheme,
+      borderStyle: template.borderStyle,
+      sealType: template.sealType,
+      accentColor: template.accentColor,
+    },
+    { applyToAllCertificates: true },
+  )
+
+  return { propagatedCertificates, updatedCourses }
 }
 
 export async function updateAttendeeDetails(
