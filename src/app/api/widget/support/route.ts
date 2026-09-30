@@ -10,29 +10,40 @@ export const dynamic = "force-dynamic"
 
 function headers(request: NextRequest) {
   const origin = supportOrigin(request.headers.get("origin"))
-  if (!origin) return null
-  return { "Access-Control-Allow-Origin": origin || "https://app.fizmoh.cloud", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization", "Cache-Control": "no-store", Vary: "Origin" }
+  return {
+    "Access-Control-Allow-Origin": origin || "https://app.fizmoh.cloud",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+    "Access-Control-Max-Age": "86400",
+    "Cache-Control": "no-store",
+    Vary: "Origin",
+  }
 }
 
 export async function OPTIONS(request: NextRequest) {
-  const cors = headers(request)
-  return new NextResponse(null, { status: cors ? 204 : 403, headers: cors || {} })
+  const origin = supportOrigin(request.headers.get("origin"))
+  if (!origin) return new NextResponse(null, { status: 403 })
+  return new NextResponse(null, { status: 204, headers: headers(request) })
 }
 
 const messageBody = z.object({ content: z.string().trim().min(1).max(4000).optional(), requestHumanHandoff: z.boolean().optional() })
 
 async function handle(request: NextRequest) {
+  const origin = supportOrigin(request.headers.get("origin"))
+  if (!origin) return NextResponse.json({ error: "Origin not allowed" }, { status: 403 })
   const cors = headers(request)
-  if (!cors) return NextResponse.json({ error: "Origin not allowed" }, { status: 403 })
   const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: cors })
   try {
     const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
     if (!token) {
       if (request.method !== "POST") return json({ error: "Support session required" }, 401)
-      const limit = await checkSharedRateLimit(`support-start:${requestIp(request.headers)}`, 5, 60 * 60 * 1000)
+      const limit = await checkSharedRateLimit(`support-start:${requestIp(request.headers)}`, 30, 60 * 60 * 1000)
       if (!limit.allowed) return json({ error: "Please wait before starting another support request" }, 429)
       const lead = supportLead.safeParse(await request.json().catch(() => null))
-      if (!lead.success) return json({ error: "Enter your name, international phone number, and ticket details if creating a ticket" }, 400)
+      if (!lead.success) {
+        const firstIssue = lead.error.issues[0]?.message || "Enter your name, international phone number, and ticket details if creating a ticket"
+        return json({ error: firstIssue }, 400)
+      }
       const { name, phone, mode, subject, content } = lead.data
       const visitorId = `visitor:${randomUUID()}`
       const id = randomUUID()

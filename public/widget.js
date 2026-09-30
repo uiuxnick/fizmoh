@@ -43,7 +43,10 @@
     document.querySelector('script[data-tenant]');
 
   const scriptUrl = currentScript ? new URL(currentScript.src, window.location.href) : new URL(window.location.href);
-  const baseUrl = scriptUrl.origin || "https://app.fizmoh.cloud";
+  let baseUrl = scriptUrl.origin || "https://app.fizmoh.cloud";
+  if (baseUrl.includes("fizmoh.cloud") && baseUrl.startsWith("http:")) {
+    baseUrl = baseUrl.replace("http:", "https:");
+  }
   const widgetId = currentScript ? currentScript.getAttribute("data-widget-id") : null;
   const tenantSlug = currentScript ? (currentScript.getAttribute("data-tenant") || "fizmoh-support") : "fizmoh-support";
 
@@ -233,33 +236,50 @@
     state.polling = true;
     try {
       const res = await fetch(`${baseUrl}/api/widget/support`, { headers: supportHeaders() });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Unable to refresh support chat");
-      state.messages = data.messages || [];
-      updateSupportStatus(data);
-      renderMessages();
-    } catch (error) { supportError(error.message || "Connection interrupted. Retrying…"); }
-    finally { state.polling = false; }
-  }
-
-  async function initSupportSession(details = {}) {
-    if (state.sessionId || state.starting) return;
-    state.starting = true;
-    const submit = shadow.querySelector(".fzm-lead-btn");
-    if (submit) { submit.disabled = true; submit.textContent = "Connecting…"; }
-    try {
-      const res = await fetch(`${baseUrl}/api/widget/support`, {
-        method: state.supportToken ? "GET" : "POST", headers: supportHeaders(),
-        ...(state.supportToken ? {} : { body: JSON.stringify({ name: state.visitorName, phone: state.visitorPhone, mode: state.requestMode, ...details }) }),
-      });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (res.status === 401) {
-          state.supportToken = null; state.leadCaptured = false;
+        if (res.status === 401 || res.status === 404) {
+          state.supportToken = null;
+          state.sessionId = null;
+          state.leadCaptured = false;
           try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (e) {}
           render();
         }
-        throw new Error(data.error || "Unable to start support chat");
+        throw new Error(data.error || "Unable to refresh support chat");
+      }
+      state.messages = data.messages || [];
+      updateSupportStatus(data);
+      renderMessages();
+    } catch (error) {
+      if (state.messages.length === 0) {
+        supportError(error.message || "Connection interrupted. Retrying…");
+      }
+    } finally { state.polling = false; }
+  }
+
+  async function initSupportSession(details = {}) {
+    if (state.starting) return;
+    state.starting = true;
+    const submit = shadow.querySelector(".fzm-lead-btn");
+    if (submit) { submit.disabled = true; submit.textContent = "Connecting…"; }
+    supportError("");
+    try {
+      const isPost = !state.supportToken || (state.visitorName && !state.sessionId);
+      const res = await fetch(`${baseUrl}/api/widget/support`, {
+        method: isPost ? "POST" : "GET",
+        headers: supportHeaders(),
+        ...(isPost ? { body: JSON.stringify({ name: state.visitorName, phone: state.visitorPhone, mode: state.requestMode, ...details }) } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 404 || res.status === 400 || res.status === 409) {
+          state.supportToken = null;
+          state.sessionId = null;
+          state.leadCaptured = false;
+          try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (e) {}
+          render();
+        }
+        throw new Error(data.error || "Unable to start support chat. Please try again.");
       }
       state.supportToken = data.sessionToken || state.supportToken;
       state.sessionId = data.sessionId || data.reference;
@@ -268,16 +288,17 @@
       state.leadCaptured = true;
       state.error = "";
       try {
-        localStorage.setItem("fizmoh_platform_support_token", state.supportToken);
-        localStorage.setItem("fizmoh_chat_visitor_name", state.visitorName);
-        localStorage.setItem("fizmoh_chat_visitor_phone", state.visitorPhone);
+        if (state.supportToken) localStorage.setItem("fizmoh_platform_support_token", state.supportToken);
+        if (state.visitorName) localStorage.setItem("fizmoh_chat_visitor_name", state.visitorName);
+        if (state.visitorPhone) localStorage.setItem("fizmoh_chat_visitor_phone", state.visitorPhone);
       } catch (e) {}
       render();
       await refreshSupport();
       if (state.pollInterval) clearInterval(state.pollInterval);
       state.pollInterval = setInterval(() => { if (state.isOpen && !document.hidden) refreshSupport(); }, 4000);
-    } catch (error) { supportError(error.message || "Unable to start chat. Please try again."); }
-    finally {
+    } catch (error) {
+      supportError(error.message || "Unable to connect. Please check your network or try again.");
+    } finally {
       state.starting = false;
       const button = shadow.querySelector(".fzm-lead-btn");
       if (button) { button.disabled = false; button.textContent = state.requestMode === "ticket" ? "Submit ticket" : "Start AI chat"; }
@@ -301,8 +322,15 @@
         method: "POST", headers: supportHeaders(),
         body: JSON.stringify(handoff ? { requestHumanHandoff: true } : { content: text }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Message could not be sent");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 404) {
+          state.supportToken = null; state.sessionId = null; state.leadCaptured = false;
+          try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (e) {}
+          render();
+        }
+        throw new Error(data.error || "Message could not be sent");
+      }
       if (data.message) appendOrUpdateMessage(data.message);
       if (data.aiResponse) appendOrUpdateMessage(data.aiResponse);
       renderMessages();
@@ -1207,7 +1235,8 @@
       waBtn.onclick = () => {
         const textEl = shadow.querySelector(".fzm-wa-input");
         const msg = textEl ? textEl.value : config.whatsappMessage || "";
-        const cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
+        let cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
+        if (!cleanNumber || cleanNumber.length < 8) cleanNumber = "96898314456";
         const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`;
         window.open(waUrl, "_blank", "noopener,noreferrer");
       };
@@ -1217,7 +1246,8 @@
     const waContinuityBtn = shadow.querySelector(".fzm-wa-continuity-btn");
     if (waContinuityBtn) {
       waContinuityBtn.onclick = () => {
-        const cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
+        let cleanNumber = (config.whatsappNumber || "").replace(/[^0-9]/g, "");
+        if (!cleanNumber || cleanNumber.length < 8) cleanNumber = "96898314456";
         const namePart = state.visitorName ? `My name is ${state.visitorName}. ` : "";
         const refPart = state.reference ? `(Ref: ${state.reference}) ` : "";
         const greeting = `Hello! ${namePart}${refPart}I was chatting on your website and would like to continue our conversation here.`;
@@ -1238,8 +1268,23 @@
 
         state.visitorName = inName ? inName.value.trim() : "";
         state.visitorEmail = inEmail ? inEmail.value.trim() : "";
-        state.visitorPhone = inPhone ? inPhone.value.trim() : "";
+        let phone = inPhone ? inPhone.value.trim() : "";
+        phone = phone.replace(/[\s()\-.]/g, "");
+        if (phone.startsWith("00")) {
+          phone = "+" + phone.slice(2);
+        } else if (!phone.startsWith("+") && phone.length > 0) {
+          if (/^\d{8}$/.test(phone)) {
+            phone = "+968" + phone;
+          } else if (/^\d{9,14}$/.test(phone)) {
+            phone = "+" + phone;
+          }
+        }
+        state.visitorPhone = phone;
+
         if (platformSupport) {
+          state.supportToken = null;
+          state.sessionId = null;
+          try { localStorage.removeItem("fizmoh_platform_support_token"); } catch (err) {}
           initSupportSession({ subject: shadow.querySelector(".fzm-ticket-subject")?.value, content: shadow.querySelector(".fzm-ticket-content")?.value });
           return;
         }
