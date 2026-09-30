@@ -38,6 +38,7 @@ export function TenantOnboardingWizard({
   orderCount = 0,
 }: TenantOnboardingWizardProps) {
   const [settings, setSettings] = useState<Record<string, any> | null>(null)
+  const [waConfigured, setWaConfigured] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
@@ -55,16 +56,31 @@ export function TenantOnboardingWizard({
         if (data?.settings) setSettings(data.settings)
       })
       .catch(() => {})
+
+    fetch("/api/whatsapp/health")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.whatsapp?.configured) setWaConfigured(true)
+      })
+      .catch(() => {})
+
+    fetch("/api/whatsapp/accounts")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.accounts && data.accounts.length > 0) setWaConfigured(true)
+      })
+      .catch(() => {})
   }, [])
 
   if (dismissed) return null
 
   // Evaluate step completion
   const isWhatsAppConnected = Boolean(
-    settings && (
+    waConfigured ||
+    (settings && (
       (settings.whatsapp_phone_id && (settings.whatsapp_access_token_set || settings.whatsapp_access_token)) ||
       settings.whatsapp_access_token_set
-    )
+    ))
   )
 
   const isProfileConfigured = Boolean(

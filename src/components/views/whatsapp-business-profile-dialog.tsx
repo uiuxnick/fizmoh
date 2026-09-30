@@ -271,6 +271,78 @@ export function WhatsAppBusinessProfileDialog({
               </div>
             </div>
 
+            {/* 1.5. WhatsApp Display Name & Identity */}
+            <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50/70 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-stone-800">
+                  WhatsApp Display Name (Chat Header Name)
+                </Label>
+                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  Active on WhatsApp
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={verifiedName || "Tanfidh"}
+                  disabled
+                  className="bg-white font-medium text-stone-900 cursor-not-allowed text-xs"
+                />
+                <a
+                  href="https://business.facebook.com/wa/manage/phone-numbers/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 hover:border-stone-400 shrink-0 transition"
+                  title="Submit name change request in Meta WhatsApp Manager"
+                >
+                  <span>Edit in Meta</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                Display name appears at the top of customer chats. Under Meta policy, changes require trademark and business review in <strong>Meta WhatsApp Manager</strong> (approved within 1–2 business days).
+              </p>
+            </div>
+
+            {/* 1.6. Official Business Account (Green Tick / OBA) Verification */}
+            <div className="p-3.5 rounded-xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-xs font-bold text-emerald-950">
+                    Official Business Account (Green Tick Badge)
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-emerald-300 bg-emerald-100 text-emerald-800">
+                  Standard Account
+                </Badge>
+              </div>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                The official green tick badge is granted directly by Meta to verified brands. To qualify, your business must have:
+              </p>
+              <ul className="text-[11px] text-stone-600 space-y-1 list-disc list-inside pl-1">
+                <li>Legal entity documents verified in Meta Business Suite</li>
+                <li>Two-step verification PIN active on your WhatsApp line</li>
+                <li>Verifiable brand notability (e.g. news coverage, Wikipedia, or press mentions)</li>
+              </ul>
+              <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-emerald-200/60">
+                <span className="text-[10.5px] text-stone-500">
+                  Submit verification request in WhatsApp Manager:
+                </span>
+                <a
+                  href="https://business.facebook.com/wa/manage/phone-numbers/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-2xs transition shrink-0"
+                >
+                  <span>Apply for Green Tick</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+
             {/* 2. Status / About Line */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">

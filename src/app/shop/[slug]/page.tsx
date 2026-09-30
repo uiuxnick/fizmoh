@@ -64,6 +64,39 @@ export default async function ShopSlugPage({ params }: { params: Promise<{ slug:
     } catch {}
   }
 
+  // Pre-determine on the server if this workspace is training / course management
+  const { getTenantCourses } = await import("@/lib/training-service")
+  const trainingCourses = await getTenantCourses(tenant.id)
+  const isTraining =
+    setting?.value === "TRAINING" ||
+    planModules.includes("TRAINING") ||
+    tenant.slug.toLowerCase() === "tanfidh" ||
+    trainingCourses.length > 0
+
+  if (!initialPublishedWebsite && isTraining && trainingCourses.length > 0) {
+    const TrainingAcademySiteView = (await import("@/components/training/training-academy-site-view")).default
+    const settingsList = await raw.systemSetting.findMany({
+      where: { tenantId: tenant.id },
+    })
+    const smap: Record<string, string> = {}
+    settingsList.forEach((s) => {
+      smap[s.key] = s.value
+    })
+
+    return (
+      <TrainingAcademySiteView
+        slug={tenant.slug}
+        courses={trainingCourses}
+        tenant={tenant}
+        brandName={smap.business_name || (tenant.slug.toLowerCase() === "tanfidh" ? "Tanfidh Management Consultants" : undefined)}
+        brandLogo={smap.business_logo || null}
+        contactEmail={smap.business_email || undefined}
+        contactPhone={smap.business_phone || undefined}
+        address={smap.business_address || undefined}
+      />
+    )
+  }
+
   const tours = await raw.tour.findMany({
     where: { tenantId: tenant.id },
     orderBy: { createdAt: "desc" },

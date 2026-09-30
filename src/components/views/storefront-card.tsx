@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Globe, Copy, Check, ExternalLink, Share2, Utensils } from "lucide-react"
+import { Globe, Copy, Check, ExternalLink, Share2, Utensils, GraduationCap } from "lucide-react"
 
 /**
  * The address to give a customer.
@@ -13,12 +13,17 @@ export function StorefrontCard() {
   const [name, setName] = useState<string>("")
   const [copied, setCopied] = useState(false)
   const [isRestaurant, setIsRestaurant] = useState(false)
+  const [isTraining, setIsTraining] = useState(false)
 
   useEffect(() => {
     fetch("/api/workspaces", { headers: { Accept: "application/json" } })
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
-        if (d?.current?.slug) { setSlug(d.current.slug); setName(d.current.name || "") }
+        if (d?.current?.slug) {
+          setSlug(d.current.slug)
+          setName(d.current.name || "")
+          if (d.current.slug.toLowerCase() === "tanfidh") setIsTraining(true)
+        }
       })
       .catch(() => {})
 
@@ -26,6 +31,14 @@ export function StorefrontCard() {
       .then(r => (r.ok ? r.json() : null))
       .then(f => {
         if (f?.restaurant) setIsRestaurant(true)
+        if (f?.training) setIsTraining(true)
+      })
+      .catch(() => {})
+
+    fetch("/api/training/courses")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (d?.courses && d.courses.length > 0) setIsTraining(true)
       })
       .catch(() => {})
   }, [])
@@ -44,22 +57,36 @@ export function StorefrontCard() {
     } catch {}
   }
 
-  const share = `https://wa.me/?text=${encodeURIComponent(`${name ? name + " — " : ""}${isRestaurant ? "view our menu and order here" : "book with us here"}: ${url}`)}`
+  const shareText = isRestaurant
+    ? "view our menu and order here"
+    : isTraining
+      ? "view our executive masterclasses and register here"
+      : "book with us here"
+  const share = `https://wa.me/?text=${encodeURIComponent(`${name ? name + " — " : ""}${shareText}: ${url}`)}`
 
   return (
-    <Card className={isRestaurant ? "border-amber-300 bg-amber-50/50 shadow-xs" : "border-emerald-200 bg-emerald-50/40"}>
+    <Card className={isRestaurant ? "border-amber-300 bg-amber-50/50 shadow-xs" : isTraining ? "border-emerald-300 bg-emerald-50/60 shadow-xs" : "border-emerald-200 bg-emerald-50/40"}>
       <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${isRestaurant ? "bg-amber-600 text-white" : "bg-emerald-600 text-white"}`}>
-              {isRestaurant ? <Utensils className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+              {isRestaurant ? <Utensils className="h-4 w-4" /> : isTraining ? <GraduationCap className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
             </span>
             <p className="text-sm font-semibold text-stone-900">
-              {isRestaurant ? "Your Restaurant Ordering Website & Digital Menu" : "Your customer website"}
+              {isRestaurant
+                ? "Your Restaurant Ordering Website & Digital Menu"
+                : isTraining
+                  ? "Your Training & Course Academy Website"
+                  : "Your customer website"}
             </p>
             {isRestaurant && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
                 Live Ordering
+              </span>
+            )}
+            {isTraining && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-900 border border-emerald-300">
+                Executive Masterclasses
               </span>
             )}
           </div>
@@ -67,7 +94,9 @@ export function StorefrontCard() {
           <p className="mt-1 text-xs text-stone-600">
             {isRestaurant
               ? "Share this with customers — they can view your digital menu, browse dishes, and order directly via WhatsApp or online."
-              : "Share this with customers — they can browse and book without WhatsApp."}
+              : isTraining
+                ? "Share this with delegates & corporate clients — they can explore executive masterclasses, view upcoming cohorts, and register directly online or via WhatsApp."
+                : "Share this with customers — they can browse and book without WhatsApp."}
           </p>
         </div>
 
