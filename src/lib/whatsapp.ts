@@ -15,7 +15,7 @@ import { db } from "@/lib/db"
 import { decryptSecret, encryptSecret } from "@/lib/secret-box"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
 
-const GRAPH_API_VERSION = "v21.0"
+const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0"
 
 export type WhatsAppConfig = {
   accessToken: string
@@ -637,7 +637,7 @@ export async function sendCtaUrlMessage(params: {
     if (params.headerText) interactive.header = { type: "text", text: params.headerText }
     if (params.footerText) interactive.footer = { text: params.footerText }
 
-    const response = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", to: formatWhatsAppRecipient(params.to), type: "interactive", interactive }),
@@ -798,7 +798,7 @@ export async function uploadTemplateMedia(imageUrl: string): Promise<{ success: 
 
   try {
     const start = await fetch(
-      `https://graph.facebook.com/v21.0/${appId}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(contentType)}`,
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${appId}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(contentType)}`,
       { method: "POST", headers: { Authorization: `Bearer ${config.accessToken}` } },
     )
     const session = await start.json()
@@ -806,7 +806,7 @@ export async function uploadTemplateMedia(imageUrl: string): Promise<{ success: 
       return { success: false, error: `Could not start the upload: ${JSON.stringify(session.error ?? session).slice(0, 200)}` }
     }
 
-    const upload = await fetch(`https://graph.facebook.com/v21.0/${session.id}`, {
+    const upload = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${session.id}`, {
       method: "POST",
       headers: {
         // This one call wants "OAuth", not "Bearer". Bearer is accepted
@@ -1396,4 +1396,194 @@ export async function sendDigitalCardMessage(params: {
 
   return sendTextMessage(params.to, bodyText)
 }
+
+// ============================================================================
+// WHATSAPP BUSINESS PROFILE MANAGEMENT (META CLOUD API)
+// ============================================================================
+
+export interface WhatsAppBusinessProfile {
+  about?: string
+  address?: string
+  description?: string
+  email?: string
+  profilePictureUrl?: string
+  websites?: string[]
+  vertical?: string
+  messagingProduct?: string
+}
+
+export interface UpdateWhatsAppBusinessProfileParams {
+  about?: string
+  address?: string
+  description?: string
+  email?: string
+  websites?: string[]
+  vertical?: string
+  profilePictureHandle?: string
+  phoneNumberId?: string
+  accessToken?: string
+}
+
+/**
+ * Retrieves the current WhatsApp Business Profile from Meta Graph API.
+ */
+export async function getWhatsAppBusinessProfile(params?: {
+  phoneNumberId?: string
+  accessToken?: string
+}): Promise<{ success: boolean; profile?: WhatsAppBusinessProfile; error?: string }> {
+  const config = await getWhatsAppConfig()
+  const token = params?.accessToken || config.accessToken
+  const phoneId = params?.phoneNumberId || config.phoneNumberId
+
+  if (!token || !phoneId) {
+    return { success: false, error: "WhatsApp credentials not configured" }
+  }
+
+  try {
+    const fields = "about,address,description,email,profile_picture_url,websites,vertical"
+    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneId}/whatsapp_business_profile?fields=${fields}`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { success: false, error: data.error?.message || `Meta returned HTTP ${res.status}` }
+    }
+    const item = Array.isArray(data.data) ? data.data[0] : data
+    return {
+      success: true,
+      profile: {
+        about: item?.about || "",
+        address: item?.address || "",
+        description: item?.description || "",
+        email: item?.email || "",
+        profilePictureUrl: item?.profile_picture_url || "",
+        websites: Array.isArray(item?.websites) ? item.websites : [],
+        vertical: item?.vertical || "OTHER",
+        messagingProduct: item?.messaging_product || "whatsapp",
+      },
+    }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to fetch profile" }
+  }
+}
+
+/**
+ * Updates the WhatsApp Business Profile on Meta Graph API.
+ */
+export async function updateWhatsAppBusinessProfile(
+  params: UpdateWhatsAppBusinessProfileParams,
+): Promise<{ success: boolean; error?: string }> {
+  const config = await getWhatsAppConfig()
+  const token = params.accessToken || config.accessToken
+  const phoneId = params.phoneNumberId || config.phoneNumberId
+
+  if (!token || !phoneId) {
+    return { success: false, error: "WhatsApp credentials not configured" }
+  }
+
+  try {
+    const payload: Record<string, any> = {
+      messaging_product: "whatsapp",
+    }
+    if (params.about !== undefined) payload.about = params.about.trim().slice(0, 139)
+    if (params.address !== undefined) payload.address = params.address.trim().slice(0, 256)
+    if (params.description !== undefined) payload.description = params.description.trim().slice(0, 512)
+    if (params.email !== undefined) payload.email = params.email.trim().slice(0, 128)
+    if (params.vertical !== undefined) payload.vertical = params.vertical
+    if (Array.isArray(params.websites)) {
+      payload.websites = params.websites
+        .map(w => String(w || "").trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(w => w.slice(0, 256))
+    }
+    if (params.profilePictureHandle) {
+      payload.profile_picture_handle = params.profilePictureHandle
+    }
+
+    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneId}/whatsapp_business_profile`
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      return { success: false, error: data.error?.message || `Meta returned HTTP ${res.status}` }
+    }
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Failed to update profile" }
+  }
+}
+
+/**
+ * Uploads a profile photo to Meta via Resumable Upload API and sets it on the WhatsApp Business Profile.
+ */
+export async function uploadWhatsAppProfilePhoto(params: {
+  bytes: Buffer
+  contentType: string
+  phoneNumberId?: string
+  accessToken?: string
+}): Promise<{ success: boolean; error?: string }> {
+  const config = await getWhatsAppConfig()
+  const token = params.accessToken || config.accessToken
+  const phoneId = params.phoneNumberId || config.phoneNumberId
+
+  if (!token || !phoneId) {
+    return { success: false, error: "WhatsApp credentials not configured" }
+  }
+
+  let appId = process.env.WHATSAPP_APP_ID || process.env.META_APP_ID || ""
+  if (!appId) {
+    const { getConfigValue } = await import("@/lib/app-config")
+    appId = await getConfigValue("meta_app_id").catch(() => "")
+  }
+  if (!appId) {
+    return { success: false, error: "Meta App ID is not configured (required for binary photo upload)" }
+  }
+
+  try {
+    // 1. Start Resumable Upload session
+    const start = await fetch(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${appId}/uploads?file_length=${params.bytes.length}&file_type=${encodeURIComponent(params.contentType)}`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    )
+    const session = await start.json()
+    if (!session.id) {
+      return { success: false, error: `Could not start photo upload: ${session.error?.message || JSON.stringify(session)}` }
+    }
+
+    // 2. Transfer binary bytes
+    const upload = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${session.id}`, {
+      method: "POST",
+      headers: {
+        Authorization: `OAuth ${token}`,
+        file_offset: "0",
+        "Content-Type": "application/octet-stream",
+      },
+      body: new Uint8Array(params.bytes),
+    })
+    const result = await upload.json()
+    if (!result.h) {
+      return { success: false, error: `Upload transfer failed: ${result.error?.message || JSON.stringify(result)}` }
+    }
+
+    // 3. Set profile_picture_handle on WhatsApp Business Profile
+    return await updateWhatsAppBusinessProfile({
+      profilePictureHandle: result.h,
+      phoneNumberId: phoneId,
+      accessToken: token,
+    })
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Photo upload failed" }
+  }
+}
+
 

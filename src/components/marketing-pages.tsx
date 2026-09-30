@@ -50,6 +50,7 @@ import { WhatsAppDemo } from "@/components/whatsapp-demo"
 import { SiteFooter, SiteHeader } from "@/components/site-header"
 import { useLanguage } from "@/context/language-context"
 import { TemplatesShowcase } from "@/components/marketing/templates-showcase"
+import { MetaPricingSection } from "@/components/marketing/meta-pricing-section"
 
 type PageKind = "features" | "pricing" | "simulator" | "templates" | "appointments" | "tours" | "woocommerce" | "restaurant" | "payments" | "crm"
 
@@ -1624,6 +1625,9 @@ function Pricing({
           </div>
         )}
       </div>
+
+      {/* Official Meta WhatsApp Conversation Pricing & Free Tier Section */}
+      <MetaPricingSection isAr={isAr} />
 
       {/* Modular Add-Ons & Extensibility Showcase */}
       {addons && addons.length > 0 && (

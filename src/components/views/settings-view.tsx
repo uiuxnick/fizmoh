@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ConfigPanel } from "@/components/views/config-panel"
 import { GoogleConnectCard } from "@/components/views/google-connect-card"
 import { WhatsAppCatalogCard } from "@/components/views/whatsapp-catalog-card"
+import { WhatsAppBusinessProfileDialog } from "@/components/views/whatsapp-business-profile-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
@@ -279,6 +280,7 @@ export default function SettingsView() {
   const [waConfig, setWaConfig] = useState<WhatsAppConfigState | null>(null)
   const [waDraft, setWaDraft] = useState<Record<string, string>>({})
   const [waSaving, setWaSaving] = useState(false)
+  const [showProfileDialog, setShowProfileDialog] = useState(false)
   const [aiConfig, setAiConfig] = useState<any>(null)
   const [aiDraft, setAiDraft] = useState<Record<string, string>>({})
   const [aiSaving, setAiSaving] = useState(false)
@@ -1197,6 +1199,14 @@ export default function SettingsView() {
                 <Button variant="outline" onClick={loadWaConfig}>
                   <RefreshCw className="h-4 w-4 mr-1.5" />Re-check
                 </Button>
+                <Button
+                  variant="outline"
+                  className="border-emerald-600/30 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:text-emerald-800"
+                  onClick={() => setShowProfileDialog(true)}
+                >
+                  <Building2 className="h-4 w-4 mr-1.5 text-emerald-600" />
+                  Business Profile
+                </Button>
                 <a
                   href="https://business.facebook.com/wa/manage/phone-numbers/"
                   target="_blank"
@@ -1212,6 +1222,14 @@ export default function SettingsView() {
               </p>
             </CardContent>
           </Card>
+
+          {showProfileDialog && (
+            <WhatsAppBusinessProfileDialog
+              open={showProfileDialog}
+              onClose={() => setShowProfileDialog(false)}
+              displayPhone={waDraft.phoneNumber || waConfig?.fields?.phoneNumber?.value}
+            />
+          )}
 
           <WhatsAppCatalogCard />
 

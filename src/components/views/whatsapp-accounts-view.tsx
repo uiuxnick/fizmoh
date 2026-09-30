@@ -1,6 +1,7 @@
 "use client"
 
 import { WhatsAppCatalogCard } from "@/components/views/whatsapp-catalog-card"
+import { WhatsAppBusinessProfileDialog } from "@/components/views/whatsapp-business-profile-dialog"
 
 import { useCallback, useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import {
   Smartphone, Plus, RefreshCw, ShieldCheck, Copy, Eye, EyeOff, Trash2,
-  Star, AlertTriangle, Link2, KeyRound, Gauge, ExternalLink,
+  Star, AlertTriangle, Link2, KeyRound, Gauge, ExternalLink, Building2,
 } from "lucide-react"
 
 interface Account {
@@ -61,6 +62,7 @@ export default function WhatsAppAccountsView() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [showManual, setShowManual] = useState(false)
+  const [profileTarget, setProfileTarget] = useState<Account | null>(null)
   const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [config, setConfig] = useState<{ appId?: string; configId?: string }>({})
   const [sdkReady, setSdkReady] = useState(false)
@@ -645,6 +647,14 @@ export default function WhatsAppAccountsView() {
                     <Button size="sm" variant="outline" disabled={busy === a.id} onClick={() => act(a.id, "refresh")}>
                       Check with Meta
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-600/30 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:text-emerald-800"
+                      onClick={() => setProfileTarget(a)}
+                    >
+                      <Building2 className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Business Profile
+                    </Button>
                     {!a.webhookSubscribed && (
                       <Button size="sm" variant="outline" disabled={busy === a.id} onClick={() => act(a.id, "resubscribe")}>
                         Subscribe webhook
@@ -673,6 +683,17 @@ export default function WhatsAppAccountsView() {
       )}
 
       <WhatsAppCatalogCard />
+
+      {profileTarget && (
+        <WhatsAppBusinessProfileDialog
+          open={!!profileTarget}
+          onClose={() => setProfileTarget(null)}
+          accountId={profileTarget.id}
+          displayPhone={profileTarget.displayPhone}
+          verifiedName={profileTarget.verifiedName}
+          onSaved={() => load(true)}
+        />
+      )}
 
       {showManual && <ManualConnectDialog onClose={() => setShowManual(false)} onDone={() => { setShowManual(false); load() }} />}
     </div>
