@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import {
   Calendar,
   Clock,
@@ -20,6 +21,10 @@ import {
   UserCheck,
   Send,
   Ticket,
+  FileCheck,
+  Phone,
+  Mail,
+  ShieldCheck,
 } from "lucide-react"
 import { Course, calculateRegistrationPricing, PricingCalculationResult } from "@/lib/training-types"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
@@ -66,6 +71,13 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
     maxSeats: Number(rawCourse.maxSeats) || 30,
     availableSeats: Number(rawCourse.availableSeats) || 24,
     termsAndConditions: rawCourse.termsAndConditions || "",
+    trainerName: rawCourse.trainerName || "Said bin Saif Al Harthi",
+    trainerDesignation: rawCourse.trainerDesignation || "Executive Director and Senior Consultant and Trainer",
+    trainerCompany: rawCourse.trainerCompany || "Tanfidh Management Consultants",
+    trainerBio: rawCourse.trainerBio || "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions. His training combines practical frameworks, facilitated exercises and examples drawn from consulting practice.",
+    trainerImage: (rawCourse.trainerImage && !rawCourse.trainerImage.includes("unsplash")) ? rawCourse.trainerImage : "/said-al-harthi.jpg",
+    trainerEmail: rawCourse.trainerEmail || "saidalharthy@tanfidh.com",
+    trainerPhone: rawCourse.trainerPhone || "+968 99 355 438",
   }
 
   // State for Booking Modal
@@ -170,44 +182,107 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
   )}`
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-amber-100 selection:text-amber-900">
-      {/* TOP HEADER */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white font-bold shadow-sm">
-              <Award className="h-5 w-5" />
+    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-emerald-100 selection:text-emerald-950">
+      {/* Top Notice Bar matching Tanfidh Storefront */}
+      <div className="bg-[#052e16] text-[#86efac] text-xs py-2 px-4 border-b border-emerald-950">
+        <div className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold border border-emerald-500/30 text-[11px]">
+              <Sparkles className="h-3 w-3" />
+              Official Executive Training & Masterclasses
+            </span>
+            <span className="hidden sm:inline text-emerald-200/80 text-[12px]">
+              Certified Credentials · 5-Star Muscat Venues · Corporate BOGO Grants
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <Link
+              href="/training/verify-certificate"
+              className="text-emerald-300 hover:text-white underline underline-offset-2 flex items-center gap-1 font-medium transition"
+            >
+              <FileCheck className="h-3.5 w-3.5" />
+              <span>Verify Certificate</span>
+            </Link>
+            <Link
+              href="/tanfidh"
+              className="text-emerald-300 hover:text-white flex items-center gap-1 font-semibold transition"
+            >
+              <span>← Back to Academy</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Header matching Tanfidh Storefront */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+          <Link href="/tanfidh" className="flex items-center gap-3 group">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white flex items-center justify-center font-bold text-lg shadow-sm border border-emerald-500/30 group-hover:scale-105 transition">
+              T
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-                {course.trainerCompany || "Executive Academy"}
-              </div>
-              <div className="text-sm font-bold text-stone-900 truncate max-w-[220px] sm:max-w-md">
-                {course.shortTitle || course.name}
-              </div>
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-stone-900 leading-tight group-hover:text-emerald-800 transition">
+                {course.trainerCompany || "Tanfidh Management Consultants"}
+              </h1>
+              <p className="text-[11.5px] font-medium text-emerald-700">
+                Executive Academy & Management Consulting
+              </p>
             </div>
-          </div>
+          </Link>
+
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-stone-600">
+            <Link href="/tanfidh#courses" className="hover:text-emerald-700 transition">
+              All Masterclasses
+            </Link>
+            <a href="#instructor" className="hover:text-emerald-700 transition">
+              Meet Instructor
+            </a>
+            <a href="#syllabus" className="hover:text-emerald-700 transition">
+              Agenda & Syllabus
+            </a>
+            <Link href="/tanfidh#corporate" className="hover:text-emerald-700 transition">
+              Corporate In-House
+            </Link>
+            <Link href="/training/verify-certificate" className="hover:text-emerald-700 transition">
+              Verify Certificate
+            </Link>
+          </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <a
               href={whatsappInquiryUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+              className="inline-flex items-center gap-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-xs transition transform active:scale-95"
             >
-              <WhatsAppIcon className="h-3.5 w-3.5 fill-current" />
+              <WhatsAppIcon className="h-4 w-4 fill-current" />
               <span className="hidden sm:inline">WhatsApp Inquiries</span>
             </a>
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-stone-900 text-white hover:bg-stone-800 shadow transition-all active:scale-[0.98]"
+              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white hover:bg-black shadow-xs transition-all active:scale-95"
             >
               Book Now
             </button>
           </div>
         </div>
       </header>
+
+      {/* Breadcrumb banner */}
+      <div className="bg-stone-100/90 border-b border-stone-200/80 py-2.5 px-4 text-xs text-stone-600">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
+          <Link href="/tanfidh" className="hover:text-emerald-700 font-medium transition">
+            Tanfidh Academy
+          </Link>
+          <span className="text-stone-400">/</span>
+          <Link href="/tanfidh#courses" className="hover:text-emerald-700 font-medium transition">
+            Masterclasses
+          </Link>
+          <span className="text-stone-400">/</span>
+          <span className="font-semibold text-stone-900 truncate max-w-md">{course.shortTitle || course.name}</span>
+        </div>
+      </div>
 
       {/* SPECIAL OFFER RIBBON */}
       {course.offerType !== "NONE" && (
@@ -460,33 +535,61 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
       </section>
 
       {/* TRAINER PROFILE SECTION */}
-      <section className="py-14 border-b border-stone-200 bg-white">
+      <section id="instructor" className="py-16 border-b border-stone-200 bg-white">
         <div className="max-w-4xl mx-auto px-4">
           <div className="text-center space-y-2 mb-10">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Masterclass Faculty</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 inline-block">
+              Masterclass Lead Faculty
+            </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-stone-900">Meet Your Instructor</h2>
           </div>
 
-          <div className="p-8 rounded-2xl border border-stone-200 bg-stone-50 shadow-sm flex flex-col md:flex-row items-center md:items-start gap-6">
-            {course.trainerImage && (
+          <div className="p-8 sm:p-10 rounded-3xl border border-stone-200 bg-stone-50/80 shadow-xs flex flex-col md:flex-row items-center md:items-start gap-8">
+            <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden shadow-md border-4 border-white shrink-0 bg-stone-100">
               <img
-                src={course.trainerImage}
+                src={course.trainerImage || "/said-al-harthi.jpg"}
                 alt={course.trainerName}
-                className="h-28 w-28 rounded-2xl object-cover border-2 border-white shadow-md shrink-0"
+                className="w-full h-full object-cover object-top"
               />
-            )}
-            <div className="space-y-3 text-center md:text-left">
+            </div>
+            <div className="space-y-4 text-center md:text-left flex-1">
               <div>
-                <h3 className="text-xl font-bold text-stone-900">{course.trainerName}</h3>
-                <div className="text-xs font-medium text-amber-700">{course.trainerDesignation}</div>
-                <div className="text-xs text-stone-500">{course.trainerCompany}</div>
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full mb-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+                  Lead Faculty & Principal Consultant
+                </div>
+                <h3 className="text-2xl font-extrabold text-stone-900">{course.trainerName}</h3>
+                <div className="text-sm font-semibold text-emerald-800">{course.trainerDesignation}</div>
+                <div className="text-xs text-stone-500 font-medium">{course.trainerCompany}</div>
               </div>
 
               <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">{course.trainerBio}</p>
 
-              <div className="flex items-center justify-center md:justify-start gap-4 pt-2 text-xs font-medium text-stone-500">
-                {course.trainerEmail && <span>Email: {course.trainerEmail}</span>}
-                {course.trainerPhone && <span>Tel: {course.trainerPhone}</span>}
+              <div className="pt-3 border-t border-stone-200/80 flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2 text-xs font-medium text-stone-600">
+                {course.trainerEmail && (
+                  <a href={`mailto:${course.trainerEmail}`} className="flex items-center gap-1.5 hover:text-emerald-700 transition">
+                    <Mail className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>{course.trainerEmail}</span>
+                  </a>
+                )}
+                {course.trainerPhone && (
+                  <a href={`tel:${course.trainerPhone}`} className="flex items-center gap-1.5 hover:text-emerald-700 transition">
+                    <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>WhatsApp / Tel: {course.trainerPhone}</span>
+                  </a>
+                )}
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+                <a
+                  href={`https://wa.me/96899355438?text=${encodeURIComponent(`Hello Said Al Harthi! I am inquiring about the ${course.name} masterclass.`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition"
+                >
+                  <WhatsAppIcon className="h-3.5 w-3.5 fill-current" />
+                  <span>Ask Instructor Directly on WhatsApp</span>
+                </a>
               </div>
             </div>
           </div>

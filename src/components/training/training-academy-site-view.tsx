@@ -480,26 +480,30 @@ export default function TrainingAcademySiteView({
       <section id="trainer" className="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 shadow-xs">
           <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl bg-gradient-to-tr from-emerald-800 to-teal-600 text-white flex items-center justify-center font-black text-4xl shadow-md border-4 border-white shrink-0">
-              S
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-2xl overflow-hidden shadow-lg border-4 border-white shrink-0 bg-stone-100">
+              <img
+                src="/said-al-harthi.jpg"
+                alt="Said bin Saif Al Harthi"
+                className="w-full h-full object-cover object-top"
+              />
             </div>
             <div className="space-y-4 text-center md:text-start">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  {isAr ? "كبير المدربين والمستشارين" : "Lead Trainer & Principal Consultant"}
+                  {isAr ? "كبير المدربين والمستشارين" : "Executive Director & Senior Consultant and Trainer"}
                 </span>
                 <h4 className="mt-2 text-2xl sm:text-3xl font-extrabold text-stone-900">
                   Said bin Saif Al Harthi
                 </h4>
                 <p className="text-sm font-semibold text-stone-600">
-                  Managing Director · Tanfidh Management Consultants
+                  Tanfidh Management Consultants
                 </p>
               </div>
 
               <p className="text-sm text-stone-600 leading-relaxed">
                 {isAr
-                  ? "خبير ومستشار معتمد في صياغة الاستراتيجيات المؤسسية، وتطبيق بطاقات الأداء المتوازن (Balanced Scorecard)، ومؤشرات الأداء الرئيسية (KPIs)، وإعادة هيكلة العمليات وتطوير القيادات عبر القطاعين الحكومي والخاص في سلطنة عمان ومنطقة الخليج."
-                  : "Renowned management strategist and certified consultant with decades of executive advisory across government ministries, state-owned enterprises, and corporate boards in the Sultanate of Oman and the GCC. Specialized in Balanced Scorecard cascading, OKR implementation, and performance management."}
+                  ? "يقدم سعيد بن سيف الحارثي الاستشارات والتدريب للمؤسسات حول تطوير الاستراتيجيات وترجمتها وتنفيذها، وبطاقات الأداء المتوازن، وتصميم مؤشرات الأداء، ولوحات المؤشرات ومراجعات الأداء عبر تكليفات في القطاعين العام والخاص في سلطنة عمان وتنزانيا. يجمع تدريبه بين الأطر العملية والتمارين التفاعلية والأمثلة الواقعية المستمدة من الممارسة الاستشارية."
+                  : "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions. His training combines practical frameworks, facilitated exercises and examples drawn from consulting practice."}
               </p>
 
               <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-stone-600">

@@ -152,7 +152,7 @@ describe("Training & Course Management Add-on", () => {
     })
 
     expect(vars.course_name).toBe("AI-Powered Certified Balanced Scorecard Professional")
-    expect(vars.trainer_name).toBe("Said Al Harthi")
+    expect(vars.trainer_name).toBe("Said bin Saif Al Harthi")
     expect(vars.customer_name).toBe("Ahmed Al Balushi")
     expect(vars.company_name).toBe("Omantel")
     expect(vars.registration_id).toBe("REG-2026-9999")

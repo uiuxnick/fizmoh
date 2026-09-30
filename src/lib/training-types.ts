@@ -337,18 +337,16 @@ export const SEED_COURSE_BSC: Omit<Course, "tenantId" | "createdAt" | "updatedAt
   status: "PUBLISHED",
   landingPageEnabled: true,
 
-  trainerName: "Said Al Harthi",
-  trainerDesignation: "Managing Consultant & Former Executive Strategy Advisor",
+  trainerName: "Said bin Saif Al Harthi",
+  trainerDesignation: "Executive Director and Senior Consultant and Trainer",
   trainerBio:
-    "Said Al Harthi is a veteran strategy advisor with over 20 years guiding Vision transformation across Oman and GCC ministries, sovereign funds, energy enterprises, and financial institutions. He specializes in AI-accelerated performance architecture and executive scorecard alignment.",
-  trainerImage:
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop",
+    "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions. His training combines practical frameworks, facilitated exercises and examples drawn from consulting practice.",
+  trainerImage: "/said-al-harthi.jpg",
   trainerCompany: "Tanfidh Management Consultants",
-  trainerEmail: "said@tanfidh.om",
-  trainerPhone: "+968 9123 4567",
+  trainerEmail: "saidalharthy@tanfidh.com",
+  trainerPhone: "+968 99 355 438",
   trainerSocials: {
-    linkedin: "https://linkedin.com",
-    website: "https://tanfidh.om",
+    website: "https://www.tanfidh.com",
   },
 
   startDate: "2026-10-13",

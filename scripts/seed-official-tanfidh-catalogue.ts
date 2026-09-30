@@ -58,9 +58,9 @@ async function main() {
 
   const trainer = {
     trainerName: "Said bin Saif Al Harthi",
-    trainerDesignation: "Executive Director & Senior Consultant and Trainer",
-    trainerBio: "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions.",
-    trainerImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop",
+    trainerDesignation: "Executive Director and Senior Consultant and Trainer",
+    trainerBio: "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions. His training combines practical frameworks, facilitated exercises and examples drawn from consulting practice.",
+    trainerImage: "/said-al-harthi.jpg",
     trainerCompany: "Tanfidh Management Consultants",
     trainerEmail: "saidalharthy@tanfidh.com",
     trainerPhone: "+968 99 355 438",
