@@ -20,8 +20,8 @@ describe("Website Live Chat & WhatsApp Widget Addon", () => {
     expect(addon).toBeDefined()
     expect(addon?.name).toBe("Website Live Chat & WhatsApp Widget")
     expect(addon?.module).toBe("LIVE_CHAT")
-    expect(addon?.priceMonthly).toBe(15)
-    expect(addon?.priceYearly).toBe(150)
+    expect(addon?.priceMonthly).toBe(10)
+    expect(addon?.priceYearly).toBe(100)
   })
 
   it("maps /live-chat route and aliases in admin routing table", () => {

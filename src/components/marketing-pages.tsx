@@ -1655,7 +1655,8 @@ function Pricing({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {addons.map((addon) => {
-              const price = annual ? addon.priceYearly : addon.priceMonthly
+              const rawPrice = annual ? addon.priceYearly : addon.priceMonthly
+              const price = rawPrice >= 1000 ? rawPrice / 1000 : rawPrice
               return (
                 <div
                   key={addon.slug}

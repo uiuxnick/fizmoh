@@ -1502,7 +1502,8 @@ export default function BillingView() {
 
 /** Minor units to something a person reads. OMR carries three decimals. */
 function money(minor: number, currency: string): string {
-  return `${(minor / 1000).toFixed(3)} ${currency}`
+  const val = minor >= 1000 ? minor / 1000 : minor
+  return `${val.toFixed(3)} ${currency}`
 }
 
 function statusLabel(status: string): string {

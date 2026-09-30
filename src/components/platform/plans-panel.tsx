@@ -58,15 +58,16 @@ const LIMIT_FIELDS = [
 ]
 const CURRENCIES = ["OMR", "USD", "AED", "SAR"]
 
-// Minor units → major display
+// Minor units → major display (normalizes both minor units and legacy major values)
 function Money({ label, minor, onChange }: { label: string; minor: number; onChange: (minor: number) => void }) {
+  const major = minor >= 1000 ? minor / 1000 : minor
   return (
     <div>
       <p className="text-xs font-medium text-stone-600 mb-1">{label}</p>
       <Input
         type="number"
         step="0.001"
-        value={(minor / 1000).toString()}
+        value={major.toString()}
         onChange={e => onChange(Math.round(Number(e.target.value) * 1000))}
       />
     </div>
@@ -167,13 +168,15 @@ export function PlansPanel({ onChanged }: { onChanged?: () => void }) {
   }
 
   async function saveAddon(addon: Addon) {
+    const priceMonthly = addon.priceMonthly < 1000 ? addon.priceMonthly * 1000 : addon.priceMonthly
+    const priceYearly = addon.priceYearly < 1000 ? addon.priceYearly * 1000 : addon.priceYearly
     const res = await fetch(`/api/platform/plans/addons/${addon.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: addon.name,
-        priceMonthly: addon.priceMonthly,
-        priceYearly: addon.priceYearly,
+        priceMonthly,
+        priceYearly,
         currency: addon.currency,
         isPublic: addon.isPublic,
       }),

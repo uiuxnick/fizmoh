@@ -9,7 +9,7 @@ export const DEFAULT_ADDONS = [
   { slug: "extra-whatsapp-number", name: "Extra WhatsApp Number", description: "Connect another WhatsApp Business number.", module: "INBOX", priceMonthly: 12, priceYearly: 120, limits: { numbers: 1 } },
   { slug: "extra-staff-seat", name: "Extra Staff Seat", description: "Add one more team member.", module: "STAFF", priceMonthly: 5, priceYearly: 50, limits: { staff: 1 } },
   { slug: "digital-vcard", name: "Digital Business Card", description: "Smart digital business card with vCard, WhatsApp, QR, services, payments and analytics.", module: "DIGITAL_VCARD", priceMonthly: 12, priceYearly: 120, limits: { cards: 1, featuredServices: 5, galleryItems: 10, analyticsRetentionDays: 90 } },
-  { slug: "website-live-chat", name: "Website Live Chat & WhatsApp Widget", description: "Embeddable dual-mode website chat widget, WhatsApp direct chat, AI smart replies, lead capture and live team inbox sync.", module: "LIVE_CHAT", priceMonthly: 15, priceYearly: 150, limits: {} },
+  { slug: "website-live-chat", name: "Website Live Chat & WhatsApp Widget", description: "Embeddable dual-mode website chat widget, WhatsApp direct chat, AI smart replies, lead capture and live team inbox sync.", module: "LIVE_CHAT", priceMonthly: 10, priceYearly: 100, limits: {} },
   { slug: "extra-message-volume", name: "Extra Message Volume", description: "Add 10,000 outbound messages per month.", module: "INBOX", priceMonthly: 20, priceYearly: 200, limits: { messagesPerMonth: 10000 } },
   { slug: "corporate-architectural", name: "Corporate & Architectural Systems", description: "Tailored B2B/B2C workflow for architectural aluminium, glass, facade, quotation requests and factory showcases.", module: "CORPORATE", priceMonthly: 29, priceYearly: 290, limits: {} },
   { slug: "shopify-salla-connector", name: "Shopify & Salla GCC Connector", description: "Real-time store catalog sync, automated abandoned cart recovery, order dispatch alerts, and COD verification over WhatsApp.", module: "ECOMMERCE", priceMonthly: 19, priceYearly: 190, limits: { platforms: ["shopify", "salla", "zid"], autoSyncIntervalMinutes: 15 } },
@@ -24,29 +24,33 @@ export const DEFAULT_ADDONS = [
 
 export async function ensureDefaultAddons() {
   const { raw } = await import("@/lib/db")
-  await Promise.all(DEFAULT_ADDONS.map((addon, sortOrder) => raw.planAddon.upsert({
-    where: { slug: addon.slug },
-    create: {
-      slug: addon.slug,
-      name: addon.name,
-      description: addon.description,
-      module: addon.module,
-      currency: "OMR",
-      sortOrder,
-      priceMonthly: addon.priceMonthly,
-      priceYearly: addon.priceYearly,
-      limits: addon.limits,
-      isPublic: true,
-    },
-    update: {
-      name: addon.name,
-      description: addon.description,
-      module: addon.module,
-      limits: addon.limits,
-      priceMonthly: addon.priceMonthly,
-      priceYearly: addon.priceYearly,
-      sortOrder,
-      isPublic: true,
-    },
-  })))
+  await Promise.all(DEFAULT_ADDONS.map((addon, sortOrder) => {
+    const monthlyMinor = addon.priceMonthly * 1000
+    const yearlyMinor = addon.priceYearly * 1000
+    return raw.planAddon.upsert({
+      where: { slug: addon.slug },
+      create: {
+        slug: addon.slug,
+        name: addon.name,
+        description: addon.description,
+        module: addon.module,
+        currency: "OMR",
+        sortOrder,
+        priceMonthly: monthlyMinor,
+        priceYearly: yearlyMinor,
+        limits: addon.limits,
+        isPublic: true,
+      },
+      update: {
+        name: addon.name,
+        description: addon.description,
+        module: addon.module,
+        limits: addon.limits,
+        priceMonthly: monthlyMinor,
+        priceYearly: yearlyMinor,
+        sortOrder,
+        isPublic: true,
+      },
+    })
+  }))
 }

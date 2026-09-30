@@ -19,6 +19,11 @@ export const GET = withErrors(async (request: NextRequest) => {
   if (!(await requirePlatformAdmin(request))) {
     return NextResponse.json({ error: "Not a platform administrator" }, { status: 403 })
   }
+  const { ensureDefaultAddons } = await import("@/lib/addon-catalog")
+  const needsSync = await raw.planAddon.findFirst({ where: { priceMonthly: { lt: 1000 } } })
+  if (needsSync) {
+    await ensureDefaultAddons().catch(() => {})
+  }
   const [plans, addons] = await Promise.all([raw.plan.findMany({
     orderBy: { sortOrder: "asc" },
     include: { _count: { select: { subscriptions: true } } },
