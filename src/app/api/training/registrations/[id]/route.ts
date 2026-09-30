@@ -36,6 +36,17 @@ export const PUT = withErrors(
     const tenantId = tenant?.tenantId || PLATFORM
     const body = (await request.json()) as Partial<Registration> & { notifyWhatsApp?: boolean }
 
+    // Handle direct attendee update if requested
+    if ((body as any).attendeeId && (body as any).attendeeUpdates) {
+      const { attendeeId, attendeeUpdates } = body as any
+      const { updateAttendeeDetails } = await import("@/lib/training-service")
+      const attResult = await updateAttendeeDetails(tenantId, id, attendeeId, attendeeUpdates)
+      if (!attResult) {
+        return NextResponse.json({ error: "Attendee not found" }, { status: 404 })
+      }
+      return NextResponse.json({ success: true, registration: attResult.registration, attendee: attResult.attendee })
+    }
+
     const updated = await updateRegistrationStatus(tenantId, id, body)
     if (!updated) {
       return NextResponse.json({ error: "Registration not found" }, { status: 404 })

@@ -153,6 +153,15 @@ export interface Course {
   autoConfirmation: boolean
   autoCertificate: boolean
 
+  // Certificate Template Customization
+  certificateTitle?: string
+  certificateSubtitle?: string
+  certificateBodyText?: string
+  showTrainerDesignation?: boolean
+  showCourseDates?: boolean
+  customCourseDates?: string
+  certificateAccentColor?: string
+
   // Form & Content
   customFields: CustomFormField[]
   faqs: CourseFAQ[]
@@ -242,9 +251,18 @@ export interface CertificateRecord {
   issueDate: string
   trainerName: string
   trainerCompany: string
+  trainerDesignation?: string
+  showTrainerDesignation?: boolean
+  certificateTitle?: string
+  certificateSubtitle?: string
+  certificateBodyText?: string
+  courseDates?: string
+  showCourseDates?: boolean
   durationHours: string
   credentialUrl: string
+  accentColor?: string
   createdAt: string
+  updatedAt?: string
 }
 
 export interface FeedbackRecord {
@@ -397,6 +415,15 @@ export const SEED_COURSE_BSC: Omit<Course, "tenantId" | "createdAt" | "updatedAt
   },
   autoConfirmation: true,
   autoCertificate: true,
+
+  // Certificate template defaults
+  certificateTitle: "Certificate of Completion",
+  certificateSubtitle: "This is proudly presented to",
+  certificateBodyText: "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+  showTrainerDesignation: true,
+  showCourseDates: true,
+  customCourseDates: "October 14–15, 2026",
+  certificateAccentColor: "amber",
 
   customFields: [
     {

@@ -4,6 +4,7 @@ import { currentTenant, PLATFORM } from "@/lib/tenant"
 import {
   getTenantCertificates,
   issueAttendeeCertificate,
+  updateCertificateRecord,
   verifyCertificateById,
   getCourseByIdOrSlug,
 } from "@/lib/training-service"
@@ -34,7 +35,7 @@ export const POST = withErrors(async (request: NextRequest) => {
   const tenantId = tenant?.tenantId || PLATFORM
   const body = await request.json()
 
-  const { registrationId, attendeeId, sendWhatsAppNotice } = body
+  const { registrationId, attendeeId, sendWhatsAppNotice, overrides } = body
   if (!registrationId || !attendeeId) {
     return NextResponse.json(
       { error: "registrationId and attendeeId are required" },
@@ -42,17 +43,18 @@ export const POST = withErrors(async (request: NextRequest) => {
     )
   }
 
-  const certificate = await issueAttendeeCertificate(tenantId, registrationId, attendeeId)
+  const certificate = await issueAttendeeCertificate(tenantId, registrationId, attendeeId, overrides)
 
   // Send WhatsApp delivery if requested
   let whatsappDelivered = false
   if (sendWhatsAppNotice && body.recipientPhone) {
     try {
       const msg =
-        `🎓 *Certificate of Completion — ${certificate.courseName}*\n\n` +
+        `🎓 *${certificate.certificateTitle || "Certificate of Completion"} — ${certificate.courseName}*\n\n` +
         `Congratulations *${certificate.recipientName}*!\n\n` +
         `Your official training credential has been generated and cryptographically verified:\n\n` +
         `• *Credential ID:* ${certificate.id}\n` +
+        (certificate.courseDates ? `• *Course Dates:* ${certificate.courseDates}\n` : "") +
         `• *Issue Date:* ${certificate.issueDate}\n` +
         `• *Instructor:* ${certificate.trainerName}\n\n` +
         `🔗 View & Download your Verifiable Certificate:\n` +
@@ -76,4 +78,22 @@ export const POST = withErrors(async (request: NextRequest) => {
     certificate,
     whatsappDelivered,
   })
+})
+
+export const PUT = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId || PLATFORM
+  const body = await request.json()
+  const id = body.id || body.certificateId
+  if (!id) {
+    return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 })
+  }
+
+  const updates = body.updates || body
+  const updated = await updateCertificateRecord(tenantId, id, updates)
+  if (!updated) {
+    return NextResponse.json({ error: "Certificate not found" }, { status: 404 })
+  }
+
+  return NextResponse.json({ success: true, certificate: updated })
 })

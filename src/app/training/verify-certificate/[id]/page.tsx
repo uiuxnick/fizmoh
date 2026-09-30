@@ -59,13 +59,17 @@ export default async function CertificateVerificationPage({ params }: PageProps)
           </div>
 
           <div className="space-y-1">
-            <div className="text-xs font-semibold uppercase tracking-widest text-amber-700">
-              {certificate.trainerCompany || "Tanfidh Management Consultants"}
-            </div>
+            {certificate.trainerCompany ? (
+              <div className="text-xs font-semibold uppercase tracking-widest text-amber-700">
+                {certificate.trainerCompany}
+              </div>
+            ) : null}
             <h1 className="text-2xl sm:text-3xl font-serif font-black text-stone-900 tracking-tight">
-              Certificate of Completion
+              {certificate.certificateTitle || "Certificate of Completion"}
             </h1>
-            <p className="text-xs text-stone-500 italic">This is proudly presented to</p>
+            <p className="text-xs text-stone-500 italic">
+              {certificate.certificateSubtitle || "This is proudly presented to"}
+            </p>
           </div>
 
           <div className="py-2">
@@ -75,27 +79,43 @@ export default async function CertificateVerificationPage({ params }: PageProps)
           </div>
 
           <p className="text-xs sm:text-sm text-stone-600 max-w-xl mx-auto leading-relaxed">
-            for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for
+            {certificate.certificateBodyText ||
+              "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"}
           </p>
 
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 max-w-xl mx-auto">
             <h3 className="text-base sm:text-lg font-bold text-stone-900">
               {certificate.courseName}
             </h3>
-            <p className="text-xs text-stone-500 mt-1">
-              Program Duration: {certificate.durationHours}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-stone-500">
+              {certificate.showCourseDates !== false && certificate.courseDates && (
+                <div className="inline-flex items-center gap-1.5 font-medium text-stone-700 bg-stone-100/90 px-2.5 py-0.5 rounded-full border border-stone-200">
+                  <Calendar className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span>Course Dates: {certificate.courseDates}</span>
+                </div>
+              )}
+              {certificate.durationHours && (
+                <div className="inline-flex items-center gap-1.5 text-stone-600 bg-stone-100/90 px-2.5 py-0.5 rounded-full border border-stone-200">
+                  <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span>Program Duration: {certificate.durationHours}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Signatures & Seal Grid */}
           <div className="pt-8 grid grid-cols-2 gap-8 max-w-lg mx-auto text-center border-t border-stone-100">
             <div>
               <div className="text-xs font-bold text-stone-800">{certificate.trainerName}</div>
-              <div className="text-[10px] text-stone-500">Lead Instructor & Managing Consultant</div>
+              {certificate.showTrainerDesignation !== false && certificate.trainerDesignation ? (
+                <div className="text-[9px] text-stone-400 font-medium tracking-wide mt-0.5">
+                  {certificate.trainerDesignation}
+                </div>
+              ) : null}
             </div>
             <div>
               <div className="text-xs font-bold text-stone-800">{certificate.issueDate}</div>
-              <div className="text-[10px] text-stone-500">Date of Issuance</div>
+              <div className="text-[9px] text-stone-400 font-medium tracking-wide mt-0.5">Date of Issuance</div>
             </div>
           </div>
         </div>

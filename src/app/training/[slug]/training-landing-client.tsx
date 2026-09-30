@@ -430,7 +430,9 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                     </div>
 
                     <div className="text-right">
-                      <div className="text-[10px] text-stone-400 font-medium">VAT (5%) Included</div>
+                      {course.vatPercent && course.vatPercent > 0 ? (
+                        <div className="text-[10px] text-stone-400 font-medium">VAT ({course.vatPercent}%) Included</div>
+                      ) : null}
                       <div className="text-xs font-semibold text-amber-700">Official Receipt</div>
                     </div>
                   </div>

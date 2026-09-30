@@ -169,7 +169,7 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     groupPrice: courseData.groupPrice ? Number(courseData.groupPrice) : undefined,
     currency: courseData.currency || "OMR",
     taxPercent: Number(courseData.taxPercent) || 0,
-    vatPercent: Number(courseData.vatPercent) || 5,
+    vatPercent: courseData.vatPercent !== undefined && courseData.vatPercent !== null ? Number(courseData.vatPercent) : 0,
     paymentTerms: courseData.paymentTerms || "Full payment upon registration.",
 
     offerType: courseData.offerType || "NONE",
@@ -185,6 +185,15 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     reminderSettings: courseData.reminderSettings || { days7: true, day1: true, hours2: true },
     autoConfirmation: courseData.autoConfirmation !== false,
     autoCertificate: courseData.autoCertificate !== false,
+
+    // Certificate Template Customization
+    certificateTitle: courseData.certificateTitle || "Certificate of Completion",
+    certificateSubtitle: courseData.certificateSubtitle || "This is proudly presented to",
+    certificateBodyText: courseData.certificateBodyText || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+    showTrainerDesignation: courseData.showTrainerDesignation !== false,
+    showCourseDates: courseData.showCourseDates !== false,
+    customCourseDates: courseData.customCourseDates || "",
+    certificateAccentColor: courseData.certificateAccentColor || "amber",
 
     customFields: Array.isArray(courseData.customFields) ? courseData.customFields : [],
     faqs: Array.isArray(courseData.faqs) ? courseData.faqs : [],
@@ -611,10 +620,45 @@ export async function getTenantCertificates(tenantId: string): Promise<Certifica
   }
 }
 
+export function formatCourseDates(startDate?: string, endDate?: string): string {
+  if (!startDate) return ""
+  if (!endDate || startDate === endDate) {
+    try {
+      const d = new Date(startDate)
+      return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    } catch {
+      return startDate
+    }
+  }
+
+  try {
+    const s = new Date(startDate)
+    const e = new Date(endDate)
+
+    const sMonth = s.toLocaleDateString("en-US", { month: "long" })
+    const eMonth = e.toLocaleDateString("en-US", { month: "long" })
+    const sDay = s.getDate()
+    const eDay = e.getDate()
+    const sYear = s.getFullYear()
+    const eYear = e.getFullYear()
+
+    if (sYear === eYear && sMonth === eMonth) {
+      return `${sMonth} ${sDay}–${eDay}, ${sYear}`
+    } else if (sYear === eYear) {
+      return `${sMonth} ${sDay} – ${eMonth} ${eDay}, ${sYear}`
+    } else {
+      return `${sMonth} ${sDay}, ${sYear} – ${eMonth} ${eDay}, ${eYear}`
+    }
+  } catch {
+    return `${startDate} to ${endDate}`
+  }
+}
+
 export async function issueAttendeeCertificate(
   tenantId: string,
   registrationId: string,
   attendeeId: string,
+  overrides?: Partial<CertificateRecord>,
 ): Promise<CertificateRecord> {
   const tid = tenantId || PLATFORM
   const allRegistrations = await getTenantRegistrations(tid)
@@ -627,25 +671,36 @@ export async function issueAttendeeCertificate(
   const course = await getCourseByIdOrSlug(tid, reg.courseId)
   if (!course) throw new Error("Course not found")
 
-  const certId = `CERT-${course.courseId || "CRS"}-${Math.floor(100000 + Math.random() * 900000)}`
-  const verificationHash = crypto.createHash("sha256").update(`${certId}:${attendee.name}:${course.name}`).digest("hex").slice(0, 16)
+  const certId = overrides?.id || `CERT-${course.courseId || "CRS"}-${Math.floor(100000 + Math.random() * 900000)}`
+  const recipientName = overrides?.recipientName || attendee.name
+  const verificationHash = crypto.createHash("sha256").update(`${certId}:${recipientName}:${course.name}`).digest("hex").slice(0, 16)
   const now = new Date().toISOString()
+
+  const courseDates = overrides?.courseDates || course.customCourseDates || formatCourseDates(course.startDate, course.endDate)
 
   const certificate: CertificateRecord = {
     id: certId,
     verificationHash,
     tenantId: tid,
     courseId: course.id,
-    courseName: course.name,
+    courseName: overrides?.courseName || course.name,
     registrationId: reg.id,
     attendeeId: attendee.id,
-    recipientName: attendee.name,
-    recipientEmail: attendee.email || reg.customerEmail,
-    issueDate: now.slice(0, 10),
-    trainerName: course.trainerName,
-    trainerCompany: course.trainerCompany,
-    durationHours: course.duration,
+    recipientName,
+    recipientEmail: overrides?.recipientEmail || attendee.email || reg.customerEmail,
+    issueDate: overrides?.issueDate || now.slice(0, 10),
+    trainerName: overrides?.trainerName || course.trainerName || "Said bin Saif Al Harthi",
+    trainerCompany: overrides?.trainerCompany !== undefined ? overrides.trainerCompany : (course.trainerCompany || "Tanfidh Management Consultants"),
+    trainerDesignation: overrides?.trainerDesignation !== undefined ? overrides.trainerDesignation : (course.trainerDesignation || "Lead Instructor & Managing Consultant"),
+    showTrainerDesignation: overrides?.showTrainerDesignation !== undefined ? overrides.showTrainerDesignation : (course.showTrainerDesignation !== false),
+    certificateTitle: overrides?.certificateTitle || course.certificateTitle || "Certificate of Completion",
+    certificateSubtitle: overrides?.certificateSubtitle || course.certificateSubtitle || "This is proudly presented to",
+    certificateBodyText: overrides?.certificateBodyText || course.certificateBodyText || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for",
+    courseDates,
+    showCourseDates: overrides?.showCourseDates !== undefined ? overrides.showCourseDates : (course.showCourseDates !== false),
+    durationHours: overrides?.durationHours || course.duration,
     credentialUrl: `https://app.fizmoh.cloud/training/verify-certificate/${certId}`,
+    accentColor: overrides?.accentColor || course.certificateAccentColor || "amber",
     createdAt: now,
   }
 
@@ -668,17 +723,138 @@ export async function issueAttendeeCertificate(
   return certificate
 }
 
+export async function updateCertificateRecord(
+  tenantId: string,
+  certId: string,
+  updates: Partial<CertificateRecord>,
+): Promise<CertificateRecord | null> {
+  const tid = tenantId || PLATFORM
+  const certificates = await getTenantCertificates(tid)
+  const index = certificates.findIndex(c => c.id === certId || c.verificationHash === certId)
+  if (index < 0) return null
+
+  const existing = certificates[index]
+  const updated: CertificateRecord = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
+
+  // If recipient name or course name was changed, recalculate verification hash
+  if (updates.recipientName && updates.recipientName !== existing.recipientName) {
+    updated.verificationHash = crypto
+      .createHash("sha256")
+      .update(`${updated.id}:${updated.recipientName}:${updated.courseName}`)
+      .digest("hex")
+      .slice(0, 16)
+  }
+
+  certificates[index] = updated
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: CERTIFICATES_SETTING_KEY } },
+    update: { value: JSON.stringify(certificates), type: "JSON", category: "TRAINING" },
+    create: { tenantId: tid, key: CERTIFICATES_SETTING_KEY, value: JSON.stringify(certificates), type: "JSON", category: "TRAINING" },
+  })
+
+  // Sync recipient name back to the attendee in registration if linked
+  if (updated.registrationId && updated.attendeeId && updates.recipientName) {
+    try {
+      const allRegs = await getTenantRegistrations(tid)
+      const reg = allRegs.find(r => r.id === updated.registrationId)
+      if (reg) {
+        const att = reg.attendees.find(a => a.id === updated.attendeeId)
+        if (att && att.name !== updates.recipientName) {
+          att.name = updates.recipientName
+          await persistRegistrations(tid, allRegs)
+        }
+      }
+    } catch (e) {
+      console.error("[training] Error syncing certificate recipient to registration attendee:", e)
+    }
+  }
+
+  return updated
+}
+
+export async function updateAttendeeDetails(
+  tenantId: string,
+  registrationId: string,
+  attendeeId: string,
+  updates: Partial<AttendeeRecord>,
+): Promise<{ registration: Registration; attendee: AttendeeRecord } | null> {
+  const tid = tenantId || PLATFORM
+  const allRegistrations = await getTenantRegistrations(tid)
+  const reg = allRegistrations.find(r => r.id === registrationId)
+  if (!reg) return null
+
+  const attendee = reg.attendees.find(a => a.id === attendeeId)
+  if (!attendee) return null
+
+  if (updates.name !== undefined && updates.name.trim()) attendee.name = updates.name.trim()
+  if (updates.email !== undefined) attendee.email = updates.email.trim()
+  if (updates.phone !== undefined) attendee.phone = updates.phone.trim()
+  if (updates.designation !== undefined) attendee.designation = updates.designation.trim()
+  if (updates.company !== undefined) attendee.company = updates.company.trim()
+
+  reg.updatedAt = new Date().toISOString()
+  await persistRegistrations(tid, allRegistrations)
+
+  // If this attendee has a certificate already issued, update the recipient on the certificate too!
+  if (attendee.certificateId && updates.name) {
+    await updateCertificateRecord(tid, attendee.certificateId, {
+      recipientName: attendee.name,
+      recipientEmail: attendee.email,
+    })
+  }
+
+  return { registration: reg, attendee }
+}
+
 export async function verifyCertificateById(certId: string): Promise<CertificateRecord | null> {
-  const setting = await db.systemSetting.findFirst({
+  const settings = await db.systemSetting.findMany({
     where: { key: CERTIFICATES_SETTING_KEY },
   })
-  if (!setting?.value) return null
-  try {
-    const list: CertificateRecord[] = JSON.parse(setting.value)
-    return list.find(c => c.id === certId || c.verificationHash === certId) || null
-  } catch {
-    return null
+  if (!settings || settings.length === 0) return null
+
+  for (const setting of settings) {
+    if (!setting.value) continue
+    try {
+      const list: CertificateRecord[] = JSON.parse(setting.value)
+      const found = list.find(c => c.id === certId || c.verificationHash === certId)
+      if (found) {
+        // Auto-populate backward-compatible fields from course if missing on old certificates
+        const course = await getCourseByIdOrSlug(found.tenantId, found.courseId)
+        if (course) {
+          if (!found.courseDates) {
+            found.courseDates = course.customCourseDates || formatCourseDates(course.startDate, course.endDate)
+          }
+          if (found.showTrainerDesignation === undefined) {
+            found.showTrainerDesignation = course.showTrainerDesignation !== false
+          }
+          if (!found.trainerDesignation) {
+            found.trainerDesignation = course.trainerDesignation || ""
+          }
+          if (!found.certificateTitle) {
+            found.certificateTitle = course.certificateTitle || "Certificate of Completion"
+          }
+          if (!found.certificateSubtitle) {
+            found.certificateSubtitle = course.certificateSubtitle || "This is proudly presented to"
+          }
+          if (!found.certificateBodyText) {
+            found.certificateBodyText = course.certificateBodyText || "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"
+          }
+          if (!found.trainerCompany && course.trainerCompany) {
+            found.trainerCompany = course.trainerCompany
+          }
+        }
+        return found
+      }
+    } catch {
+      continue
+    }
   }
+  return null
 }
 
 // ============================================================================

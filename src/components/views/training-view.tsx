@@ -107,8 +107,24 @@ export default function TrainingView() {
   const [editingCourse, setEditingCourse] = useState<Partial<Course> | null>(null)
   const [availableFlows, setAvailableFlows] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
   const [editorSubTab, setEditorSubTab] = useState<
-    "basic" | "trainer" | "schedule" | "pricing" | "offers" | "whatsapp"
+    "basic" | "trainer" | "schedule" | "pricing" | "offers" | "certificate" | "whatsapp"
   >("basic")
+
+  // Attendee Edit Modal State
+  const [editingAttendee, setEditingAttendee] = useState<{
+    registrationId: string
+    attendee: any
+  } | null>(null)
+  const [attendeeForm, setAttendeeForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    designation: "",
+    company: "",
+  })
+
+  // Certificate Edit Modal State
+  const [editingCert, setEditingCert] = useState<CertificateRecord | null>(null)
 
   // WhatsApp manual template trigger modal
   const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
@@ -267,6 +283,81 @@ export default function TrainingView() {
       }
     } catch {
       toast.error("Error issuing certificate")
+    }
+  }
+
+  // Open Attendee Editor
+  const handleOpenEditAttendee = (registrationId: string, attendee: any) => {
+    setEditingAttendee({ registrationId, attendee })
+    setAttendeeForm({
+      name: attendee.name || "",
+      email: attendee.email || "",
+      phone: attendee.phone || "",
+      designation: attendee.designation || "",
+      company: attendee.company || "",
+    })
+  }
+
+  // Save Attendee Edit
+  const handleSaveAttendee = async () => {
+    if (!editingAttendee) return
+    if (!attendeeForm.name.trim()) {
+      toast.error("Please provide attendee full name")
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/training/registrations/${editingAttendee.registrationId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attendeeId: editingAttendee.attendee.id,
+          attendeeUpdates: attendeeForm,
+        }),
+      })
+      const data = await res.json()
+      if (data.success || data.registration) {
+        toast.success("Attendee details updated & certificate synced!")
+        setEditingAttendee(null)
+        fetchData()
+        if (activeRegistration && activeRegistration.id === editingAttendee.registrationId) {
+          setActiveRegistration(data.registration || {
+            ...activeRegistration,
+            attendees: activeRegistration.attendees.map(a =>
+              a.id === editingAttendee.attendee.id ? { ...a, ...attendeeForm } : a
+            ),
+          })
+        }
+      } else {
+        toast.error(data.error || "Failed to update attendee")
+      }
+    } catch {
+      toast.error("Network error updating attendee")
+    }
+  }
+
+  // Save Certificate Edit
+  const handleSaveCertificate = async () => {
+    if (!editingCert) return
+    try {
+      const res = await fetch(`/api/training/certificates`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCert.id,
+          updates: editingCert,
+        }),
+      })
+      const data = await res.json()
+      if (data.success || data.certificate) {
+        toast.success("Certificate updated successfully!")
+        setEditingCert(null)
+        fetchData()
+      } else {
+        toast.error(data.error || "Failed to update certificate")
+      }
+    } catch {
+      toast.error("Network error updating certificate")
     }
   }
 
@@ -1134,7 +1225,16 @@ export default function TrainingView() {
                 {allAttendees.map(({ attendee, registration, course }, idx) => (
                   <tr key={idx} className="hover:bg-stone-50/70">
                     <td className="p-3 pl-4">
-                      <div className="font-bold text-stone-900">{attendee.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="font-bold text-stone-900">{attendee.name}</div>
+                        <button
+                          onClick={() => handleOpenEditAttendee(registration.id, attendee)}
+                          title="Rename / Edit Delegate details"
+                          className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </button>
+                      </div>
                       <div className="text-[11px] text-stone-500">{attendee.email || attendee.phone}</div>
                     </td>
                     <td className="p-3">
@@ -1172,7 +1272,15 @@ export default function TrainingView() {
                     <td className="p-3 font-mono text-[10px] text-stone-400 truncate max-w-[120px]">
                       {attendee.qrToken}
                     </td>
-                    <td className="p-3 text-right pr-4">
+                    <td className="p-3 text-right pr-4 space-x-1.5 whitespace-nowrap">
+                      <button
+                        onClick={() => handleOpenEditAttendee(registration.id, attendee)}
+                        className="px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-[10px] inline-flex items-center gap-1"
+                        title="Edit Delegate Name & Details"
+                      >
+                        <Edit className="h-3 w-3" />
+                        <span>Edit</span>
+                      </button>
                       {attendee.certificateId ? (
                         <a
                           href={attendee.certificateUrl}
@@ -1243,12 +1351,20 @@ export default function TrainingView() {
                     <td className="p-3 font-mono text-[10px] text-stone-400">
                       {cert.verificationHash}
                     </td>
-                    <td className="p-3 text-right pr-4">
+                    <td className="p-3 text-right pr-4 space-x-1.5 whitespace-nowrap">
+                      <button
+                        onClick={() => setEditingCert(cert)}
+                        className="px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-[10px] inline-flex items-center gap-1"
+                        title="Customize Certificate Template & Details"
+                      >
+                        <Edit className="h-3 w-3" />
+                        <span>Edit / Customize</span>
+                      </button>
                       <a
                         href={`/training/verify-certificate/${cert.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-[10px] inline-flex items-center gap-1"
+                        className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-[10px] border border-amber-200 inline-flex items-center gap-1"
                       >
                         <ExternalLink className="h-3 w-3" />
                         <span>Public Credential</span>
@@ -1518,8 +1634,15 @@ export default function TrainingView() {
                       className="p-3 rounded-lg border border-stone-200 flex items-center justify-between bg-white"
                     >
                       <div>
-                        <div className="font-bold text-stone-900">
-                          {idx + 1}. {att.name}{" "}
+                        <div className="font-bold text-stone-900 flex items-center gap-1.5">
+                          <span>{idx + 1}. {att.name}</span>
+                          <button
+                            onClick={() => handleOpenEditAttendee(activeRegistration.id, att)}
+                            title="Edit Attendee Name & Details"
+                            className="p-1 rounded text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </button>
                           {att.isFreeSeat && (
                             <span className="text-[10px] text-emerald-700 font-bold ml-1">
                               (FREE SEAT)
@@ -1527,12 +1650,19 @@ export default function TrainingView() {
                           )}
                         </div>
                         <div className="text-[11px] text-stone-500">
-                          {att.designation ? `${att.designation} &bull; ` : ""}
+                          {att.designation ? `${att.designation} • ` : ""}
                           {att.email}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenEditAttendee(activeRegistration.id, att)}
+                          className="px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 text-[10px] font-semibold inline-flex items-center gap-1"
+                        >
+                          <Edit className="h-3 w-3" />
+                          <span>Edit</span>
+                        </button>
                         {att.checkInStatus === "CHECKED_IN" ? (
                           <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                             Checked In
@@ -1743,6 +1873,7 @@ export default function TrainingView() {
                 { key: "schedule", label: "Schedule & Venue", icon: Calendar },
                 { key: "pricing", label: "Pricing & Capacity", icon: DollarSign },
                 { key: "offers", label: "Offers & BOGO", icon: Sparkles },
+                { key: "certificate", label: "Certificate", icon: Award },
                 { key: "whatsapp", label: "WhatsApp & Bot Flow", icon: Bot },
               ].map(st => {
                 const Icon = st.icon
@@ -2035,10 +2166,10 @@ export default function TrainingView() {
               {/* SUBTAB: PRICING & CAPACITY */}
               {editorSubTab === "pricing" && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold text-stone-600 block mb-1">
-                        Standard Fee (OMR)
+                        Standard Fee
                       </label>
                       <Input
                         type="number"
@@ -2052,13 +2183,13 @@ export default function TrainingView() {
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-semibold text-stone-600 block">
-                          Maximum Seats (Optional)
+                          Max Seats
                         </label>
-                        <span className="text-[10px] text-stone-400">Leave blank for unlimited</span>
+                        <span className="text-[10px] text-stone-400">Blank = unlim</span>
                       </div>
                       <Input
                         type="number"
-                        placeholder="Unlimited (Optional)"
+                        placeholder="Unlimited"
                         value={editingCourse.maxSeats !== null && editingCourse.maxSeats !== undefined ? editingCourse.maxSeats : ""}
                         onChange={e => {
                           const val = e.target.value.trim() === "" ? null : Number(e.target.value)
@@ -2069,6 +2200,26 @@ export default function TrainingView() {
                           })
                         }}
                         className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-stone-600 block">
+                          VAT % (0 = Off)
+                        </label>
+                        <span className="text-[10px] text-stone-400">0% = No VAT</span>
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={editingCourse.vatPercent ?? 0}
+                        onChange={e =>
+                          setEditingCourse({
+                            ...editingCourse,
+                            vatPercent: e.target.value.trim() === "" ? 0 : Number(e.target.value),
+                          })
+                        }
+                        className="h-8 text-xs font-medium"
                       />
                     </div>
                     <div>
@@ -2143,6 +2294,190 @@ export default function TrainingView() {
                       placeholder="Register 1 paid delegate and bring a colleague at zero extra cost."
                       className="text-xs bg-white"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB: CERTIFICATE TEMPLATE CUSTOMIZER */}
+              {editorSubTab === "certificate" && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-start gap-2.5">
+                    <Award className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-bold text-amber-900 text-xs">Certificate Template & Design Customization</div>
+                      <div className="text-[11px] text-amber-800">
+                        Tailor the title, presenter organization, instructor designation, dates and body text printed on official verifiable credentials for this course.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                        Certificate Title
+                      </label>
+                      <Input
+                        value={editingCourse.certificateTitle || "Certificate of Completion"}
+                        onChange={e => setEditingCourse({ ...editingCourse, certificateTitle: e.target.value })}
+                        placeholder="e.g. Certificate of Completion"
+                        className="h-8 text-xs font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                        Presentation Subtitle
+                      </label>
+                      <Input
+                        value={editingCourse.certificateSubtitle || "This is proudly presented to"}
+                        onChange={e => setEditingCourse({ ...editingCourse, certificateSubtitle: e.target.value })}
+                        placeholder="e.g. This is proudly presented to"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                      Award & Achievement Description Body
+                    </label>
+                    <Textarea
+                      rows={2}
+                      value={
+                        editingCourse.certificateBodyText ||
+                        "for successfully completing the rigorous executive requirements, masterclass sessions, and practical strategy modeling for"
+                      }
+                      onChange={e => setEditingCourse({ ...editingCourse, certificateBodyText: e.target.value })}
+                      className="text-xs resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                        Issuing Organization / Company Header
+                      </label>
+                      <Input
+                        value={editingCourse.trainerCompany ?? "Tanfidh Management Consultants"}
+                        onChange={e => setEditingCourse({ ...editingCourse, trainerCompany: e.target.value })}
+                        placeholder="Leave blank to remove organization header"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-stone-600 block mb-1">
+                        Lead Instructor / Signatory Name
+                      </label>
+                      <Input
+                        value={editingCourse.trainerName ?? "Said bin Saif Al Harthi"}
+                        onChange={e => setEditingCourse({ ...editingCourse, trainerName: e.target.value })}
+                        className="h-8 text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-stone-600 block">
+                          Trainer Designation / Position Below Name
+                        </label>
+                        <label className="inline-flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editingCourse.showTrainerDesignation !== false}
+                            onChange={e => setEditingCourse({ ...editingCourse, showTrainerDesignation: e.target.checked })}
+                            className="rounded text-amber-600"
+                          />
+                          <span className="text-[10px] text-stone-500 font-medium">Show Position</span>
+                        </label>
+                      </div>
+                      <Input
+                        value={editingCourse.trainerDesignation ?? "Lead Instructor & Managing Consultant"}
+                        onChange={e => setEditingCourse({ ...editingCourse, trainerDesignation: e.target.value })}
+                        disabled={editingCourse.showTrainerDesignation === false}
+                        placeholder="e.g. Lead Instructor (or uncheck to remove completely)"
+                        className="h-8 text-xs"
+                      />
+                      <p className="text-[10px] text-stone-400 mt-1">
+                        Uncheck "Show Position" or leave empty to remove position below trainer's name. When enabled, it displays in small elegant typography.
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-stone-600 block">
+                          Course Dates on Certificate
+                        </label>
+                        <label className="inline-flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editingCourse.showCourseDates !== false}
+                            onChange={e => setEditingCourse({ ...editingCourse, showCourseDates: e.target.checked })}
+                            className="rounded text-amber-600"
+                          />
+                          <span className="text-[10px] text-stone-500 font-medium">Show Dates</span>
+                        </label>
+                      </div>
+                      <Input
+                        value={editingCourse.customCourseDates ?? ""}
+                        onChange={e => setEditingCourse({ ...editingCourse, customCourseDates: e.target.value })}
+                        disabled={editingCourse.showCourseDates === false}
+                        placeholder={editingCourse.startDate && editingCourse.endDate ? `${editingCourse.startDate} to ${editingCourse.endDate}` : "e.g. October 14–15, 2026"}
+                        className="h-8 text-xs"
+                      />
+                      <p className="text-[10px] text-stone-400 mt-1">
+                        Leave blank to auto-format from course schedule ({editingCourse.startDate || "start"} to {editingCourse.endDate || "end"}).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Real-time Certificate Mini Preview */}
+                  <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+                    <div className="text-[11px] font-bold text-stone-700 flex items-center justify-between">
+                      <span>Live Certificate Layout Preview</span>
+                      <span className="text-[10px] font-normal text-stone-400">Updates live as you type</span>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-stone-200 shadow-xs text-center space-y-2 max-w-md mx-auto">
+                      {editingCourse.trainerCompany && (
+                        <div className="text-[9px] font-bold tracking-widest text-amber-700 uppercase">
+                          {editingCourse.trainerCompany}
+                        </div>
+                      )}
+                      <div className="text-sm font-black font-serif text-stone-900">
+                        {editingCourse.certificateTitle || "Certificate of Completion"}
+                      </div>
+                      <div className="text-[10px] italic text-stone-400">
+                        {editingCourse.certificateSubtitle || "This is proudly presented to"}
+                      </div>
+                      <div className="text-base font-extrabold text-stone-900 underline decoration-amber-400 decoration-2">
+                        Recipient Delegate Name
+                      </div>
+                      <div className="text-[9px] text-stone-500 max-w-xs mx-auto">
+                        {editingCourse.certificateBodyText || "for successfully completing the rigorous executive requirements for"}
+                      </div>
+                      <div className="p-2 rounded bg-stone-50 border border-stone-200 text-xs font-bold text-stone-900">
+                        {editingCourse.name || "Course Program Title"}
+                        {editingCourse.showCourseDates !== false && (
+                          <div className="text-[9px] font-normal text-stone-500 mt-0.5">
+                            Course Dates: {editingCourse.customCourseDates || `${editingCourse.startDate || "2026-10-14"} to ${editingCourse.endDate || "2026-10-15"}`}
+                          </div>
+                        )}
+                      </div>
+                      <div className="pt-2 flex items-center justify-around border-t border-stone-100 text-[10px]">
+                        <div>
+                          <div className="font-bold text-stone-800">{editingCourse.trainerName || "Said bin Saif Al Harthi"}</div>
+                          {editingCourse.showTrainerDesignation !== false && editingCourse.trainerDesignation ? (
+                            <div className="text-[8px] text-stone-400 font-medium">
+                              {editingCourse.trainerDesignation}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div>
+                          <div className="font-bold text-stone-800">2026-09-30</div>
+                          <div className="text-[8px] text-stone-400">Date of Issuance</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2289,6 +2624,292 @@ export default function TrainingView() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* DIALOG: EDIT ATTENDEE MODAL */}
+      {editingAttendee && (
+        <Dialog open={!!editingAttendee} onOpenChange={open => !open && setEditingAttendee(null)}>
+          <DialogContent className="max-w-md bg-white p-6 rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-stone-900 flex items-center gap-2">
+                <User className="h-5 w-5 text-amber-600" />
+                <span>Edit Attendee / Delegate Details</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-[11px]">
+                Update delegate identification. If a certificate has already been issued, the recipient name will be synchronized automatically.
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  Full Name (Appears on Certificate) *
+                </label>
+                <Input
+                  value={attendeeForm.name}
+                  onChange={e => setAttendeeForm({ ...attendeeForm, name: e.target.value })}
+                  placeholder="e.g. Salim bin Said Al Habsi"
+                  className="h-8 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  Email Address
+                </label>
+                <Input
+                  type="email"
+                  value={attendeeForm.email}
+                  onChange={e => setAttendeeForm({ ...attendeeForm, email: e.target.value })}
+                  placeholder="delegate@company.com"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  Mobile / WhatsApp Number
+                </label>
+                <Input
+                  value={attendeeForm.phone}
+                  onChange={e => setAttendeeForm({ ...attendeeForm, phone: e.target.value })}
+                  placeholder="+968 9123 4567"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Designation / Title
+                  </label>
+                  <Input
+                    value={attendeeForm.designation}
+                    onChange={e => setAttendeeForm({ ...attendeeForm, designation: e.target.value })}
+                    placeholder="e.g. Strategy Analyst"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Organization / Company
+                  </label>
+                  <Input
+                    value={attendeeForm.company}
+                    onChange={e => setAttendeeForm({ ...attendeeForm, company: e.target.value })}
+                    placeholder="e.g. Bank Muscat"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingAttendee(null)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveAttendee}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+              >
+                Save & Sync
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* DIALOG: EDIT / CUSTOMIZE CERTIFICATE MODAL */}
+      {editingCert && (
+        <Dialog open={!!editingCert} onOpenChange={open => !open && setEditingCert(null)}>
+          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-stone-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-amber-600" />
+                  <span>Customize Certificate: {editingCert.id}</span>
+                </div>
+                <span className="text-xs font-mono bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
+                  {editingCert.verificationHash}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Recipient Name (Delegate) *
+                  </label>
+                  <Input
+                    value={editingCert.recipientName}
+                    onChange={e => setEditingCert({ ...editingCert, recipientName: e.target.value })}
+                    className="h-8 text-xs font-black text-stone-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Certificate Title
+                  </label>
+                  <Input
+                    value={editingCert.certificateTitle || "Certificate of Completion"}
+                    onChange={e => setEditingCert({ ...editingCert, certificateTitle: e.target.value })}
+                    className="h-8 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Issuing Organization / Company Header
+                  </label>
+                  <Input
+                    value={editingCert.trainerCompany || ""}
+                    onChange={e => setEditingCert({ ...editingCert, trainerCompany: e.target.value })}
+                    placeholder="e.g. Tanfidh Management Consultants (or blank to hide)"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Course Dates Mentioned on Certificate
+                  </label>
+                  <Input
+                    value={editingCert.courseDates || ""}
+                    onChange={e => setEditingCert({ ...editingCert, courseDates: e.target.value })}
+                    placeholder="e.g. October 14–15, 2026"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  Award / Completion Body Description
+                </label>
+                <Textarea
+                  rows={2}
+                  value={editingCert.certificateBodyText || ""}
+                  onChange={e => setEditingCert({ ...editingCert, certificateBodyText: e.target.value })}
+                  className="text-xs resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                    Lead Instructor / Signatory Name
+                  </label>
+                  <Input
+                    value={editingCert.trainerName}
+                    onChange={e => setEditingCert({ ...editingCert, trainerName: e.target.value })}
+                    className="h-8 text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-stone-700 block">
+                      Position Below Trainer Name
+                    </label>
+                    <label className="inline-flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingCert.showTrainerDesignation !== false}
+                        onChange={e => setEditingCert({ ...editingCert, showTrainerDesignation: e.target.checked })}
+                        className="rounded text-amber-600"
+                      />
+                      <span className="text-[10px] text-stone-500 font-medium">Show Position</span>
+                    </label>
+                  </div>
+                  <Input
+                    value={editingCert.trainerDesignation || ""}
+                    onChange={e => setEditingCert({ ...editingCert, trainerDesignation: e.target.value })}
+                    disabled={editingCert.showTrainerDesignation === false}
+                    placeholder="e.g. Lead Instructor (or uncheck to remove)"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview Card in Dialog */}
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+                <div className="text-[11px] font-bold text-stone-700 flex items-center justify-between">
+                  <span>Certificate Preview</span>
+                  <a
+                    href={`/training/verify-certificate/${editingCert.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-amber-700 hover:underline inline-flex items-center gap-1"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>Open Public URL</span>
+                  </a>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-stone-200 shadow-xs text-center space-y-2 max-w-lg mx-auto">
+                  {editingCert.trainerCompany && (
+                    <div className="text-[9px] font-bold tracking-widest text-amber-700 uppercase">
+                      {editingCert.trainerCompany}
+                    </div>
+                  )}
+                  <div className="text-base font-black font-serif text-stone-900">
+                    {editingCert.certificateTitle || "Certificate of Completion"}
+                  </div>
+                  <div className="text-[10px] italic text-stone-400">
+                    {editingCert.certificateSubtitle || "This is proudly presented to"}
+                  </div>
+                  <div className="text-lg font-black text-stone-900 underline decoration-amber-400 decoration-2">
+                    {editingCert.recipientName}
+                  </div>
+                  <div className="text-[9px] text-stone-500 max-w-sm mx-auto">
+                    {editingCert.certificateBodyText || "for successfully completing the rigorous executive requirements for"}
+                  </div>
+                  <div className="p-2 rounded bg-stone-50 border border-stone-200 text-xs font-bold text-stone-900">
+                    {editingCert.courseName}
+                    {editingCert.courseDates && (
+                      <div className="text-[9px] font-normal text-stone-600 mt-0.5">
+                        Course Dates: {editingCert.courseDates}
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-2 flex items-center justify-around border-t border-stone-100 text-[10px]">
+                    <div>
+                      <div className="font-bold text-stone-800">{editingCert.trainerName}</div>
+                      {editingCert.showTrainerDesignation !== false && editingCert.trainerDesignation ? (
+                        <div className="text-[8px] text-stone-400 font-medium">
+                          {editingCert.trainerDesignation}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div>
+                      <div className="font-bold text-stone-800">{editingCert.issueDate}</div>
+                      <div className="text-[8px] text-stone-400">Date of Issuance</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingCert(null)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveCertificate}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
