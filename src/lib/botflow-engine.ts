@@ -48,7 +48,7 @@ export type FlowNode = {
     /** QUESTION: the key the answer is stored under. */
     name?: string
     /** QUESTION: how the answer is validated and asked for. */
-    inputType?: "text" | "email" | "phone" | "select" | "date" | "number"
+    inputType?: "text" | "email" | "phone" | "select" | "date" | "number" | "image" | "file"
     /** QUESTION: choices, when inputType is select. */
       options?: string[]
       rows?: { id: string; title: string; description?: string }[]
@@ -242,11 +242,40 @@ function interpolate(text: string, ctx: FlowContext, extra: Record<string, strin
  * with spaces or an option chosen by its number both become the thing the
  * operator expected to receive.
  */
-export function validateAnswer(node: FlowNode, raw: string): { ok: true; value: string } | { ok: false; retry: string } {
+export function validateAnswer(
+  node: FlowNode,
+  raw: string,
+  customerPhone?: string
+): { ok: true; value: string } | { ok: false; retry: string } {
   const text = raw.trim()
   const type = node.data?.inputType ?? "text"
 
   if (!text) return { ok: false, retry: "Please type an answer." }
+
+  // 1. Check for Skip keywords (when question is optional or mentions skip)
+  const cleanSkip = text.replace(/[*_~`]/g, "").trim().toLowerCase()
+  const isSkipWord = /^(skip|none|later|no|n\/a|na|nope|not now|skip for now|pass|nominate later|leave blank|تخطي|تجاوز|لا|لاحقا|بعدين|بدون|skip please|please skip)$/i.test(cleanSkip) || cleanSkip === "skip" || cleanSkip.includes("skip") || cleanSkip.includes("تخطي")
+  const isOptionalNode = node.data?.required === false || /(?:reply|type)\s*\*?skip\*?|optional|nominate later/i.test(node.data?.text || "")
+
+  if (isSkipWord && isOptionalNode) {
+    const defaultVal = node.data?.name?.toLowerCase().includes("email") ? "None" : "To be nominated"
+    return { ok: true, value: defaultVal }
+  }
+
+  // 2. Check for Same phone keywords (when user wants to reuse their WhatsApp number)
+  const isSamePhone = /^(same|same\s*(number|no\.?|one|as\s*whatsapp)?|this\s*number|this\s*one|current\s*(number)?|my\s*number|yes|نفسه|نفس\s*الرقم)$/i.test(text)
+  const isPhoneQuestion = type === "phone" ||
+    Boolean(node.data?.name && /phone|mobile/i.test(node.data.name)) ||
+    /(?:reply|type)\s*\*?same\*?/i.test(node.data?.text || "")
+
+  if (isSamePhone && isPhoneQuestion) {
+    if (customerPhone) {
+      const cleanPhone = customerPhone.replace(/[^0-9+]/g, "")
+      const formatted = cleanPhone.startsWith("+") ? cleanPhone : `+${cleanPhone}`
+      return { ok: true, value: formatted }
+    }
+    return { ok: true, value: "Same as WhatsApp" }
+  }
 
   if (type === "email") {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
@@ -291,7 +320,8 @@ export function validateAnswer(node: FlowNode, raw: string): { ok: true; value: 
     if (!parsed) {
       return { ok: false, retry: "I couldn't read that date. Try *15 Aug*, *15/8* or *2026-08-15*." }
     }
-    return { ok: true, value: parsed }
+  } else if (type === "image" || type === "file" || (node.data?.name && /receipt|screenshot|proof|media/i.test(node.data.name))) {
+    return { ok: true, value: text }
   }
 
   return { ok: true, value: text.slice(0, 500) }
@@ -524,6 +554,16 @@ async function walkSteps(
             } satisfies FlowSession),
           },
         })
+        if (current.id === "payment_instructions" && answers.full_name) {
+          syncTrainingCourseRegistration({
+            tenantId: ctx.tenantId,
+            conversationId: ctx.conversationId,
+            customerId: ctx.customerId,
+            customerPhone: ctx.customerPhone,
+            answers,
+            flowId: flow.id,
+          }).catch(err => console.warn("[flow] Pre-creating registration at payment_instructions failed:", err))
+        }
         if (seconds > 0) {
           const next = outgoing(current.id)[0]
           await db.flowRun.update({
@@ -745,100 +785,15 @@ async function walkSteps(
   }
 
   // Check if this flow collected training course booking answers
-  const isTrainingFlow =
-    answers.full_name &&
-    (answers.email || answers.number_attendees || answers.job_title || answers.company_name || answers.second_full_name || answers.payment_receipt)
-  if (isTrainingFlow) {
-    try {
-      const { getTenantCourses, createCourseRegistration, getTenantRegistrations } = await import("@/lib/training-service")
-      const courses = await getTenantCourses(ctx.tenantId)
-      const selectedCourse = answers.selected_course_id
-        ? courses.find(c =>
-            c.id === answers.selected_course_id ||
-            c.courseId === answers.selected_course_id ||
-            c.slug === answers.selected_course_id ||
-            c.name.toLowerCase().includes(String(answers.selected_course_id).toLowerCase()) ||
-            String(answers.selected_course_id).toLowerCase().includes(c.id.toLowerCase())
-          )
-        : null
-      const matchedCourse = selectedCourse || courses.find(c => c.botFlowId === flow.id) || courses[0]
-      if (matchedCourse) {
-        const existingRegs = await getTenantRegistrations(ctx.tenantId)
-        const alreadyRegistered = existingRegs.some(
-          r =>
-            r.courseId === matchedCourse.id &&
-            (r.customerPhone === (answers.mobile_number || ctx.customerPhone) || r.customerWhatsApp === ctx.customerPhone) &&
-            Date.now() - new Date(r.createdAt).getTime() < 60 * 60 * 1000
-        )
-        if (!alreadyRegistered) {
-          const resolveCustomerPhone = (val?: string) => {
-            if (!val) return ctx.customerPhone
-            const clean = val.trim().toLowerCase()
-            if (clean === "same" || clean.includes("same") || clean.replace(/\D/g, "").length < 6) {
-              return ctx.customerPhone
-            }
-            return val.trim()
-          }
-
-          const primaryPhone = resolveCustomerPhone(answers.mobile_number)
-          const isBogo = matchedCourse.offerType === "BOGO" || (matchedCourse.offerTitle || "").toLowerCase().includes("free")
-          const requestedSeats = parseInt(answers.number_attendees || "1", 10) || 1
-          const seats = isBogo ? Math.max(2, requestedSeats) : requestedSeats
-
-          const inputAttendees = [
-            {
-              name: answers.full_name,
-              email: answers.email || "",
-              phone: primaryPhone,
-              designation: answers.job_title || "",
-              company: answers.company_name || "",
-            },
-          ]
-
-          if (isBogo || answers.second_full_name) {
-            const hasRealSecondName = answers.second_full_name && !answers.second_full_name.toLowerCase().includes("skip")
-            const secondEmail = answers.second_email && !answers.second_email.toLowerCase().includes("skip")
-              ? answers.second_email
-              : answers.email || ""
-            inputAttendees.push({
-              name: hasRealSecondName ? answers.second_full_name : "Attendee 2 (Nomination Pending)",
-              email: secondEmail,
-              phone: resolveCustomerPhone(answers.second_mobile),
-              designation: answers.second_job_title || "",
-              company: answers.company_name || "",
-            })
-          }
-
-          const regResult = await createCourseRegistration(ctx.tenantId, {
-            courseId: matchedCourse.id,
-            customerName: answers.full_name,
-            customerPhone: primaryPhone,
-            customerWhatsApp: primaryPhone,
-            customerEmail: answers.email || `${primaryPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
-            companyName: answers.company_name,
-            jobTitle: answers.job_title,
-            numberOfSeats: seats,
-            paymentMethod: "BANK_TRANSFER",
-            source: "WHATSAPP",
-            notes: [
-              answers.chosen_slot ? `Cohort Dates: ${answers.chosen_slot}` : null,
-              answers.payment_receipt ? `Payment receipt proof uploaded: ${answers.payment_receipt}` : null,
-            ].filter(Boolean).join(" · ") || undefined,
-            attendees: inputAttendees,
-          })
-
-          const { notifyStaff } = await import("@/lib/realtime")
-          await notifyStaff({
-            type: "NEW_BOOKING",
-            title: `New Course Registration — ${regResult.registration.registrationNumber}`,
-            message: `${answers.full_name} (${answers.company_name || "Self"}) booked ${matchedCourse.shortTitle || matchedCourse.name}. Payment: Manual Bank Transfer`,
-            data: { conversationId: ctx.conversationId, registrationId: regResult.registration.id },
-          })
-        }
-      }
-    } catch (regErr) {
-      console.error("Error creating training registration from BotFlow:", regErr)
-    }
+  if (answers.full_name) {
+    await syncTrainingCourseRegistration({
+      tenantId: ctx.tenantId,
+      conversationId: ctx.conversationId,
+      customerId: ctx.customerId,
+      customerPhone: ctx.customerPhone,
+      answers,
+      flowId: flow.id,
+    })
   }
 
   // The flow is finished, so the customer returns to open conversation.
@@ -943,23 +898,66 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     return { matched: true, handledBy: flow.name, handoff: false }
   }
 
-  const checked = validateAnswer(node, ctx.message)
+  // ── 1. Executive One-Shot Entity Extraction ──
+  try {
+    const { extractExecutiveDetails } = await import("@/lib/executive-extractor")
+    const execData = extractExecutiveDetails(ctx.message, ctx.customerPhone)
+    if (execData.hasMultipleFields) {
+      session.answers = session.answers || {}
+      if (execData.fullName) session.answers.full_name = execData.fullName
+      if (execData.email) session.answers.email = execData.email
+      if (execData.company) session.answers.company_name = execData.company
+      if (execData.phone) session.answers.mobile_number = execData.phone
+      if (execData.preferredSlot) session.answers.chosen_slot = execData.preferredSlot
+      if (execData.numberOfSeats && execData.numberOfSeats >= 2) {
+        session.answers.second_full_name = execData.secondAttendeeName || `Colleague (${execData.company || "Guest"})`
+        session.answers.second_email = "skip"
+      }
+
+      // If key fields are present, fast-forward straight to payment_instructions
+      const paymentNode = nodes.find(n => n.id === "payment_instructions")
+      if (paymentNode && session.answers.full_name && session.answers.email) {
+        return await walk(ctx, flow, "payment_instructions", session.answers)
+      }
+    }
+  } catch (extractErr) {
+    console.warn("[flow] Executive extraction check failed:", extractErr)
+  }
+
+  const checked = validateAnswer(node, ctx.message, ctx.customerPhone)
   if (!checked.ok) {
     let smartRecoveryMessage = checked.retry
     try {
-      const isQuestionOrChat = /[?؟]|how|what|where|when|why|who|cost|price|location|time|policy|cancel|refund|address|discount|كم|متى|وين|أين|كيف|سعر|موقع/i.test(ctx.message)
+      const isQuestionOrChat =
+        /[?؟]|how|what|where|when|why|who|cost|price|location|time|policy|cancel|refund|address|discount|sheraton|lunch|food|buffet|meal|parking|prayer|laptop|certificate|accredit|po|lpo|invoice|tax|vat|fee|bogo|offer|venue|timing|trainer|said|harthi|curriculum|agenda|schedule|dates|october|december|november|كم|متى|وين|أين|كيف|سعر|موقع|شهادة|شيراتون|غداء|مواقف/i.test(ctx.message) ||
+        ctx.message.trim().split(/\s+/).length >= 4
+
       if (isQuestionOrChat && ctx.message.trim().length >= 3) {
         const { aiChat } = await import("@/lib/ai")
+        const questionPrompt = [
+          `A customer in the middle of a registration flow at step "${node.data?.text || checked.retry}" asked: "${ctx.message}".`,
+          `Using your verified business Knowledge Base for Tanfidh Management Consultants, answer their question precisely, accurately, and articulately in 1-3 natural executive sentences.`,
+          `For example, if they ask about Sheraton lunch, explain that 5-star Sheraton executive buffet lunches & networking coffee breaks are 100% included in the fee under BOGO.`,
+          `If they ask about Said Al Harthi, mention his 20+ years of executive advisory in Oman & Tanzania.`,
+          `If they ask about parking, mention complimentary valet and underground parking at Sheraton Oman Hotel.`,
+          `If they ask about certification, mention the official credentials issued by Tanfidh Management Consultants with individual QR code verification.`,
+          `Do not invent false facts. Reply in their language.`
+        ].join(" ")
+
         const aiExplanation = await aiChat(
-          [{ role: "user", content: `A customer in a WhatsApp flow step asked: "${ctx.message}". Answer concisely in 1-2 short sentences in their language. Do not ask unrelated questions.` }],
+          [{ role: "user", content: questionPrompt }],
           "en",
-          ctx.customerPhone
+          ctx.customerPhone,
+          ctx.tenantId
         )
+
         if (aiExplanation && !aiExplanation.includes("trouble responding")) {
           smartRecoveryMessage = `${aiExplanation.trim()}\n\n👉 *To continue:* ${checked.retry}`
         }
       }
-    } catch {}
+    } catch (detourErr) {
+      console.warn("[flow] Detour answer generation failed:", detourErr)
+    }
 
     /*
      * Ask again with the choices, not a sentence listing them.
@@ -974,14 +972,11 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
      * as options, so the customer gets the same tappable message again with
      * the reason on top.
      */
-    const retryChoices: string[] = [
-      ...(Array.isArray(node.data?.buttons)
-        ? node.data.buttons.map((b: any) => String(b?.title || b?.text || "")) : []),
-      ...(Array.isArray(node.data?.options)
-        ? node.data.options.map((o: any) => (typeof o === "string" ? o : String(o?.title || o?.label || o?.value || ""))) : []),
-      ...(Array.isArray(node.data?.rows)
-        ? node.data.rows.map((r: any) => String(r?.title || "")) : []),
-    ].filter(Boolean)
+    const retryChoices: any[] = [
+      ...(Array.isArray(node.data?.buttons) ? node.data.buttons : []),
+      ...(Array.isArray(node.data?.options) ? node.data.options : []),
+      ...(Array.isArray(node.data?.rows) ? node.data.rows : []),
+    ]
 
     if (retryChoices.length >= 2) {
       await ask(
@@ -1008,11 +1003,18 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
   }
 
   const answers = { ...session.answers, [node.data?.name || node.id]: checked.value }
+  if (node.id.startsWith("slot_") || node.data?.name === "chosen_slot") {
+    answers.chosen_slot = checked.value
+  }
+  if (node.id === "courses_list") {
+    answers.selected_course_id = checked.value
+    answers.courses_list = checked.value
+  }
 
   const edges = normalized.edges as FlowEdge[]
   const outgoing = edges.filter(e => e.source === node.id)
-  const rawInput = (ctx.buttonId || ctx.message).trim()
-  const cleanInput = rawInput.toLowerCase()
+  const cleanButtonId = (ctx.buttonId || "").trim().toLowerCase()
+  const cleanMessage = (ctx.message || "").trim().toLowerCase()
 
   const choices: { id?: string; title: string; index: number }[] = [
     ...(Array.isArray(node.data?.buttons) ? node.data.buttons.map((b: any, i: number) => ({ id: String(b.id || `btn_${i}`), title: String(b.title || b.text || b.label || b.id || ""), index: i + 1 })) : []),
@@ -1020,30 +1022,25 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     ...(Array.isArray(node.data?.rows) ? node.data.rows.map((r: any, i: number) => ({ id: String(r.id || `row_${i}`), title: String(r.title || r.label || r.id || ""), index: i + 1 })) : []),
   ]
 
-  const matchedChoice = choices.find(c =>
-    (c.id && c.id.toLowerCase() === cleanInput) ||
-    (c.title && c.title.toLowerCase() === cleanInput) ||
-    String(c.index) === cleanInput
-  )
+  const matchedChoice = choices.find(c => {
+    const cId = (c.id || "").toLowerCase()
+    const cTitle = (c.title || "").toLowerCase()
+    if (cleanButtonId) {
+      if (cId && cId === cleanButtonId) return true
+      if (cTitle && (cTitle === cleanButtonId || cleanButtonId.includes(cTitle) || cTitle.includes(cleanButtonId))) return true
+      if (cleanButtonId.startsWith("opt_") && Number(cleanButtonId.replace("opt_", "")) === c.index - 1) return true
+    }
+    if (cleanMessage) {
+      if (cTitle && (cTitle === cleanMessage || cleanMessage.includes(cTitle) || cTitle.includes(cleanMessage))) return true
+      if (cId && (cId === cleanMessage || cleanMessage.includes(cId))) return true
+      if (String(c.index) === cleanMessage) return true
+    }
+    return false
+  })
 
   /*
    * A tap on a button from an older message is not an answer to this question.
-   *
-   * WhatsApp lets somebody scroll up and press a button in a message from days
-   * ago. The reply arrives with that old button's id, which matches nothing
-   * here — and the routing below ends at `outgoing[0]`, so the flow advanced
-   * down its first branch and recorded the stale title as the answer. That is
-   * where `"n1_lang": "Cc"` and `"n1_lang": "LEVEL 1 - BUS"` in the live
-   * sessions came from: neither is a language, and both chose one.
-   *
-   * Only button replies are treated this way. Typed text that matches nothing
-   * still falls through to the first branch, which is deliberate — a person
-   * answering in their own words should not be stopped — but a tap carries an
-   * id, and an id that belongs to another message is evidence, not ambiguity.
-   *
-   * The question is asked again rather than the flow restarted: the answers
-   * already given are still good, and throwing them away would punish the
-   * customer for the interface letting them scroll.
+   * Only reject if a buttonId was sent AND neither the buttonId nor the message text matches any choice here.
    */
   const choseNothingHere = !!ctx.buttonId && !matchedChoice && choices.length > 0
   if (choseNothingHere) {
@@ -1054,8 +1051,12 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
   const next = outgoing.find(edge => {
     const label = String(edge.label || "").trim().toLowerCase()
     if (!label) return false
-    if (label === cleanInput || cleanInput.includes(label) || label.includes(cleanInput)) return true
-    if (matchedChoice && (label === matchedChoice.title.toLowerCase() || (matchedChoice.id && label === matchedChoice.id.toLowerCase()))) return true
+    if (cleanButtonId && (label === cleanButtonId || cleanButtonId.includes(label) || label.includes(cleanButtonId))) return true
+    if (cleanMessage && (label === cleanMessage || cleanMessage.includes(label) || label.includes(cleanMessage))) return true
+    if (matchedChoice && (
+      (matchedChoice.title && (label === matchedChoice.title.toLowerCase() || matchedChoice.title.toLowerCase().includes(label) || label.includes(matchedChoice.title.toLowerCase()))) ||
+      (matchedChoice.id && (label === matchedChoice.id.toLowerCase() || matchedChoice.id.toLowerCase().includes(label)))
+    )) return true
     return false
   }) ?? (matchedChoice && outgoing[matchedChoice.index - 1] ? outgoing[matchedChoice.index - 1] : undefined) ?? outgoing[0]
   if (!next) {
@@ -1150,12 +1151,16 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
   const flow = flows.find(f => triggerMatches(f, ctx))
   if (!flow) return { matched: false }
 
-  // Suppress training booking flow if customer already has a confirmed or submitted registration
+  // Handle training masterclass flow personalization
   const isTrainingFlow =
     flow.name.toLowerCase().includes("training") ||
     flow.name.toLowerCase().includes("tanfidh") ||
     JSON.stringify(flow.nodes).includes("payment_receipt") ||
     JSON.stringify(flow.nodes).includes("second_full_name")
+
+  const normalized = activeGraph(flow)
+  const nodes = normalized.nodes as FlowNode[]
+  if (nodes.length === 0) return { matched: false }
 
   if (isTrainingFlow) {
     try {
@@ -1177,29 +1182,129 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
 
       if (existingReg) {
         const msgLower = (ctx.message || "").toLowerCase().trim()
-        const explicitlyWantsNewBooking =
-          msgLower === "book my seat" ||
+        const buttonId = (ctx.buttonId || "").toLowerCase().trim()
+
+        const wantsCurrentBooking =
+          buttonId === "btn_view_existing_reg" ||
+          msgLower === "current booking" ||
+          msgLower === "view current booking" ||
+          msgLower.includes("current booking") ||
+          msgLower.includes("my booking") ||
+          msgLower.includes("check booking") ||
+          msgLower === "1"
+
+        const wantsNewBooking =
+          buttonId === "btn_book_new_course" ||
+          msgLower === "book new course" ||
+          msgLower === "book new" ||
+          msgLower.includes("book new") ||
+          msgLower.includes("new course") ||
           msgLower.includes("book another") ||
           msgLower.includes("register new") ||
           msgLower.includes("new booking") ||
           msgLower.includes("register another")
 
-        if (!explicitlyWantsNewBooking) {
-          console.log(`[botflow] Customer ${ctx.customerPhone} already has registration (${existingReg.registrationNumber}, status: ${existingReg.status}). Bypassing booking flow -> routing to AI Assistant with Knowledge Base.`)
-          return { matched: false }
+        if (wantsNewBooking) {
+          // Clear any stale flow state and launch booking flow directly from courses list
+          await db.conversation.update({
+            where: { id: ctx.conversationId },
+            data: { flowState: Prisma.DbNull },
+          })
+          const coursesNode = nodes.find(n => n.id === "courses_list")
+          const startId = coursesNode ? "courses_list" : nodes[0].id
+          return walk(ctx, flow, startId, {})
         }
+
+        if (wantsCurrentBooking) {
+          const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://app.fizmoh.cloud").replace(/\/+$/, "")
+          const pdfLink = `${baseUrl}/api/training/registrations/${existingReg.id}/pdf`
+          const statusText = existingReg.status === "CONFIRMED" || existingReg.paymentStatus === "PAID"
+            ? "✅ Confirmed & Seat Reserved"
+            : "⏳ Registration Received (Verification in Progress)"
+
+          const summaryMsg = [
+            `📋 *Your Registered Booking Details:*`,
+            `• *Registration Ref:* ${existingReg.registrationNumber}`,
+            `• *Program:* ${existingReg.courseName}`,
+            `• *Cohort / Dates:* ${(existingReg as any).dates || (existingReg as any).cohort || "13–14 Oct 2026 / 14–15 Dec 2026"}`,
+            `• *Primary Delegate:* ${existingReg.customerName} (${existingReg.customerEmail || "Corporate"})`,
+            `• *Seats Reserved:* 2 Participants (1 Paid + 1 Free BOGO Applied)`,
+            `• *Status:* ${statusText}`,
+            `• *Venue:* Sheraton Oman Hotel, Muscat (08:30–16:30)`,
+            ``,
+            `📄 *Official Stamped Receipt PDF:*`,
+            pdfLink,
+            ``,
+            `Would you like to register for another masterclass or need executive support?`,
+          ].join("\n")
+
+          await sendInteractiveMessage({
+            to: ctx.customerPhone,
+            body: summaryMsg,
+            buttons: [
+              { id: "btn_book_new_course", title: "Book New Course" },
+              { id: "btn_support", title: "Executive Support" },
+            ],
+          })
+
+          await db.message.create({
+            data: {
+              conversationId: ctx.conversationId,
+              customerId: ctx.customerId,
+              direction: "BOT",
+              type: "TEXT",
+              content: summaryMsg,
+              status: "SENT",
+            },
+          })
+
+          return { matched: true, handledBy: "Existing Registration View" }
+        }
+
+        // Customer has an existing registration — ask if they want to view current or book new
+        const statusLabel = existingReg.status === "CONFIRMED" || existingReg.paymentStatus === "PAID" ? "Confirmed" : "Submitted"
+        const promptBody = [
+          `🎓 *Welcome back, ${existingReg.customerName || "Executive"}!*`,
+          ``,
+          `You already have a registered booking for:`,
+          `*${existingReg.courseName}*`,
+          `📌 Ref: *${existingReg.registrationNumber}* (${statusLabel})`,
+          ``,
+          `Would you like to continue with your current booking or book a new masterclass?`,
+        ].join("\n")
+
+        await sendInteractiveMessage({
+          to: ctx.customerPhone,
+          body: promptBody,
+          buttons: [
+            { id: "btn_view_existing_reg", title: "Current Booking" },
+            { id: "btn_book_new_course", title: "Book New Course" },
+          ],
+        })
+
+        await db.message.create({
+          data: {
+            conversationId: ctx.conversationId,
+            customerId: ctx.customerId,
+            direction: "BOT",
+            type: "TEXT",
+            content: promptBody,
+            status: "SENT",
+          },
+        })
+
+        return { matched: true, handledBy: "Already Booked Prompt" }
       }
     } catch (err) {
       console.warn("[botflow] Error checking confirmed registration in runBotFlows:", err)
     }
   }
 
-  const normalized = activeGraph(flow)
-  const nodes = normalized.nodes as FlowNode[]
-  if (nodes.length === 0) return { matched: false }
-
-  const start = nodes.find(n => n.type === "TRIGGER") ?? nodes[0]
-  return walk(ctx, flow, start.id, {})
+  // Check if customer explicitly requested course list or training catalog
+  const isCourseQuery = /courses?|masterclass(es)?|programs?|training|curriculum|دورات|دورة|كورس/i.test(ctx.message)
+  const coursesNode = nodes.find(n => n.id === "courses_list")
+  const startId = isCourseQuery && coursesNode ? "courses_list" : (nodes.find(n => n.type === "TRIGGER") ?? nodes[0]).id
+  return walk(ctx, flow, startId, {})
 }
 
 /**
@@ -1318,6 +1423,205 @@ async function saveAppointmentFromAnswers(
   } catch (error) {
     // A failed appointment must not lose the lead, which is already saved.
     console.error("Could not create the appointment from the flow:", error)
+    return null
+  }
+}
+
+/**
+ * Synchronizes training course registration records into the database
+ * whenever a user enters their delegate details or uploads payment proof.
+ */
+export async function syncTrainingCourseRegistration(params: {
+  tenantId: string
+  conversationId: string
+  customerId: string
+  customerPhone: string
+  answers: Record<string, string>
+  flowId?: string
+}): Promise<any> {
+  const { tenantId, conversationId, customerId, customerPhone, answers, flowId } = params
+  if (!answers?.full_name) return null
+
+  try {
+    const { getTenantCourses, createCourseRegistration, updateRegistrationStatus, getTenantRegistrations } = await import("@/lib/training-service")
+    const courses = await getTenantCourses(tenantId)
+    if (!courses || courses.length === 0) return null
+
+    const resolveCustomerPhone = (val?: string) => {
+      if (!val) return customerPhone
+      const clean = val.trim().toLowerCase()
+      if (clean === "same" || clean.includes("same") || clean.replace(/\D/g, "").length < 6) {
+        return customerPhone
+      }
+      return val.trim()
+    }
+
+    const primaryPhone = resolveCustomerPhone(answers.mobile_number)
+
+    // Match course by answers
+    const courseAnswer = String(
+      answers.selected_course_id ||
+      answers.courses_list ||
+      answers.course ||
+      answers.course_name ||
+      answers.course_id ||
+      ""
+    ).toLowerCase().trim()
+
+    let matchedCourse = courses.find(c => {
+      if (!courseAnswer) return false
+      const cName = c.name.toLowerCase()
+      const cSlug = (c.slug || "").toLowerCase()
+      const cId = c.id.toLowerCase()
+      const cShort = (c.shortTitle || "").toLowerCase()
+      return (
+        cId === courseAnswer ||
+        cSlug === courseAnswer ||
+        cName.includes(courseAnswer) ||
+        courseAnswer.includes(cName) ||
+        (cShort && (cShort.includes(courseAnswer) || courseAnswer.includes(cShort)))
+      )
+    })
+
+    if (!matchedCourse && courseAnswer) {
+      if (courseAnswer.includes("scorecard") || courseAnswer.includes("bsc") || courseAnswer.includes("balanced")) {
+        matchedCourse = courses.find(c => c.id.includes("bsc") || c.name.toLowerCase().includes("scorecard"))
+      } else if (courseAnswer.includes("kpi")) {
+        matchedCourse = courses.find(c => c.id.includes("kpi") || c.name.toLowerCase().includes("kpi"))
+      } else if (courseAnswer.includes("performance")) {
+        matchedCourse = courses.find(c => c.id.includes("perf") || c.name.toLowerCase().includes("performance"))
+      } else if (courseAnswer.includes("execution using") || courseAnswer.includes("sebsc")) {
+        matchedCourse = courses.find(c => c.id.includes("strat_exec_bsc") || c.name.toLowerCase().includes("using balanced"))
+      } else if (courseAnswer.includes("execution")) {
+        matchedCourse = courses.find(c => c.id.includes("exec") && !c.id.includes("bsc"))
+      } else if (courseAnswer.includes("strategy")) {
+        matchedCourse = courses.find(c => c.id.includes("strategy_pro") || c.name.toLowerCase().includes("certified strategy"))
+      } else if (courseAnswer.includes("okr")) {
+        matchedCourse = courses.find(c => c.id.includes("okr"))
+      }
+    }
+
+    if (!matchedCourse) {
+      matchedCourse = (flowId ? courses.find(c => c.botFlowId === flowId) : null) || courses[0]
+    }
+
+    if (!matchedCourse) return null
+
+    const cohortSlot =
+      answers.chosen_slot ||
+      answers.slot_bsc ||
+      answers.slot_strat ||
+      answers.slot_perf ||
+      answers.slot_exec ||
+      answers.slot_kpi ||
+      answers.slot_sebsc ||
+      answers.slot ||
+      "Scheduled Masterclass 2026"
+
+    const receiptUrl =
+      answers.payment_receipt ||
+      answers.payment_receipt_url ||
+      answers.receipt_screenshot ||
+      answers.payment_proof ||
+      null
+
+    const existingRegs = await getTenantRegistrations(tenantId)
+    const existingReg = existingRegs.find(
+      r =>
+        (r.courseId === matchedCourse.id || r.courseName === matchedCourse.name) &&
+        (r.customerPhone === primaryPhone ||
+          r.customerWhatsApp === primaryPhone ||
+          r.customerPhone === customerPhone ||
+          r.customerWhatsApp === customerPhone)
+    )
+
+    if (existingReg) {
+      if (receiptUrl && (!existingReg.paymentReceiptUrl || existingReg.paymentReceiptUrl !== receiptUrl)) {
+        const updated = await updateRegistrationStatus(tenantId, existingReg.id, {
+          paymentStatus: "PENDING",
+          status: "REGISTRATION_SUBMITTED",
+          paymentReceiptUrl: receiptUrl,
+          paymentProofUrl: receiptUrl,
+          notes: [
+            existingReg.notes?.replace(/Payment receipt proof uploaded: [^\s·]+/g, "").trim(),
+            cohortSlot ? `Cohort Dates: ${cohortSlot}` : null,
+            `Payment receipt proof uploaded: ${receiptUrl}`,
+          ].filter(Boolean).join(" · "),
+        })
+
+        const { notifyStaff } = await import("@/lib/realtime")
+        await notifyStaff({
+          type: "NEW_BOOKING",
+          title: `Payment Receipt Uploaded — ${existingReg.registrationNumber}`,
+          message: `${existingReg.customerName} uploaded a bank transfer screenshot for ${matchedCourse.shortTitle || matchedCourse.name}. Status: Pending Verification`,
+          data: { conversationId, registrationId: existingReg.id },
+        })
+        return updated
+      }
+      return existingReg
+    }
+
+    const isBogo = matchedCourse.offerType === "BOGO" || (matchedCourse.offerTitle || "").toLowerCase().includes("free")
+    const requestedSeats = parseInt(answers.number_attendees || "1", 10) || 1
+    const seats = isBogo ? Math.max(2, requestedSeats) : requestedSeats
+
+    const inputAttendees = [
+      {
+        name: answers.full_name,
+        email: answers.email || "",
+        phone: primaryPhone,
+        designation: answers.job_title || "",
+        company: answers.company_name || "",
+      },
+    ]
+
+    if (isBogo || answers.second_full_name) {
+      const hasRealSecondName = answers.second_full_name && !answers.second_full_name.toLowerCase().includes("skip")
+      const secondEmail = answers.second_email && !answers.second_email.toLowerCase().includes("skip")
+        ? answers.second_email
+        : answers.email || ""
+      inputAttendees.push({
+        name: hasRealSecondName ? answers.second_full_name : "Attendee 2 (Nomination Pending)",
+        email: secondEmail,
+        phone: resolveCustomerPhone(answers.second_mobile),
+        designation: answers.second_job_title || "",
+        company: answers.company_name || "",
+      })
+    }
+
+    const regResult = await createCourseRegistration(tenantId, {
+      courseId: matchedCourse.id,
+      customerName: answers.full_name,
+      customerPhone: primaryPhone,
+      customerWhatsApp: primaryPhone,
+      customerEmail: answers.email || `${primaryPhone.replace(/[^0-9]/g, "")}@customer.fizmoh.cloud`,
+      companyName: answers.company_name,
+      jobTitle: answers.job_title,
+      numberOfSeats: seats,
+      paymentMethod: "BANK_TRANSFER",
+      paymentStatus: receiptUrl ? "PENDING" : "UNPAID",
+      status: receiptUrl ? "REGISTRATION_SUBMITTED" : "AWAITING_PAYMENT",
+      paymentReceiptUrl: receiptUrl || undefined,
+      paymentProofUrl: receiptUrl || undefined,
+      source: "WHATSAPP",
+      notes: [
+        cohortSlot ? `Cohort Dates: ${cohortSlot}` : null,
+        receiptUrl ? `Payment receipt proof uploaded: ${receiptUrl}` : null,
+      ].filter(Boolean).join(" · ") || undefined,
+      attendees: inputAttendees,
+    })
+
+    const { notifyStaff } = await import("@/lib/realtime")
+    await notifyStaff({
+      type: "NEW_BOOKING",
+      title: `New Course Registration — ${regResult.registration.registrationNumber}`,
+      message: `${answers.full_name} (${answers.company_name || "Self"}) registered for ${matchedCourse.shortTitle || matchedCourse.name}. Payment: ${receiptUrl ? "Receipt Uploaded (Pending Verification)" : "Awaiting Bank Transfer"}`,
+      data: { conversationId, registrationId: regResult.registration.id },
+    })
+
+    return regResult.registration
+  } catch (err) {
+    console.error("[training] syncTrainingCourseRegistration error:", err)
     return null
   }
 }

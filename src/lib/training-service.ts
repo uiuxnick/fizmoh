@@ -337,9 +337,18 @@ export async function createCourseRegistration(
   }
 
   const initialStatus: RegistrationStage =
-    input.paymentMethod === "CASH" || input.paymentMethod === "MANUAL"
+    input.status ||
+    (input.paymentReceiptUrl || input.paymentProofUrl
       ? "REGISTRATION_SUBMITTED"
-      : "AWAITING_PAYMENT"
+      : input.paymentMethod === "CASH" || input.paymentMethod === "MANUAL"
+      ? "REGISTRATION_SUBMITTED"
+      : "AWAITING_PAYMENT")
+
+  const initialPaymentStatus: PaymentStatus =
+    input.paymentStatus ||
+    (input.paymentReceiptUrl || input.paymentProofUrl
+      ? "PENDING"
+      : "UNPAID")
 
   const registration: Registration = {
     id: regId,
@@ -372,8 +381,10 @@ export async function createCourseRegistration(
     offerApplied: pricing.offerApplied,
 
     status: initialStatus,
-    paymentStatus: "UNPAID",
+    paymentStatus: initialPaymentStatus,
     paymentMethod: input.paymentMethod || "PAYMENT_LINK",
+    paymentReceiptUrl: input.paymentReceiptUrl || input.paymentProofUrl,
+    paymentProofUrl: input.paymentProofUrl || input.paymentReceiptUrl,
     source: input.source || "WEBSITE",
 
     attendees,

@@ -144,7 +144,7 @@ export async function generateTrainingReceiptPDF(
   page.drawText("MASTERCLASS PROGRAM DETAILS", { x: 56, y: y - 18, size: 9, font: bold, color: NAVY })
   page.drawText(safeText(course.name), { x: 56, y: y - 34, size: 12, font: bold, color: INK })
 
-  const trainerText = `Lead Trainer: ${course.trainerName || "Said Al Harthi"} (Managing Consultant)`
+  const trainerText = `Lead Trainer: ${course.trainerName || "Said bin Saif Al Harthi"} (Executive Director & Senior Consultant)`
   page.drawText(safeText(trainerText), { x: 56, y: y - 50, size: 10, font: body, color: MUTED })
 
   const scheduleText = `Dates: ${course.startDate} to ${course.endDate} (${course.duration || "2 Days | 14 Hours"}) · ${course.startTime || "09:00 AM"} - ${course.endTime || "04:00 PM"}`
@@ -196,34 +196,39 @@ export async function generateTrainingReceiptPDF(
 
   // 6. Financial Summary Box
   y -= 10
+  const boxHeight = 115
   page.drawRectangle({
     x: 44,
-    y: y - 90,
+    y: y - boxHeight,
     width: width - 88,
-    height: 95,
-    color: rgb(0.94, 0.98, 0.95),
-    borderColor: rgb(0.75, 0.88, 0.78),
+    height: boxHeight,
+    color: rgb(0.95, 0.98, 0.96),
+    borderColor: rgb(0.72, 0.86, 0.76),
     borderWidth: 1,
   })
 
   page.drawText("PAYMENT VERIFICATION & SETTLEMENT", { x: 56, y: y - 18, size: 9, font: bold, color: EMERALD })
 
+  // Row 1: Total Investment & Paid Balance
   page.drawText("TOTAL INVESTMENT", { x: 56, y: y - 36, size: 8, font: bold, color: MUTED })
-  page.drawText(`${reg.currency} ${reg.totalAmount.toFixed(2)}`, { x: 56, y: y - 52, size: 14, font: bold, color: INK })
+  page.drawText(`${reg.currency} ${reg.totalAmount.toFixed(2)}`, { x: 56, y: y - 50, size: 13, font: bold, color: INK })
 
-  page.drawText("OFFER APPLIED", { x: 200, y: y - 36, size: 8, font: bold, color: MUTED })
-  page.drawText(safeText(reg.offerApplied || "Buy 1 Get 1 Free (BOGO)"), { x: 200, y: y - 52, size: 9, font: bold, color: EMERALD })
+  page.drawText("PAID BALANCE", { x: 340, y: y - 36, size: 8, font: bold, color: MUTED })
+  page.drawText(`${reg.currency} ${reg.totalAmount.toFixed(2)} (PAID IN FULL)`, { x: 340, y: y - 50, size: 11, font: bold, color: EMERALD })
 
-  page.drawText("PAID BALANCE", { x: 380, y: y - 36, size: 8, font: bold, color: MUTED })
-  page.drawText(`${reg.currency} ${reg.totalAmount.toFixed(2)} (PAID IN FULL)`, { x: 380, y: y - 52, size: 11, font: bold, color: EMERALD })
+  // Row 2: Offer Applied & Balance Due
+  const cleanOffer = reg.offerApplied ? (reg.offerApplied.includes("BOGO") || reg.offerApplied.includes("FREE") ? "Buy 1 Get 1 Free (BOGO Applied)" : reg.offerApplied.slice(0, 36)) : "Buy 1 Get 1 Free (BOGO Applied)"
+  page.drawText("OFFER APPLIED", { x: 56, y: y - 68, size: 8, font: bold, color: MUTED })
+  page.drawText(safeText(cleanOffer), { x: 56, y: y - 80, size: 9, font: bold, color: EMERALD })
 
-  page.drawText("PAYMENT METHOD", { x: 56, y: y - 72, size: 8, font: bold, color: MUTED })
-  page.drawText("Direct Bank Transfer / Wire (Verified by Admissions)", { x: 56, y: y - 84, size: 9, font: body, color: INK })
+  page.drawText("BALANCE DUE", { x: 340, y: y - 68, size: 8, font: bold, color: MUTED })
+  page.drawText(`${reg.currency} 0.00 (SETTLED)`, { x: 340, y: y - 80, size: 11, font: bold, color: EMERALD })
 
-  page.drawText("BALANCE DUE", { x: 380, y: y - 72, size: 8, font: bold, color: MUTED })
-  page.drawText(`${reg.currency} 0.00`, { x: 380, y: y - 84, size: 12, font: bold, color: EMERALD })
+  // Row 3: Payment Method
+  page.drawText("PAYMENT METHOD", { x: 56, y: y - 96, size: 8, font: bold, color: MUTED })
+  page.drawText("Direct Bank Transfer / Wire · Bank Muscat (Verified by Admissions)", { x: 56, y: y - 107, size: 8.5, font: body, color: INK })
 
-  y -= 125
+  y -= boxHeight + 25
 
   // 7. Executive Note & Important Instructions
   page.drawText("EXECUTIVE ATTENDANCE INSTRUCTIONS:", { x: 48, y, size: 8, font: bold, color: NAVY })

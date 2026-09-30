@@ -62,7 +62,7 @@ Payment & actions:
 
 // ─── Tool implementations ───
 
-type ToolHandler = (input: any, ctx: { customerPhone?: string }) => Promise<string>
+type ToolHandler = (input: any, ctx: { customerPhone?: string; tenantId?: string }) => Promise<string>
 
 function parseTargetDate(date?: string): Date {
   const target = new Date()
@@ -882,6 +882,92 @@ const TOOLS: { definition: ToolSpec; handler: ToolHandler }[] = [
       return `Could not find an open booking for reference "${ref}". Please double-check the booking number.`
     },
   },
+  {
+    definition: {
+      name: "list_training_courses",
+      description:
+        "Returns the official catalogue of executive training masterclasses offered by Tanfidh Management Consultants, including course titles, scheduled dates, fees, and special offers.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+    handler: async (_args, ctx) => {
+      const { getTenantCourses } = await import("@/lib/training-service")
+      const courses = await getTenantCourses(ctx.tenantId || "cmujurq9w005ci36afzax588l")
+      if (!courses || courses.length === 0) return "No training courses currently scheduled."
+      const list = courses.map((c, i) => {
+        const feeStr = c.standardPrice ? `OMR ${c.standardPrice}` : "Fee to be announced"
+        const cDates = (c as any).dates
+        const datesStr = (Array.isArray(cDates) && cDates.length > 0) ? cDates.join(" and ") : (c.startDate ? `${c.startDate} to ${c.endDate}` : "To be announced")
+        return `${i + 1}. *${c.name}*\n   📅 Dates: ${datesStr}\n   💰 Fee: ${feeStr} (Includes Pay 1, Get 1 FREE)\n   ⏱️ Duration: ${c.duration || "2 Days"}\n   📍 Venue: ${c.venueName || "Sheraton Oman Hotel"}, Muscat`
+      }).join("\n\n")
+      return `🎓 *Tanfidh Executive Masterclasses Catalogue:*\n\n${list}\n\nAll courses take place in Muscat and include 5-star lunch, executive materials, and a Buy 1 Get 1 Free offer (bring a colleague at 0 extra fee).`
+    },
+  },
+  {
+    definition: {
+      name: "get_training_course_details",
+      description:
+        "Returns in-depth details for a specific training course or masterclass (e.g. Balanced Scorecard, KPI, Strategy Professional, Performance Management, Strategy Execution, OKR). Includes agenda, objectives, who should attend, fees, dates, and trainer profile.",
+      parameters: {
+        type: "object",
+        properties: {
+          course_name_or_number: {
+            type: "string",
+            description: "The course name, number (e.g. '1', '2', 'Strategy Professional', 'BSC', 'KPI'), or keyword",
+          },
+        },
+        required: ["course_name_or_number"],
+      },
+    },
+    handler: async ({ course_name_or_number }, ctx) => {
+      const { getTenantCourses } = await import("@/lib/training-service")
+      const courses = await getTenantCourses(ctx.tenantId || "cmujurq9w005ci36afzax588l")
+      if (!courses || courses.length === 0) return "No training courses available."
+
+      const query = String(course_name_or_number || "").trim().toLowerCase()
+      const num = parseInt(query, 10)
+      let match: any = null
+      if (!isNaN(num) && num >= 1 && num <= courses.length) {
+        match = courses[num - 1]
+      } else {
+        match = courses.find(c =>
+          c.name.toLowerCase().includes(query) ||
+          c.id.toLowerCase().includes(query) ||
+          (c.shortTitle && c.shortTitle.toLowerCase().includes(query)) ||
+          (c.category && c.category.toLowerCase().includes(query)) ||
+          ((c as any).keyword && (c as any).keyword.toLowerCase().includes(query))
+        )
+      }
+
+      if (!match) {
+        return `Could not find a course matching "${course_name_or_number}". Available courses are: ${courses.map((c, i) => `${i + 1}. ${c.name}`).join(", ")}.`
+      }
+
+      const matchDates = (match as any).dates
+      const datesStr = (Array.isArray(matchDates) && matchDates.length > 0) ? matchDates.join(" and ") : (match.startDate ? `${match.startDate} to ${match.endDate}` : "Dates to be announced")
+      const feeStr = match.standardPrice ? `OMR ${match.standardPrice} per participant` : "To be announced"
+      const objectives = (match.learningObjectives || []).map((o: string) => `• ${o}`).join("\n")
+      const audience = (match.targetAudience || []).map((a: string) => `• ${a}`).join("\n")
+      const agenda = match.agendaNotes ? `\n\n*Day-by-Day Agenda Highlights:*\n${match.agendaNotes}` : ""
+
+      return (
+        `📌 *${match.name}*\n` +
+        `⏱️ *Duration:* ${match.duration || "2 Days"} (08:30–16:30)\n` +
+        `📅 *Scheduled Cohort Dates:* ${datesStr}\n` +
+        `📍 *Venue:* ${match.venueName || "Sheraton Oman Hotel"}, Muscat, Sultanate of Oman\n` +
+        `💰 *Fee:* ${feeStr}\n` +
+        `🎁 *Special Offer:* Pay for 1 seat and get 1 seat totally free (BOGO)\n` +
+        `👨‍💼 *Lead Trainer:* ${match.trainerName || "Said bin Saif Al Harthi"} (${match.trainerDesignation || "Executive Director & Senior Consultant and Trainer"})\n\n` +
+        `*Overview:*\n${match.description}\n\n` +
+        (objectives ? `*Learning Outcomes:*\n${objectives}\n\n` : "") +
+        (audience ? `*Who Should Attend:*\n${audience}\n\n` : "") +
+        agenda +
+        `\n\n*How to Register:* Direct Bank Transfer to Bank Muscat, Sarooj Branch, Account 0322 027 665 4400 18 (SWIFT: BMUSOMRXXXX). Or reply "Book" to start registration!`
+      )
+    },
+  },
 ]
 
 const TOOL_HANDLERS = new Map(TOOLS.map(t => [t.definition.name, t.handler]))
@@ -915,7 +1001,7 @@ function openaiTools() {
  */
 type TurnRecord = { photosSent: string[] }
 
-async function runTool(name: string, input: any, customerPhone?: string, turn?: TurnRecord): Promise<string> {
+async function runTool(name: string, input: any, customerPhone?: string, turn?: TurnRecord, tenantId?: string): Promise<string> {
   const handler = TOOL_HANDLERS.get(name)
   if (!handler) return `Unknown tool ${name}`
   try {
@@ -923,7 +1009,7 @@ async function runTool(name: string, input: any, customerPhone?: string, turn?: 
       const names = Array.isArray(input?.tour_names) ? input.tour_names : [input?.tour_names]
       turn.photosSent.push(...names.filter(Boolean).map(String))
     }
-    return await handler(input, { customerPhone })
+    return await handler(input, { customerPhone, tenantId })
   } catch (error) {
     console.error(`Tool ${name} failed:`, error)
     return "That lookup failed. Tell the customer you'll check and come back to them."
@@ -940,6 +1026,7 @@ async function chatAnthropic(
   model: string,
   customerPhone?: string,
   turn?: TurnRecord,
+  tenantId?: string,
 ): Promise<string> {
   const client = await anthropicClient()
   const convo: Anthropic.MessageParam[] = messages.map(m => ({ role: m.role, content: m.content }))
@@ -977,7 +1064,7 @@ async function chatAnthropic(
       results.push({
         type: "tool_result",
         tool_use_id: use.id,
-        content: await runTool(use.name, use.input, customerPhone, turn),
+        content: await runTool(use.name, use.input, customerPhone, turn, tenantId),
       })
     }
     convo.push({ role: "user", content: results })
@@ -994,6 +1081,7 @@ async function chatOpenAI(
   model: string,
   customerPhone?: string,
   turn?: TurnRecord,
+  tenantId?: string,
 ): Promise<string> {
   const client = await openaiClient()
   const convo: any[] = [{ role: "system", content: system }, ...messages]
@@ -1027,7 +1115,7 @@ async function chatOpenAI(
       convo.push({
         role: "tool",
         tool_call_id: call.id,
-        content: await runTool((call as any).function?.name, args, customerPhone, turn),
+        content: await runTool((call as any).function?.name, args, customerPhone, turn, tenantId),
       })
     }
   }
@@ -1116,6 +1204,18 @@ async function customerContext(customerPhone?: string, tenantId?: string | null)
     }
   }
 
+  const isTanfidh = effectiveTenantId === "cmujurq9w005ci36afzax588l"
+
+  if (isTanfidh && trainingRegs.length === 0) {
+    lines.push(
+      `\n• LIFECYCLE STAGE: 1. NEW INQUIRER\n` +
+      `  - Persona: High-level Executive Strategy Advisory Partner.\n` +
+      `  - Strategy: Articulate, prestigious, warm, and natural corporate advisory tone.\n` +
+      `  - Objectives: Explain the strategic ROI of Tanfidh's masterclasses, Said bin Saif Al Harthi's 20+ years of executive advisory experience in Oman and Tanzania, the BOGO offer (Pay for 1 seat, get 1 seat 100% free), the 5-star Sheraton venue, and the upcoming cohort dates (13–14 Oct & 14–15 Dec 2026).\n` +
+      `  - Guidance: Encourage them to reserve their seat or review course outlines without being pushy.`
+    )
+  }
+
   if (trainingRegs.length > 0) {
     lines.push("\nExecutive Masterclass & Training Registrations:")
     for (const reg of trainingRegs) {
@@ -1125,28 +1225,44 @@ async function customerContext(customerPhone?: string, tenantId?: string | null)
       const attendeeList = (reg.attendees || []).map((a: any) => a.name).filter(Boolean).join(", ") || reg.customerName
 
       if (isConfirmed) {
-        lines.push(
-          `• ENROLLED & FULLY CONFIRMED ATTENDEE:\n` +
-          `  - Registration Reference: ${reg.registrationNumber}\n` +
-          `  - Program: ${courseName}\n` +
-          `  - Primary Delegate: ${reg.customerName}\n` +
-          `  - Confirmed Seats: ${reg.numberOfSeats} Attendee(s)\n` +
-          `  - Attendees: ${attendeeList}\n` +
-          `  - Payment: OMR ${reg.totalAmount} (PAID & VERIFIED, Balance: OMR 0.00)\n` +
-          `  - Schedule: ${cMatch?.startDate || "13-14 Oct 2026"} to ${cMatch?.endDate || "14-15 Dec 2026"} (08:30–16:30)\n` +
-          `  - Venue: ${cMatch?.venueName || "Sheraton Oman Hotel"}, Muscat\n` +
-          `  - Lead Trainer: Said Al Harthi (Managing Consultant)\n` +
-          `  - Digital Check-In Pass: https://app.fizmoh.cloud/training/checkin?ref=${reg.registrationNumber}\n` +
-          `  - Official PDF Receipt: https://app.fizmoh.cloud/api/training/registrations/${reg.id}/pdf\n` +
-          `  - MANDATORY RULE: This customer has ALREADY BOOKED AND PAID. Never ask them to register, book, or pay again! Address them warmly as a confirmed executive delegate, answer their questions using the Knowledge Base, and provide check-in pass or receipt links if they ask.`
-        )
+        const isPast = cMatch?.endDate ? new Date(cMatch.endDate) < new Date() : false
+        if (isPast) {
+          lines.push(
+            `• LIFECYCLE STAGE: 4. POST-COURSE ALUMNI\n` +
+            `  - Persona: Executive Alumni Advisor.\n` +
+            `  - Program Completed: ${courseName}\n` +
+            `  - Registration Reference: ${reg.registrationNumber}\n` +
+            `  - Delegate: ${reg.customerName}\n` +
+            `  - Action: Deliver their verifiable digital credential / certificate, collect feedback on the masterclass experience, and introduce the next logical step in their executive leadership journey (e.g., Certified KPI Professional in November or Strategy Execution Pro).`
+          )
+        } else {
+          lines.push(
+            `• LIFECYCLE STAGE: 3. CONFIRMED DELEGATE\n` +
+            `  - Persona: VIP Executive Host.\n` +
+            `  - Program: ${courseName}\n` +
+            `  - Registration Reference: ${reg.registrationNumber}\n` +
+            `  - Primary Delegate: ${reg.customerName}\n` +
+            `  - Confirmed Seats: ${reg.numberOfSeats} Attendee(s) (${attendeeList})\n` +
+            `  - Payment: OMR ${reg.totalAmount} (PAID & VERIFIED, Balance: OMR 0.00)\n` +
+            `  - Schedule: ${cMatch?.startDate || "13-14 Oct 2026"} to ${cMatch?.endDate || "14-15 Dec 2026"} (08:30–16:30 GST daily)\n` +
+            `  - Venue: ${cMatch?.venueName || "Sheraton Oman Hotel"}, Ruwi, Muscat\n` +
+            `  - Logistics: Complimentary valet & underground parking, mezzanine prayer rooms, 5-star Sheraton lunches included.\n` +
+            `  - Requirements: Bring a laptop (Excel + web browser) for Day 1 AI exercises and Day 2 scorecard dashboard modeling.\n` +
+            `  - Dress Code: Business formal or National Omani dress (Dishdasha and Mussar).\n` +
+            `  - Digital Check-In Pass: https://app.fizmoh.cloud/training/checkin?ref=${reg.registrationNumber}\n` +
+            `  - Calendar Invite (.ics): https://app.fizmoh.cloud/api/training/calendar/${cMatch?.id || "bsc"}?slot=${encodeURIComponent(cMatch?.startDate || "13–14 Oct 2026")}\n` +
+            `  - Official PDF Receipt: https://app.fizmoh.cloud/api/training/registrations/${reg.id}/pdf\n` +
+            `  - MANDATORY RULE: Treat them with VIP executive hospitality. Never ask them to re-pay or re-register for this program. Help them prepare for the masterclass or explore other programs.`
+          )
+        }
       } else {
         lines.push(
-          `• REGISTRATION SUBMITTED (PENDING VERIFICATION):\n` +
+          `• LIFECYCLE STAGE: 2. PAYMENT SUBMITTED (PENDING VERIFICATION)\n` +
+          `  - Persona: Reassuring Finance Concierge.\n` +
           `  - Registration Reference: ${reg.registrationNumber}\n` +
           `  - Program: ${courseName}\n` +
           `  - Delegate: ${reg.customerName}\n` +
-          `  - Status: Bank transfer receipt submitted, finance team reviewing. Do not ask for another screenshot.`
+          `  - Status: Bank transfer confirmation received and currently being verified by Tanfidh admissions/finance. Reassure them that once verified, their official stamped PDF Receipt and Digital Check-In Pass will be delivered directly here on WhatsApp. Do NOT ask for another screenshot or payment!`
         )
       }
     }
@@ -1235,8 +1351,8 @@ export async function aiChat(
 
   try {
     const reply = config.provider === "openai"
-      ? await chatOpenAI(messages, system, config.model, customerPhone, turn)
-      : await chatAnthropic(messages, system, config.model, customerPhone, turn)
+      ? await chatOpenAI(messages, system, config.model, customerPhone, turn, effectiveTenantId || undefined)
+      : await chatAnthropic(messages, system, config.model, customerPhone, turn, effectiveTenantId || undefined)
 
     // The model has repeatedly claimed to send photographs without calling the
     // tool that sends them. Prompting did not stop it, so the claim is checked:
@@ -1768,11 +1884,13 @@ async function businessIdentity(tenantId?: string | null): Promise<string> {
   if (isTanfidh) {
     lines.push(
       `You represent Tanfidh Management Consultants (Muscat, Sultanate of Oman).\n` +
-      `• Organization: Tanfidh Management Consultants — Executive Strategy, Balanced Scorecards (BSC) & Corporate Transformation Advisors.\n` +
-      `• Lead Advisor & Managing Consultant: Said Al Harthi.\n` +
+      `• Organization: Tanfidh Management Consultants — Executive Strategy, Performance, Balanced Scorecards, KPIs, OKRs & AI.\n` +
+      `• Trainer & Leadership: Said bin Saif Al Harthi (Executive Director & Senior Consultant and Trainer).\n` +
+      `• Contact: Email saidalharthy@tanfidh.com | WhatsApp +968 99 355 438 | www.tanfidh.com\n` +
+      `• Bank Transfer: Bank Muscat, Sarooj Branch, Account 0322 027 665 4400 18 (SWIFT: BMUSOMRXXXX).\n` +
       `• Tone & Style: Executive, prestigious, articulate, warm, and natural corporate advisory tone.\n` +
-      `• Masterclass Programs: AI-Powered Certified Balanced Scorecard (BSC) Professional, KPI Cascading & Strategy Execution.\n` +
-      `• Schedule & Agendas: Consult the verified Knowledge Base facts for all module details, timings (08:30–16:30), venue, fees, and deliverables.\n` +
+      `• Offer: All masterclasses include Buy 1 Get 1 Free (Pay for 1 seat, get 1 seat totally free).\n` +
+      `• Masterclasses: AI Powered Certified Balanced Scorecard Pro (OMR 500), AI Powered Certified Strategy Pro (OMR 500), AI Powered Certified Performance Management Pro (OMR 500), AI Powered Strategy Execution Pro (OMR 500), AI Powered Certified KPI Pro (OMR 750), AI Powered Strategy Execution Using Balanced Scorecard (OMR 750), AI Powered Certified OKR Pro (To be announced).\n` +
       `• Customer Status: Respect the customer's confirmed booking status. If already confirmed, greet them as an enrolled executive delegate.`
     )
   } else {

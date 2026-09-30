@@ -166,6 +166,54 @@ describe("BotFlow Comprehensive Engine & Validator Audit", () => {
       expect(res1.ok).toBe(true)
       if (res1.ok) expect(res1.value).toBe("Evening (5 PM)")
     })
+
+    it("handles skip keyword on optional questions and same keyword on phone questions", () => {
+      const optEmailNode: FlowNode = {
+        id: "ask_second_email",
+        type: "QUESTION",
+        data: {
+          inputType: "email",
+          required: false,
+          text: "Please provide the Corporate Email Address of the 2nd Attendee (or reply skip):",
+          name: "second_email",
+        },
+      }
+      expect(validateAnswer(optEmailNode, "skip").ok).toBe(true)
+      const skipRes = validateAnswer(optEmailNode, "skip")
+      if (skipRes.ok) expect(skipRes.value).toBe("None")
+
+      const optTextNode: FlowNode = {
+        id: "ask_second_name",
+        type: "QUESTION",
+        data: {
+          inputType: "text",
+          required: false,
+          text: "Please provide the Full Name of the 2nd Attendee (or reply skip to nominate later):",
+          name: "second_full_name",
+        },
+      }
+      expect(validateAnswer(optTextNode, "skip").ok).toBe(true)
+      const skipTextRes = validateAnswer(optTextNode, "skip")
+      if (skipTextRes.ok) expect(skipTextRes.value).toBe("To be nominated")
+
+      const phoneNode: FlowNode = {
+        id: "ask_phone",
+        type: "QUESTION",
+        data: {
+          inputType: "phone",
+          required: true,
+          text: "What is your direct Mobile / WhatsApp Number (or reply same to use this WhatsApp number)?",
+          name: "mobile_number",
+        },
+      }
+      const sameRes = validateAnswer(phoneNode, "same", "96898314456")
+      expect(sameRes.ok).toBe(true)
+      if (sameRes.ok) expect(sameRes.value).toBe("+96898314456")
+
+      const sameNumberRes = validateAnswer(phoneNode, "same number", "+96891234567")
+      expect(sameNumberRes.ok).toBe(true)
+      if (sameNumberRes.ok) expect(sameNumberRes.value).toBe("+96891234567")
+    })
   })
 
   describe("triggerMatches Dynamic Routing", () => {

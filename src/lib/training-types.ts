@@ -217,6 +217,8 @@ export interface Registration {
   paymentMethod: PaymentMethod
   paymentReference?: string
   paymentLink?: string
+  paymentReceiptUrl?: string
+  paymentProofUrl?: string
   source: RegistrationSource
 
   // Attendees
@@ -275,6 +277,10 @@ export interface RegisterCourseInput {
   numberOfSeats: number
   source?: RegistrationSource
   paymentMethod?: PaymentMethod
+  paymentStatus?: PaymentStatus
+  status?: RegistrationStage
+  paymentReceiptUrl?: string
+  paymentProofUrl?: string
   attendees?: Array<{
     name: string
     email: string

@@ -1318,10 +1318,12 @@ async function processMessage(msg: any, contact: any) {
 
       // ─── 1, 2, 3. Dynamic Visual BotFlows (Builder Flows & Welcome) ───
       if (isDynamicFlowsEnabled) {
+        const effectiveTenantId = conversation.tenantId || currentTenant()?.tenantId || ""
+
         // ─── 1. Active Visual Flow Session Resumption ───
         // If the customer is mid-flow answering questions, buttons, or list choices, resume it.
         const midFlow = await resumeFlow({
-          tenantId: currentTenant()?.tenantId || "",
+          tenantId: effectiveTenantId,
           conversationId: conversation.id,
           customerId: customer.id,
           customerPhone: from,
@@ -1338,7 +1340,7 @@ async function processMessage(msg: any, contact: any) {
         // ─── 2. Dashboard Visual BotFlows (Keyword, Intent, Catch-All Triggers) ───
         // Evaluates published visual BotFlows for this tenant.
         const visualFlow = await runBotFlows({
-          tenantId: currentTenant()?.tenantId || "",
+          tenantId: effectiveTenantId,
           conversationId: conversation.id,
           customerId: customer.id,
           customerPhone: from,
@@ -1355,7 +1357,7 @@ async function processMessage(msg: any, contact: any) {
         // ─── 3. Welcome BotFlow for First Contact ───
         if (isFirstContact) {
           const welcome = await runNewConversationFlow({
-            tenantId: currentTenant()?.tenantId || "",
+            tenantId: effectiveTenantId,
             conversationId: conversation.id,
             customerId: customer.id,
             customerPhone: from,
@@ -1650,16 +1652,15 @@ async function handleFlowMediaUpload(params: {
   })
   if (!flow || !flow.isActive) return false
 
-  const nodes: any[] = Array.isArray(flow.publishedNodes) && (flow.publishedNodes as any[]).length > 0
-    ? flow.publishedNodes as any[]
-    : Array.isArray(flow.nodes) ? flow.nodes as any[] : []
-  const node = nodes.find((n: any) => n.id === session.nodeId)
+  const { normalizeFlowGraph } = await import("@/lib/flow-normalizer")
+  const graph = normalizeFlowGraph(flow.publishedNodes || flow.nodes, flow.publishedEdges || flow.edges)
+  const node = graph.nodes.find((n: any) => n.id === session.nodeId)
   if (!node) return false
 
   // ── 3. Only intercept QUESTION nodes that expect a file/media upload ──
   const isUploadNode =
     node.type === "QUESTION" &&
-    /receipt|screenshot|proof|transfer|drawing|upload|photo|media|file|attachment|measurement|blueprint|bank|payment/i.test(
+    /receipt|screenshot|proof|transfer|drawing|upload|photo|media|file|attachment|measurement|blueprint|bank|payment|image/i.test(
       (node.data?.name || "") + " " + (node.data?.text || "") + " " + (node.data?.inputType || "")
     )
 
@@ -1768,8 +1769,20 @@ async function handleFlowMediaUpload(params: {
       data: { flowState: JSON.stringify(session) },
     })
 
-    const { resumeFlow } = await import("@/lib/botflow-engine")
+    const { resumeFlow, syncTrainingCourseRegistration } = await import("@/lib/botflow-engine")
     const tenantId = conv.tenantId || ""
+
+    if (session.answers?.full_name) {
+      await syncTrainingCourseRegistration({
+        tenantId,
+        conversationId,
+        customerId,
+        customerPhone: from,
+        answers: session.answers,
+        flowId: flow.id,
+      }).catch(err => console.warn("[flow] sync in handleFlowMediaUpload:", err))
+    }
+
     await resumeFlow({
       tenantId,
       conversationId,
