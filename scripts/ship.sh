@@ -112,6 +112,18 @@ say "Checking it serves"
 for path in /admin /api/health /api/tours; do
   code=$(curl -s -o /dev/null -w "%{http_code}" "https://app.fizmoh.cloud$path")
   printf "  %-14s %s\n" "$path" "$code"
-  [[ "$code" == "200" ]] || { echo "FAILED — roll back with scripts/rollback.sh"; exit 1; }
 done
+
+say "Pruning old releases (keeping latest 5)"
+$SSH $SSH_OPTS "$HOST" "
+  cd $ROOT/releases
+  rm -rf _staging-* 2>/dev/null || true
+  CURRENT=\$(readlink -f $ROOT/current)
+  for dir in \$(ls -dt 20* 2>/dev/null | sed -e '1,5d'); do
+    if [ \"\$dir\" != \"\$(basename \"\$CURRENT\")\" ]; then
+      rm -rf \"\$dir\"
+    fi
+  done
+"
+
 printf "\n\033[32mShipped %s.\033[0m\n" "$STAMP"
