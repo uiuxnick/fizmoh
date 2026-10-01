@@ -462,7 +462,7 @@ export function WhatsAppBusinessProfileDialog({
                 <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-400" />
                 <Input
                   className="pl-9 text-xs"
-                  placeholder="e.g. Ruwi Financial District, Sheraton Oman, Muscat, Sultanate of Oman"
+                  placeholder="e.g. Ruwi Financial District, Muscat, Sultanate of Oman"
                   value={address}
                   maxLength={256}
                   onChange={e => setAddress(e.target.value)}

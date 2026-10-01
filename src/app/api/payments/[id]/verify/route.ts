@@ -68,8 +68,7 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
             `━━━━━━━━━━━━━━━━━━━━\n\n` +
             `🎫 *Your Digital Check-In Pass:*\n` +
             `https://app.fizmoh.cloud/training/checkin?ref=${updatedReg.registrationNumber}\n\n` +
-            `📍 *Google Maps Venue Location:*\n` +
-            `${course.mapUrl || "https://maps.google.com/?q=Sheraton+Oman+Hotel+Muscat"}\n\n` +
+            (course.mapUrl ? `📍 *Google Maps Venue Location:*\n${course.mapUrl}\n\n` : "") +
             `We look forward to hosting you at this executive masterclass!`
 
           const cleanPhone = updatedReg.customerPhone.replace(/[^0-9+]/g, "")

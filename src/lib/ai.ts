@@ -900,7 +900,7 @@ const TOOLS: { definition: ToolSpec; handler: ToolHandler }[] = [
         const feeStr = c.standardPrice ? `OMR ${c.standardPrice}` : "Fee to be announced"
         const cDates = (c as any).dates
         const datesStr = (Array.isArray(cDates) && cDates.length > 0) ? cDates.join(" and ") : (c.startDate ? `${c.startDate} to ${c.endDate}` : "To be announced")
-        return `${i + 1}. *${c.name}*\n   📅 Dates: ${datesStr}\n   💰 Fee: ${feeStr} (Includes Pay 1, Get 1 FREE)\n   ⏱️ Duration: ${c.duration || "2 Days"}\n   📍 Venue: ${c.venueName || "Sheraton Oman Hotel"}, Muscat`
+        return `${i + 1}. *${c.name}*\n   📅 Dates: ${datesStr}\n   💰 Fee: ${feeStr} (Includes Pay 1, Get 1 FREE)\n   ⏱️ Duration: ${c.duration || "2 Days"}\n   📍 Venue: ${c.venueName || "Muscat, Oman"}`
       }).join("\n\n")
       return `🎓 *Tanfidh Executive Masterclasses Catalogue:*\n\n${list}\n\nAll courses take place in Muscat and include 5-star lunch, executive materials, and a Buy 1 Get 1 Free offer (bring a colleague at 0 extra fee).`
     },
@@ -956,7 +956,7 @@ const TOOLS: { definition: ToolSpec; handler: ToolHandler }[] = [
         `📌 *${match.name}*\n` +
         `⏱️ *Duration:* ${match.duration || "2 Days"} (08:30–16:30)\n` +
         `📅 *Scheduled Cohort Dates:* ${datesStr}\n` +
-        `📍 *Venue:* ${match.venueName || "Sheraton Oman Hotel"}, Muscat, Sultanate of Oman\n` +
+        `📍 *Venue:* ${match.venueName || "Muscat, Oman"}, Sultanate of Oman\n` +
         `💰 *Fee:* ${feeStr}\n` +
         `🎁 *Special Offer:* Pay for 1 seat and get 1 seat totally free (BOGO)\n` +
         `👨‍💼 *Lead Trainer:* ${match.trainerName || "Said bin Saif Al Harthi"} (${match.trainerDesignation || "Executive Director & Senior Consultant and Trainer"})\n\n` +
@@ -1211,7 +1211,7 @@ async function customerContext(customerPhone?: string, tenantId?: string | null)
       `\n• LIFECYCLE STAGE: 1. NEW INQUIRER\n` +
       `  - Persona: High-level Executive Strategy Advisory Partner.\n` +
       `  - Strategy: Articulate, prestigious, warm, and natural corporate advisory tone.\n` +
-      `  - Objectives: Explain the strategic ROI of Tanfidh's masterclasses, Said bin Saif Al Harthi's 20+ years of executive advisory experience in Oman and Tanzania, the BOGO offer (Pay for 1 seat, get 1 seat 100% free), the 5-star Sheraton venue, and the upcoming cohort dates (13–14 Oct & 14–15 Dec 2026).\n` +
+      `  - Objectives: Explain the strategic ROI of Tanfidh's masterclasses, Said bin Saif Al Harthi's 20+ years of executive advisory experience in Oman and Tanzania, the BOGO offer (Pay for 1 seat, get 1 seat 100% free), the 5-star executive venue, and the upcoming cohort dates (13–14 Oct & 14–15 Dec 2026).\n` +
       `  - Guidance: Encourage them to reserve their seat or review course outlines without being pushy.`
     )
   }
@@ -1245,8 +1245,8 @@ async function customerContext(customerPhone?: string, tenantId?: string | null)
             `  - Confirmed Seats: ${reg.numberOfSeats} Attendee(s) (${attendeeList})\n` +
             `  - Payment: OMR ${reg.totalAmount} (PAID & VERIFIED, Balance: OMR 0.00)\n` +
             `  - Schedule: ${cMatch?.startDate || "13-14 Oct 2026"} to ${cMatch?.endDate || "14-15 Dec 2026"} (08:30–16:30 GST daily)\n` +
-            `  - Venue: ${cMatch?.venueName || "Sheraton Oman Hotel"}, Ruwi, Muscat\n` +
-            `  - Logistics: Complimentary valet & underground parking, mezzanine prayer rooms, 5-star Sheraton lunches included.\n` +
+            `  - Venue: ${cMatch?.venueName || "Muscat, Oman"}\n` +
+            `  - Logistics: Complimentary valet & underground parking, mezzanine prayer rooms, 5-star executive buffet lunches included.\n` +
             `  - Requirements: Bring a laptop (Excel + web browser) for Day 1 AI exercises and Day 2 scorecard dashboard modeling.\n` +
             `  - Dress Code: Business formal or National Omani dress (Dishdasha and Mussar).\n` +
             `  - Digital Check-In Pass: https://app.fizmoh.cloud/training/checkin?ref=${reg.registrationNumber}\n` +

@@ -373,7 +373,7 @@ export const SEED_COURSE_BSC: Omit<Course, "tenantId" | "createdAt" | "updatedAt
     "2 Full Days of Executive Masterclass & Hands-on Lab",
     "Official Certificate of Completion from Tanfidh Management Consultants",
     "Complete Strategy Automation & Balanced Scorecard Toolkit with Excel/PowerBI templates",
-    "Sheraton 5-Star Gourmet Lunch & Executive Networking Reception",
+    "5-Star Gourmet Lunch & Executive Networking Reception",
     "Special Offer: Pay for 1 seat and get 1 seat FREE",
   ],
   targetAudience: [
@@ -415,11 +415,11 @@ export const SEED_COURSE_BSC: Omit<Course, "tenantId" | "createdAt" | "updatedAt
   timezone: "Asia/Muscat (GST, UTC+4)",
 
   mode: "In-person",
-  venueName: "Sheraton Oman Hotel",
-  address: "Ruwi High Street, Financial District",
+  venueName: "Muscat, Oman",
+  address: "Financial District",
   city: "Muscat",
   country: "Sultanate of Oman",
-  mapUrl: "https://maps.google.com/?q=Sheraton+Oman+Hotel+Muscat",
+  mapUrl: "",
   meetingUrl: "",
 
   maxSeats: 30,

@@ -150,7 +150,7 @@ export async function generateTrainingReceiptPDF(
   const scheduleText = `Dates: ${course.startDate} to ${course.endDate} (${course.duration || "2 Days | 14 Hours"}) · ${course.startTime || "09:00 AM"} - ${course.endTime || "04:00 PM"}`
   page.drawText(safeText(scheduleText), { x: 56, y: y - 66, size: 9, font: body, color: INK })
 
-  const venueText = `Venue: ${course.venueName || "Sheraton Oman Hotel"}, Ruwi Financial District, Muscat`
+  const venueText = `Venue: ${course.venueName || "Muscat, Sultanate of Oman"}`
   page.drawText(safeText(venueText), { x: 56, y: y - 80, size: 9, font: body, color: INK })
 
   y -= 110
@@ -235,7 +235,7 @@ export async function generateTrainingReceiptPDF(
   y -= 14
   const notes = [
     "- Please present this digital receipt or QR check-in code at the registration desk upon arrival.",
-    "- Masterclass package includes 5-star Sheraton gourmet networking lunches and morning/afternoon coffee receptions.",
+    "- Masterclass package includes 5-star executive gourmet networking lunches and morning/afternoon coffee receptions.",
     "- Course materials, PowerBI/Excel strategy templates, and dual credentials will be provided during cohort sessions.",
     "- For executive coordination, contact Said Al Harthi: saidalharthy@tanfidh.com | +968 7178 4454.",
   ]

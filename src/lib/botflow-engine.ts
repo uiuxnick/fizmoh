@@ -929,7 +929,7 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     let smartRecoveryMessage = checked.retry
     try {
       const isQuestionOrChat =
-        /[?؟]|how|what|where|when|why|who|cost|price|location|time|policy|cancel|refund|address|discount|sheraton|lunch|food|buffet|meal|parking|prayer|laptop|certificate|accredit|po|lpo|invoice|tax|vat|fee|bogo|offer|venue|timing|trainer|said|harthi|curriculum|agenda|schedule|dates|october|december|november|كم|متى|وين|أين|كيف|سعر|موقع|شهادة|شيراتون|غداء|مواقف/i.test(ctx.message) ||
+        /[?؟]|how|what|where|when|why|who|cost|price|location|time|policy|cancel|refund|address|discount|lunch|food|buffet|meal|parking|prayer|laptop|certificate|accredit|po|lpo|invoice|tax|vat|fee|bogo|offer|venue|timing|trainer|said|harthi|curriculum|agenda|schedule|dates|october|december|november|كم|متى|وين|أين|كيف|سعر|موقع|شهادة|غداء|مواقف/i.test(ctx.message) ||
         ctx.message.trim().split(/\s+/).length >= 4
 
       if (isQuestionOrChat && ctx.message.trim().length >= 3) {
@@ -937,9 +937,9 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
         const questionPrompt = [
           `A customer in the middle of a registration flow at step "${node.data?.text || checked.retry}" asked: "${ctx.message}".`,
           `Using your verified business Knowledge Base for Tanfidh Management Consultants, answer their question precisely, accurately, and articulately in 1-3 natural executive sentences.`,
-          `For example, if they ask about Sheraton lunch, explain that 5-star Sheraton executive buffet lunches & networking coffee breaks are 100% included in the fee under BOGO.`,
+          `For example, if they ask about lunch, explain that 5-star executive buffet lunches & networking coffee breaks are 100% included in the fee under BOGO.`,
           `If they ask about Said Al Harthi, mention his 20+ years of executive advisory in Oman & Tanzania.`,
-          `If they ask about parking, mention complimentary valet and underground parking at Sheraton Oman Hotel.`,
+          `If they ask about parking, mention complimentary valet and underground parking at the venue in Muscat.`,
           `If they ask about certification, mention the official credentials issued by Tanfidh Management Consultants with individual QR code verification.`,
           `Do not invent false facts. Reply in their language.`
         ].join(" ")
@@ -1234,7 +1234,7 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
             `• *Primary Delegate:* ${existingReg.customerName} (${existingReg.customerEmail || "Corporate"})`,
             `• *Seats Reserved:* 2 Participants (1 Paid + 1 Free BOGO Applied)`,
             `• *Status:* ${statusText}`,
-            `• *Venue:* Sheraton Oman Hotel, Muscat (08:30–16:30)`,
+            `• *Venue:* Muscat, Oman (08:30–16:30)`,
             ``,
             `📄 *Official Stamped Receipt PDF:*`,
             pdfLink,

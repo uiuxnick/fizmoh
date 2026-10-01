@@ -196,8 +196,8 @@ export default function TrainingAcademySiteView({
 
           <p className="max-w-3xl mx-auto text-base sm:text-lg text-stone-600 font-normal leading-relaxed">
             {isAr
-              ? "برامج مكثفة حضورية لمدة 5 أيام بفندق شيراتون عمان، تجمع بين التطبيق العملي، وأحدث أدوات الذكاء الاصطناعي، ونماذج التميز المؤسسي بقيادة نخبة من كبار المستشارين."
-              : "Immersive 5-day in-person masterclasses at the 5-Star Sheraton Oman Hotel. Master real-world KPIs, balanced scorecards, and strategy execution with proven frameworks and post-course mentorship."}
+              ? "برامج مكثفة حضورية تجمع بين التطبيق العملي، وأحدث أدوات الذكاء الاصطناعي، ونماذج التميز المؤسسي بقيادة نخبة من كبار المستشارين في مسقط."
+              : "Immersive in-person masterclasses in Muscat, Oman. Master real-world KPIs, balanced scorecards, and strategy execution with proven frameworks and post-course mentorship."}
           </p>
 
           {/* Quick Metrics */}
@@ -208,7 +208,7 @@ export default function TrainingAcademySiteView({
             </div>
             <div className="bg-white p-3.5 rounded-xl border border-stone-200/80 shadow-2xs">
               <div className="text-xl sm:text-2xl font-black text-stone-900">5-Star</div>
-              <div className="text-[12px] font-medium text-stone-600">{isAr ? "شيراتون عمان مسقط" : "Sheraton Muscat"}</div>
+              <div className="text-[12px] font-medium text-stone-600">{isAr ? "فندق 5 نجوم مسقط" : "5-Star Muscat"}</div>
             </div>
             <div className="bg-white p-3.5 rounded-xl border border-stone-200/80 shadow-2xs">
               <div className="text-xl sm:text-2xl font-black text-emerald-700">100%</div>
@@ -235,8 +235,8 @@ export default function TrainingAcademySiteView({
             </h3>
             <p className="text-sm text-stone-600 mt-1 max-w-2xl">
               {isAr
-                ? "تشمل جميع الدورات وجبات بوفيه الغداء اليومية بفندق شيراتون، وحقيبة الأدوات الشاملة، ورسوم الاختبار النهائي والشهادة المعتمدة."
-                : "All masterclasses include daily 5-star Sheraton buffet lunch, official executive toolkit, exam fees, verified certificate, and 6 months follow-up consultation."}
+                ? "تشمل جميع الدورات وجبات بوفيه الغداء اليومية، وحقيبة الأدوات الشاملة، ورسوم الاختبار النهائي والشهادة المعتمدة."
+                : "All masterclasses include daily 5-star executive buffet lunch, official executive toolkit, exam fees, verified certificate, and 6 months follow-up consultation."}
             </p>
           </div>
 
@@ -347,7 +347,7 @@ export default function TrainingAcademySiteView({
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                          <span className="truncate">{course.venueName || (course as any).venue || "Sheraton Oman Hotel, Muscat"}</span>
+                          <span className="truncate">{course.venueName || (course as any).venue || "Muscat, Sultanate of Oman"}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />

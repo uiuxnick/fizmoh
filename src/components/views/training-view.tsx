@@ -3238,7 +3238,7 @@ export default function TrainingView() {
                       <Input
                         value={editingCourse.venueName || ""}
                         onChange={e => setEditingCourse({ ...editingCourse, venueName: e.target.value })}
-                        placeholder="Sheraton Oman Hotel"
+                        placeholder="e.g. Muscat, Sultanate of Oman"
                         className="h-8 text-xs"
                       />
                     </div>

@@ -19,7 +19,7 @@ export async function GET(
   ) || courses[0]
 
   const courseTitle = course?.name || "AI Powered Executive Masterclass"
-  const venue = course?.venueName ? `${course.venueName}, Ruwi, Muscat, Sultanate of Oman` : "Sheraton Oman Hotel, Ruwi, Muscat, Sultanate of Oman"
+  const venue = course?.venueName ? `${course.venueName}, Muscat, Sultanate of Oman` : "Muscat, Sultanate of Oman"
   const trainer = course?.trainerName || "Said bin Saif Al Harthi"
 
   // Compute UTC start & end timestamps (Muscat is GST, UTC+4: 08:30 GST = 04:30 UTC, 16:30 GST = 12:30 UTC)
@@ -68,7 +68,7 @@ export async function GET(
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
     `SUMMARY:${courseTitle} — Tanfidh Executive Masterclass`,
-    `DESCRIPTION:Executive Masterclass by Tanfidh Management Consultants.\\n\\nProgram: ${courseTitle}\\nLead Trainer: ${trainer} (+968 99 355 438\\, saidalharthy@tanfidh.com)\\nVenue: ${venue}\\nTiming: 08:30–16:30 GST daily (Registration opens 08:00)\\nInclusions: 5-Star Sheraton lunches\\, toolkits\\, and verified credentials.\\nDress Code: Business Formal / National Omani Dress (Dishdasha & Mussar).\\nComplimentary valet and covered parking available.`,
+    `DESCRIPTION:Executive Masterclass by Tanfidh Management Consultants.\\n\\nProgram: ${courseTitle}\\nLead Trainer: ${trainer} (+968 99 355 438\\, saidalharthy@tanfidh.com)\\nVenue: ${venue}\\nTiming: 08:30–16:30 GST daily (Registration opens 08:00)\\nInclusions: 5-Star Executive buffet lunches\\, toolkits\\, and verified credentials.\\nDress Code: Business Formal / National Omani Dress (Dishdasha & Mussar).\\nComplimentary valet and covered parking available.`,
     `LOCATION:${venue}`,
     "ORGANIZER;CN=Tanfidh Management Consultants:mailto:saidalharthy@tanfidh.com",
     "STATUS:CONFIRMED",

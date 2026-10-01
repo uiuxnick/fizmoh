@@ -65,7 +65,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
     standardPrice: Number(rawCourse.standardPrice) || 650,
     offerType: rawCourse.offerType || "NONE",
     offerTitle: rawCourse.offerTitle || "",
-    venueName: rawCourse.venueName || "Sheraton Oman Hotel",
+    venueName: rawCourse.venueName || "Muscat, Oman",
     city: rawCourse.city || "Muscat",
     maxSeats: rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null,
     availableSeats: rawCourse.availableSeats != null ? Number(rawCourse.availableSeats) : (rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null),
@@ -460,7 +460,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>5-Star Sheraton lunches & networking receptions</span>
+                      <span>5-Star executive lunches & networking receptions</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -626,7 +626,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
               <ul className="text-xs text-stone-600 space-y-1.5 pt-2 border-t border-stone-100">
                 <li>&bull; 08:30 AM: Registration & Welcome Coffee</li>
                 <li>&bull; 09:00 AM - 12:30 PM: Morning Sessions & AI Labs</li>
-                <li>&bull; 12:30 PM - 01:30 PM: Sheraton Executive Buffet Lunch</li>
+                <li>&bull; 12:30 PM - 01:30 PM: 5-Star Executive Buffet Lunch</li>
                 <li>&bull; 01:30 PM - 04:00 PM: Afternoon Strategy Cascading & Q&A</li>
               </ul>
             </div>

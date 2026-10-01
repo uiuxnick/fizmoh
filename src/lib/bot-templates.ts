@@ -1572,7 +1572,7 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
       n("t_start", "TRIGGER", {}, 500, 30),
       n("n_welcome", "BUTTONS", {
         header: "Tanfidh Management Consultants",
-        text: "👋 Welcome! *AI-Powered Certified Balanced Scorecard Professional*\n\n📅 13-14 October 2026\n📍 Sheraton Oman Hotel, Muscat\n⏰ 2-Day In-Person Executive Masterclass\n🎁 *Special Offer:* Pay for 1 seat and get 1 seat FREE!\n\nWhat would you like to do?",
+        text: "👋 Welcome! *AI-Powered Certified Balanced Scorecard Professional*\n\n📅 13-14 October 2026\n📍 Muscat, Oman\n⏰ 2-Day In-Person Executive Masterclass\n🎁 *Special Offer:* Pay for 1 seat and get 1 seat FREE!\n\nWhat would you like to do?",
         footer: "Select an option below",
         buttons: [
           { id: "opt_details", title: "View Course Details" },
@@ -1625,7 +1625,7 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
       }, 500, 1040),
       n("n_summary", "BUTTONS", {
         header: "Registration Summary",
-        text: "📋 *Booking Summary:*\n\n• *Course:* AI-Powered Certified Balanced Scorecard Professional\n• *Dates:* 13-14 October 2026\n• *Venue:* Sheraton Oman Hotel, Muscat\n• *Primary Buyer:* {{customer_name}}\n• *Company:* {{company_name}}\n• *Position:* {{position}}\n• *Offer Applied:* Pay 1 Get 1 FREE\n• *Total Delegates:* 2 Participants\n• *Total Amount:* OMR 500 (+ 5% VAT)\n\nReady to confirm?",
+        text: "📋 *Booking Summary:*\n\n• *Course:* AI-Powered Certified Balanced Scorecard Professional\n• *Dates:* 13-14 October 2026\n• *Venue:* Muscat, Oman\n• *Primary Buyer:* {{customer_name}}\n• *Company:* {{company_name}}\n• *Position:* {{position}}\n• *Offer Applied:* Pay 1 Get 1 FREE\n• *Total Delegates:* 2 Participants\n• *Total Amount:* OMR 500 (+ 5% VAT)\n\nReady to confirm?",
         buttons: [
           { id: "opt_confirm_reg", title: "Confirm & Pay 💳" },
           { id: "opt_advisor", title: "Request Official Invoice" },
