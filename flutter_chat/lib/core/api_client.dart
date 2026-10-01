@@ -728,6 +728,59 @@ class ApiClient {
     );
   }
 
+  // ── Training Courses & Registrations (Tanfidh Academy) ──
+
+  Future<List<TrainingCourse>> trainingCourses({String? category, String? status}) async {
+    final params = <String, String>{};
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final uri = Uri.parse('$baseUrl/api/training/courses').replace(queryParameters: params.isEmpty ? null : params);
+    final response = await _client.get(uri, headers: _headers);
+    if (response.statusCode != 200) return const [];
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (body['courses'] as List?) ?? const [];
+    return list.map((e) => TrainingCourse.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<TrainingRegistration>> trainingRegistrations({String? courseId, String? stage}) async {
+    final params = <String, String>{};
+    if (courseId != null && courseId.isNotEmpty) params['courseId'] = courseId;
+    if (stage != null && stage.isNotEmpty) params['stage'] = stage;
+    final uri = Uri.parse('$baseUrl/api/training/registrations').replace(queryParameters: params.isEmpty ? null : params);
+    final response = await _client.get(uri, headers: _headers);
+    if (response.statusCode != 200) return const [];
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (body['registrations'] as List?) ?? const [];
+    return list.map((e) => TrainingRegistration.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> sendTrainingTemplate({required String registrationId, required String templateType}) async {
+    await _client.post(
+      Uri.parse('$baseUrl/api/training/whatsapp/send-template'),
+      headers: _headers,
+      body: jsonEncode({'registrationId': registrationId, 'templateType': templateType}),
+    );
+  }
+
+  Future<bool> checkInAttendance(String registrationId) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/training/attendance/checkin'),
+      headers: _headers,
+      body: jsonEncode({'registrationId': registrationId}),
+    );
+    return response.statusCode == 200;
+  }
+
+  Future<Map<String, dynamic>> whatsappHealth() async {
+    try {
+      final response = await _client.get(Uri.parse('$baseUrl/api/whatsapp/health'), headers: _headers);
+      if (response.statusCode != 200) return {'configured': false, 'error': 'Status ${response.statusCode}'};
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      return {'configured': false, 'error': e.toString()};
+    }
+  }
+
 
   Future<List<PendingPayment>> pendingPayments() async {
     final body = await _get('/api/payments?status=SUBMITTED');

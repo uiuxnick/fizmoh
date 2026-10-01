@@ -1441,3 +1441,97 @@ class WaiterRequest {
       );
 }
 
+class TrainingCourse {
+  const TrainingCourse({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.duration,
+    required this.fees,
+    required this.currency,
+    required this.location,
+    required this.status,
+    required this.enrolledCount,
+    required this.totalCapacity,
+    this.instructor,
+    this.startDate,
+  });
+
+  final String id;
+  final String name;
+  final String category;
+  final String duration;
+  final double fees;
+  final String currency;
+  final String location;
+  final String status;
+  final int enrolledCount;
+  final int totalCapacity;
+  final String? instructor;
+  final String? startDate;
+
+  factory TrainingCourse.fromJson(Map<String, dynamic> json) => TrainingCourse(
+        id: json['id']?.toString() ?? '',
+        name: _string(json['name']),
+        category: _string(json['category'], 'General'),
+        duration: _string(json['duration'], '3 Days'),
+        fees: (json['fees'] as num?)?.toDouble() ?? 0.0,
+        currency: _string(json['currency'], 'OMR'),
+        location: _string(json['location'], 'Muscat'),
+        status: _string(json['status'], 'PUBLISHED'),
+        enrolledCount: (json['enrolledCount'] as num?)?.toInt() ?? 0,
+        totalCapacity: (json['totalCapacity'] as num?)?.toInt() ?? 30,
+        instructor: json['instructor']?.toString(),
+        startDate: json['startDate']?.toString(),
+      );
+}
+
+class TrainingRegistration {
+  const TrainingRegistration({
+    required this.id,
+    required this.registrationNumber,
+    required this.courseId,
+    required this.courseName,
+    required this.contactName,
+    required this.contactEmail,
+    required this.contactPhone,
+    required this.stage,
+    required this.paymentStatus,
+    required this.totalPayable,
+    required this.currency,
+    this.registeredAt,
+    this.attended = false,
+  });
+
+  final String id;
+  final String registrationNumber;
+  final String courseId;
+  final String courseName;
+  final String contactName;
+  final String contactEmail;
+  final String contactPhone;
+  final String stage;
+  final String paymentStatus;
+  final double totalPayable;
+  final String currency;
+  final DateTime? registeredAt;
+  final bool attended;
+
+  factory TrainingRegistration.fromJson(Map<String, dynamic> json) =>
+      TrainingRegistration(
+        id: json['id']?.toString() ?? '',
+        registrationNumber: _string(json['registrationNumber']),
+        courseId: _string(json['courseId']),
+        courseName: _string(json['courseName']),
+        contactName: _string(json['contactName']),
+        contactEmail: _string(json['contactEmail']),
+        contactPhone: _string(json['contactPhone']),
+        stage: _string(json['stage'], 'NEW_LEAD'),
+        paymentStatus: _string(json['paymentStatus'], 'UNPAID'),
+        totalPayable: (json['totalPayable'] as num?)?.toDouble() ?? 0.0,
+        currency: _string(json['currency'], 'OMR'),
+        registeredAt: _date(json['registeredAt'] ?? json['createdAt']),
+        attended: json['stage'] == 'ATTENDED' || json['attended'] == true,
+      );
+}
+

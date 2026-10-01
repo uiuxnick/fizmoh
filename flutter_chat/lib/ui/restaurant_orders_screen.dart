@@ -3,8 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../core/api_client.dart';
 import '../core/models.dart';
-import 'theme.dart';
-import 'widgets.dart';
 
 class RestaurantOrdersScreen extends StatefulWidget {
   const RestaurantOrdersScreen({super.key});
@@ -111,7 +109,7 @@ class _RestaurantOrdersScreenState extends State<RestaurantOrdersScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.emerald,
+                      color: const Color(0xFF10B981),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -195,7 +193,7 @@ class _RestaurantOrdersScreenState extends State<RestaurantOrdersScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
@@ -249,7 +247,7 @@ class _RestaurantOrdersScreenState extends State<RestaurantOrdersScreen>
                       )),
                   const Divider(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Total: ${order.currency} ${order.totalAmount.toStringAsFixed(2)}',
