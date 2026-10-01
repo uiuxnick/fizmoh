@@ -30,16 +30,16 @@ async function main() {
       id: "courses_list",
       type: "LIST",
       data: {
-        text: "🎓 *Tanfidh Management Consultants*\n*Executive Masterclasses Catalogue (2026 Schedule)*\n\nPlease select the masterclass you would like to explore or register for:",
+        text: "🎓 *Tanfidh Management Consultants*\n*Official Executive Masterclasses (2026 Schedule)*\n\n1️⃣ *AI-Powered Certified Balanced Scorecard Professional*\n2️⃣ *AI-Powered Certified Strategy Professional*\n3️⃣ *AI-Powered Certified Performance Management Professional*\n4️⃣ *AI-Powered Strategy Execution Professional*\n5️⃣ *AI-Powered Certified KPI Professional*\n6️⃣ *AI-Powered Strategy Execution Using Balanced Scorecard*\n\nPlease tap *Select Course* below to explore full details and reserve seats under the Buy 1 Get 1 Free (BOGO) offer:",
         listButton: "Select Course",
         header: "Available Programs",
         rows: [
-          { id: "course_bsc", title: "AI Balanced Scorecard", description: "Oct 13–14 & Dec 14–15 · OMR 500 (BOGO)" },
-          { id: "course_strategy", title: "AI Strategy Pro", description: "Oct 26–27 & Dec 21–22 · OMR 500 (BOGO)" },
-          { id: "course_perf", title: "Performance Mgmt Pro", description: "Oct 19–20 & Nov 25–26 · OMR 500 (BOGO)" },
-          { id: "course_exec", title: "Strategy Execution Pro", description: "Nov 9–10 · OMR 500 (BOGO)" },
-          { id: "course_kpi", title: "Certified KPI Pro", description: "Nov 15–17 & Dec 1–3 · OMR 750 (BOGO)" },
-          { id: "course_se_bsc", title: "Strategy Execution BSC", description: "Nov 2–4 · OMR 750 (BOGO)" },
+          { id: "course_bsc", title: "1. Balanced Scorecard", description: "AI-Powered Certified Balanced Scorecard Professional" },
+          { id: "course_strategy", title: "2. Certified Strategy", description: "AI-Powered Certified Strategy Professional" },
+          { id: "course_perf", title: "3. Performance Mgmt", description: "AI-Powered Certified Performance Management Professional" },
+          { id: "course_exec", title: "4. Strategy Execution", description: "AI-Powered Strategy Execution Professional" },
+          { id: "course_kpi", title: "5. Certified KPI Pro", description: "AI-Powered Certified KPI Professional" },
+          { id: "course_se_bsc", title: "6. Exec with BSC", description: "AI-Powered Strategy Execution Using Balanced Scorecard" },
         ],
       },
       x: 400,
@@ -51,7 +51,7 @@ async function main() {
       id: "card_bsc_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *1  AI Powered Certified Balanced Scorecard Professional*\n\n2 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 13–14 Oct 2026 and 14–15 Dec 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nTranslate strategy into a measurable Balanced Scorecard and use AI responsibly to improve design, analysis and review.\n\n🎯 *Who should attend:*\nStrategy and planning leaders; BSC and KPI practitioners; department heads; PMO, transformation, HR, finance, quality, risk, audit and digital teams.\n\n✨ *Why attend:*\nLeave with a connected strategy map, KPI specifications, aligned scorecard and review plan. Use AI to challenge assumptions while validating every result against business evidence.\n\n💡 *Learning outcomes:*\nDesign a four perspective strategy map and scorecard; distinguish outcomes from drivers; specify KPIs and targets; cascade measures; interpret a dashboard; facilitate an accountable strategy review.\n\n📋 *Day by day agenda:*\n\n*Day 1  Strategy map and KPI selection*\n• 08:30–10:15: Welcome, course diagnostic and Balanced Scorecard foundations: perspectives, themes, objectives and cause and effect.\n• 10:15–10:30: Morning break\n• 10:30–13:00: Clarify strategic priorities and draft a strategy map; critique weak objective statements and missing links.\n• 13:00–14:00: Lunch (Sheraton 5-Star)\n• 14:00–15:00: Select outcome and driver KPIs; test relevance, controllability and available data.\n• 15:00–15:15: Afternoon break\n• 15:15–16:15: Use AI to suggest objectives and KPIs; check calculations, bias, confidentiality and business fit.\n• 16:15–16:30: Present a first strategy map and KPI shortlist; record revisions for Day 2.\n\n*Day 2  Scorecard implementation and review*\n• 08:30–10:15: Refine the strategy map and introduce KPI definition sheets.\n• 10:15–10:30: Morning break\n• 10:30–13:00: Specify formulas, units, owners, sources, baselines, targets and thresholds; practice cascading to departments.\n• 13:00–14:00: Lunch (Sheraton 5-Star)\n• 14:00–15:00: Design a scorecard dashboard with commentary, initiatives and decision signals.\n• 15:00–15:15: Afternoon break\n• 15:15–16:15: Use AI to draft performance narratives; verify source data and simulate a strategy review.\n• 16:15–16:30: Present scorecards, complete the practical application assessment and write a 30 day action plan.\n\n📦 *Participant outputs:* Draft strategy map, KPI definition sheets, scorecard, review agenda and personal action plan.\n\n🎯 *Learning approach:* Interactive case work, discussion, reusable templates and a final practical application. Participants may use anonymized organizational examples where appropriate.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *1  AI-Powered Certified Balanced Scorecard Professional*\n\n2 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 13–14 Oct 2026 and 14–15 Dec 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nTranslate strategy into a measurable Balanced Scorecard and use AI responsibly to improve design, analysis and review.\n\n🎯 *Who should attend:*\nStrategy and planning leaders; BSC and KPI practitioners; department heads; PMO, transformation, HR, finance, quality, risk, audit and digital teams.\n\n✨ *Why attend:*\nLeave with a connected strategy map, KPI specifications, aligned scorecard and review plan. Use AI to challenge assumptions while validating every result against business evidence.\n\n💡 *Learning outcomes:*\nDesign a four perspective strategy map and scorecard; distinguish outcomes from drivers; specify KPIs and targets; cascade measures; interpret a dashboard; facilitate an accountable strategy review.\n\n📋 *Day by day agenda:*\n\n*Day 1  Strategy map and KPI selection*\n• 08:30–10:15: Welcome, course diagnostic and Balanced Scorecard foundations: perspectives, themes, objectives and cause and effect.\n• 10:15–10:30: Morning break\n• 10:30–13:00: Clarify strategic priorities and draft a strategy map; critique weak objective statements and missing links.\n• 13:00–14:00: Lunch (5-Star Hotel Buffet)\n• 14:00–15:00: Select outcome and driver KPIs; test relevance, controllability and available data.\n• 15:00–15:15: Afternoon break\n• 15:15–16:15: Use AI to suggest objectives and KPIs; check calculations, bias, confidentiality and business fit.\n• 16:15–16:30: Present a first strategy map and KPI shortlist; record revisions for Day 2.\n\n*Day 2  Scorecard implementation and review*\n• 08:30–10:15: Refine the strategy map and introduce KPI definition sheets.\n• 10:15–10:30: Morning break\n• 10:30–13:00: Specify formulas, units, owners, sources, baselines, targets and thresholds; practice cascading to departments.\n• 13:00–14:00: Lunch (5-Star Hotel Buffet)\n• 14:00–15:00: Design a scorecard dashboard with commentary, initiatives and decision signals.\n• 15:00–15:15: Afternoon break\n• 15:15–16:15: Use AI to draft performance narratives; verify source data and simulate a strategy review.\n• 16:15–16:30: Present scorecards, complete the practical application assessment and write a 30 day action plan.\n\n📦 *Participant outputs:* Draft strategy map, KPI definition sheets, scorecard, review agenda and personal action plan.\n\n🎯 *Learning approach:* Interactive case work, discussion, reusable templates and a final practical application. Participants may use anonymized organizational examples where appropriate.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 0,
       y: 550,
@@ -60,7 +60,7 @@ async function main() {
       id: "card_bsc_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Certified Balanced Scorecard Professional* (Cohorts: 13–14 Oct 2026 & 14–15 Dec 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Certified Balanced Scorecard Professional* (Cohorts: 13–14 Oct 2026 & 14–15 Dec 2026)?",
         buttons: [
           { id: "btn_tr_bsc", title: "Trainer Details" },
           { id: "btn_reg_bsc", title: "Register Now" },
@@ -75,7 +75,7 @@ async function main() {
       id: "card_strategy_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *2  AI Powered Certified Strategy Professional*\n\n2 day in person programme | 08:30–16:30 | Sheraton Oman Hotel, Muscat\n📅 *Scheduled Dates:* 26–27 Oct 2026 and 21–22 Dec 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nFormulate clear, resilient corporate strategies, test strategic choices, and leverage AI for competitive intelligence and scenario analysis.\n\n🎯 *Who should attend:*\nC-suite executives, directors, strategy heads, business planners, division leaders, and corporate development advisors.\n\n✨ *Why attend:*\nLeave with an actionable strategic roadmap, validated assumptions, and a competitive advantage backed by modern AI analytical tools.\n\n💡 *Learning outcomes:*\nFormulate clear, differentiated strategic choices; conduct external & internal strategic diagnosis; use AI to test assumptions & synthesize market trends; build an actionable strategic roadmap.\n\n✨ *Inclusions:* 5-star Sheraton lunches, strategy workbook, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *2  AI-Powered Certified Strategy Professional*\n\n2 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 26–27 Oct 2026 and 21–22 Dec 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nFormulate clear, resilient corporate strategies, test strategic choices, and leverage AI for competitive intelligence and scenario analysis.\n\n🎯 *Who should attend:*\nC-suite executives, directors, strategy heads, business planners, division leaders, and corporate development advisors.\n\n✨ *Why attend:*\nLeave with an actionable strategic roadmap, validated assumptions, and a competitive advantage backed by modern AI analytical tools.\n\n💡 *Learning outcomes:*\nFormulate clear, differentiated strategic choices; conduct external & internal strategic diagnosis; use AI to test assumptions & synthesize market trends; build an actionable strategic roadmap.\n\n✨ *Inclusions:* 5-star executive lunches, strategy workbook, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 220,
       y: 550,
@@ -84,7 +84,7 @@ async function main() {
       id: "card_strategy_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Certified Strategy Professional* (Cohorts: 26–27 Oct 2026 & 21–22 Dec 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Certified Strategy Professional* (Cohorts: 26–27 Oct 2026 & 21–22 Dec 2026)?",
         buttons: [
           { id: "btn_tr_strat", title: "Trainer Details" },
           { id: "btn_reg_strat", title: "Register Now" },
@@ -99,7 +99,7 @@ async function main() {
       id: "card_perf_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *3  AI Powered Certified Performance Management Professional*\n\n2 day in person programme | 08:30–16:30 | Sheraton Oman Hotel, Muscat\n📅 *Scheduled Dates:* 19–20 Oct 2026 and 25–26 Nov 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nArchitect end-to-end performance management systems that drive organizational alignment and measurable results with AI.\n\n🎯 *Who should attend:*\nPerformance managers, HR leaders, departmental heads, operational managers, and transformation directors.\n\n✨ *Why attend:*\nEstablish an accountability culture, cascade objectives to business units, and use AI to evaluate performance gaps objectively.\n\n💡 *Learning outcomes:*\nDesign corporate & departmental performance frameworks; align individual goals with strategic priorities; structure actionable performance reviews & coaching; use AI to analyze performance variances & recommend fixes.\n\n✨ *Inclusions:* 5-star Sheraton lunches, performance templates, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *3  AI-Powered Certified Performance Management Professional*\n\n2 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 19–20 Oct 2026 and 25–26 Nov 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nArchitect end-to-end performance management systems that drive organizational alignment and measurable results with AI.\n\n🎯 *Who should attend:*\nPerformance managers, HR leaders, departmental heads, operational managers, and transformation directors.\n\n✨ *Why attend:*\nEstablish an accountability culture, cascade objectives to business units, and use AI to evaluate performance gaps objectively.\n\n💡 *Learning outcomes:*\nDesign corporate & departmental performance frameworks; align individual goals with strategic priorities; structure actionable performance reviews & coaching; use AI to analyze performance variances & recommend fixes.\n\n✨ *Inclusions:* 5-star executive lunches, performance templates, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 440,
       y: 550,
@@ -108,7 +108,7 @@ async function main() {
       id: "card_perf_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Certified Performance Management Professional* (Cohorts: 19–20 Oct 2026 & 25–26 Nov 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Certified Performance Management Professional* (Cohorts: 19–20 Oct 2026 & 25–26 Nov 2026)?",
         buttons: [
           { id: "btn_tr_perf", title: "Trainer Details" },
           { id: "btn_reg_perf", title: "Register Now" },
@@ -123,7 +123,7 @@ async function main() {
       id: "card_exec_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *4  AI Powered Strategy Execution Professional*\n\n2 day in person programme | 08:30–16:30 | Sheraton Oman Hotel, Muscat\n📅 *Scheduled Dates:* 9–10 Nov 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nBridge the gap between strategic vision and operational execution using structured governance and AI-assisted oversight.\n\n🎯 *Who should attend:*\nTransformation leaders, PMO managers, operational heads, project sponsors, and execution specialists.\n\n✨ *Why attend:*\nEliminate strategy execution bottlenecks and operationalize initiatives with disciplined tracking and early-warning signals.\n\n💡 *Learning outcomes:*\nOvercome common strategy execution bottlenecks; design an effective Strategy Management Office (SMO); prioritize and govern strategic initiatives; use AI to monitor delivery risks & course-correct early.\n\n✨ *Inclusions:* 5-star Sheraton lunches, execution playbook, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *4  AI-Powered Strategy Execution Professional*\n\n2 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 9–10 Nov 2026\n💰 *Fee and offer:* OMR 500 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nBridge the gap between strategic vision and operational execution using structured governance and AI-assisted oversight.\n\n🎯 *Who should attend:*\nTransformation leaders, PMO managers, operational heads, project sponsors, and execution specialists.\n\n✨ *Why attend:*\nEliminate strategy execution bottlenecks and operationalize initiatives with disciplined tracking and early-warning signals.\n\n💡 *Learning outcomes:*\nOvercome common strategy execution bottlenecks; design an effective Strategy Management Office (SMO); prioritize and govern strategic initiatives; use AI to monitor delivery risks & course-correct early.\n\n✨ *Inclusions:* 5-star executive lunches, execution playbook, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 660,
       y: 550,
@@ -132,7 +132,7 @@ async function main() {
       id: "card_exec_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Strategy Execution Professional* (Cohort: 9–10 Nov 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Strategy Execution Professional* (Cohort: 9–10 Nov 2026)?",
         buttons: [
           { id: "btn_tr_exec", title: "Trainer Details" },
           { id: "btn_reg_exec", title: "Register Now" },
@@ -147,7 +147,7 @@ async function main() {
       id: "card_kpi_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *5  AI Powered Certified KPI Professional*\n\n3 day in person programme | 08:30–16:30 | Sheraton Oman Hotel, Muscat\n📅 *Scheduled Dates:* 15–17 Nov 2026 and 1–3 Dec 2026\n💰 *Fee and offer:* OMR 750 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nMaster KPI selection, documentation, cascading, and target-setting backed by AI data validation and analytics.\n\n🎯 *Who should attend:*\nKPI analysts, business intelligence specialists, PMO, quality, data and performance managers across all sectors.\n\n✨ *Why attend:*\nEstablish an ironclad KPI architecture, avoid vanity metrics, and automate performance reporting with AI prompts.\n\n💡 *Learning outcomes:*\nSelect high-impact leading & lagging indicators; document complete KPI definition & specification sheets; cascade corporate KPIs to business units and teams; design executive visual KPI dashboards with AI.\n\n✨ *Inclusions:* 3 Days Masterclass, 5-star lunches, KPI dictionary, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *5  AI-Powered Certified KPI Professional*\n\n3 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 15–17 Nov 2026 and 1–3 Dec 2026\n💰 *Fee and offer:* OMR 750 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nMaster KPI selection, documentation, cascading, and target-setting backed by AI data validation and analytics.\n\n🎯 *Who should attend:*\nKPI analysts, business intelligence specialists, PMO, quality, data and performance managers across all sectors.\n\n✨ *Why attend:*\nEstablish an ironclad KPI architecture, avoid vanity metrics, and automate performance reporting with AI prompts.\n\n💡 *Learning outcomes:*\nSelect high-impact leading & lagging indicators; document complete KPI definition & specification sheets; cascade corporate KPIs to business units and teams; design executive visual KPI dashboards with AI.\n\n✨ *Inclusions:* 3 Days Masterclass, 5-star lunches, KPI dictionary, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 880,
       y: 550,
@@ -156,7 +156,7 @@ async function main() {
       id: "card_kpi_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Certified KPI Professional* (Cohorts: 15–17 Nov 2026 & 1–3 Dec 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Certified KPI Professional* (Cohorts: 15–17 Nov 2026 & 1–3 Dec 2026)?",
         buttons: [
           { id: "btn_tr_kpi", title: "Trainer Details" },
           { id: "btn_reg_kpi", title: "Register Now" },
@@ -171,7 +171,7 @@ async function main() {
       id: "card_se_bsc_details",
       type: "MESSAGE",
       data: {
-        text: "🎓 *6  AI Powered Strategy Execution Using Balanced Scorecard*\n\n3 day in person programme | 08:30–16:30 | Sheraton Oman Hotel, Muscat\n📅 *Scheduled Dates:* 2–4 Nov 2026\n💰 *Fee and offer:* OMR 750 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nThe definitive executive masterclass on operationalizing strategy maps and scorecards into disciplined institutional execution.\n\n🎯 *Who should attend:*\nSenior executives, strategy directors, transformation teams, and BSC leaders driving enterprise change.\n\n✨ *Why attend:*\nIntegrate strategic maps with budgets, resource allocation, and quarterly governance rhythms to guarantee strategic achievement.\n\n💡 *Learning outcomes:*\nConvert complex strategic plans into visual strategy maps; align organizational units, budget, and human capital; establish quarterly executive strategy review rhythms; apply AI prompts to uncover hidden execution risks.\n\n✨ *Inclusions:* 3 Days Masterclass, 5-star lunches, execution blueprints, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
+        text: "🎓 *6  AI-Powered Strategy Execution Using Balanced Scorecard*\n\n3 day in person programme | 08:30–16:30 | Muscat, Sultanate of Oman\n📅 *Scheduled Dates:* 2–4 Nov 2026\n💰 *Fee and offer:* OMR 750 per participant. Pay for 1 seat and get 1 seat totally free (BOGO Applied).\n\nThe definitive executive masterclass on operationalizing strategy maps and scorecards into disciplined institutional execution.\n\n🎯 *Who should attend:*\nSenior executives, strategy directors, transformation teams, and BSC leaders driving enterprise change.\n\n✨ *Why attend:*\nIntegrate strategic maps with budgets, resource allocation, and quarterly governance rhythms to guarantee strategic achievement.\n\n💡 *Learning outcomes:*\nConvert complex strategic plans into visual strategy maps; align organizational units, budget, and human capital; establish quarterly executive strategy review rhythms; apply AI prompts to uncover hidden execution risks.\n\n✨ *Inclusions:* 3 Days Masterclass, 5-star lunches, execution blueprints, and 2 individual verifiable credentials.\n\n🏢 *Ask for In-Company special tailored programs for your organization.*\n🤝 *Contact us for free strategy consulting advises.*",
       },
       x: 1100,
       y: 550,
@@ -180,7 +180,7 @@ async function main() {
       id: "card_se_bsc_action",
       type: "BUTTONS",
       data: {
-        text: "Would you like to review trainer details or reserve your seats for *AI Powered Strategy Execution Using Balanced Scorecard* (Cohort: 2–4 Nov 2026)?",
+        text: "Would you like to review trainer details or reserve your seats for *AI-Powered Strategy Execution Using Balanced Scorecard* (Cohort: 2–4 Nov 2026)?",
         buttons: [
           { id: "btn_tr_sebsc", title: "Trainer Details" },
           { id: "btn_reg_sebsc", title: "Register Now" },
@@ -197,7 +197,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Certified Balanced Scorecard Professional*\nPlease select your preferred cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30):",
+        text: "📅 *AI-Powered Certified Balanced Scorecard Professional*\nPlease select your preferred cohort date in *Muscat, Sultanate of Oman* (08:30–16:30):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -214,7 +214,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Certified Strategy Professional*\nPlease select your preferred cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30):",
+        text: "📅 *AI-Powered Certified Strategy Professional*\nPlease select your preferred cohort date in *Muscat, Sultanate of Oman* (08:30–16:30):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -231,7 +231,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Certified Performance Management Professional*\nPlease select your preferred cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30):",
+        text: "📅 *AI-Powered Certified Performance Management Professional*\nPlease select your preferred cohort date in *Muscat, Sultanate of Oman* (08:30–16:30):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -248,7 +248,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Strategy Execution Professional*\nPlease select your cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30):",
+        text: "📅 *AI-Powered Strategy Execution Professional*\nPlease select your cohort date in *Muscat, Sultanate of Oman* (08:30–16:30):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -264,7 +264,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Certified KPI Professional*\nPlease select your preferred cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30, 3 Days):",
+        text: "📅 *AI-Powered Certified KPI Professional*\nPlease select your preferred cohort date in *Muscat, Sultanate of Oman* (08:30–16:30, 3 Days):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -281,7 +281,7 @@ async function main() {
       data: {
         name: "chosen_slot",
         inputType: "select",
-        text: "📅 *AI Powered Strategy Execution Using Balanced Scorecard*\nPlease select your cohort date at *Sheraton Oman Hotel, Muscat* (08:30–16:30, 3 Days):",
+        text: "📅 *AI-Powered Strategy Execution Using Balanced Scorecard*\nPlease select your cohort date in *Muscat, Sultanate of Oman* (08:30–16:30, 3 Days):",
         listButton: "Select Date",
         header: "Available Cohorts",
         rows: [
@@ -323,7 +323,7 @@ async function main() {
       id: "fees_view",
       type: "BUTTONS",
       data: {
-        text: "💳 *Masterclass Investment & Executive Offers*\n\n• *2-Day Masterclasses:* OMR 500 per participant\n• *3-Day Masterclasses (KPI & SE-BSC):* OMR 750 per participant\n• *Special Offer:* Pay for 1 seat, get 1 seat 100% FREE (Buy 1 Get 1 Free)\n• *In-Company Programs:* Custom tailored on-site packages available\n\n🎁 *Offer Inclusions:*\nRegister 1 paid delegate and bring a colleague or team member at ZERO additional cost. Both attendees receive full masterclass access, executive toolkit, 5-star Sheraton lunches, and individual verifiable credentials.\n\n🏦 *Payment Terms:* Direct Corporate Bank Transfer to Bank Muscat (Sarooj Branch).",
+        text: "💳 *Masterclass Investment & Executive Offers*\n\n• *2-Day Masterclasses:* OMR 500 per participant\n• *3-Day Masterclasses (KPI & SE-BSC):* OMR 750 per participant\n• *Special Offer:* Pay for 1 seat, get 1 seat 100% FREE (Buy 1 Get 1 Free)\n• *In-Company Programs:* Custom tailored on-site packages available\n\n🎁 *Offer Inclusions:*\nRegister 1 paid delegate and bring a colleague or team member at ZERO additional cost. Both attendees receive full masterclass access, executive toolkit, 5-star executive buffet lunches, and individual verifiable credentials.\n\n🏦 *Payment Terms:* Direct Corporate Bank Transfer to Bank Muscat (Sarooj Branch).",
         buttons: [
           { id: "btn_courses", title: "Browse Courses" },
           { id: "btn_support", title: "Executive Support" },
@@ -463,16 +463,39 @@ async function main() {
 
     // Courses List -> Direct Course Details
     { id: "e_c_bsc", source: "courses_list", target: "card_bsc_details", label: "course_bsc" },
+    { id: "e_c_bsc_1", source: "courses_list", target: "card_bsc_details", label: "1" },
+    { id: "e_c_bsc_num", source: "courses_list", target: "card_bsc_details", label: "1. Balanced Scorecard" },
+    { id: "e_c_bsc_full", source: "courses_list", target: "card_bsc_details", label: "AI-Powered Certified Balanced Scorecard Professional" },
     { id: "e_c_bsc_txt", source: "courses_list", target: "card_bsc_details", label: "AI Balanced Scorecard" },
+
     { id: "e_c_strat", source: "courses_list", target: "card_strategy_details", label: "course_strategy" },
+    { id: "e_c_strat_2", source: "courses_list", target: "card_strategy_details", label: "2" },
+    { id: "e_c_strat_num", source: "courses_list", target: "card_strategy_details", label: "2. Certified Strategy" },
+    { id: "e_c_strat_full", source: "courses_list", target: "card_strategy_details", label: "AI-Powered Certified Strategy Professional" },
     { id: "e_c_strat_txt", source: "courses_list", target: "card_strategy_details", label: "AI Strategy Pro" },
+
     { id: "e_c_perf", source: "courses_list", target: "card_perf_details", label: "course_perf" },
+    { id: "e_c_perf_3", source: "courses_list", target: "card_perf_details", label: "3" },
+    { id: "e_c_perf_num", source: "courses_list", target: "card_perf_details", label: "3. Performance Mgmt" },
+    { id: "e_c_perf_full", source: "courses_list", target: "card_perf_details", label: "AI-Powered Certified Performance Management Professional" },
     { id: "e_c_perf_txt", source: "courses_list", target: "card_perf_details", label: "Performance Mgmt Pro" },
+
     { id: "e_c_exec", source: "courses_list", target: "card_exec_details", label: "course_exec" },
+    { id: "e_c_exec_4", source: "courses_list", target: "card_exec_details", label: "4" },
+    { id: "e_c_exec_num", source: "courses_list", target: "card_exec_details", label: "4. Strategy Execution" },
+    { id: "e_c_exec_full", source: "courses_list", target: "card_exec_details", label: "AI-Powered Strategy Execution Professional" },
     { id: "e_c_exec_txt", source: "courses_list", target: "card_exec_details", label: "Strategy Execution Pro" },
+
     { id: "e_c_kpi", source: "courses_list", target: "card_kpi_details", label: "course_kpi" },
+    { id: "e_c_kpi_5", source: "courses_list", target: "card_kpi_details", label: "5" },
+    { id: "e_c_kpi_num", source: "courses_list", target: "card_kpi_details", label: "5. Certified KPI Pro" },
+    { id: "e_c_kpi_full", source: "courses_list", target: "card_kpi_details", label: "AI-Powered Certified KPI Professional" },
     { id: "e_c_kpi_txt", source: "courses_list", target: "card_kpi_details", label: "Certified KPI Pro" },
+
     { id: "e_c_sebsc", source: "courses_list", target: "card_se_bsc_details", label: "course_se_bsc" },
+    { id: "e_c_sebsc_6", source: "courses_list", target: "card_se_bsc_details", label: "6" },
+    { id: "e_c_sebsc_num", source: "courses_list", target: "card_se_bsc_details", label: "6. Exec with BSC" },
+    { id: "e_c_sebsc_full", source: "courses_list", target: "card_se_bsc_details", label: "AI-Powered Strategy Execution Using Balanced Scorecard" },
     { id: "e_c_sebsc_txt", source: "courses_list", target: "card_se_bsc_details", label: "Strategy Execution BSC" },
 
     // Details (MESSAGE) -> Action (BUTTONS)
