@@ -91,8 +91,11 @@ export function WhatsAppBusinessProfileDialog({
         const sites = Array.isArray(p.websites) ? p.websites : []
         setWebsite1(sites[0] || "")
         setWebsite2(sites[1] || "")
-      } else {
-        toast.error(data.error || "Could not fetch WhatsApp profile from Meta")
+      } else if (!res.ok) {
+        const msg = data.error || "Could not fetch WhatsApp profile"
+        if (!msg.includes("#200") && !msg.toLowerCase().includes("permission")) {
+          toast.error(msg)
+        }
       }
     } catch {
       toast.error("Failed to connect to WhatsApp profile API")
@@ -136,7 +139,11 @@ export function WhatsAppBusinessProfileDialog({
         // Refresh profile to pick up Meta's new photo URL
         await fetchProfile()
       } else {
-        toast.error(data.error || "Failed to update profile photo on Meta")
+        const msg = data.error || "Failed to update profile photo on Meta"
+        const friendly = (msg.includes("#200") || msg.toLowerCase().includes("permission"))
+          ? "Meta requires phone management permissions to change profile pictures via API. You can upload it directly in Meta WhatsApp Manager."
+          : msg
+        toast.error(friendly)
       }
     } catch {
       toast.error("Photo upload failed")
@@ -167,11 +174,22 @@ export function WhatsAppBusinessProfileDialog({
 
       const data = await res.json()
       if (res.ok && data.success) {
-        toast.success("WhatsApp Business profile synced with Meta successfully!")
+        if (data.metaSynced === false) {
+          toast.warning(
+            data.warning || "Profile saved in Fizmoh! Direct Meta API sync requires Phone Management in Meta Business Suite.",
+            { duration: 8000 },
+          )
+        } else {
+          toast.success("WhatsApp Business profile synced successfully!")
+        }
         onSaved?.()
         onClose()
       } else {
-        toast.error(data.error || "Failed to save profile changes to Meta")
+        const msg = data.error || "Failed to save profile changes"
+        const friendly = (msg.includes("#200") || msg.toLowerCase().includes("permission"))
+          ? "Meta permissions error: your Meta access token requires phone management permissions in Meta Business Suite, or you can update your profile directly in WhatsApp Manager."
+          : msg
+        toast.error(friendly)
       }
     } catch {
       toast.error("Network error while saving profile")
@@ -205,17 +223,29 @@ export function WhatsAppBusinessProfileDialog({
               </Badge>
             )}
           </div>
-          {displayPhone && (
-            <p className="text-xs text-stone-500 font-mono mt-1">
-              Active Line: {displayPhone}
-            </p>
-          )}
+          <div className="flex items-center justify-between pt-1">
+            {displayPhone ? (
+              <p className="text-xs text-stone-500 font-mono">
+                Active Line: {displayPhone}
+              </p>
+            ) : <div />}
+            <a
+              href="https://business.facebook.com/wa/manage/phone-numbers/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+              title="Manage in Meta WhatsApp Manager"
+            >
+              <span>Meta WhatsApp Manager</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </DialogHeader>
 
         {loading ? (
           <div className="py-12 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-600" />
-            <p className="text-xs text-stone-500">Loading current profile from Meta Cloud API...</p>
+            <p className="text-xs text-stone-500">Loading current profile...</p>
           </div>
         ) : (
           <div className="space-y-5 pt-3">
