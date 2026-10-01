@@ -151,10 +151,16 @@ export function OnboardingBanner({ onOpen }: { onOpen?: () => void }) {
   const [state, setState] = useState<{ done: number; total: number; ready: boolean } | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [modalOpen, setModalOpen] = useState(false)
-  const { setView } = useApp()
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("fizmoh_onboarding_dismissed") === "1"
+    }
+    return false
+  })
+  const { view, setView } = useApp()
 
   const loadState = () => {
-    fetch("/api/onboarding")
+    fetch("/api/onboarding", { cache: "no-store" })
       .then(r => r.json())
       .then(d => {
         if (!d.applies || d.complete) {
@@ -169,9 +175,15 @@ export function OnboardingBanner({ onOpen }: { onOpen?: () => void }) {
 
   useEffect(() => {
     loadState()
+  }, [view])
+
+  useEffect(() => {
+    const onFocus = () => loadState()
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
   }, [])
 
-  if (!state) return null
+  if (!state || dismissed) return null
 
   return (
     <>
@@ -192,19 +204,36 @@ export function OnboardingBanner({ onOpen }: { onOpen?: () => void }) {
               : "Your WhatsApp number is not connected yet, so nothing can be sent or received."}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            loadState()
-            setModalOpen(true)
-            onOpen?.()
-          }}
-          className={`shrink-0 font-bold underline px-2 py-0.5 rounded cursor-pointer transition-opacity hover:opacity-80 ${
-            state.ready ? "text-emerald-800" : "text-white"
-          }`}
-        >
-          Finish setup →
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              loadState()
+              setModalOpen(true)
+              onOpen?.()
+            }}
+            className={`font-bold underline px-2 py-0.5 rounded cursor-pointer transition-opacity hover:opacity-80 ${
+              state.ready ? "text-emerald-800" : "text-white"
+            }`}
+          >
+            Finish setup →
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDismissed(true)
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("fizmoh_onboarding_dismissed", "1")
+              }
+            }}
+            className={`p-1 rounded-md transition-opacity hover:opacity-75 cursor-pointer ${
+              state.ready ? "text-stone-500 hover:text-stone-800" : "text-white/80 hover:text-white"
+            }`}
+            title="Dismiss banner"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>

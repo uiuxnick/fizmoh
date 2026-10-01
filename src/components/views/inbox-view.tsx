@@ -69,12 +69,31 @@ function channelLabel(channel?: string): string {
   return "WhatsApp"
 }
 
+function formatPhoneDisplay(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "")
+  if (digits.startsWith("968") && digits.length === 11) {
+    return `+968 ${digits.slice(3, 7)} ${digits.slice(7)}`
+  }
+  if (digits.startsWith("1") && digits.length === 11) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
+  }
+  if (digits.startsWith("44") && digits.length >= 11) {
+    return `+44 ${digits.slice(2, 6)} ${digits.slice(6)}`
+  }
+  return digits ? `+${digits}` : phone
+}
+
 /** A conversation's "display phone" is a synthetic social:facebook:<psid> placeholder for non-WhatsApp channels — never shown as if it were a real number. */
 function displayIdentity(c: Conversation): string {
-  if (c.customerName) return c.customerName
+  if (c.customerName && c.customerName !== "Unknown") return c.customerName
   if (c.channel === "LIVE_CHAT" || c.channel === "WEBSITE") return "Website Visitor"
   if (c.channel && c.channel !== "WHATSAPP") return "A customer"
-  return c.customerPhone
+  return formatPhoneDisplay(c.customerPhone)
+}
+
+function avatarInitial(nameOrPhone: string): string {
+  const clean = (nameOrPhone || "").replace(/^[+]/, "").trim()
+  return (clean[0] || "#").toUpperCase()
 }
 
 interface Message {
@@ -133,6 +152,10 @@ function previewText(text: string | null) {
   if (clean === "[document]") return "📄 Document"
   if (clean === "[sticker]") return "✨ Sticker"
   if (clean === "[location]") return "📍 Location"
+  if (clean === "[unsupported]") return "ℹ️ Unsupported format"
+  if (clean === "[errors]") return "⚠️ System notice"
+  if (clean.startsWith("[reaction")) return "👍 Reaction"
+  if (clean.startsWith("[contact")) return "👤 Contact"
   return text
 }
 
@@ -146,6 +169,10 @@ function isMediaPlaceholder(text: string) {
     clean === "[sticker]" ||
     clean === "[location]" ||
     clean === "[voice]" ||
+    clean === "[unsupported]" ||
+    clean === "[errors]" ||
+    clean.startsWith("[reaction") ||
+    clean.startsWith("[contact") ||
     clean.includes("media_placeholder")
   )
 }
@@ -708,7 +735,7 @@ export default function InboxView() {
                       <div className="relative shrink-0 mt-0.5">
                         <Avatar className="h-11 w-11 rounded-2xl border border-stone-200/70 shadow-2xs">
                           <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
-                            {displayIdentity(c)[0]?.toUpperCase()}
+                            {avatarInitial(displayIdentity(c))}
                           </AvatarFallback>
                         </Avatar>
                         <div
@@ -860,7 +887,7 @@ export default function InboxView() {
                 <div className="relative shrink-0">
                   <Avatar className="h-10 w-10 rounded-2xl border border-stone-200 shadow-2xs">
                     <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
-                      {displayIdentity(selected)[0]?.toUpperCase()}
+                      {avatarInitial(displayIdentity(selected))}
                     </AvatarFallback>
                   </Avatar>
                   <div
@@ -1121,6 +1148,30 @@ export default function InboxView() {
                       {m.mediaUrl ? (
                         <div className="mb-1.5 rounded-xl overflow-hidden">
                           <MessageMedia url={m.mediaUrl} type={m.type} outgoing={outgoing} />
+                        </div>
+                      ) : displayText.trim().toLowerCase() === "[unsupported]" || m.type === "UNSUPPORTED" ? (
+                        <div className="flex items-start gap-2.5 py-1 px-1 my-0.5 text-xs text-stone-600">
+                          <div className="p-1.5 rounded-lg bg-stone-100 text-stone-500 shrink-0 mt-0.5 border border-stone-200/80">
+                            <AlertCircle className="h-4 w-4 text-stone-500" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-stone-800 text-[12px]">Unsupported message format</p>
+                            <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+                              This message format (such as a WhatsApp poll, live location, or sticker reaction) is not supported by WhatsApp Cloud API.
+                            </p>
+                          </div>
+                        </div>
+                      ) : displayText.trim().toLowerCase() === "[errors]" || m.type === "ERRORS" ? (
+                        <div className="flex items-start gap-2.5 py-1 px-1 my-0.5 text-xs text-stone-600">
+                          <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 shrink-0 mt-0.5 border border-amber-200/80">
+                            <AlertCircle className="h-4 w-4 text-amber-500" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-stone-800 text-[12px]">System message event</p>
+                            <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+                              A system notification or unsupported message event was received.
+                            </p>
+                          </div>
                         </div>
                       ) : isPlaceholder ? (
                         <div className={`flex items-center gap-2.5 py-1 px-2.5 rounded-xl mb-1 ${outgoing ? "bg-black/15" : "bg-stone-100"}`}>

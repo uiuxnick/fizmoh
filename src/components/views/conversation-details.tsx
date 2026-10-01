@@ -263,11 +263,22 @@ export function ConversationDetails({
     <div className="h-full flex-1 min-h-0 overflow-y-auto bg-white p-4 space-y-3.5">
       {/* Customer Profile Card */}
       <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-stone-50 to-emerald-50/30 border border-stone-200/80">
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black mx-auto mb-2 shadow-sm shadow-emerald-600/20">
-          {(conversation.customerName || conversation.customerPhone).slice(0, 2).toUpperCase()}
-        </div>
-        <div className="font-bold text-sm text-stone-900">{conversation.customerName || "Unnamed Customer"}</div>
-        <div className="text-xs text-stone-500 font-mono mt-0.5">{conversation.customerPhone}</div>
+        {(() => {
+          const hasRealName = Boolean(conversation.customerName && conversation.customerName !== "Unknown")
+          const displayName = hasRealName ? conversation.customerName : conversation.customerPhone
+          const initial = hasRealName ? conversation.customerName!.slice(0, 2).toUpperCase() : (conversation.customerPhone.replace(/^[+]/, "")[0] || "#")
+          return (
+            <>
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black mx-auto mb-2 shadow-sm shadow-emerald-600/20">
+                {initial}
+              </div>
+              <div className="font-bold text-sm text-stone-900">{displayName}</div>
+              {hasRealName && (
+                <div className="text-xs text-stone-500 font-mono mt-0.5">{conversation.customerPhone}</div>
+              )}
+            </>
+          )
+        })()}
 
         {/* 1-Click Quick Actions */}
         <div className="flex items-center justify-center gap-1.5 mt-2.5">

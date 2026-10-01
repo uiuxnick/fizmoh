@@ -279,7 +279,7 @@ export async function upsertAccount(params: {
     ...(live.details ?? {}),
   }
 
-  return db.whatsAppAccount.upsert({
+  const record = await db.whatsAppAccount.upsert({
     where: { phoneNumberId: params.phoneNumberId },
     update: data,
     create: {
@@ -290,6 +290,13 @@ export async function upsertAccount(params: {
       isDefault: existing === 0,
     },
   })
+
+  try {
+    const { invalidateWhatsAppConfigCache } = await import("@/lib/whatsapp")
+    invalidateWhatsAppConfigCache()
+  } catch {}
+
+  return record
 }
 
 /** The token for an account, decrypted for use. */

@@ -125,7 +125,21 @@ function parseMessage(msg: any): { content: string; mediaId: string | null; mess
     const notes = msg.order?.text ? ` (Notes: ${msg.order.text})` : ""
     return { content: `[WhatsApp Cart Order: ${summary}]${notes}`, mediaId: null, messageType: "ORDER" }
   }
-  return { content: `[${type}]`, mediaId: null, messageType: "TEXT" }
+  if (type === "video") {
+    return { content: "[Video]", mediaId: msg.video?.id || null, messageType: "VIDEO" }
+  }
+  if (type === "unsupported") {
+    return { content: "[unsupported]", mediaId: null, messageType: "UNSUPPORTED" }
+  }
+  if (type === "reaction") {
+    const emoji = msg.reaction?.emoji || "👍"
+    return { content: `[reaction: ${emoji}]`, mediaId: null, messageType: "REACTION" }
+  }
+  if (type === "contacts") {
+    const name = msg.contacts?.[0]?.name?.formatted_name || "Contact"
+    return { content: `[Contact: ${name}]`, mediaId: null, messageType: "CONTACT" }
+  }
+  return { content: `[${type}]`, mediaId: null, messageType: String(type || "TEXT").toUpperCase() }
 }
 /**
  * Phone number patterns always allowed through the bot gate, regardless of

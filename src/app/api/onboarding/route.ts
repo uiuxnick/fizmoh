@@ -27,9 +27,10 @@ export const GET = withErrors(async () => {
   }
 
   const modules = (await currentModules()) ?? []
-  const [whatsapp, businessName, businessPhone, merchantId, tours, staffCount, flows] =
+  const [whatsapp, connectedAccountCount, businessName, businessPhone, merchantId, tours, staffCount, flows] =
     await Promise.all([
       getWhatsAppConfig(),
+      db.whatsAppAccount.count({ where: { status: "CONNECTED" } }).catch(() => 0),
       getConfigValue("business_name"),
       getConfigValue("business_phone"),
       getConfigValue("amwalpay_merchant_id"),
@@ -38,7 +39,7 @@ export const GET = withErrors(async () => {
       db.botFlow.count(),
     ])
 
-  const connected = Boolean(whatsapp.accessToken && whatsapp.phoneNumberId)
+  const connected = Boolean((whatsapp.accessToken && whatsapp.phoneNumberId) || connectedAccountCount > 0)
 
   const steps = [
     {

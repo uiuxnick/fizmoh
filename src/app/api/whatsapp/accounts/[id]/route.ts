@@ -36,6 +36,10 @@ export const POST = withErrors(
           db.whatsAppAccount.updateMany({ data: { isDefault: false }, where: { tenantId: tenant.tenantId } }),
           db.whatsAppAccount.update({ where: { id }, data: { isDefault: true } }),
         ])
+        try {
+          const { invalidateWhatsAppConfigCache } = await import("@/lib/whatsapp")
+          invalidateWhatsAppConfigCache()
+        } catch {}
         return NextResponse.json({ ok: true })
       }
 
@@ -120,6 +124,11 @@ export const DELETE = withErrors(
       staffId: session.staffId,
       details: account.displayPhone ?? account.phoneNumberId,
     }).catch(() => {})
+
+    try {
+      const { invalidateWhatsAppConfigCache } = await import("@/lib/whatsapp")
+      invalidateWhatsAppConfigCache()
+    } catch {}
 
     return NextResponse.json({ ok: true })
   },
