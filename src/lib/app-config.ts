@@ -159,7 +159,7 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
         key: "meta_graph_version",
         label: "Graph API version",
         envVar: "META_GRAPH_VERSION",
-        hint: "e.g. v21.0",
+        hint: "e.g. v23.0",
       },
     ],
   },

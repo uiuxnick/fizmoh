@@ -1,7 +1,7 @@
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
-import { getWhatsAppConfig } from "@/lib/whatsapp"
+import { getWhatsAppConfig, GRAPH_API_VERSION } from "@/lib/whatsapp"
 import { getTenantCourses } from "@/lib/training-service"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -274,7 +274,7 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   // Submit batch to Meta Graph API
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${catalogId}/items_batch`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${catalogId}/items_batch`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

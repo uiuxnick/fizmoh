@@ -1,4 +1,4 @@
-import { getWhatsAppConfig, isWhatsAppConfigured } from "@/lib/whatsapp"
+import { getWhatsAppConfig, isWhatsAppConfigured, GRAPH_API_VERSION } from "@/lib/whatsapp"
 import { getConfigValue } from "@/lib/app-config"
 
 /**
@@ -32,7 +32,7 @@ export async function callingStatus(): Promise<CallingStatus> {
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v21.0/${config.phoneNumberId}/settings?fields=calling`,
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/settings?fields=calling`,
       { headers: { Authorization: `Bearer ${config.accessToken}` }, cache: "no-store" },
     )
     const data = await response.json()
@@ -56,7 +56,7 @@ export async function enableCalling(enable: boolean): Promise<{ ok: boolean; err
   const config = await getWhatsAppConfig()
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/settings`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/settings`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -104,7 +104,7 @@ export async function placeCall(to: string, sdpOffer?: string): Promise<{ ok: bo
 
   const config = await getWhatsAppConfig()
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/calls`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/calls`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -169,7 +169,7 @@ async function callAction(params: {
   const config = await getWhatsAppConfig()
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/calls`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/calls`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({

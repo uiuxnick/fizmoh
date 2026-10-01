@@ -15,7 +15,7 @@ import { db } from "@/lib/db"
 import { decryptSecret, encryptSecret } from "@/lib/secret-box"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
 
-const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0"
+export const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0"
 
 export type WhatsAppConfig = {
   accessToken: string

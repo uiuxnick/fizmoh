@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getWhatsAppConfig, isWhatsAppConfigured } from "@/lib/whatsapp"
+import { getWhatsAppConfig, isWhatsAppConfigured, GRAPH_API_VERSION } from "@/lib/whatsapp"
 import { isAIConfigured } from "@/lib/ai"
 import { getAIConfig } from "@/lib/ai-provider"
 import { withErrors } from "@/lib/api-handler"
@@ -48,7 +48,7 @@ async function webhookFields(): Promise<{ subscribed: string[]; error?: string }
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v23.0/${encodeURIComponent(appId)}/subscriptions` +
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(appId)}/subscriptions` +
         `?access_token=${encodeURIComponent(`${appId}|${appSecret}`)}`,
       { cache: "no-store" },
     )
@@ -86,12 +86,12 @@ async function embeddedSignupConfig() {
   try {
     const [configRes, appRes] = await Promise.all([
       fetch(
-        `https://graph.facebook.com/v23.0/${encodeURIComponent(configId)}` +
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(configId)}` +
           `?access_token=${encodeURIComponent(token)}`,
         { cache: "no-store" },
       ),
       fetch(
-        `https://graph.facebook.com/v23.0/${encodeURIComponent(appId)}` +
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(appId)}` +
           `?fields=name,link,app_domains&access_token=${encodeURIComponent(token)}`,
         { cache: "no-store" },
       ),
@@ -136,7 +136,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   if (configured) {
     try {
       const res = await fetch(
-        `https://graph.facebook.com/v21.0/${config.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`,
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`,
         { headers: { Authorization: `Bearer ${config.accessToken}` }, cache: "no-store" },
       )
       if (res.ok) {

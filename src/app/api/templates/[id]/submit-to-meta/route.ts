@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { parseCards, validateCarousel, carouselComponent } from "@/lib/carousel"
-import { getWhatsAppConfig, isWhatsAppConfigured, uploadTemplateMedia } from "@/lib/whatsapp"
+import { getWhatsAppConfig, isWhatsAppConfigured, uploadTemplateMedia, GRAPH_API_VERSION } from "@/lib/whatsapp"
 
 /**
  * Sends a template to Meta for approval.
@@ -129,7 +129,7 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
   }
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${config.wabaId}/message_templates`, {
+    const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.wabaId}/message_templates`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}` },
       body: JSON.stringify({
