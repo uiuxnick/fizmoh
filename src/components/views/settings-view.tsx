@@ -23,6 +23,7 @@ import {
   CheckCircle2, AlertTriangle, Lock, Copy, RefreshCw, ExternalLink,
   Sparkles, Zap, XCircle, KeyRound, Loader2, Plus, Trash2,
   Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send, ShoppingBag, Pencil, Check, Boxes,
+  Eye, Layers,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
@@ -2206,6 +2207,66 @@ function WebsiteAndDomainSection({
   const [verifyingDomain, setVerifyingDomain] = useState(false)
   const [domainResult, setDomainResult] = useState<any>(null)
 
+  const [customerSiteEnabled, setCustomerSiteEnabled] = useState(true)
+  const [websiteBuilderEnabled, setWebsiteBuilderEnabled] = useState(true)
+  const [loadingNavModules, setLoadingNavModules] = useState(true)
+  const [togglingModule, setTogglingModule] = useState<string | null>(null)
+
+  const loadNavModules = async () => {
+    try {
+      const res = await fetch(`/api/workspace/modules?_t=${Date.now()}`)
+      if (res.ok) {
+        const data = await res.json()
+        const siteMod = data.modules?.find((m: any) => m.key === "CUSTOMER_SITE")
+        const builderMod = data.modules?.find((m: any) => m.key === "WEBSITE")
+        if (siteMod) setCustomerSiteEnabled(siteMod.enabled)
+        if (builderMod) setWebsiteBuilderEnabled(builderMod.enabled)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingNavModules(false)
+    }
+  }
+
+  useEffect(() => {
+    loadNavModules()
+  }, [])
+
+  const handleToggleModule = async (moduleKey: "CUSTOMER_SITE" | "WEBSITE", nextState: boolean) => {
+    setTogglingModule(moduleKey)
+    try {
+      const res = await fetch("/api/workspace/modules", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ module: moduleKey, enabled: nextState }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update module")
+
+      if (moduleKey === "CUSTOMER_SITE") setCustomerSiteEnabled(nextState)
+      if (moduleKey === "WEBSITE") setWebsiteBuilderEnabled(nextState)
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("fizmoh:features-updated", {
+            detail: { module: moduleKey, enabled: nextState },
+          })
+        )
+      }
+
+      toast.success(
+        moduleKey === "CUSTOMER_SITE"
+          ? (nextState ? "Customer Website enabled in sidebar" : "Customer Website hidden from sidebar")
+          : (nextState ? "Website Builder enabled in sidebar" : "Website Builder hidden from sidebar")
+      )
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update navigation visibility")
+    } finally {
+      setTogglingModule(null)
+    }
+  }
+
   useEffect(() => {
     setDomainInput(settings.custom_domain || "")
     setLogoUrl(settings.website_logo_url || "")
@@ -2290,6 +2351,65 @@ function WebsiteAndDomainSection({
 
   return (
     <div className="space-y-6">
+      {/* Sidebar Navigation Visibility Card */}
+      <Card>
+        <CardHeader className="border-b bg-stone-50/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-teal-600" />
+              <div>
+                <CardTitle className="text-base">Sidebar Navigation Visibility</CardTitle>
+                <p className="text-xs text-stone-500">Enable or disable website navigation links shown in your workspace menu</p>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 shrink-0">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-stone-900">Customer Website</div>
+                <div className="text-xs text-stone-500">Show public storefront and tour/restaurant booking catalog link in sidebar</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {togglingModule === "CUSTOMER_SITE" && <Loader2 className="h-4 w-4 animate-spin text-teal-600" />}
+              <Switch
+                checked={customerSiteEnabled}
+                disabled={loadingNavModules || togglingModule === "CUSTOMER_SITE"}
+                onCheckedChange={(val) => handleToggleModule("CUSTOMER_SITE", val)}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-violet-50 border border-violet-200/60 flex items-center justify-center text-violet-600 shrink-0">
+                <Layers className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-stone-900">Website Builder</span>
+                  <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 text-[10px] px-1.5 py-0 border-0 font-bold">New</Badge>
+                </div>
+                <div className="text-xs text-stone-500">Show visual drag-and-drop & AI studio link in sidebar</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {togglingModule === "WEBSITE" && <Loader2 className="h-4 w-4 animate-spin text-violet-600" />}
+              <Switch
+                checked={websiteBuilderEnabled}
+                disabled={loadingNavModules || togglingModule === "WEBSITE"}
+                onCheckedChange={(val) => handleToggleModule("WEBSITE", val)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Custom Domain Card */}
       <Card>
         <CardHeader className="border-b bg-stone-50/50">

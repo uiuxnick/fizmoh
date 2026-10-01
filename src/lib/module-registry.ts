@@ -34,7 +34,8 @@ export const MODULE_REGISTRY = [
   { key: "ECOMMERCE", label: "E-Commerce & Store Sync", description: "Shopify, Salla & Zid store sync, abandoned cart recovery, order dispatch alerts and COD verification", group: "Commerce", alwaysIncluded: false },
   { key: "INTEGRATION", label: "Cloud & Sheet Bridges", description: "Real-time Google Sheets sync, custom webhooks, and bidirectional database bridges", group: "Automation", alwaysIncluded: false },
   { key: "REPUTATION", label: "Google Review AI Shield", description: "Google Maps 5-star review collector, AI draft generation, and negative feedback private routing", group: "Growth", alwaysIncluded: false },
-  { key: "WEBSITE", label: "Website Builder", description: "Drag-and-drop website and landing page builder with 50+ elements, e-commerce store, and publish to your domain", group: "Growth", alwaysIncluded: false },
+  { key: "CUSTOMER_SITE", label: "Customer Website", description: "Public storefront, tour & restaurant booking catalog, and instant web presence preview", group: "Growth", alwaysIncluded: true },
+  { key: "WEBSITE", label: "Website Builder", description: "Visual drag-and-drop & AI website builder studio with 50+ elements, templates, and publishing engine", group: "Growth", alwaysIncluded: true },
   { key: "WHITE_LABEL", label: "Agency White-Label Reseller", description: "Custom agency branding, sub-account workspace creation, custom domain mapping and margin billing", group: "Growth", alwaysIncluded: false },
   { key: "TRAINING", label: "Training & Course Management", description: "Course catalog, registrations, attendee QR tickets, certificates, offers, and WhatsApp automation", group: "Commerce", alwaysIncluded: false },
 ] as const

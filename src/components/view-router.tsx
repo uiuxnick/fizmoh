@@ -46,7 +46,7 @@ export default function ViewRouter() {
   const { view } = useApp()
   switch (view) {
     case "dashboard": return <DashboardView />
-    case "customer-site": return <CustomerSiteView />
+    case "customer-site": return <ModuleGate module="CUSTOMER_SITE"><CustomerSiteView /></ModuleGate>
     case "website-builder": return <ModuleGate module="WEBSITE"><WebsiteBuilderView /></ModuleGate>
     case "cloud-bridges": return <ModuleGate module="INTEGRATION"><CloudBridgesView /></ModuleGate>
     case "white-label": return <ModuleGate module="WHITE_LABEL"><WhiteLabelView /></ModuleGate>

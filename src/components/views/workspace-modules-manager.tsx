@@ -14,7 +14,7 @@ import {
   Building2, Megaphone, Workflow, BookOpen, Phone, CreditCard,
   BarChart3, Newspaper, QrCode, Contact2, Facebook, MessageCircle,
   Building, ShoppingCart, Plug, Star, ShieldCheck, Loader2, RefreshCw,
-  ArrowUpRight, AlertCircle, Eye, EyeOff,
+  ArrowUpRight, AlertCircle, Eye, EyeOff, Globe, GraduationCap,
 } from "lucide-react"
 
 export interface WorkspaceModuleItem {
@@ -56,6 +56,9 @@ const MODULE_ICONS: Record<string, any> = {
   ECOMMERCE: ShoppingCart,
   INTEGRATION: Plug,
   REPUTATION: Star,
+  CUSTOMER_SITE: Globe,
+  WEBSITE: Layers,
+  TRAINING: GraduationCap,
   WHITE_LABEL: ShieldCheck,
 }
 
@@ -87,6 +90,9 @@ const MODULE_AR_LABELS: Record<string, { label: string; desc: string }> = {
   ECOMMERCE: { label: "الربط بمتاجر شوبيفاي وسلة", desc: "مزامنة متاجر سلة وشوبيفاي وتأكيد الدفع عند الاستلام COD." },
   INTEGRATION: { label: "مزامنة جوجل شيت والويبهوك", desc: "تكامل مباشر مع جداول جوجل شيت والأنظمة السحابية." },
   REPUTATION: { label: "درع تقييمات جوجل 5 نجوم", desc: "حصد مراجعات خرائط جوجل الإيجابية وتصفية الشكاوى داخلياً." },
+  CUSTOMER_SITE: { label: "موقع الويب للعملاء", desc: "واجهة متجر عامة وعرض رحلات وحجوزات ومعاينة حضور رقمي فوري." },
+  WEBSITE: { label: "منشئ المواقع الذكي", desc: "استوديو سحب وإفلات مع ذكاء اصطناعي وأكثر من 50 عنصراً وقوالب جاهزة." },
+  TRAINING: { label: "إدارة الدورات والورش التدريبية", desc: "كتالوج الدورات والتسجيل وتذاكر QR الذكية وشهادات إتمام الدورة." },
   WHITE_LABEL: { label: "بوابة الوكالات والموزعين", desc: "تخصيص الهوية والشعار والنطاق الخاص وإعادة البيع." },
 }
 

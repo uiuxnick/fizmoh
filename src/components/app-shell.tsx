@@ -75,7 +75,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "integration" | "white_label" | "training"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "customer_site" | "website_builder" | "integration" | "white_label" | "training"
   badge?: string
   accent?: string
   hash?: string
@@ -85,8 +85,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
-  { key: "customer-site", label: "Customer Website", icon: Globe, group: "Overview", accent: "text-teal-600", feature: "website" },
-  { key: "website-builder", label: "Website Builder", icon: Layers, group: "Overview", accent: "text-violet-600", badge: "New", feature: "website" },
+  { key: "customer-site", label: "Customer Website", icon: Globe, group: "Overview", accent: "text-teal-600", feature: "customer_site" },
+  { key: "website-builder", label: "Website Builder", icon: Layers, group: "Overview", accent: "text-violet-600", badge: "New", feature: "website_builder" },
   { key: "tours", label: "Tours & Slots", icon: Map, group: "Operations", feature: "tours" },
   {
     key: "restaurant",

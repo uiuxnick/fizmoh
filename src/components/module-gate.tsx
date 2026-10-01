@@ -71,7 +71,8 @@ export function ModuleGate({ module, children, label }: ModuleGateProps) {
     (module === "VISA" && features?.visa) ||
     (module === "APPOINTMENTS" && features?.appointments) ||
     (module === "BROADCAST" && features?.broadcast) ||
-    (module === "WEBSITE" && features?.website) ||
+    (module === "CUSTOMER_SITE" && (features?.customer_site ?? features?.website)) ||
+    (module === "WEBSITE" && (features?.website_builder ?? features?.website)) ||
     (module === "INTEGRATION" && features?.integration) ||
     (module === "WHITE_LABEL" && features?.white_label)
   )
