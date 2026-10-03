@@ -1,5 +1,7 @@
 "use client"
 
+import { formatCourseSchedule } from "@/lib/course-schedule"
+
 import React, { useState, useEffect, useMemo } from "react"
 import {
   GraduationCap,
@@ -54,6 +56,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -459,10 +462,11 @@ export default function TrainingView() {
   }
 
   // Save / Update Course in Modal
-  const handleSaveCourse = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingCourse?.name) {
+  const handleSaveCourse = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && "preventDefault" in e) e.preventDefault()
+    if (!editingCourse?.name?.trim()) {
       toast.error("Please enter a course title")
+      setEditorSubTab("basic")
       return
     }
 
@@ -471,10 +475,24 @@ export default function TrainingView() {
       const url = isNew ? "/api/training/courses" : `/api/training/courses/${editingCourse.id}`
       const method = isNew ? "POST" : "PUT"
 
+      // Filter out empty/blank date ranges added via "Add date"
+      const cleanAdditionalDates = (editingCourse.additionalDates || [])
+        .filter((r: { startDate?: string; endDate?: string }) => r && (r.startDate?.trim() || r.endDate?.trim()))
+        .map((r: { startDate?: string; endDate?: string }) => ({
+          startDate: r.startDate?.trim() || "",
+          endDate: r.endDate?.trim() || r.startDate?.trim() || "",
+        }))
+
+      const payload = {
+        ...editingCourse,
+        name: editingCourse.name.trim(),
+        additionalDates: cleanAdditionalDates,
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingCourse),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
@@ -485,7 +503,8 @@ export default function TrainingView() {
       } else {
         toast.error(data.error || "Failed to save course")
       }
-    } catch {
+    } catch (err) {
+      console.error("[handleSaveCourse] error:", err)
       toast.error("Network error saving course")
     }
   }
@@ -750,7 +769,7 @@ export default function TrainingView() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
-                Training & Course Management
+                Training Courses
               </h1>
               <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 text-[10px] font-bold">
                 Add-on
@@ -970,7 +989,7 @@ export default function TrainingView() {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <a
-                    href={`/training/${courses[0].slug}`}
+                    href={`/training/${courses[0].slug}?tenantId=${encodeURIComponent(courses[0].tenantId)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 shadow transition-colors"
@@ -985,7 +1004,7 @@ export default function TrainingView() {
                 <div>
                   <span className="text-stone-400 block text-[10px]">Dates:</span>
                   <span className="font-semibold text-stone-200">
-                    {courses[0].startDate} to {courses[0].endDate}
+                    {formatCourseSchedule(courses[0])}
                   </span>
                 </div>
                 <div>
@@ -1146,7 +1165,7 @@ export default function TrainingView() {
                       <div className="flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 text-stone-400 shrink-0" />
                         <span>
-                          {c.startDate} to {c.endDate}
+                          {formatCourseSchedule(c)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -1200,7 +1219,7 @@ export default function TrainingView() {
 
                   <div className="flex items-center gap-1.5">
                     <a
-                      href={`/training/${c.slug}`}
+                      href={`/training/${c.slug}?tenantId=${encodeURIComponent(c.tenantId)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded hover:bg-stone-200 text-stone-600"
@@ -2597,7 +2616,9 @@ export default function TrainingView() {
                   <DialogTitle className="text-base font-bold">
                     Registration: {activeRegistration.registrationNumber}
                   </DialogTitle>
-                  <p className="text-xs text-stone-500 mt-0.5">{activeRegistration.courseName}</p>
+                  <DialogDescription className="text-xs text-stone-500 mt-0.5">
+                    {activeRegistration.courseName}
+                  </DialogDescription>
                 </div>
                 <Badge variant="outline" className="text-xs font-bold">
                   {activeRegistration.status}
@@ -2888,6 +2909,9 @@ export default function TrainingView() {
                 <WhatsAppIcon className="h-4 w-4 fill-emerald-600" />
                 <span>Send WhatsApp Training Notification</span>
               </DialogTitle>
+              <DialogDescription className="text-xs text-stone-500">
+                Send registration confirmations and course updates directly to attendees.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 text-xs">
@@ -2968,6 +2992,9 @@ export default function TrainingView() {
                   </span>
                 )}
               </DialogTitle>
+              <DialogDescription className="text-xs text-stone-500">
+                Configure course schedule, trainer, pricing, attendee capacity, and certificates.
+              </DialogDescription>
             </DialogHeader>
 
             {/* Sub-tabs: Pill Navigation with icons and no truncation */}
@@ -3001,7 +3028,7 @@ export default function TrainingView() {
               })}
             </div>
 
-            <form onSubmit={handleSaveCourse} className="space-y-4 pt-2 text-xs">
+            <form onSubmit={handleSaveCourse} noValidate className="space-y-4 pt-2 text-xs">
               {/* SUBTAB: BASIC */}
               {editorSubTab === "basic" && (
                 <div className="space-y-3">
@@ -3010,7 +3037,6 @@ export default function TrainingView() {
                       Course Name *
                     </label>
                     <Input
-                      required
                       value={editingCourse.name || ""}
                       onChange={e => setEditingCourse({ ...editingCourse, name: e.target.value })}
                       placeholder="e.g. AI-Powered Certified Balanced Scorecard Professional"
@@ -3214,6 +3240,44 @@ export default function TrainingView() {
                         className="h-8 text-xs"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-stone-200 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold">Additional course dates</span>
+                      <Button type="button" variant="outline" size="sm" disabled={(editingCourse.additionalDates?.length || 0) >= 30}
+                        onClick={() => setEditingCourse({ ...editingCourse, additionalDates: [...(editingCourse.additionalDates || []), { startDate: "", endDate: "" }] })}>
+                        <Plus className="mr-1 h-3 w-3" /> Add date
+                      </Button>
+                    </div>
+                    {(editingCourse.additionalDates || []).map((range: { startDate: string; endDate: string }, index: number) => (
+                      <div key={index} className="flex items-end gap-2">
+                        <div className="grid grid-cols-2 gap-3 flex-1">
+                          <label className="text-xs">Start date {index + 2}
+                            <Input type="date" value={range.startDate} className="mt-1 h-8 text-xs"
+                              onChange={e => setEditingCourse({ ...editingCourse, additionalDates: editingCourse.additionalDates!.map((row: { startDate: string; endDate: string }, i: number) => i === index ? { ...row, startDate: e.target.value } : row) })} />
+                          </label>
+                          <label className="text-xs">End date {index + 2}
+                            <Input type="date" value={range.endDate} className="mt-1 h-8 text-xs"
+                              onChange={e => setEditingCourse({ ...editingCourse, additionalDates: editingCourse.additionalDates!.map((row: { startDate: string; endDate: string }, i: number) => i === index ? { ...row, endDate: e.target.value } : row) })} />
+                          </label>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-stone-400 hover:text-red-600 hover:bg-red-50 mb-0.5"
+                          title="Remove date"
+                          onClick={() => setEditingCourse({
+                            ...editingCourse,
+                            additionalDates: editingCourse.additionalDates!.filter((_: unknown, i: number) => i !== index),
+                          })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-stone-500">Each row is another available date range. The primary date above remains unchanged for existing registrations.</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -3715,7 +3779,8 @@ export default function TrainingView() {
                 </div>
               )}
 
-              <DialogFooter className="pt-3 border-t border-stone-200">
+            </form>
+            <DialogFooter className="pt-3 border-t border-stone-200">
                 <Button
                   type="button"
                   variant="outline"
@@ -3724,11 +3789,10 @@ export default function TrainingView() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold">
+                <Button type="button" size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold" onClick={handleSaveCourse}>
                   Save Course Program
                 </Button>
               </DialogFooter>
-            </form>
           </DialogContent>
         </Dialog>
       )}
@@ -3742,6 +3806,9 @@ export default function TrainingView() {
                 <User className="h-5 w-5 text-amber-600" />
                 <span>Edit Attendee / Delegate Details</span>
               </DialogTitle>
+              <DialogDescription className="text-xs text-stone-500">
+                Update delegate identification and contact information.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 pt-2 text-xs">
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-[11px]">
@@ -3841,6 +3908,9 @@ export default function TrainingView() {
                   {editingCert.verificationHash}
                 </span>
               </DialogTitle>
+              <DialogDescription className="text-xs text-stone-500">
+                Customize certificate fields, recipient names, and issue details.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 pt-2 text-xs">

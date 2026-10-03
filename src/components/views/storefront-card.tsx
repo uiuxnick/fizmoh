@@ -76,7 +76,7 @@ export function StorefrontCard() {
               {isRestaurant
                 ? "Your Restaurant Ordering Website & Digital Menu"
                 : isTraining
-                  ? "Your Training & Course Academy Website"
+                  ? "Your Training Courses Academy Website"
                   : "Your customer website"}
             </p>
             {isRestaurant && (

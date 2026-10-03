@@ -1,0 +1,7 @@
+const path = require("node:path")
+if (!new Set(["3316", "3317"]).has(process.env.PORT)) throw new Error("Unexpected academy candidate port")
+const database = new URL(process.env.DATABASE_URL)
+const current = Number(database.searchParams.get("connection_limit"))
+database.searchParams.set("connection_limit", String(current > 0 ? Math.min(current, 5) : 5))
+process.env.DATABASE_URL = database.toString()
+require(path.join(process.cwd(), ".next/standalone/server.js"))

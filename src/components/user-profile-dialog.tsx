@@ -13,7 +13,7 @@ import { User, Mail, Phone, MapPin, Lock, Camera, Loader2, Shield, Check } from 
 interface UserProfileDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onUpdated?: () => void
+  onUpdated?: (updatedStaff?: StaffProfile) => void | Promise<void>
 }
 
 interface StaffProfile {
@@ -30,6 +30,7 @@ interface StaffProfile {
 export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfileDialogProps) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
 
   // Form states
@@ -81,11 +82,15 @@ export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfile
         avatar,
         address,
       }
+      for (const key of Object.keys(payload)) {
+        if (payload[key] === (profile?.[key as keyof StaffProfile] ?? "")) delete payload[key]
+      }
       if (newPassword) {
         payload.currentPassword = currentPassword
         payload.newPassword = newPassword
       }
 
+      if (!Object.keys(payload).length) { toast.info("No profile changes to save"); return }
       const res = await fetch("/api/staff/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +107,7 @@ export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfile
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-      if (onUpdated) onUpdated()
+      if (onUpdated) await Promise.resolve(onUpdated(d.staff)).catch(() => toast.error("Profile saved. Refresh the page to update your avatar."))
       onOpenChange(false)
     } catch {
       toast.error("Network error while updating profile")
@@ -153,7 +158,25 @@ export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfile
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 w-full space-y-2">
-                <Label className="text-xs font-semibold text-stone-700">Profile Picture URL</Label>
+                <Label className="text-xs font-semibold text-stone-700" htmlFor="profile-photo-upload">Profile picture</Label>
+                <Input id="profile-photo-upload" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading || saving}
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                      toast.error("Choose a JPEG, PNG or WebP image under 5 MB"); e.target.value = ""; return
+                    }
+                    setUploading(true)
+                    try {
+                      const form = new FormData(); form.append("file", file)
+                      const response = await fetch("/api/media/upload", { method: "POST", body: form })
+                      const data = await response.json()
+                      if (!response.ok || !data.url) throw new Error(data.error || "Photo upload failed")
+                      setAvatar(data.url)
+                    } catch (error) { toast.error(error instanceof Error ? error.message : "Photo upload failed") }
+                    finally { setUploading(false) }
+                  }} />
+                {uploading && <p className="text-xs" role="status">Uploading photo…</p>}
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Camera className="absolute left-3 top-2.5 h-4 w-4 text-stone-400" />
@@ -170,7 +193,7 @@ export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfile
                     </Button>
                   )}
                 </div>
-                <p className="text-[11px] text-stone-500">Provide an image URL or avatar link for your profile picture.</p>
+                <p className="text-[11px] text-stone-500">Upload an image or provide an image URL, then save your profile.</p>
               </div>
             </div>
 
@@ -272,7 +295,7 @@ export function UserProfileDialog({ open, onOpenChange, onUpdated }: UserProfile
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+              <Button type="submit" disabled={saving || uploading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                 Save Changes
               </Button>

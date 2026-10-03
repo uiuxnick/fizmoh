@@ -45,6 +45,7 @@ export type ViewKey =
 type AuthMode = "login" | "admin" | "customer" | null
 
 interface StaffUser {
+  avatar?: string | null
   id: string
   name: string
   email: string

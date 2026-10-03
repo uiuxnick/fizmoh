@@ -110,7 +110,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { key: "corporate", label: "Corporate Systems", icon: Building2, group: "Operations", feature: "corporate", badge: "Addon", accent: "text-sky-600" },
-  { key: "training", label: "Training & Courses", icon: GraduationCap, group: "Operations", feature: "training", badge: "Addon", accent: "text-amber-500" },
+  { key: "training", label: "Training Courses", icon: GraduationCap, group: "Operations", feature: "training", badge: "Addon", accent: "text-amber-500" },
   { key: "bookings", label: "Bookings & Orders", icon: ShoppingBag, group: "Operations", feature: "tours" },
   { key: "calendar", label: "Booking Calendar", icon: CalendarDays, group: "Operations", feature: "tours" },
   { key: "appointments", label: "Appointments", icon: CalendarClock, group: "Operations", feature: "appointments" },
@@ -812,10 +812,11 @@ function ImpersonationBar() {
   )
 }
 
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { UserProfileDialog } from "@/components/user-profile-dialog"
 
 function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => void; staffName: string; staffRole: string }) {
-  const { view, setView } = useApp()
+  const { view, setView, staffUser, staffToken, setStaffAuth } = useApp()
   const [now, setNow] = useState<Date | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [features, setFeatures] = useState<Record<string, boolean> | null>(null)
@@ -1003,12 +1004,24 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
             className="flex items-center gap-2.5 pl-2 md:pl-3 border-l border-stone-200 hover:bg-stone-50 p-1.5 rounded-xl transition-all cursor-pointer text-left"
             title="Edit My Profile"
           >
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">{initials}</div>
+            <Avatar className="h-9 w-9 shadow-sm ring-1 ring-stone-200">
+              {staffUser?.avatar ? (
+                <AvatarImage src={staffUser.avatar} alt={staffName} className="object-cover" />
+              ) : null}
+              <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-bold">{initials}</AvatarFallback>
+            </Avatar>
             <div className="hidden md:block"><div className="text-sm font-semibold text-stone-900 leading-tight">{staffName}</div><div className="text-[11px] text-stone-500">{staffRole}</div></div>
           </button>
         </div>
       </header>
-      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} onUpdated={async (updated) => {
+        if (updated) {
+          setStaffAuth(staffToken || "", updated as any)
+        } else {
+          const response = await fetch("/api/staff/me", { cache: "no-store" })
+          if (response.ok) { const data = await response.json(); if (data.staff) setStaffAuth(staffToken || "", data.staff) }
+        }
+      }} />
     </>
   )
 }
