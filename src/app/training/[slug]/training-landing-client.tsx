@@ -737,7 +737,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
             {course.termsAndConditions}
           </p>
           <div className="pt-4 text-[10px] text-stone-600">
-            Powered by Fizmoh Training & Course Management System &bull; All Rights Reserved &copy; 2026
+            Powered by Fizmoh Training Courses Management System &bull; All Rights Reserved &copy; 2026
           </div>
         </div>
       </footer>
