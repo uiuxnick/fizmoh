@@ -1,3 +1,4 @@
+import { validateAdditionalDates, normalizeDate } from "./course-schedule"
 import { db, raw } from "@/lib/db"
 import { PLATFORM } from "@/lib/tenant"
 import { sendWhatsApp } from "@/lib/flow-delivery"
@@ -49,24 +50,17 @@ export async function getTenantCourses(tenantId: string): Promise<Course[]> {
   }
 
   if (courses.length === 0) {
-    // Seed default sample course
-    const now = new Date().toISOString()
-    const seededCourse: Course = {
-      ...SEED_COURSE_BSC,
-      tenantId: tid,
-      createdAt: now,
-      updatedAt: now,
-    }
-    courses = [seededCourse]
-
-    await db.systemSetting.upsert({
-      where: { tenantId_key: { tenantId: tid, key: COURSES_SETTING_KEY } },
-      update: { value: JSON.stringify(courses), type: "JSON", category: "TRAINING" },
-      create: { tenantId: tid, key: COURSES_SETTING_KEY, value: JSON.stringify(courses), type: "JSON", category: "TRAINING" },
-    })
+    return []
   }
 
-  return courses
+  const dates = await raw.systemSetting.findMany({
+    where: { tenantId: tid, key: { in: courses.map(course => `training_course_dates:${course.id}`) } }, select: { key: true, value: true },
+  })
+  return courses.map(course => {
+    const stored = dates.find(row => row.key === `training_course_dates:${course.id}`)
+    if (!stored?.value) return course
+    try { return { ...course, additionalDates: validateAdditionalDates(JSON.parse(stored.value)) } } catch { return course }
+  })
 }
 
 /**
@@ -113,6 +107,7 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
   const courseId = courseData.courseId || `CRS-${Date.now().toString().slice(-4)}`
 
   const fullCourse: Course = {
+    ...existing.find(course => course.id === id),
     id,
     courseId,
     tenantId: tid,
@@ -140,8 +135,9 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     trainerPhone: courseData.trainerPhone || "",
     trainerSocials: courseData.trainerSocials || {},
 
-    startDate: courseData.startDate || "2026-10-13",
-    endDate: courseData.endDate || "2026-10-14",
+    additionalDates: validateAdditionalDates(courseData.additionalDates ?? existing.find(course => course.id === id)?.additionalDates),
+    startDate: normalizeDate(courseData.startDate) || courseData.startDate || "2026-10-13",
+    endDate: normalizeDate(courseData.endDate) || courseData.endDate || "2026-10-14",
     startTime: courseData.startTime || "09:00 AM",
     endTime: courseData.endTime || "04:00 PM",
     numDays: courseData.numDays || 2,
@@ -210,11 +206,18 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     existing.push(fullCourse)
   }
 
-  await db.systemSetting.upsert({
-    where: { tenantId_key: { tenantId: tid, key: COURSES_SETTING_KEY } },
-    update: { value: JSON.stringify(existing), type: "JSON", category: "TRAINING" },
-    create: { tenantId: tid, key: COURSES_SETTING_KEY, value: JSON.stringify(existing), type: "JSON", category: "TRAINING" },
-  })
+  await db.$transaction([
+    db.systemSetting.upsert({
+      where: { tenantId_key: { tenantId: tid, key: COURSES_SETTING_KEY } },
+      update: { value: JSON.stringify(existing), type: "JSON", category: "TRAINING" },
+      create: { tenantId: tid, key: COURSES_SETTING_KEY, value: JSON.stringify(existing), type: "JSON", category: "TRAINING" },
+    }),
+    db.systemSetting.upsert({
+      where: { tenantId_key: { tenantId: tid, key: `training_course_dates:${id}` } },
+      update: { value: JSON.stringify(fullCourse.additionalDates), type: "JSON", category: "TRAINING" },
+      create: { tenantId: tid, key: `training_course_dates:${id}`, value: JSON.stringify(fullCourse.additionalDates), type: "JSON", category: "TRAINING" },
+    }),
+  ])
 
   return fullCourse
 }

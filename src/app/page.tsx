@@ -8,7 +8,7 @@ import CustomerSiteView from "@/components/views/customer-site-view"
 
 export async function generateMetadata() {
   const headerList = await headers()
-  const rawHost = (headerList.get("host") || "").split(":")[0].toLowerCase()
+  const rawHost = (headerList.get("x-forwarded-host") || headerList.get("host") || "").split(":")[0].toLowerCase()
 
   if (
     rawHost &&
@@ -50,7 +50,7 @@ export async function generateMetadata() {
  */
 export default async function Page() {
   const headerList = await headers()
-  const rawHost = (headerList.get("host") || "").split(":")[0].toLowerCase()
+  const rawHost = (headerList.get("x-forwarded-host") || headerList.get("host") || "").split(":")[0].toLowerCase()
 
   // 1. Check custom domain resolution first
   if (
@@ -63,7 +63,7 @@ export default async function Page() {
   ) {
     const tenant = await raw.tenant.findFirst({
       where: { customDomain: rawHost, status: { notIn: ["CANCELLED"] } },
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, logoUrl: true },
     })
 
     if (tenant) {
@@ -77,7 +77,14 @@ export default async function Page() {
       const planModules: string[] = Array.isArray(subscription?.moduleSnapshot)
         ? (subscription.moduleSnapshot as string[])
         : (Array.isArray(subscription?.plan?.modules) ? (subscription.plan.modules as string[]) : [])
-      const hasRestModule = planModules.includes("RESTAURANT") || planSlug.includes("rest") || planName.includes("rest")
+      const restaurantAddon = await raw.tenantAddon.findFirst({
+        where: {
+          tenantId: tenant.id,
+          status: { in: ["ACTIVE", "PAST_DUE"] },
+          addon: { slug: { in: ["restaurant", "restaurant-pos", "smart-menu", "smart-menu-ordering"] } },
+        },
+      })
+      const hasRestModule = planModules.includes("RESTAURANT") || planSlug.includes("rest") || planName.includes("rest") || Boolean(restaurantAddon)
       const branchesCount = await raw.restaurantBranch.count({ where: { tenantId: tenant.id } })
       const categoriesCount = await raw.menuCategory.count({ where: { tenantId: tenant.id } })
       const setting = await raw.systemSetting.findFirst({
@@ -99,11 +106,85 @@ export default async function Page() {
         } catch {}
       }
 
-      const tours = await raw.tour.findMany({
+      // Pre-determine if this workspace is training / course management
+      const trainingAddon = await raw.tenantAddon.findFirst({
+        where: {
+          tenantId: tenant.id,
+          status: { in: ["ACTIVE", "PAST_DUE"] },
+          addon: { slug: { in: ["training-course-management", "training"] } },
+        },
+      })
+      const isTrainingPlan = planSlug.includes("train") || planName.includes("train")
+      const isTraining =
+        tenant.slug.toLowerCase() === "tanfidh" ||
+        setting?.value === "TRAINING" ||
+        Boolean(trainingAddon) ||
+        isTrainingPlan
+
+      if (!initialPublishedWebsite && isTraining) {
+        const { getTenantCourses } = await import("@/lib/training-service")
+        const trainingCourses = await getTenantCourses(tenant.id)
+        if (trainingCourses.length > 0) {
+          const TrainingAcademySiteView = (await import("@/components/training/training-academy-site-view")).default
+          const { getAcademy } = await import("@/lib/academy-public")
+          const academy = await getAcademy(tenant.slug)
+
+          return (
+            <TrainingAcademySiteView
+              slug={tenant.slug}
+              courses={academy?.courses || trainingCourses}
+              tenant={tenant}
+              brandName={academy?.brand?.name || tenant.name}
+              brandLogo={academy?.brand?.logo || tenant.logoUrl}
+              contactEmail={academy?.brand?.email || undefined}
+              contactPhone={academy?.brand?.phone || undefined}
+              address={academy?.brand?.address || undefined}
+            />
+          )
+        }
+      }
+
+      let tours = await raw.tour.findMany({
         where: { tenantId: tenant.id },
         orderBy: { createdAt: "desc" },
         take: 50,
       })
+
+      // If no native tours, check if tenant has products in WooCommerce cache
+      if (tours.length === 0) {
+        const wcCache = await raw.systemSetting.findFirst({
+          where: { tenantId: tenant.id, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+        })
+        if (wcCache?.value) {
+          try {
+            const parsed = JSON.parse(wcCache.value)
+            const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
+            if (productsList.length > 0) {
+              tours = productsList.slice(0, 60).map((p: any) => ({
+                id: String(p.id),
+                tenantId: tenant.id,
+                slug: p.slug || `product-${p.id}`,
+                name: p.name,
+                nameAr: null,
+                description: (p.short_description || p.description || "").replace(/<[^>]*>/g, "").slice(0, 500),
+                media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
+                basePrice: Number(p.price || p.regular_price || 0),
+                childPrice: null,
+                currency: "OMR",
+                durationHours: 1,
+                city: "Muscat",
+                category: p.categories?.[0]?.name || "Products",
+                featured: Boolean(p.featured),
+                rating: Number(p.average_rating) || 5,
+                reviewCount: Number(p.rating_count) || 1,
+                status: "ACTIVE",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })) as any
+            }
+          } catch {}
+        }
+      }
 
       return (
         <CustomerSiteView

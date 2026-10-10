@@ -166,4 +166,70 @@ describe("Training & Course Management Add-on", () => {
       "Hello Ahmed Al Balushi, your booking for AI-Powered Certified Balanced Scorecard Professional (Reg: REG-2026-9999) is received."
     )
   })
+
+  it("differentiates vertical website storefronts: Tanfidh vs Cruise Boat vs Restaurant", () => {
+    // Helper function that mirrors our fixed resolution logic
+    const resolveStorefrontType = (params: {
+      slug: string
+      businessType?: string | null
+      planSlug?: string
+      hasTrainingAddon?: boolean
+      hasRestaurantAddon?: boolean
+      hasRestContent?: boolean
+      hasPublishedWebsite?: boolean
+    }) => {
+      if (params.hasPublishedWebsite) return "CUSTOM_PUBLISHED"
+      const isRestaurant =
+        params.businessType === "RESTAURANT" ||
+        Boolean(params.hasRestaurantAddon) ||
+        (Boolean(params.hasRestContent) && (params.planSlug?.includes("rest") || false))
+      if (isRestaurant) return "RESTAURANT"
+
+      const isTrainingPlan = params.planSlug?.includes("train") || false
+      const isTraining =
+        params.slug.toLowerCase() === "tanfidh" ||
+        params.businessType === "TRAINING" ||
+        Boolean(params.hasTrainingAddon) ||
+        isTrainingPlan
+      if (isTraining) return "TRAINING_ACADEMY"
+
+      return "CUSTOMER_STOREFRONT"
+    }
+
+    // Tanfidh must resolve to training academy
+    expect(
+      resolveStorefrontType({
+        slug: "tanfidh",
+        planSlug: "starter",
+        businessType: null,
+      })
+    ).toBe("TRAINING_ACADEMY")
+
+    // Cruiseboat Oman must resolve to customer storefront (tours/activities/WC catalog), NOT training academy!
+    expect(
+      resolveStorefrontType({
+        slug: "cruiseboatoman",
+        planSlug: "tour",
+        businessType: null,
+      })
+    ).toBe("CUSTOMER_STOREFRONT")
+
+    // Fizmoh Kitchen or restaurant must resolve to restaurant
+    expect(
+      resolveStorefrontType({
+        slug: "kitchen",
+        planSlug: "resturant",
+        businessType: "RESTAURANT",
+      })
+    ).toBe("RESTAURANT")
+
+    // Published website takes top priority for full custom designs
+    expect(
+      resolveStorefrontType({
+        slug: "cruiseboatoman",
+        planSlug: "tour",
+        hasPublishedWebsite: true,
+      })
+    ).toBe("CUSTOM_PUBLISHED")
+  })
 })

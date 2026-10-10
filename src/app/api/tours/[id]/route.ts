@@ -14,10 +14,11 @@ import { Prisma } from "@prisma/client"
 import { buildTourData } from "@/lib/tour-fields"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
 
 export const GET = withErrors(withModule("TOURS", async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
-  const tour = await db.tour.findFirst({
+  let tour = await db.tour.findFirst({
     where: { id },
     include: {
       addOns: true,
@@ -25,6 +26,54 @@ export const GET = withErrors(withModule("TOURS", async (_: NextRequest, { param
       _count: { select: { orders: true, slots: true } },
     },
   })
+
+  if (!tour) {
+    const tid = currentTenant()?.tenantId
+    if (tid) {
+      const wcCache = await db.systemSetting.findFirst({
+        where: { tenantId: tid, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+      })
+      if (wcCache?.value) {
+        try {
+          const parsed = JSON.parse(wcCache.value)
+          const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
+          const p = productsList.find((item: any) => String(item.id) === id || item.slug === id)
+          if (p) {
+            tour = {
+              id: String(p.id),
+              tenantId: tid,
+              slug: p.slug || `product-${p.id}`,
+              name: p.name,
+              nameAr: null,
+              description: (p.short_description || p.description || "").replace(/<[^>]*>/g, ""),
+              media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
+              itinerary: "[]",
+              inclusions: "[]",
+              exclusions: "[]",
+              whatToBring: "[]",
+              pricingTiers: "[]",
+              basePrice: Number(p.price || p.regular_price || 0),
+              childPrice: null,
+              currency: "OMR",
+              durationHours: 1,
+              city: "Muscat",
+              category: p.categories?.[0]?.name || "Products",
+              featured: Boolean(p.featured),
+              rating: Number(p.average_rating) || 5,
+              reviewCount: Number(p.rating_count) || 1,
+              status: "ACTIVE",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              addOns: [],
+              reviews: [],
+              _count: { orders: 0, slots: 0 },
+            } as any
+          }
+        } catch {}
+      }
+    }
+  }
+
   if (!tour) return NextResponse.json({ error: "Tour not found" }, { status: 404 })
   return NextResponse.json({ tour })
 }))

@@ -34,13 +34,6 @@ export function StorefrontCard() {
         if (f?.training) setIsTraining(true)
       })
       .catch(() => {})
-
-    fetch("/api/training/courses")
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => {
-        if (d?.courses && d.courses.length > 0) setIsTraining(true)
-      })
-      .catch(() => {})
   }, [])
 
   if (!slug) return null

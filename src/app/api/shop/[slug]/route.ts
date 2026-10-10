@@ -56,7 +56,7 @@ export const GET = withErrors(async (
   }
 
   const { products, branding, restaurantData } = await withTenant({ tenantId: tenant.id, slug: tenant.slug }, async () => {
-    const tourList = await db.tour.findMany({
+    let tourList = await db.tour.findMany({
       where: { status: "ACTIVE" },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
       take: 60,
@@ -69,6 +69,34 @@ export const GET = withErrors(async (
     const settings = await db.systemSetting.findMany({
       where: { tenantId: tenant.id },
     })
+
+    if (tourList.length === 0) {
+      const wcSetting = settings.find(s => s.key === "WOOCOMMERCE_PRODUCTS_CACHE")
+      if (wcSetting?.value) {
+        try {
+          const parsed = JSON.parse(wcSetting.value)
+          const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
+          if (productsList.length > 0) {
+            tourList = productsList.slice(0, 60).map((p: any) => ({
+              id: String(p.id),
+              slug: p.slug || `product-${p.id}`,
+              name: p.name,
+              description: (p.short_description || p.description || "").replace(/<[^>]*>/g, "").slice(0, 500),
+              media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
+              basePrice: Number(p.price || p.regular_price || 0),
+              childPrice: null,
+              currency: "OMR",
+              durationHours: 1,
+              city: "Muscat",
+              category: p.categories?.[0]?.name || "Products",
+              featured: Boolean(p.featured),
+              rating: Number(p.average_rating) || 5,
+              reviewCount: Number(p.rating_count) || 1,
+            })) as any
+          }
+        } catch {}
+      }
+    }
 
     // Fetch restaurant categories if any
     const rawCategories = await raw.menuCategory.findMany({
@@ -182,6 +210,7 @@ export const GET = withErrors(async (
       faviconUrl: branding.website_favicon_url,
       primaryColor: branding.website_primary_color || (isRestaurant ? "#D9A441" : "#0d9488"),
       accentColor: branding.website_accent_color || (isRestaurant ? "#F59E0B" : "#f59e0b"),
+      theme: branding.website_theme || "emerald_oasis",
       title: branding.website_title,
       description: branding.website_description,
       currency: tenant.currency,
