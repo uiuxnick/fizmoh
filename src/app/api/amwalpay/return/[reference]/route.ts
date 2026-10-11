@@ -108,8 +108,11 @@ export const GET = withErrors(
       })
       if (kitchen) {
         const { fetchTransaction } = await import("@/lib/amwalpay-settle")
-        const txn = await fetchTransaction(orderNumber).catch(() => null)
-        const isPaidConfirmed = txn ? (txn.responseCode === "00" || txn.isCaptured === true) : true
+        const tenant = await tenantOf(kitchen.tenantId)
+        const txn = tenant
+          ? await withTenant(tenant, () => fetchTransaction(orderNumber).catch(() => null))
+          : await fetchTransaction(orderNumber).catch(() => null)
+        const isPaidConfirmed = Boolean(txn && (txn.responseCode === "00" || txn.isCaptured === true))
 
         if (isPaidConfirmed && kitchen.paymentStatus !== "PAID") {
           let history: Array<{ status: string; timestamp: string; note?: string }> = []
@@ -156,12 +159,17 @@ export const GET = withErrors(
 
           if (kitchen.customerPhone) {
             const { sendKitchenOrderWhatsAppNotification } = await import("@/lib/restaurant")
-            sendKitchenOrderWhatsAppNotification(kitchen.id).catch(() => {})
+            if (tenant) {
+              withTenant(tenant, () => sendKitchenOrderWhatsAppNotification(kitchen.id)).catch(() => {})
+            } else {
+              sendKitchenOrderWhatsAppNotification(kitchen.id).catch(() => {})
+            }
           }
         }
 
+        const paidFlag = isPaidConfirmed || kitchen.paymentStatus === "PAID" ? "?paid=1" : ""
         return NextResponse.redirect(
-          `${base}/order/${kitchen.publicToken || kitchen.id}?paid=1`,
+          `${base}/order/${kitchen.publicToken || kitchen.id}${paidFlag}`,
           { status: 302 },
         )
       }

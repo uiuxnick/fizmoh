@@ -115,12 +115,39 @@ export const GET = withErrors(async (request: NextRequest) => {
   })
 })
 
-export const PUT = withErrors(async (request: NextRequest) => {
+const AGENCY_ADMIN_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM"])
+
+async function requireAgencyAdmin(request: NextRequest) {
+  const session = await sessionFromRequest(request)
   const tenant = currentTenant()
-  if (!tenant?.tenantId) {
-    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  if (!tenant?.tenantId || !session?.staffId) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "Authentication and workspace required" }, { status: 401 }),
+    }
   }
-  const tenantId = tenant.tenantId
+  const role = String(session.role || "").toUpperCase()
+  if (!AGENCY_ADMIN_ROLES.has(role)) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "Admin role required to manage agency reseller settings" }, { status: 403 }),
+    }
+  }
+  const modules = await currentModules()
+  const entitled = modules === null ? true : modules.includes("WHITE_LABEL")
+  if (!entitled) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "WHITE_LABEL module entitlement required" }, { status: 403 }),
+    }
+  }
+  return { ok: true as const, session, tenantId: tenant.tenantId }
+}
+
+export const PUT = withErrors(async (request: NextRequest) => {
+  const auth = await requireAgencyAdmin(request)
+  if (!auth.ok) return auth.response
+  const { tenantId } = auth
 
   const body = await request.json()
   const currentSetting = await db.systemSetting.findUnique({
@@ -171,12 +198,9 @@ export const PUT = withErrors(async (request: NextRequest) => {
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
-  const session = await sessionFromRequest(request)
-  const tenant = currentTenant()
-  if (!tenant?.tenantId || !session?.staffId) {
-    return NextResponse.json({ error: "Authentication and workspace required" }, { status: 401 })
-  }
-  const agencyTenantId = tenant.tenantId
+  const auth = await requireAgencyAdmin(request)
+  if (!auth.ok) return auth.response
+  const { session, tenantId: agencyTenantId } = auth
 
   const body = await request.json()
   const clientName = String(body.clientName || "").trim()

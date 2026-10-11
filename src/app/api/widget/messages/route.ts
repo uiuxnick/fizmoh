@@ -29,6 +29,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const conversation = await db.conversation.findUnique({
+      where: { id: sessionId },
+      select: { id: true, channel: true, status: true, botActive: true },
+    })
+
+    if (!conversation || conversation.channel !== "LIVE_CHAT") {
+      return NextResponse.json(
+        { error: "Live chat session not found" },
+        { status: 404, headers: corsHeaders(origin) },
+      )
+    }
+
     const afterDate = after ? new Date(after) : null
     const where: any = { conversationId: sessionId }
     if (afterDate && !isNaN(afterDate.getTime())) {
@@ -41,15 +53,10 @@ export async function GET(request: NextRequest) {
       take: 100,
     })
 
-    const conversation = await db.conversation.findUnique({
-      where: { id: sessionId },
-      select: { status: true, botActive: true },
-    })
-
     return NextResponse.json(
       {
-        status: conversation?.status || "OPEN",
-        botActive: conversation?.botActive ?? true,
+        status: conversation.status || "OPEN",
+        botActive: conversation.botActive ?? true,
         messages: messages.map(m => ({
           id: m.id,
           direction: m.direction,
@@ -86,8 +93,12 @@ export async function POST(request: NextRequest) {
       include: { customer: true },
     })
 
-    if (!conversation) {
+    if (!conversation || conversation.channel !== "LIVE_CHAT") {
       return NextResponse.json({ error: "Conversation not found" }, { status: 404, headers: corsHeaders(origin) })
+    }
+
+    if (visitorId && conversation.externalUserId && conversation.externalUserId !== String(visitorId)) {
+      return NextResponse.json({ error: "Forbidden session access" }, { status: 403, headers: corsHeaders(origin) })
     }
 
     // Visitor explicitly requested a human agent

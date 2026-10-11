@@ -12,6 +12,10 @@ interface AnalyticsConfig {
   customBodyScripts?: string | null
 }
 
+const SAFE_GTM_ID = /^GTM-[A-Z0-9]+$/i
+const SAFE_GA_ID = /^(G|UA|AW)-[A-Z0-9-]+$/i
+const SAFE_PIXEL_ID = /^[0-9]{5,25}$/
+
 export function AnalyticsScripts() {
   const [config, setConfig] = useState<AnalyticsConfig | null>(null)
 
@@ -28,7 +32,9 @@ export function AnalyticsScripts() {
 
   if (!config) return null
 
-  const { gaId, gtmId, metaPixelId, googleSiteVerification } = config
+  const gtmId = config.gtmId && SAFE_GTM_ID.test(config.gtmId.trim()) ? config.gtmId.trim() : null
+  const gaId = config.gaId && SAFE_GA_ID.test(config.gaId.trim()) ? config.gaId.trim() : null
+  const metaPixelId = config.metaPixelId && SAFE_PIXEL_ID.test(config.metaPixelId.trim()) ? config.metaPixelId.trim() : null
 
   return (
     <>

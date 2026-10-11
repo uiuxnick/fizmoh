@@ -352,6 +352,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           widgetId: config.id,
+          tenantSlug: config.tenantSlug || tenantSlug,
+          tenantId: config.tenantId || undefined,
           visitorId,
           name: state.visitorName,
           email: state.visitorEmail,

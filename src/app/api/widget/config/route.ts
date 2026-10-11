@@ -47,37 +47,14 @@ export async function GET(request: NextRequest) {
         tenant = widget.tenant
       }
     } else if (tenantSlug) {
-      tenant = await db.tenant.findFirst({
-        where: {
-          OR: [
-            { slug: tenantSlug },
-            ...(tenantSlug === "fizmoh-support" || tenantSlug === "fizmoh" ? [{ slug: "oman-adventures" }, { name: { contains: "Fizmoh", mode: "insensitive" as const } }] : []),
-          ],
-        },
+      tenant = await db.tenant.findUnique({
+        where: { slug: tenantSlug },
         select: { id: true, name: true, slug: true, logoUrl: true },
       })
       if (tenant) {
         widget = await (db as any).liveChatWidget.findFirst({
           where: { tenantId: tenant.id, enabled: true },
-          orderBy: { createdAt: "asc" },
-        })
-      }
-    } else {
-      // Return the default active widget (preferring Fizmoh Support)
-      tenant = await db.tenant.findFirst({
-        where: { OR: [{ name: { contains: "Fizmoh", mode: "insensitive" as const } }, { slug: "oman-adventures" }] },
-        select: { id: true, name: true, slug: true, logoUrl: true },
-      })
-      if (!tenant) {
-        tenant = await db.tenant.findFirst({
-          orderBy: { createdAt: "asc" },
-          select: { id: true, name: true, slug: true, logoUrl: true },
-        })
-      }
-      if (tenant) {
-        widget = await (db as any).liveChatWidget.findFirst({
-          where: { tenantId: tenant.id, enabled: true },
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: "desc" },
         })
       }
     }

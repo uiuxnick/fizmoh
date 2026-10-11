@@ -17,6 +17,17 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  const conversation = await db.conversation.findUnique({
+    where: { id: sessionId },
+    select: { id: true, channel: true },
+  })
+  if (!conversation || conversation.channel !== "LIVE_CHAT") {
+    return new Response(JSON.stringify({ error: "Live chat session not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": origin },
+    })
+  }
+
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({

@@ -8,12 +8,13 @@ import {
   isSubscriberOptedIn,
   type SubscriberChannel,
 } from "@/lib/subscribers"
-import { matchesSegment, parseFilterRules } from "@/lib/segments"
+import { currentTenant, PLATFORM } from "@/lib/tenant-context"
+import { buildSegmentWhere, matchesSegment, parseFilterRules } from "@/lib/segments"
 
 /**
  * Multi-channel subscriber manager (WhatsApp, Facebook, Instagram).
  * Per BRD §6.5.4: central subscriber audience database with channel classification,
- * tags, consent status and conversation history.
+ * tags, consent status, full stats and pagination.
  */
 
 function parseTags(value: unknown): string[] {
@@ -43,28 +44,138 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   const tag = searchParams.get("tag")
   const segmentId = searchParams.get("segmentId")
   const channelFilter = searchParams.get("channel")?.toUpperCase() // ALL | WHATSAPP | FACEBOOK | INSTAGRAM
+  const hasPagination = searchParams.has("page") || searchParams.has("limit")
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+  const limitParam = searchParams.get("limit")
+  const limit = !hasPagination
+    ? 10000
+    : limitParam === "all"
+      ? 10000
+      : Math.min(1000, Math.max(10, parseInt(limitParam || "50", 10)))
+  const sortBy = searchParams.get("sortBy") || "latest"
 
-  const where: any = {}
+  const andClauses: any[] = []
+
   if (search) {
-    where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { phone: { contains: search } },
-      { email: { contains: search, mode: "insensitive" } },
-      { socialUsername: { contains: search, mode: "insensitive" } },
-      { socialId: { contains: search, mode: "insensitive" } },
-    ]
+    andClauses.push({
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search } },
+        { email: { contains: search, mode: "insensitive" } },
+        { socialUsername: { contains: search, mode: "insensitive" } },
+        { socialId: { contains: search, mode: "insensitive" } },
+      ],
+    })
   }
 
-  // Fetch candidate customers
-  const customers = await db.customer.findMany({
-    where,
-    include: {
-      _count: { select: { orders: true, conversations: true } },
-      conversations: { select: { labels: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 600,
-  })
+  // Channel filter
+  if (channelFilter && ["WHATSAPP", "FACEBOOK", "INSTAGRAM"].includes(channelFilter)) {
+    andClauses.push({ channel: channelFilter })
+  }
+
+  // Status filter (opted_in / opted_out)
+  if (status === "opted_in") {
+    andClauses.push({
+      OR: [
+        { channel: "WHATSAPP", whatsappOptIn: true },
+        { channel: "FACEBOOK", facebookOptIn: { not: false } },
+        { channel: "INSTAGRAM", instagramOptIn: { not: false } },
+      ],
+    })
+  } else if (status === "opted_out") {
+    andClauses.push({
+      OR: [
+        { channel: "WHATSAPP", whatsappOptIn: false },
+        { channel: "FACEBOOK", facebookOptIn: false },
+        { channel: "INSTAGRAM", instagramOptIn: false },
+      ],
+    })
+  }
+
+  // Tag filter
+  if (tag && tag !== "all") {
+    andClauses.push({
+      OR: [
+        { tags: { array_contains: tag } },
+        { conversations: { some: { labels: { array_contains: tag } } } },
+      ],
+    })
+  }
+
+  // Dynamic Segment Filter
+  let activeSegment: any = null
+  if (segmentId && segmentId !== "all") {
+    try {
+      activeSegment = await db.segment.findUnique({ where: { id: segmentId } })
+      if (activeSegment) {
+        if (activeSegment.channel && activeSegment.channel !== "ALL" && !channelFilter) {
+          andClauses.push({ channel: activeSegment.channel })
+        }
+        const rules = parseFilterRules(activeSegment.filterRules)
+        const segmentWhere = buildSegmentWhere(rules)
+        if (segmentWhere && Object.keys(segmentWhere).length > 0) {
+          andClauses.push(segmentWhere)
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const where: any = andClauses.length > 0 ? { AND: andClauses } : {}
+
+  const orderBy: any = {}
+  if (sortBy === "oldest") {
+    orderBy.createdAt = "asc"
+  } else if (sortBy === "name") {
+    orderBy.name = "asc"
+  } else {
+    orderBy.createdAt = "desc"
+  }
+
+  const skip = (page - 1) * limit
+
+  // Concurrently fetch counts, stats, and paginated records
+  const [
+    totalFiltered,
+    customers,
+    totalWorkspaceCount,
+    optedOutWorkspaceCount,
+    waTotal,
+    waOptedOut,
+    fbTotal,
+    fbOptedOut,
+    igTotal,
+    igOptedOut,
+  ] = await Promise.all([
+    db.customer.count({ where }),
+    db.customer.findMany({
+      where,
+      include: {
+        _count: { select: { orders: true, conversations: true } },
+        conversations: { select: { labels: true } },
+      },
+      orderBy,
+      skip,
+      take: limit,
+    }),
+    db.customer.count(),
+    db.customer.count({
+      where: {
+        OR: [
+          { channel: "WHATSAPP", whatsappOptIn: false },
+          { channel: "FACEBOOK", facebookOptIn: false },
+          { channel: "INSTAGRAM", instagramOptIn: false },
+        ],
+      },
+    }),
+    db.customer.count({ where: { channel: "WHATSAPP" } }),
+    db.customer.count({ where: { channel: "WHATSAPP", whatsappOptIn: false } }),
+    db.customer.count({ where: { channel: "FACEBOOK" } }),
+    db.customer.count({ where: { channel: "FACEBOOK", facebookOptIn: false } }),
+    db.customer.count({ where: { channel: "INSTAGRAM" } }),
+    db.customer.count({ where: { channel: "INSTAGRAM", instagramOptIn: false } }),
+  ])
 
   // Normalize subscribers with channel data
   const normalized = customers.map(c => {
@@ -86,72 +197,67 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
     }
   })
 
-  // Calculate statistics across all channels before tag & status filtering
+  // Full accurate statistics across all channels in the workspace
   const stats = {
-    total: normalized.length,
-    optedIn: normalized.filter(c => c.isSubscribed).length,
-    optedOut: normalized.filter(c => !c.isSubscribed).length,
+    total: totalWorkspaceCount,
+    optedIn: Math.max(0, totalWorkspaceCount - optedOutWorkspaceCount),
+    optedOut: optedOutWorkspaceCount,
     channels: {
       whatsapp: {
-        total: normalized.filter(c => c.channel === "WHATSAPP").length,
-        optedIn: normalized.filter(c => c.channel === "WHATSAPP" && c.isSubscribed).length,
-        optedOut: normalized.filter(c => c.channel === "WHATSAPP" && !c.isSubscribed).length,
+        total: waTotal,
+        optedIn: Math.max(0, waTotal - waOptedOut),
+        optedOut: waOptedOut,
       },
       facebook: {
-        total: normalized.filter(c => c.channel === "FACEBOOK").length,
-        optedIn: normalized.filter(c => c.channel === "FACEBOOK" && c.isSubscribed).length,
-        optedOut: normalized.filter(c => c.channel === "FACEBOOK" && !c.isSubscribed).length,
+        total: fbTotal,
+        optedIn: Math.max(0, fbTotal - fbOptedOut),
+        optedOut: fbOptedOut,
       },
       instagram: {
-        total: normalized.filter(c => c.channel === "INSTAGRAM").length,
-        optedIn: normalized.filter(c => c.channel === "INSTAGRAM" && c.isSubscribed).length,
-        optedOut: normalized.filter(c => c.channel === "INSTAGRAM" && !c.isSubscribed).length,
+        total: igTotal,
+        optedIn: Math.max(0, igTotal - igOptedOut),
+        optedOut: igOptedOut,
       },
     },
   }
 
-  // Apply Channel Filter
-  let filtered = normalized
-  if (channelFilter && ["WHATSAPP", "FACEBOOK", "INSTAGRAM"].includes(channelFilter)) {
-    filtered = filtered.filter(c => c.channel === channelFilter)
+  // Retrieve distinct tags across the workspace
+  let allTags: string[] = []
+  try {
+    const tenantId = currentTenant()?.tenantId ?? PLATFORM
+    const rawTags = await db.$queryRaw<{ tag: string }[]>`
+      SELECT DISTINCT jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(tags::jsonb) = 'array' THEN tags::jsonb ELSE '[]'::jsonb END
+      ) AS tag
+      FROM "Customer"
+      WHERE "tenantId" = ${tenantId} AND tags IS NOT NULL
+      LIMIT 150
+    `
+    allTags = Array.from(new Set(rawTags.map(r => r.tag).filter(Boolean))).sort()
+  } catch {
+    allTags = Array.from(new Set(normalized.flatMap(c => c.tagList))).sort()
   }
 
-  // Apply Status Filter
-  if (status === "opted_in") {
-    filtered = filtered.filter(c => c.isSubscribed)
-  } else if (status === "opted_out") {
-    filtered = filtered.filter(c => !c.isSubscribed)
-  }
-
-  // Apply Tag Filter
-  if (tag) {
-    filtered = filtered.filter(c => c.tagList.some(t => t.toLowerCase() === tag.toLowerCase()))
-  }
-
-  // Apply Dynamic Segment Filter
-  let activeSegment: any = null
-  if (segmentId && segmentId !== "all") {
-    try {
-      activeSegment = await db.segment.findUnique({ where: { id: segmentId } })
-      if (activeSegment) {
-        const rules = parseFilterRules(activeSegment.filterRules)
-        filtered = filtered.filter(c => matchesSegment(c, rules, activeSegment.channel))
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  const allTags = [...new Set(normalized.flatMap(c => c.tagList))].sort()
+  const totalPages = Math.ceil(totalFiltered / limit) || 1
 
   return NextResponse.json({
-    subscribers: filtered,
+    subscribers: normalized,
+    pagination: {
+      page,
+      limit,
+      total: totalFiltered,
+      totalPages,
+      hasMore: page < totalPages,
+    },
+    total: totalFiltered,
     stats,
     tags: allTags,
-    activeSegment: activeSegment ? {
-      ...activeSegment,
-      parsedRules: parseFilterRules(activeSegment.filterRules),
-    } : null,
+    activeSegment: activeSegment
+      ? {
+          ...activeSegment,
+          parsedRules: parseFilterRules(activeSegment.filterRules),
+        }
+      : null,
   })
 }))
 

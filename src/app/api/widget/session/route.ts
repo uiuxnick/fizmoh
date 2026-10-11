@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin")
   try {
     const body = await request.json()
-    const { widgetId, visitorId, name, email, phone, currentUrl } = body
+    const { widgetId, tenantSlug, tenantId: requestedTenantId, visitorId, name, email, phone, currentUrl } = body
 
     // Older cached embeds must never send platform support into a fallback tenant.
-    if (widgetId === "platform-support") {
+    if (widgetId === "platform-support" || tenantSlug === "fizmoh-support") {
       return NextResponse.json({ error: "Please refresh the page to start platform support chat" }, { status: 400, headers: corsHeaders(origin) })
     }
 
@@ -31,22 +31,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing visitorId" }, { status: 400, headers: corsHeaders(origin) })
     }
 
-    // Resolve widget and tenant
+    // Resolve widget and tenant explicitly — never fall back to an arbitrary oldest tenant
     let widget: any = null
     if (widgetId && widgetId !== "default") {
       widget = await (db as any).liveChatWidget.findUnique({
-        where: { id: widgetId },
+        where: { id: String(widgetId) },
       })
     }
 
-    let tenantId = widget?.tenantId
-    if (!tenantId) {
-      const tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } })
+    let tenantId: string | undefined = widget?.tenantId
+    if (!tenantId && tenantSlug && String(tenantSlug) !== "fizmoh-support") {
+      const tenant = await db.tenant.findUnique({
+        where: { slug: String(tenantSlug) },
+        select: { id: true },
+      })
+      tenantId = tenant?.id
+    }
+    if (!tenantId && requestedTenantId) {
+      const tenant = await db.tenant.findUnique({
+        where: { id: String(requestedTenantId) },
+        select: { id: true },
+      })
       tenantId = tenant?.id
     }
 
     if (!tenantId) {
-      return NextResponse.json({ error: "No active tenant workspace found" }, { status: 404, headers: corsHeaders(origin) })
+      return NextResponse.json({ error: "Valid widgetId or tenant workspace is required" }, { status: 404, headers: corsHeaders(origin) })
     }
 
     // Find or create customer

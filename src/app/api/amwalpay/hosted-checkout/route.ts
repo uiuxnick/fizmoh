@@ -8,6 +8,15 @@ import { formatCurrency, formatDate } from "@/lib/helpers"
 import { localDateKey } from "@/lib/timezone"
 import { PLATFORM } from "@/lib/tenant"
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 /** A browser redirect is only a receipt lookup; the signed server callback is payment proof. */
 async function gatewayConfirmed(reference: string): Promise<boolean> {
   if (reference.startsWith("ORD-")) {
@@ -47,12 +56,17 @@ async function gatewayConfirmed(reference: string): Promise<boolean> {
  */
 
 export const GET = withErrors(async (request: NextRequest) => {
-  const brand = await businessName()
+  const rawBrand = await businessName()
+  const brand = escapeHtml(rawBrand)
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
-  const refParam = searchParams.get("ref") || searchParams.get("order") || searchParams.get("merchantReference") || searchParams.get("billerRefNumber") || ""
-  const amount = searchParams.get("amount")
-  const currency = searchParams.get("currency") || "OMR"
+  const rawRefParam = searchParams.get("ref") || searchParams.get("order") || searchParams.get("merchantReference") || searchParams.get("billerRefNumber") || ""
+  const refParam = rawRefParam
+  const safeRefParam = escapeHtml(rawRefParam)
+  const rawAmount = searchParams.get("amount")
+  const amount = rawAmount ? escapeHtml(rawAmount) : null
+  const rawCurrency = searchParams.get("currency") || "OMR"
+  const currency = escapeHtml(rawCurrency)
 
   const host = request.headers.get("host") || "app.fizmoh.cloud"
   const protocol = request.headers.get("x-forwarded-proto") || "https"
@@ -186,32 +200,32 @@ export const GET = withErrors(async (request: NextRequest) => {
            <div class="body">
              <div class="ref-card">
                <span class="label">Reference ID</span>
-               <span class="val">#${refParam}</span>
+               <span class="val">#${safeRefParam}</span>
              </div>
 
              <div class="details-box">
                ${tourDetails ? `
-                 <div class="row"><span class="label">Tour:</span><span class="val">${tourDetails.order.tour.name}</span></div>
-                 <div class="row"><span class="label">Date & Time:</span><span class="val">${formatDate(tourDetails.order.slot.date)} (${tourDetails.order.slot.startTime})</span></div>
+                 <div class="row"><span class="label">Tour:</span><span class="val">${escapeHtml(tourDetails.order.tour.name)}</span></div>
+                 <div class="row"><span class="label">Date & Time:</span><span class="val">${escapeHtml(formatDate(tourDetails.order.slot.date))} (${escapeHtml(tourDetails.order.slot.startTime)})</span></div>
                  <div class="row"><span class="label">Travelers:</span><span class="val">${tourDetails.order.paxAdult} Adult${tourDetails.order.paxAdult > 1 ? "s" : ""}${tourDetails.order.paxChild ? `, ${tourDetails.order.paxChild} Child` : ""}</span></div>
-                 <div class="row"><span class="label">Lead Guest:</span><span class="val">${tourDetails.order.customerName}</span></div>
-                 <div class="row"><span class="label">Meeting Point:</span><span class="val">${tourDetails.order.tour.meetingPoint || "Sent via WhatsApp"}</span></div>
-                 ${tourDetails.voucher ? `<div class="row"><span class="label">Voucher Code:</span><span class="val" style="font-family:monospace;color:#0d9488">${tourDetails.voucher.voucherCode}</span></div>` : ""}
-                 <div class="row"><span class="label">Total Paid:</span><span class="val"><span class="paid-badge">✓ PAID</span> ${formatCurrency(tourDetails.order.totalAmount)}</span></div>
+                 <div class="row"><span class="label">Lead Guest:</span><span class="val">${escapeHtml(tourDetails.order.customerName)}</span></div>
+                 <div class="row"><span class="label">Meeting Point:</span><span class="val">${escapeHtml(tourDetails.order.tour.meetingPoint || "Sent via WhatsApp")}</span></div>
+                 ${tourDetails.voucher ? `<div class="row"><span class="label">Voucher Code:</span><span class="val" style="font-family:monospace;color:#0d9488">${escapeHtml(tourDetails.voucher.voucherCode)}</span></div>` : ""}
+                 <div class="row"><span class="label">Total Paid:</span><span class="val"><span class="paid-badge">✓ PAID</span> ${escapeHtml(formatCurrency(tourDetails.order.totalAmount))}</span></div>
                ` : aptDetails ? `
-                 <div class="row"><span class="label">Patient Name:</span><span class="val">${aptDetails.customerName}</span></div>
-                 <div class="row"><span class="label">Service / Consultation:</span><span class="val">${aptDetails.service?.name || "Consultation"}</span></div>
-                 ${aptDetails.provider ? `<div class="row"><span class="label">Doctor / Specialist:</span><span class="val">${aptDetails.provider.name}</span></div>` : ""}
-                 <div class="row"><span class="label">Date & Time:</span><span class="val">${localDateKey(new Date(aptDetails.appointmentDate))} (${aptDetails.startTime})</span></div>
-                 <div class="row"><span class="label">Duration:</span><span class="val">${aptDetails.durationMins} minutes</span></div>
-                 <div class="row"><span class="label">Total Paid:</span><span class="val"><span class="paid-badge">✓ PAID</span> ${aptDetails.totalAmount} OMR</span></div>
+                 <div class="row"><span class="label">Patient Name:</span><span class="val">${escapeHtml(aptDetails.customerName)}</span></div>
+                 <div class="row"><span class="label">Service / Consultation:</span><span class="val">${escapeHtml(aptDetails.service?.name || "Consultation")}</span></div>
+                 ${aptDetails.provider ? `<div class="row"><span class="label">Doctor / Specialist:</span><span class="val">${escapeHtml(aptDetails.provider.name)}</span></div>` : ""}
+                 <div class="row"><span class="label">Date & Time:</span><span class="val">${escapeHtml(localDateKey(new Date(aptDetails.appointmentDate)))} (${escapeHtml(aptDetails.startTime)})</span></div>
+                 <div class="row"><span class="label">Duration:</span><span class="val">${escapeHtml(aptDetails.durationMins)} minutes</span></div>
+                 <div class="row"><span class="label">Total Paid:</span><span class="val"><span class="paid-badge">✓ PAID</span> ${escapeHtml(aptDetails.totalAmount)} OMR</span></div>
                ` : chemoDetails ? `
-                 <div class="row"><span class="label">Patient:</span><span class="val">${chemoDetails.patient?.fullName} (${chemoDetails.patient?.mrn})</span></div>
+                 <div class="row"><span class="label">Patient:</span><span class="val">${escapeHtml(chemoDetails.patient?.fullName)} (${escapeHtml(chemoDetails.patient?.mrn)})</span></div>
                  <div class="row"><span class="label">Hospital:</span><span class="val">Kauvery Hospital Day Care</span></div>
-                 <div class="row"><span class="label">Ward & Bed:</span><span class="val">${chemoDetails.bed?.ward?.name || "Day Care Ward"} — <strong>Bed ${chemoDetails.bed?.bedNumber}</strong></span></div>
-                 <div class="row"><span class="label">Session:</span><span class="val">${chemoDetails.session?.name || "Day Care Session"} (${chemoDetails.session?.startTime || "08:00"} - ${chemoDetails.session?.endTime || "12:00"})</span></div>
-                 <div class="row"><span class="label">Consultant:</span><span class="val">${chemoDetails.doctor?.name}</span></div>
-                 <div class="row"><span class="label">Treatment Date:</span><span class="val">${formatDate(chemoDetails.bookingDate)}</span></div>
+                 <div class="row"><span class="label">Ward & Bed:</span><span class="val">${escapeHtml(chemoDetails.bed?.ward?.name || "Day Care Ward")} — <strong>Bed ${escapeHtml(chemoDetails.bed?.bedNumber)}</strong></span></div>
+                 <div class="row"><span class="label">Session:</span><span class="val">${escapeHtml(chemoDetails.session?.name || "Day Care Session")} (${escapeHtml(chemoDetails.session?.startTime || "08:00")} - ${escapeHtml(chemoDetails.session?.endTime || "12:00")})</span></div>
+                 <div class="row"><span class="label">Consultant:</span><span class="val">${escapeHtml(chemoDetails.doctor?.name)}</span></div>
+                 <div class="row"><span class="label">Treatment Date:</span><span class="val">${escapeHtml(formatDate(chemoDetails.bookingDate))}</span></div>
                  <div class="row"><span class="label">Total Paid:</span><span class="val"><span class="paid-badge">✓ PAID</span> 50.000 OMR</span></div>
                ` : `
                  <div class="row"><span class="label">Transaction:</span><span class="val">AmwalPay Gateway</span></div>
@@ -222,12 +236,12 @@ export const GET = withErrors(async (request: NextRequest) => {
              ${aptDetails?.meetLink ? `
                <div class="meet-box">
                  <div class="title">🎥 Google Meet Consultation Link</div>
-                 <a href="${aptDetails.meetLink}" target="_blank">${aptDetails.meetLink}</a>
+                 <a href="${escapeHtml(aptDetails.meetLink)}" target="_blank">${escapeHtml(aptDetails.meetLink)}</a>
                </div>
              ` : ""}
 
              <div class="actions">
-               ${waUrl ? `<a href="${waUrl}" class="wa-btn">
+               ${waUrl ? `<a href="${escapeHtml(waUrl)}" class="wa-btn">
                  💬 Message us on WhatsApp
                </a>` : ""}
                <button onclick="window.print()" class="print-btn">
@@ -252,8 +266,8 @@ export const GET = withErrors(async (request: NextRequest) => {
            <div class="header"><div class="x-badge">✕</div><h1>Payment Unsuccessful</h1></div>
            <div class="body">
              <p style="color:#64748b">Your payment could not be processed at this time.</p>
-             <p style="color:#94a3b8;font-size:.8rem;margin-top:.5rem">Reference: #${refParam}</p>
-             ${waUrl ? `<a href="${waUrl}" class="retry-btn">← Message us on WhatsApp</a>` : ""}
+             <p style="color:#94a3b8;font-size:.8rem;margin-top:.5rem">Reference: #${safeRefParam}</p>
+             ${waUrl ? `<a href="${escapeHtml(waUrl)}" class="retry-btn">← Message us on WhatsApp</a>` : ""}
            </div>
          </div></body></html>`
 
@@ -261,8 +275,8 @@ export const GET = withErrors(async (request: NextRequest) => {
   }
 
   // ─── 2. CHECKOUT PAYMENT FORM / REDIRECT ───
-  let orderAmount = amount || "10.000"
-  let orderCurrency = currency || "OMR"
+  let orderAmount = rawAmount || "10.000"
+  let orderCurrency = rawCurrency || "OMR"
   let customerName = "Customer"
   let customerPhone = ""
   let customerEmail = ""
@@ -375,6 +389,11 @@ export const GET = withErrors(async (request: NextRequest) => {
   }
 
   // ─── Direct Checkout Card Form ───
+  const safeOrderAmount = escapeHtml(orderAmount)
+  const safeOrderCurrency = escapeHtml(orderCurrency)
+  const safeCustomerName = escapeHtml(customerName)
+  const safeDescription = escapeHtml(description)
+
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>AmwalPay — Secure Payment</title>
     <style>
@@ -411,23 +430,23 @@ export const GET = withErrors(async (request: NextRequest) => {
         </div>
         <div class="body">
           <div class="merchant">
-            <div class="merchant-icon">${brand.slice(0, 2).toUpperCase()}</div>
+            <div class="merchant-icon">${escapeHtml(rawBrand.slice(0, 2).toUpperCase())}</div>
             <div class="merchant-info">
               <div class="merchant-name">${brand}</div>
-              <div class="merchant-desc">${description} (${refParam})</div>
+              <div class="merchant-desc">${safeDescription} (${safeRefParam})</div>
             </div>
           </div>
 
           <div class="amount-display">
-            <span class="amt">${orderAmount}</span>
-            <span class="cur">${orderCurrency}</span>
+            <span class="amt">${safeOrderAmount}</span>
+            <span class="cur">${safeOrderCurrency}</span>
           </div>
 
           <form action="/api/amwalpay/hosted-checkout" method="GET" id="payForm">
             <input type="hidden" name="status" value="success" />
-            <input type="hidden" name="ref" value="${refParam}" />
-            <input type="hidden" name="amount" value="${orderAmount}" />
-            <input type="hidden" name="currency" value="${orderCurrency}" />
+            <input type="hidden" name="ref" value="${safeRefParam}" />
+            <input type="hidden" name="amount" value="${safeOrderAmount}" />
+            <input type="hidden" name="currency" value="${safeOrderCurrency}" />
 
             <div class="field">
               <label>Card Number</label>
@@ -445,11 +464,11 @@ export const GET = withErrors(async (request: NextRequest) => {
             </div>
             <div class="field">
               <label>Cardholder Name</label>
-              <input type="text" value="${customerName}" required />
+              <input type="text" value="${safeCustomerName}" required />
             </div>
 
             <button type="submit" class="pay-btn" id="submitBtn">
-              Pay ${orderAmount} ${orderCurrency} Now
+              Pay ${safeOrderAmount} ${safeOrderCurrency} Now
             </button>
           </form>
         </div>

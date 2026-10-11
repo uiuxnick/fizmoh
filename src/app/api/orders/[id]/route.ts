@@ -158,9 +158,9 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
     if (order.slot) {
       const pax = order.paxAdult + order.paxChild
       if (order.confirmedAt || order.orderStatus === "CONFIRMED" || order.paymentStatus === "APPROVED" || order.paymentStatus === "PAID") {
-        await db.$executeRaw`UPDATE "Slot" SET "seatsBooked" = GREATEST(0, "seatsBooked" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId}`
+        await db.$executeRaw`UPDATE "Slot" SET "seatsBooked" = GREATEST(0, "seatsBooked" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId} AND "tenantId" = ${order.tenantId}`
       } else {
-        await db.$executeRaw`UPDATE "Slot" SET "seatsHeld" = GREATEST(0, "seatsHeld" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId}`
+        await db.$executeRaw`UPDATE "Slot" SET "seatsHeld" = GREATEST(0, "seatsHeld" - ${pax}), status = 'OPEN' WHERE id = ${order.slotId} AND "tenantId" = ${order.tenantId}`
       }
     }
     await refreshCustomerTotals(order.customerId)
