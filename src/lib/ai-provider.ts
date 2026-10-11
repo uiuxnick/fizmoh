@@ -16,6 +16,7 @@ import OpenAI from "openai"
 import { db } from "@/lib/db"
 import { decryptSecret, encryptSecret } from "@/lib/secret-box"
 import { PLATFORM } from "@/lib/tenant"
+import { currentTenant } from "@/lib/tenant-context"
 
 export type Provider = "anthropic" | "openai"
 
@@ -52,22 +53,28 @@ const DB_KEYS = {
   openaiKey: "ai_openai_key",
 } as const
 
-let cache: { config: AIConfig; source: AIConfigSource; loadedAt: number } | null = null
+const cache = new Map<string, { config: AIConfig; source: AIConfigSource; loadedAt: number }>()
 const CACHE_TTL_MS = 60_000
 
-export function invalidateAIConfigCache() {
-  cache = null
+export function invalidateAIConfigCache(tenantIdOverride?: string) {
+  if (tenantIdOverride !== undefined) {
+    cache.delete(tenantIdOverride)
+  } else {
+    cache.clear()
+  }
 }
 
 async function loadConfig(): Promise<{ config: AIConfig; source: AIConfigSource }> {
-  if (cache && Date.now() - cache.loadedAt < CACHE_TTL_MS) {
-    return { config: cache.config, source: cache.source }
+  const tenantId = currentTenant()?.tenantId ?? PLATFORM
+  const hit = cache.get(tenantId)
+  if (hit && Date.now() - hit.loadedAt < CACHE_TTL_MS) {
+    return { config: hit.config, source: hit.source }
   }
 
   let rows: { key: string; value: string }[] = []
   try {
     rows = await db.systemSetting.findMany({
-      where: { key: { in: Object.values(DB_KEYS) } },
+      where: { tenantId, key: { in: Object.values(DB_KEYS) } },
       select: { key: true, value: true },
     })
   } catch (error) {
@@ -112,7 +119,7 @@ async function loadConfig(): Promise<{ config: AIConfig; source: AIConfigSource 
     openaiKey: byKey.get(DB_KEYS.openaiKey) ? "db" : process.env.OPENAI_API_KEY ? "env" : "unset",
   }
 
-  cache = { config, source, loadedAt: Date.now() }
+  cache.set(tenantId, { config, source, loadedAt: Date.now() })
   return { config, source }
 }
 
@@ -125,23 +132,24 @@ export async function getAIConfigSource(): Promise<AIConfigSource> {
 }
 
 export async function saveAIConfig(values: Partial<Record<keyof typeof DB_KEYS, string>>) {
+  const tenantId = currentTenant()?.tenantId ?? PLATFORM
   for (const [field, value] of Object.entries(values) as [keyof typeof DB_KEYS, string][]) {
     const key = DB_KEYS[field]
     if (!key) continue
     if (value === "") {
-      await db.systemSetting.deleteMany({ where: { key } })
+      await db.systemSetting.deleteMany({ where: { tenantId, key } })
       continue
     }
     // Credentials are encrypted before they touch the column; a database dump
     // on its own must not be enough to use them.
     const stored = key.endsWith("_key") ? encryptSecret(value) : value
     await db.systemSetting.upsert({
-      where: { tenantId_key: { tenantId: PLATFORM, key } },
+      where: { tenantId_key: { tenantId, key } },
       update: { value: stored, type: "STRING", category: "AI" },
-      create: { key, value: stored, type: "STRING", category: "AI" },
+      create: { tenantId, key, value: stored, type: "STRING", category: "AI" },
     })
   }
-  invalidateAIConfigCache()
+  invalidateAIConfigCache(tenantId)
 }
 
 export function activeKey(config: AIConfig): string {

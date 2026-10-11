@@ -83,6 +83,9 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: boole
     const port = Number((await getConfigValue("smtp_port")) || 587)
     const user = await getConfigValue("smtp_user")
     const pass = await getConfigValue("smtp_password")
+    if (user && !pass) {
+      return { success: false, error: "SMTP password is not configured — add an SMTP password in Settings" }
+    }
     const from = await getConfigValue("smtp_from")
     // A mail server on this same machine usually presents a self-signed
     // certificate — the panel that installed it generated one. Verification is
@@ -98,7 +101,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: boole
       port,
       // Port 465 is implicit TLS; 587 upgrades with STARTTLS after connecting.
       secure: port === 465,
-      auth: user ? { user, pass } : undefined,
+      auth: user && pass ? { user, pass } : undefined,
       ...(lenient ? { tls: { rejectUnauthorized: false } } : {}),
     })
 
@@ -137,6 +140,8 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: boole
 // ─── WHATSAPP ───
 
 interface WhatsAppMessage {
+  /** Optional timeout/cancellation for freeform text delivery. */
+  signal?: AbortSignal
   to: string // phone number with country code
   templateName?: string
   templateVariables?: string[]
@@ -185,7 +190,7 @@ export async function sendWhatsApp(message: WhatsAppMessage): Promise<{ success:
       return sendTemplateMessage(templateParamsFor(message))
     }
     const freeformAllowed = await canSendFreeform(message.to)
-    if (freeformAllowed) return sendTextMessage(message.to, message.body!)
+    if (freeformAllowed) return sendTextMessage(message.to, message.body!, { signal: message.signal })
     return sendTemplateMessage(templateParamsFor(message))
   }
 
@@ -202,7 +207,7 @@ export async function sendWhatsApp(message: WhatsAppMessage): Promise<{ success:
         error: "Outside the 24-hour session window — an approved template is required",
       }
     }
-    return sendTextMessage(message.to, message.body!)
+    return sendTextMessage(message.to, message.body!, { signal: message.signal })
   }
 
   return { success: false, error: "No message content provided" }
@@ -277,7 +282,7 @@ Show this message at check-in. Have a great trip! 🐪`
     // session-protected.
     const sendTicket = async () => {
       try {
-        const { voucherPdfUrl } = await import("@/app/api/vouchers/[id]/pdf/route")
+        const { voucherPdfUrl } = await import("@/lib/voucher-url")
         await sendMediaMessage({
           to: order.customerPhone,
           type: "document",

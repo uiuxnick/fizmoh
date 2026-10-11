@@ -91,13 +91,64 @@ async function tenantFor(request: NextRequest): Promise<TenantContext | null> {
  * a separate context from the handler, so async-local storage set there would
  * not be visible by the time the query runs.
  */
+function isTrustedOrigin(origin: string | null, host: string | null): boolean {
+  if (!origin) return false
+  try {
+    const { hostname } = new URL(origin)
+    if (
+      hostname === "fizmoh.cloud" ||
+      hostname.endsWith(".fizmoh.cloud") ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1"
+    ) {
+      return true
+    }
+    if (host) {
+      const cleanHost = host.split(":")[0]?.toLowerCase()
+      if (cleanHost && hostname.toLowerCase() === cleanHost) return true
+    }
+  } catch {
+    return false
+  }
+  return false
+}
+
 export function withErrors<C>(handler: Handler<C>): Handler<C> {
   return async (request: NextRequest, context: C) => {
+    const origin = request.headers.get("origin")
+    const host = request.headers.get("host")
+    const trusted = isTrustedOrigin(origin, host)
+    const corsHeaders: Record<string, string> = {
+      ...(origin && trusted
+        ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true" }
+        : { "Access-Control-Allow-Origin": "*" }),
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-fizmoh-workspace, X-Requested-With, Accept, Origin",
+      "Access-Control-Max-Age": "86400",
+    }
+
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, { status: 204, headers: corsHeaders })
+    }
+
+    const applyCors = (res: Response) => {
+      if (origin && res.headers) {
+        if (trusted) {
+          res.headers.set("Access-Control-Allow-Origin", origin)
+          res.headers.set("Access-Control-Allow-Credentials", "true")
+        } else {
+          res.headers.set("Access-Control-Allow-Origin", "*")
+        }
+      }
+      return res
+    }
+
     try {
       const tenant = await tenantFor(request)
-      return tenant
+      const response = tenant
         ? await withTenant(tenant, async () => handler(request, context))
         : await handler(request, context)
+      return applyCors(response)
     } catch (error) {
       const path = (() => {
         try { return new URL(request.url).pathname } catch { return "unknown" }
@@ -108,24 +159,24 @@ export function withErrors<C>(handler: Handler<C>): Handler<C> {
       // is genuinely unexpected and stays a 500.
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === "P2002") {
-          return NextResponse.json({ error: "That record already exists" }, { status: 409 })
+          return applyCors(NextResponse.json({ error: "That record already exists" }, { status: 409 }))
         }
         if (error.code === "P2025") {
-          return NextResponse.json({ error: "Record not found" }, { status: 404 })
+          return applyCors(NextResponse.json({ error: "Record not found" }, { status: 404 }))
         }
         if (error.code === "P2003") {
-          return NextResponse.json(
+          return applyCors(NextResponse.json(
             { error: "This record is still referenced by something else and cannot be changed" },
             { status: 409 },
-          )
+          ))
         }
       }
 
       if (error instanceof SyntaxError) {
-        return NextResponse.json({ error: "Malformed request body" }, { status: 400 })
+        return applyCors(NextResponse.json({ error: "Malformed request body" }, { status: 400 }))
       }
 
-      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+      return applyCors(NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 }))
     }
   }
 }

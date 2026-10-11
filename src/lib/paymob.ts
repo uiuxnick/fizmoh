@@ -96,18 +96,20 @@ function scope(): string {
 }
 
 export function getPaymobConfig(): PaymobConfig {
-  const saved = snapshots.get(scope())?.values ?? {}
-  const mode = saved.mode || (process.env.PAYMOB_MODE as "test" | "production") || "test"
-  const rawRegion = saved.region || (process.env.PAYMOB_REGION as PaymobRegion) || "oman"
+  const key = scope()
+  const isPlatform = (PLATFORM_SCOPES as readonly string[]).includes(key)
+  const saved = snapshots.get(key)?.values ?? {}
+  const mode = saved.mode || (isPlatform ? (process.env.PAYMOB_MODE as "test" | "production") : undefined) || "test"
+  const rawRegion = saved.region || (isPlatform ? (process.env.PAYMOB_REGION as PaymobRegion) : undefined) || "oman"
   const region: PaymobRegion = (["oman", "egypt", "ksa", "uae"].includes(rawRegion) ? rawRegion : "oman") as PaymobRegion
 
   return {
-    apiKey: saved.apiKey || process.env.PAYMOB_API_KEY || "",
-    publicKey: saved.publicKey || process.env.PAYMOB_PUBLIC_KEY || "",
-    hmacSecret: saved.hmacSecret || process.env.PAYMOB_HMAC_SECRET || "",
+    apiKey: saved.apiKey || (isPlatform ? process.env.PAYMOB_API_KEY : "") || "",
+    publicKey: saved.publicKey || (isPlatform ? process.env.PAYMOB_PUBLIC_KEY : "") || "",
+    hmacSecret: saved.hmacSecret || (isPlatform ? process.env.PAYMOB_HMAC_SECRET : "") || "",
     region,
-    integrationIdCard: saved.integrationIdCard || process.env.PAYMOB_INTEGRATION_ID_CARD || "",
-    integrationIdWallet: saved.integrationIdWallet || process.env.PAYMOB_INTEGRATION_ID_WALLET || "",
+    integrationIdCard: saved.integrationIdCard || (isPlatform ? process.env.PAYMOB_INTEGRATION_ID_CARD : "") || "",
+    integrationIdWallet: saved.integrationIdWallet || (isPlatform ? process.env.PAYMOB_INTEGRATION_ID_WALLET : "") || "",
     mode: mode === "production" ? "production" : "test",
   }
 }
@@ -115,12 +117,15 @@ export function getPaymobConfig(): PaymobConfig {
 /** Pulls saved Paymob settings into the snapshot cache. */
 export async function refreshPaymobConfig(): Promise<PaymobConfig> {
   const key = scope()
+  const isPlatform = (PLATFORM_SCOPES as readonly string[]).includes(key)
   try {
     const { db } = await import("@/lib/db")
     const rows = await db.systemSetting.findMany({
       where: {
         key: { in: Object.values(PAYMOB_DB_KEYS) },
-        OR: [{ tenantId: key }, { tenantId: { in: [...PLATFORM_SCOPES] } }],
+        ...(isPlatform
+          ? { tenantId: { in: [...PLATFORM_SCOPES] } }
+          : { tenantId: key }),
       },
       select: { key: true, value: true, tenantId: true },
     })

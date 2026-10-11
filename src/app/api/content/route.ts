@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { PLATFORM } from "@/lib/tenant"
+import { currentTenant } from "@/lib/tenant-context"
 
 /**
  * Content Management API
@@ -11,10 +12,11 @@ import { PLATFORM } from "@/lib/tenant"
  */
 
 export const GET = withErrors(async (request: NextRequest) => {
+  const tenantId = currentTenant()?.tenantId ?? PLATFORM
   const { searchParams } = new URL(request.url)
   const type = searchParams.get("type") // BANNER, FAQ, BLOG, PAGE
 
-  const where: any = { category: "CONTENT" }
+  const where: any = { tenantId, category: "CONTENT" }
   const settings = await db.systemSetting.findMany({ where, orderBy: { key: "asc" } })
 
   let items = settings.map(s => {
@@ -31,24 +33,26 @@ export const GET = withErrors(async (request: NextRequest) => {
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
+  const tenantId = currentTenant()?.tenantId ?? PLATFORM
   const body = await request.json()
   const { key, type, value } = body // type: BANNER, FAQ, BLOG, PAGE
 
   const data = JSON.stringify({ type, ...value })
   const setting = await db.systemSetting.upsert({
-    where: { tenantId_key: { tenantId: PLATFORM, key } },
+    where: { tenantId_key: { tenantId, key } },
     update: { value: data, type: "JSON", category: "CONTENT" },
-    create: { key, value: data, type: "JSON", category: "CONTENT" },
+    create: { tenantId, key, value: data, type: "JSON", category: "CONTENT" },
   })
 
   return NextResponse.json({ setting }, { status: 201 })
 })
 
 export const DELETE = withErrors(async (request: NextRequest) => {
+  const tenantId = currentTenant()?.tenantId ?? PLATFORM
   const { searchParams } = new URL(request.url)
   const key = searchParams.get("key")
   if (!key) return NextResponse.json({ error: "key required" }, { status: 400 })
 
-  await db.systemSetting.deleteMany({ where: { key } }).catch(() => {})
+  await db.systemSetting.deleteMany({ where: { tenantId, key } }).catch(() => {})
   return NextResponse.json({ success: true })
 })

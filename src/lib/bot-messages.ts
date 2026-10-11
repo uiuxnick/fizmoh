@@ -1,4 +1,6 @@
 import { db } from "@/lib/db"
+import { currentTenant } from "@/lib/tenant-context"
+import { PLATFORM } from "@/lib/tenant"
 
 /**
  * Every line the built-in bot says, as data a workspace can edit.
@@ -235,7 +237,7 @@ const PRIME_TTL_MS = 10_000
 export async function primeBotMessages(tenantId: string): Promise<void> {
   const hit = primed.get(tenantId)
   if (hit && Date.now() - hit.at < PRIME_TTL_MS) return
-  primed.set(tenantId, { data: await loadBotMessages(), at: Date.now() })
+  primed.set(tenantId, { data: await loadBotMessages(tenantId), at: Date.now() })
 }
 
 /** An override for this exact built-in wording, if the workspace set one. */
@@ -252,9 +254,13 @@ export type BotMessageOverrides = Record<string, { en?: string; ar?: string }>
 
 const SETTING_KEY = "bot_messages"
 
-export async function loadBotMessages(): Promise<BotMessageOverrides> {
+export async function loadBotMessages(tenantIdOverride?: string): Promise<BotMessageOverrides> {
+  const tenantId = tenantIdOverride ?? currentTenant()?.tenantId ?? PLATFORM
   try {
-    const row = await db.systemSetting.findFirst({ where: { key: SETTING_KEY }, select: { value: true } })
+    const row = await db.systemSetting.findUnique({
+      where: { tenantId_key: { tenantId, key: SETTING_KEY } },
+      select: { value: true },
+    })
     if (!row?.value) return {}
     const parsed = JSON.parse(row.value)
     return parsed && typeof parsed === "object" ? (parsed as BotMessageOverrides) : {}
@@ -264,7 +270,8 @@ export async function loadBotMessages(): Promise<BotMessageOverrides> {
   }
 }
 
-export async function saveBotMessages(overrides: BotMessageOverrides): Promise<void> {
+export async function saveBotMessages(overrides: BotMessageOverrides, tenantIdOverride?: string): Promise<void> {
+  const tenantId = tenantIdOverride ?? currentTenant()?.tenantId ?? PLATFORM
   const clean: BotMessageOverrides = {}
   for (const [key, value] of Object.entries(overrides)) {
     if (!BY_KEY.has(key) || !value) continue
@@ -273,12 +280,12 @@ export async function saveBotMessages(overrides: BotMessageOverrides): Promise<v
     if (en || ar) clean[key] = { ...(en ? { en } : {}), ...(ar ? { ar } : {}) }
   }
   const body = JSON.stringify(clean)
-  const existing = await db.systemSetting.findFirst({ where: { key: SETTING_KEY }, select: { id: true } })
-  if (existing) {
-    await db.systemSetting.update({ where: { id: existing.id }, data: { value: body, type: "JSON" } })
-  } else {
-    await db.systemSetting.create({ data: { key: SETTING_KEY, value: body, type: "JSON", category: "BOT" } })
-  }
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId, key: SETTING_KEY } },
+    update: { value: body, type: "JSON", category: "BOT" },
+    create: { tenantId, key: SETTING_KEY, value: body, type: "JSON", category: "BOT" },
+  })
+  primed.delete(tenantId)
 }
 
 /**

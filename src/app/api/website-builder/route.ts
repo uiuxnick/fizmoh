@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
+import { withErrors } from "@/lib/api-handler"
 import { normalizeWebsiteData } from "@/lib/website-builder-types"
 
 const SETTING_KEY = "website_builder_json"
@@ -8,7 +9,7 @@ const SETTING_KEY = "website_builder_json"
 export const dynamic = "force-dynamic"
 
 // GET — load saved builder elements and multi-page data for this tenant
-export async function GET() {
+export const GET = withErrors(async (_req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -33,10 +34,10 @@ export async function GET() {
       activePageSlug: fallback.activePageSlug,
     })
   }
-}
+})
 
 // POST — save builder elements or multi-page data
-export async function POST(req: Request) {
+export const POST = withErrors(async (req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -72,4 +73,4 @@ export async function POST(req: Request) {
     console.error("[website-builder] save error", err)
     return NextResponse.json({ error: "Save failed" }, { status: 500 })
   }
-}
+})

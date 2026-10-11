@@ -73,12 +73,14 @@ function scope(): string {
 }
 
 export function getAmwalPayConfig(): AmwalPayConfig {
-  const saved = snapshots.get(scope())?.values ?? {}
-  const mode = saved.mode || (process.env.AMWALPAY_MODE as "test" | "production") || "test"
+  const key = scope()
+  const isPlatform = (PLATFORM_SCOPES as readonly string[]).includes(key)
+  const saved = snapshots.get(key)?.values ?? {}
+  const mode = saved.mode || (isPlatform ? (process.env.AMWALPAY_MODE as "test" | "production") : undefined) || "test"
   return {
-    merchantId: saved.merchantId || process.env.AMWALPAY_MERCHANT_ID || "",
-    terminalId: saved.terminalId || process.env.AMWALPAY_TERMINAL_ID || "",
-    secureKey: saved.secureKey || process.env.AMWALPAY_SECURE_KEY || "",
+    merchantId: saved.merchantId || (isPlatform ? process.env.AMWALPAY_MERCHANT_ID : "") || "",
+    terminalId: saved.terminalId || (isPlatform ? process.env.AMWALPAY_TERMINAL_ID : "") || "",
+    secureKey: saved.secureKey || (isPlatform ? process.env.AMWALPAY_SECURE_KEY : "") || "",
     mode: mode === "production" ? "production" : "test",
   }
 }
@@ -86,14 +88,16 @@ export function getAmwalPayConfig(): AmwalPayConfig {
 /** Pulls saved gateway settings into the snapshot the sync getter reads. */
 export async function refreshAmwalPayConfig(): Promise<AmwalPayConfig> {
   const key = scope()
+  const isPlatform = (PLATFORM_SCOPES as readonly string[]).includes(key)
   try {
     const { db } = await import("@/lib/db")
     const rows = await db.systemSetting.findMany({
-      // The workspace's own credentials, or the installation's until it
-      // saves its own.
+      // Strict SaaS isolation: a tenant workspace only reads its own merchant credentials.
       where: {
         key: { in: Object.values(AMWALPAY_DB_KEYS) },
-        OR: [{ tenantId: key }, { tenantId: { in: [...PLATFORM_SCOPES] } }],
+        ...(isPlatform
+          ? { tenantId: { in: [...PLATFORM_SCOPES] } }
+          : { tenantId: key }),
       },
       select: { key: true, value: true, tenantId: true },
     })

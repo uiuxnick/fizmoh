@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
+import { withErrors } from "@/lib/api-handler"
 import { isAIConfigured, anthropicClient } from "@/lib/ai-provider"
 import { type BuilderElement } from "@/components/views/website-builder-view"
 
@@ -11,7 +12,7 @@ const SETTING_KEY = "website_builder_json"
 // Helper unique ID
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-export async function POST(req: NextRequest) {
+export const POST = withErrors(async (req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -145,7 +146,7 @@ Prompt & Requirements: ${prompt || `Build a full modern high-converting website 
     console.error("[ai-generate] error:", err)
     return NextResponse.json({ error: err?.message || "Generation failed" }, { status: 500 })
   }
-}
+})
 
 // ── Handle AI Copilot Natural Language In-line Edits ──────────────────────────
 async function handleCopilotEdit(

@@ -91,8 +91,8 @@ function reportUnscoped(model: string, operation: string, args: unknown) {
   console.warn(`[tenancy] unscoped query: ${key}${where ? ` — ${where}` : ""}`)
 }
 
-function base() {
-  return new PrismaClient({ log: ['error', 'warn'] }).$extends({
+function base(client: PrismaClient) {
+  return client.$extends({
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query: typedQuery }) {
@@ -251,9 +251,8 @@ const globalForPrisma = globalThis as unknown as {
 export const raw =
   globalForPrisma.prismaRaw ?? new PrismaClient({ log: ['error', 'warn'] })
 
-export const db = globalForPrisma.prisma ?? base()
+export const db = globalForPrisma.prisma ?? base(raw)
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db
-  globalForPrisma.prismaRaw = raw
-}
+globalForPrisma.prisma = db
+globalForPrisma.prismaRaw = raw
+

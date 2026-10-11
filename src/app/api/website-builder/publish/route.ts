@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
+import { withErrors } from "@/lib/api-handler"
 import { normalizeWebsiteData } from "@/lib/website-builder-types"
 
 export const dynamic = "force-dynamic"
@@ -10,7 +11,7 @@ const PUBLISHED_KEY = "website_published_json"
 const PUBLISHED_AT_KEY = "website_published_at"
 
 // POST — publish the draft to live
-export async function POST() {
+export const POST = withErrors(async (_req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -44,10 +45,10 @@ export async function POST() {
     console.error("[website-builder/publish] error", err)
     return NextResponse.json({ error: "Publish failed" }, { status: 500 })
   }
-}
+})
 
 // GET — check publish status
-export async function GET() {
+export const GET = withErrors(async (_req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -70,10 +71,10 @@ export async function GET() {
   } catch {
     return NextResponse.json({ published: false, publishedAt: null, elements: [], pages: [] })
   }
-}
+})
 
 // DELETE — unpublish / revert live storefront back to classic catalog
-export async function DELETE() {
+export const DELETE = withErrors(async (_req: NextRequest) => {
   try {
     const ctx = currentTenant()
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -90,4 +91,4 @@ export async function DELETE() {
     console.error("[website-builder/publish] unpublish error", err)
     return NextResponse.json({ error: "Unpublish failed" }, { status: 500 })
   }
-}
+})
