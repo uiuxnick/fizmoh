@@ -23,7 +23,7 @@ if [[ -n "$REMOTE_HOST" ]]; then
   ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE_HOST" '
     set -euo pipefail
     echo "--- Systemd Services ---"
-    systemctl is-active fizmoh-app-3019.service fizmoh-baileys-worker.service fizmoh-chat-read.service fizmoh-cron.timer
+    systemctl is-active fizmoh-app-3019.service fizmoh-chat-read.service fizmoh-realtime.service
     echo "--- PostgreSQL Connection Budget ---"
     sudo -u postgres psql -Atc "SELECT usename, count(*) FROM pg_stat_activity GROUP BY usename ORDER BY count(*) DESC;"
     echo "--- HTTP Health Check ---"
