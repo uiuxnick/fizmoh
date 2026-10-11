@@ -843,6 +843,8 @@ export default function MarketingHome() {
           </div>
         </section>
 
+
+
         {/* ============================================================ */}
         {/* DARK STATS ROW (Optimized Contrast) */}
         {/* ============================================================ */}
@@ -1373,7 +1375,7 @@ export default function MarketingHome() {
             */}
           <img
             src="/invoice/footer.png"
-            alt=""
+            alt="Fizmoh WhatsApp Cloud API mascot"
             aria-hidden="true"
             width={300}
             height={293}

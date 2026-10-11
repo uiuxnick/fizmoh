@@ -3,7 +3,11 @@ import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo"
 
 export async function generateMetadata() {
   const { pageSeo } = await import("@/lib/seo-config")
-  return pageSeo("/pricing", "Fizmoh Pricing and Plans", "Compare Fizmoh plans, included modules, usage limits and add-ons for WhatsApp commerce and business automation.")
+  return pageSeo(
+    "/pricing",
+    "WhatsApp Business API Pricing & Plans in Oman (OMR) | Fizmoh",
+    "Transparent OMR pricing for Fizmoh WhatsApp Business Cloud API in Oman & GCC. Compare plans, AI chatbot limits, shared inbox seats, and AmwalPay checkout.",
+  )
 }
 
 export default function PricingPage() {

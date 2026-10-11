@@ -94,8 +94,6 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
   }
 
   const homeGraph = [
-    organizationEntity,
-    websiteEntity,
     {
       "@type": "SoftwareApplication",
       name: "Fizmoh WhatsApp Business Platform",

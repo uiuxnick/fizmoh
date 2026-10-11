@@ -144,9 +144,15 @@ export async function pageSeo(
    * brand — appending the site name again produced
    * "… | Fizmoh | Fizmoh WhatsApp Business Platform".
    */
-  const brand = site.siteName.split(/\s+/)[0].toLowerCase()
+  const shortBrand = site.siteName.split(/\s+/)[0] || "Fizmoh"
+  const brand = shortBrand.toLowerCase()
   const alreadyBranded = title.toLowerCase().includes(brand)
-  const fullTitle = alreadyBranded ? title : `${title} | ${site.siteName}`
+  const candidateFull = `${title} | ${site.siteName}`
+  const fullTitle = alreadyBranded
+    ? title
+    : candidateFull.length <= 65
+      ? candidateFull
+      : `${title} | ${shortBrand}`
 
   const canonicalUrl = options?.canonical || url
   // Declare language pairs only when the route supplies real translated URLs.
