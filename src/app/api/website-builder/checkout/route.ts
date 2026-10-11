@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { raw, db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { createPaymentSession } from "@/lib/amwalpay"
-import { tenantOf, withTenant } from "@/lib/tenant"
+import { currentTenant, PLATFORM, tenantOf, withTenant } from "@/lib/tenant"
 
 export const dynamic = "force-dynamic"
 
@@ -37,7 +37,7 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   const rawHost = (request.headers.get("host") || "").split(":")[0].toLowerCase()
 
-  // 1. Resolve tenant
+  // 1. Resolve tenant explicitly (never fall back to an arbitrary tenant in the database)
   let tenant: { id: string; slug: string; name: string; currency?: string | null } | null = null
 
   if (tenantSlug) {
@@ -54,8 +54,10 @@ export const POST = withErrors(async (request: NextRequest) => {
     })
   }
 
-  if (!tenant) {
-    tenant = await raw.tenant.findFirst({
+  const activeTenantId = currentTenant()?.tenantId
+  if (!tenant && activeTenantId && activeTenantId !== PLATFORM) {
+    tenant = await raw.tenant.findUnique({
+      where: { id: activeTenantId },
       select: { id: true, slug: true, name: true, currency: true },
     })
   }
@@ -93,9 +95,10 @@ export const POST = withErrors(async (request: NextRequest) => {
     },
   })
 
-  // 3. If online card payment, initiate AmwalPay session
+  // 3. If online card payment, initiate AmwalPay session inside tenant context
   if (paymentMethod === "CARD_ONLINE" || paymentMethod === "AMWALPAY") {
     const tenantCtx = await tenantOf(tenant.id)
+    let sessionError = "Online card payment is not configured for this workspace"
     if (tenantCtx) {
       const origin = resolveOrigin(request)
       const sessionResult = await withTenant(tenantCtx, async () => {
@@ -123,17 +126,20 @@ export const POST = withErrors(async (request: NextRequest) => {
           paymentMethod: "CARD_ONLINE",
         })
       }
+      if (sessionResult.error) {
+        sessionError = sessionResult.error
+      }
     }
 
-    // Fallback hosted return link if payment gateway keys are in test sandbox
-    const origin = resolveOrigin(request)
-    return NextResponse.json({
-      ok: true,
-      orderId: order.id,
-      orderNumber: orderNum,
-      checkoutUrl: `${origin}/api/amwalpay/hosted-checkout?status=pending&ref=KIT-${order.id}&amount=${totalAmount.toFixed(3)}&currency=${currency}`,
-      paymentMethod: "CARD_ONLINE",
-    })
+    return NextResponse.json(
+      {
+        ok: false,
+        orderId: order.id,
+        orderNumber: orderNum,
+        error: sessionError,
+      },
+      { status: 400 },
+    )
   }
 
   // 4. Default WhatsApp checkout

@@ -25,6 +25,8 @@ interface EmailMessage {
   subject: string
   html: string
   text?: string
+  from?: string
+  replyTo?: string
   attachments?: { filename: string; content: Buffer; contentType: string }[]
 }
 
@@ -108,7 +110,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: boole
     // The workspace's own name on the envelope, over an address that exists:
     // the SMTP user it authenticated as, or this installation's own host.
     // Never a domain assembled from the business name.
-    let fromHeader = from
+    let fromHeader = message.from || from
     if (!fromHeader) {
       const brand = await issuer()
       const { publicBaseUrl } = await import("@/lib/app-config")
@@ -123,6 +125,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ success: boole
 
     const info = await transport.sendMail({
       from: fromHeader,
+      ...(message.replyTo ? { replyTo: message.replyTo } : {}),
       to: message.to,
       subject: message.subject,
       html: message.html,
