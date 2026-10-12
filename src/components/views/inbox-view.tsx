@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { toast } from "sonner"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import {
@@ -16,12 +17,14 @@ import {
   Check, CheckCheck, AlertCircle, Image as ImageIcon, FileText, Music, Video,
   MapPin, Clock, ShieldCheck, MoreVertical, RefreshCw, Paperclip, Smile,
   Facebook, Instagram, MessagesSquare, Lock, X, CheckCircle2,
-  Languages, Mic, Copy, CornerDownLeft, CheckSquare, Square,
+  Languages, Mic, Copy, CornerDownLeft, CheckSquare, Square, Tag, ArrowLeft, Info,
+  Eye, EyeOff,
 } from "lucide-react"
 import { timeAgo } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
 import { useRealtime } from "@/lib/use-realtime"
 import { LabelPicker, AssignPicker, CannedPicker, SnoozePicker, labelClass, parseLabels, AVAILABLE_LABELS } from "@/components/views/conversation-tools"
+import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
 import { TemplatePicker } from "@/components/views/template-picker"
 import { CatalogPicker } from "@/components/views/catalog-picker"
 import { ConversationDetails } from "@/components/views/conversation-details"
@@ -46,11 +49,16 @@ interface Conversation {
   assignedStaffId?: string | null
   channel?: string
   customer: {
+    id?: string
     name: string | null
+    email?: string | null
     loyaltyTier: string
     totalBookings: number
     totalSpent: number
     tags?: any
+    customFields?: any
+    preferredLang?: string
+    whatsappOptIn?: boolean
   } | null
 }
 
@@ -113,32 +121,239 @@ interface Message {
 
 function FormattedMessageText({ text, isOutgoing }: { text: string; isOutgoing?: boolean }) {
   if (!text) return null
-  const urlRegex = /(https?:\/\/[^\s]+)/g
-  const parts = text.split(urlRegex)
+
+  // WhatsApp markdown formatting inside regular segments
+  const renderFormattedInline = (str: string, keyPrefix: string) => {
+    // URL matching
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const chunks = str.split(urlRegex)
+    return chunks.map((chunk, ci) => {
+      if (chunk.match(/^https?:\/\//i)) {
+        return (
+          <a
+            key={`${keyPrefix}-u-${ci}`}
+            href={chunk}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`underline font-semibold hover:opacity-80 break-all inline-flex items-center gap-0.5 ${
+              isOutgoing ? "text-emerald-100 hover:text-white" : "text-emerald-700 hover:text-emerald-900"
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            {chunk}
+            <ExternalLink className="h-3 w-3 inline shrink-0" />
+          </a>
+        )
+      }
+
+      // Parse WhatsApp formatting: *bold*, _italic_, ~strikethrough~
+      const formatRegex = /(\*[^*]+\*|_[^_]+_|~[^~]+~)/g
+      const subParts = chunk.split(formatRegex)
+      return subParts.map((sub, si) => {
+        if (sub.startsWith("*") && sub.endsWith("*") && sub.length > 2) {
+          return <strong key={`${keyPrefix}-b-${ci}-${si}`} className="font-bold">{sub.slice(1, -1)}</strong>
+        }
+        if (sub.startsWith("_") && sub.endsWith("_") && sub.length > 2) {
+          return <em key={`${keyPrefix}-i-${ci}-${si}`} className="italic">{sub.slice(1, -1)}</em>
+        }
+        if (sub.startsWith("~") && sub.endsWith("~") && sub.length > 2) {
+          return <del key={`${keyPrefix}-d-${ci}-${si}`} className="line-through opacity-80">{sub.slice(1, -1)}</del>
+        }
+        return sub
+      })
+    })
+  }
+
+  // Handle triple-backtick code blocks
+  const codeBlockRegex = /```([\s\S]*?)```/g
+  const parts = text.split(codeBlockRegex)
+  if (parts.length === 1) {
+    return <>{renderFormattedInline(text, "root")}</>
+  }
 
   return (
     <>
       {parts.map((part, i) => {
-        if (part.match(/^https?:\/\//i)) {
+        if (i % 2 === 1) {
           return (
-            <a
-              key={i}
-              href={part}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`underline font-semibold hover:opacity-80 break-all inline-flex items-center gap-0.5 ${
-                isOutgoing ? "text-emerald-100 hover:text-white" : "text-emerald-700 hover:text-emerald-900"
-              }`}
-              onClick={e => e.stopPropagation()}
-            >
+            <pre key={i} className={`p-1.5 rounded font-mono text-[11px] my-1 overflow-x-auto whitespace-pre-wrap ${
+              isOutgoing ? "bg-emerald-950/70 text-emerald-100" : "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200"
+            }`}>
               {part}
-              <ExternalLink className="h-3 w-3 inline shrink-0" />
-            </a>
+            </pre>
           )
         }
-        return part
+        return <span key={i}>{renderFormattedInline(part, `block-${i}`)}</span>
       })}
     </>
+  )
+}
+
+/** Authentic WhatsApp Outgoing Bubble Preview before sending */
+function WhatsAppComposerPreview({
+  text,
+  attachment,
+  onSend,
+  onClose,
+  customerName,
+  customerPhone,
+}: {
+  text: string
+  attachment: Attachment | null
+  onSend: () => void
+  onClose: () => void
+  customerName?: string | null
+  customerPhone?: string
+}) {
+  const charCount = text.length
+  const quickButtonMatches = useMemo(() => {
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
+    const buttonList: string[] = []
+    for (const line of lines) {
+      const btnMatch = line.match(/^\[(.*?)\]$/)
+      if (btnMatch && btnMatch[1]) {
+        buttonList.push(btnMatch[1].trim())
+      }
+    }
+    return buttonList
+  }, [text])
+
+  const currentTime = useMemo(() => {
+    return new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  }, [])
+
+  return (
+    <div className="rounded-2xl border border-stone-200/90 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/60 overflow-hidden shadow-md animate-in fade-in-50 duration-200">
+      {/* WhatsApp Preview Bar */}
+      <div className="px-3 py-2 bg-stone-100 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700/80 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-2xs">
+            <WhatsAppIcon className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+              <span>WhatsApp Message Preview</span>
+              <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded-full">
+                Interactive Bubble
+              </span>
+            </div>
+            <div className="text-[10px] text-stone-500 font-mono">
+              To: {customerName || (customerPhone ? formatPhoneDisplay(customerPhone) : "Customer")}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-stone-400 font-mono">
+            {charCount} chars {attachment ? "· 1 media" : ""}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+            onClick={onClose}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* WhatsApp Wallpaper Canvas */}
+      <div className="p-3 sm:p-4 bg-[#e5ddd5]/60 dark:bg-[#0c1317] bg-[radial-gradient(#0000000a_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:16px_16px]">
+        {/* Outgoing Bubble */}
+        <div className="ms-auto max-w-[92%] sm:max-w-[78%]">
+          <div className="bg-[#d9fdd3] dark:bg-[#005c4b] text-stone-900 dark:text-stone-100 rounded-2xl rounded-tr-xs p-3 shadow-xs border border-emerald-300/40 dark:border-emerald-600/40 space-y-2">
+            {/* Attachment Preview inside bubble */}
+            {attachment && (
+              <div className="rounded-xl overflow-hidden bg-black/5 dark:bg-black/20">
+                {attachment.kind === "media" && attachment.preview && (
+                  <img src={attachment.preview} alt="Attachment" className="max-h-52 w-full object-cover rounded-lg" />
+                )}
+                {attachment.kind === "media" && attachment.type === "audio" && (
+                  <div className="p-2">
+                    <MessageMedia url={attachment.url} type="audio" outgoing={true} />
+                  </div>
+                )}
+                {attachment.kind === "location" && (
+                  <div className="p-2 flex items-center gap-2 bg-emerald-800/10 rounded-lg">
+                    <MapPin className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                    <span className="text-xs font-semibold truncate">
+                      {attachment.name || "Pinned Location"} ({attachment.latitude}, {attachment.longitude})
+                    </span>
+                  </div>
+                )}
+                {attachment.kind === "media" && attachment.type !== "audio" && !attachment.preview && (
+                  <div className="p-2 flex items-center gap-2 bg-emerald-800/10 rounded-lg text-xs font-semibold">
+                    <FileText className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                    <span className="truncate">{attachment.filename || "Attached document"}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bubble Message Text */}
+            {text.trim() ? (
+              <div className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                <FormattedMessageText text={text} isOutgoing={true} />
+              </div>
+            ) : attachment ? null : (
+              <div className="text-xs italic text-stone-400">
+                (Type a reply below to preview how it will appear to customer…)
+              </div>
+            )}
+
+            {/* Simulated Interactive Quick Reply Buttons */}
+            {quickButtonMatches.length > 0 && (
+              <div className="pt-1.5 space-y-1.5 border-t border-emerald-900/10 dark:border-emerald-100/10">
+                {quickButtonMatches.map((btn, idx) => (
+                  <div
+                    key={idx}
+                    className="w-full text-center py-1.5 px-3 rounded-lg bg-white/90 dark:bg-emerald-950/70 border border-emerald-300/60 dark:border-emerald-600/50 text-xs font-bold text-emerald-800 dark:text-emerald-200 shadow-2xs"
+                  >
+                    {btn}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* WhatsApp Timestamp & Blue Read Checkmark */}
+            <div className="flex items-center justify-end gap-1 text-[10px] text-stone-500 dark:text-emerald-200/80 font-mono mt-1 select-none">
+              <span>{currentTime}</span>
+              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Preview Footer Direct Actions */}
+      <div className="px-3 py-2 bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
+        <span className="text-[11px] text-stone-500">
+          Looks good? Send directly or continue editing below.
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-7 text-xs text-stone-600 hover:text-stone-900 font-medium"
+          >
+            Close Preview
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onSend}
+            disabled={!text.trim() && !attachment}
+            className="h-7 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-2xs gap-1.5"
+          >
+            <Send className="h-3 w-3" />
+            <span>Send Now</span>
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -181,6 +396,10 @@ export default function InboxView() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const selectedIdRef = useRef(selectedId)
+  selectedIdRef.current = selectedId
+  const messageLoadSequence = useRef(0)
+  const inboxLoadSequence = useRef(0)
   const [text, setText] = useState("")
   const [loading, setLoading] = useState(true)
   const [botTyping, setBotTyping] = useState(false)
@@ -190,6 +409,8 @@ export default function InboxView() {
   const [channelFilter, setChannelFilter] = useState("all")
   const [labelFilter, setLabelFilter] = useState("all")
   const [search, setSearch] = useState("")
+  const [showPreview, setShowPreview] = useState(false)
+  const [typingMap, setTypingMap] = useState<Record<string, { who: "bot" | "customer"; expiresAt: number }>>({})
 
   const allInboxLabels = useMemo(() => {
     const fromConvos = conversations.flatMap(c => {
@@ -217,13 +438,33 @@ export default function InboxView() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedConvos, setSelectedConvos] = useState<Set<string>>(new Set())
   const [bulkActionBusy, setBulkActionBusy] = useState(false)
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false)
 
 
-  const loadConvos = () => {
-    fetch("/api/conversations")
-      .then(r => r.json())
-      .then(d => { setConversations(d.conversations || []); setLoading(false) })
-      .catch(() => setLoading(false))
+  const loadConvos = async () => {
+    const sequence = ++inboxLoadSequence.current
+    try {
+      const response = await fetch("/api/conversations")
+      if (sequence !== inboxLoadSequence.current) return
+      if (response.status === 401 || response.status === 403) {
+        setConversations([])
+        setSelectedId(null)
+        setMessages([])
+        setNotes([])
+        setSession(null)
+        return
+      }
+      if (!response.ok) return
+      const data = await response.json()
+      if (sequence === inboxLoadSequence.current && Array.isArray(data.conversations)) {
+        setConversations(data.conversations)
+      }
+    } catch {
+      // A temporary connection failure must not clear the cached inbox.
+    } finally {
+      if (sequence === inboxLoadSequence.current) setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -244,11 +485,27 @@ export default function InboxView() {
   }, [])
 
   const loadMessages = async (id: string) => {
-    const res = await fetch(`/api/conversations/${id}/messages`)
-    const data = await res.json()
-    setMessages(data.conversation?.messages || [])
-    setNotes(data.conversation?.notes || [])
-    setSession(data.session ?? null)
+    const sequence = ++messageLoadSequence.current
+    try {
+      const res = await fetch(`/api/conversations/${id}/messages`)
+      if (sequence !== messageLoadSequence.current || selectedIdRef.current !== id) return
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        setSelectedId(null)
+        setMessages([])
+        setNotes([])
+        setSession(null)
+        return
+      }
+      if (!res.ok) return
+      const data = await res.json()
+      if (sequence !== messageLoadSequence.current || selectedIdRef.current !== id) return
+      if (!Array.isArray(data.conversation?.messages)) return
+      setMessages(data.conversation.messages)
+      setNotes(data.conversation.notes || [])
+      setSession(data.session ?? null)
+    } catch {
+      // Keep the visible history while offline; the next ready frame retries.
+    }
   }
 
   const addInternalNote = async () => {
@@ -430,8 +687,10 @@ export default function InboxView() {
   }
 
   useEffect(() => {
-    if (!selectedId) return
-    loadMessages(selectedId)
+    setMessages([])
+    setNotes([])
+    setSession(null)
+    if (selectedId) void loadMessages(selectedId)
   }, [selectedId])
 
   const { focus, setFocus } = useApp()
@@ -442,15 +701,37 @@ export default function InboxView() {
   }, [focus, setFocus])
 
   useRealtime(event => {
-    if (event.type === "typing" && event.conversationId === selectedId) {
-      setBotTyping(true)
-      window.setTimeout(() => setBotTyping(false), 30000)
+    if (event.type === "typing") {
+      setTypingMap(prev => ({
+        ...prev,
+        [event.conversationId]: {
+          who: event.who,
+          expiresAt: Date.now() + 15000,
+        },
+      }))
+      if (event.conversationId === selectedId) {
+        if (event.who === "bot") {
+          setBotTyping(true)
+          window.setTimeout(() => setBotTyping(false), 20000)
+        }
+      }
       return
     }
-    if (event.type === "message") setBotTyping(false)
+    if (event.type === "message") {
+      setBotTyping(false)
+      setTypingMap(prev => {
+        if (!prev[event.conversationId]) return prev
+        const next = { ...prev }
+        delete next[event.conversationId]
+        return next
+      })
+    }
 
     loadConvos()
-    if ("conversationId" in event && event.conversationId === selectedId) loadMessages(selectedId)
+    if ("conversationId" in event && event.conversationId === selectedId) void loadMessages(selectedId)
+  }, true, () => {
+    loadConvos()
+    if (selectedId) void loadMessages(selectedId)
   })
 
   useEffect(() => {
@@ -485,14 +766,27 @@ export default function InboxView() {
       body: JSON.stringify(body),
     })
     const data = await res.json()
-    if (data.message) setMessages(prev => [...prev, data.message])
+    if (selectedIdRef.current !== selectedId) {
+      void loadConvos()
+      return
+    }
+    if (data.message) {
+      // A history request started before the send must not remove this reply.
+      messageLoadSequence.current++
+      setMessages(prev => prev.some(message => message.id === data.message.id) ? prev : [...prev, data.message])
+    }
     if (data.delivered === false) toast.error(data.error || "WhatsApp did not accept the message")
     if (data.aiResponse) {
       setBotTyping(true)
-      setTimeout(() => { setMessages(prev => [...prev, data.aiResponse]); setBotTyping(false) }, 500)
+      setTimeout(() => {
+        if (selectedIdRef.current !== selectedId) return
+        messageLoadSequence.current++
+        setMessages(prev => prev.some(message => message.id === data.aiResponse.id) ? prev : [...prev, data.aiResponse])
+        setBotTyping(false)
+      }, 500)
     }
-    setText("")
-    setAttachment(null)
+    setText(current => current === content ? "" : current)
+    setAttachment(current => current === attachment ? null : current)
     loadConvos()
   }
 
@@ -555,7 +849,9 @@ export default function InboxView() {
   return (
     <div className="flex h-full w-full overflow-hidden bg-stone-100/50">
       {/* ── Left Conversation List (Fixed header, scrollable contact numbers) ── */}
-      <div className="w-full md:w-84 lg:w-96 border-r border-stone-200/90 bg-white flex flex-col h-full overflow-hidden shrink-0">
+      <div className={`w-full md:w-84 lg:w-96 border-r border-stone-200/90 bg-white flex flex-col h-full overflow-hidden shrink-0 ${
+        selected ? "hidden md:flex" : "flex"
+      }`}>
         {/* Header & Search */}
         <div data-tour="inbox-filter-chips" className="p-3.5 border-b border-stone-200/80 bg-stone-50/50 space-y-2.5 shrink-0">
           <div className="flex items-center justify-between">
@@ -605,16 +901,36 @@ export default function InboxView() {
                 </button>
               )}
             </div>
-            <select
-              value={labelFilter}
-              onChange={e => setLabelFilter(e.target.value)}
-              className="text-xs border border-stone-200 rounded-xl px-2.5 py-1 bg-white font-medium text-stone-700 h-8.5 max-w-[125px] truncate shrink-0 shadow-2xs"
-            >
-              <option value="all">All Labels</option>
-              {allInboxLabels.map(l => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1 shrink-0">
+              <select
+                value={labelFilter}
+                onChange={e => {
+                  if (e.target.value === "__manage__") {
+                    setManageLabelsOpen(true)
+                  } else {
+                    setLabelFilter(e.target.value)
+                  }
+                }}
+                className="text-xs border border-stone-200 rounded-xl px-2.5 py-1 bg-white font-medium text-stone-700 h-8.5 max-w-[130px] truncate shadow-2xs"
+              >
+                <option value="all">All Labels</option>
+                {allInboxLabels.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+                <option value="__manage__">⚙️ Manage Labels...</option>
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setManageLabelsOpen(true)}
+                className="h-8.5 px-2.5 text-xs text-stone-700 hover:text-stone-900 border-stone-200 bg-white hover:bg-stone-50 shadow-2xs font-semibold rounded-xl flex items-center gap-1.5"
+                title="Manage workspace labels (create, modify, delete)"
+              >
+                <Tag className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Manage Labels</span>
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
@@ -688,6 +1004,7 @@ export default function InboxView() {
                 const isSelected = selectedId === c.id
                 const isChecked = selectedConvos.has(c.id)
                 const isSnoozed = c.status === "SNOOZED"
+                const isTyping = typingMap[c.id] && typingMap[c.id].expiresAt > Date.now()
                 return (
                   <div
                     key={c.id}
@@ -773,9 +1090,20 @@ export default function InboxView() {
                           </div>
                         </div>
 
-                        <p className="text-xs text-stone-500 truncate leading-relaxed">
-                          {previewText(c.lastMessageText)}
-                        </p>
+                        {isTyping ? (
+                          <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-pulse">
+                            <span className="flex gap-0.5 items-center">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                            </span>
+                            <span>{typingMap[c.id].who === "customer" ? "Typing…" : "AI typing…"}</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-stone-500 truncate leading-relaxed">
+                            {previewText(c.lastMessageText)}
+                          </p>
+                        )}
 
                         <div className="flex items-center justify-between gap-1 mt-1.5">
                           <div className="flex items-center gap-1 overflow-hidden">
@@ -866,7 +1194,9 @@ export default function InboxView() {
       </div>
 
       {/* ── Center Chat Pane (Screen stays stuck, messages scroll) ── */}
-      <div className="hidden md:flex flex-1 flex-col h-full min-w-0 overflow-hidden bg-white">
+      <div className={`${
+        selected ? "flex" : "hidden md:flex"
+      } flex-1 flex-col h-full min-w-0 overflow-hidden bg-white`}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center bg-stone-50/50 p-6">
             <div className="text-center max-w-sm">
@@ -882,10 +1212,21 @@ export default function InboxView() {
         ) : (
           <>
             {/* Chat Top Header */}
-            <div className="px-5 py-3.5 border-b border-stone-200/80 bg-white flex items-center justify-between shadow-2xs z-10 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="px-3 sm:px-5 py-3 border-b border-stone-200/80 bg-white flex items-center justify-between shadow-2xs z-10 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                {/* Back button for mobile viewports */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden h-8 w-8 rounded-lg shrink-0 text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+                  onClick={() => setSelectedId(null)}
+                  title="Back to conversation list"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+
                 <div className="relative shrink-0">
-                  <Avatar className="h-10 w-10 rounded-2xl border border-stone-200 shadow-2xs">
+                  <Avatar className="h-9 w-9 sm:h-10 sm:w-10 rounded-2xl border border-stone-200 shadow-2xs">
                     <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
                       {avatarInitial(displayIdentity(selected))}
                     </AvatarFallback>
@@ -989,7 +1330,19 @@ export default function InboxView() {
                 <SnoozePicker conversationId={selected.id} status={selected.status} onChanged={loadConvos} />
                 <ChatTrainingModal conversationId={selected.id} />
 
-                <div data-tour="inbox-bot-toggle" className="flex items-center gap-1.5 pl-2 border-l border-stone-200 ml-1">
+                {/* Details Sheet Trigger for tablets & mobile (<lg) */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="lg:hidden h-7 px-2 text-xs font-semibold gap-1 text-stone-700 border-stone-200 hover:bg-stone-50"
+                  onClick={() => setMobileDetailsOpen(true)}
+                  title="View customer details and CRM notes"
+                >
+                  <Info className="h-3.5 w-3.5 text-stone-500" />
+                  <span className="hidden sm:inline">Details</span>
+                </Button>
+
+                <div data-tour="inbox-bot-toggle" className="flex items-center gap-1.5 ps-2 border-s border-stone-200 ms-1">
                   <span className="text-xs font-semibold text-stone-600">AI</span>
                   <Switch
                     checked={selected.botActive && !selected.automationPaused}
@@ -1244,13 +1597,13 @@ export default function InboxView() {
                       {/* Message Text Content & Real-time Translation */}
                       {displayText && !isPlaceholder && (
                         <div className="space-y-1">
-                          <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap">
+                          <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                             <FormattedMessageText text={displayText} isOutgoing={outgoing} />
                           </p>
 
                           {/* Inline Translation Display */}
                           {translations[m.id] ? (
-                            <div className={`mt-1.5 p-2 rounded-lg text-xs border ${
+                            <div className={`mt-1.5 p-2 rounded-lg text-xs border break-words [overflow-wrap:anywhere] ${
                               outgoing
                                 ? "bg-emerald-950/60 border-emerald-600/40 text-emerald-100"
                                 : "bg-stone-50 border-stone-200 text-stone-800"
@@ -1377,16 +1730,49 @@ export default function InboxView() {
                 )
               })}
 
-              {botTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-stone-200 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 shadow-xs">
-                    <span className="text-xs font-semibold text-stone-500 mr-1">{assistantName} is typing</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              )}
+              {(() => {
+                const currentTyping = selectedId ? typingMap[selectedId] : null
+                const isCustomerTyping = currentTyping && currentTyping.who === "customer" && currentTyping.expiresAt > Date.now()
+                const isAiTyping = botTyping || (currentTyping && currentTyping.who === "bot" && currentTyping.expiresAt > Date.now())
+
+                if (isCustomerTyping) {
+                  return (
+                    <div className="flex justify-start">
+                      <div className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl px-3.5 py-2 flex items-center gap-2 shadow-xs">
+                        <Avatar className="h-5 w-5 rounded-full border border-stone-200">
+                          <AvatarFallback className="text-[9px] font-bold bg-stone-200 text-stone-700">
+                            {avatarInitial(displayIdentity(selected))}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                          {displayIdentity(selected)} is typing
+                        </span>
+                        <span className="flex items-center gap-0.5 ms-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isAiTyping) {
+                  return (
+                    <div className="flex justify-start">
+                      <div className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl px-4 py-2.5 flex items-center gap-1.5 shadow-xs">
+                        <Bot className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 mr-1">{assistantName} is typing</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  )
+                }
+
+                return null
+              })()}
             </div>
 
             {/* Agent Message Composer */}
@@ -1422,7 +1808,23 @@ export default function InboxView() {
                 </div>
 
                 {composerMode === "reply" && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview(!showPreview)}
+                      className={`h-7 text-xs font-medium shrink-0 transition-all ${
+                        showPreview
+                          ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-2xs"
+                          : "border-stone-200 text-stone-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                      }`}
+                      title={showPreview ? "Hide WhatsApp message preview" : "Live preview in WhatsApp bubble layout"}
+                    >
+                      <WhatsAppIcon className="h-3.5 w-3.5 me-1" />
+                      <span>{showPreview ? "Hide Preview" : "WhatsApp Preview"}</span>
+                    </Button>
+
                     <Button
                       type="button"
                       variant="outline"
@@ -1563,6 +1965,23 @@ export default function InboxView() {
                 )
               })()}
 
+              {/* WhatsApp Live Bubble Preview */}
+              {showPreview && composerMode === "reply" && (
+                <div className="mb-2">
+                  <WhatsAppComposerPreview
+                    text={text}
+                    attachment={attachment}
+                    onSend={() => {
+                      send(text, "OUTBOUND")
+                      setShowPreview(false)
+                    }}
+                    onClose={() => setShowPreview(false)}
+                    customerName={selected.customerName || selected.customer?.name}
+                    customerPhone={selected.customerPhone}
+                  />
+                </div>
+              )}
+
               {composerMode === "note" ? (
                 /* Internal Note Composer */
                 <div className="flex items-center gap-2">
@@ -1657,7 +2076,7 @@ export default function InboxView() {
                         setSlashActiveIdx(0)
                       }}
                       placeholder={attachment ? "Add a caption, or send directly…" : "Type a reply, or type / for quick replies..."}
-                      className="h-10 text-xs sm:text-sm bg-stone-50/70 border-stone-200 rounded-xl pl-3.5 pr-10 focus-visible:ring-emerald-500"
+                      className="h-10 text-base sm:text-sm bg-stone-50/70 border-stone-200 rounded-xl ps-3.5 pe-10 focus-visible:ring-emerald-500"
                       onKeyDown={e => {
                         if (isSlash && filteredCanned.length > 0) {
                           if (e.key === "ArrowDown") {
@@ -1709,17 +2128,45 @@ export default function InboxView() {
 
       {/* ── Right Customer Details & CRM Panel (Details & notes scroll) ── */}
       {selected && (
-        <div data-tour="inbox-customer-drawer" className="hidden lg:flex w-80 lg:w-88 shrink-0 border-l border-stone-200/80 bg-white flex-col h-full overflow-hidden">
-          <ConversationDetails
-            conversation={selected as never}
-            session={session}
-            onChanged={() => {
-              loadConvos()
-              if (selectedId) loadMessages(selectedId)
-            }}
-          />
-        </div>
+        <>
+          <div data-tour="inbox-customer-drawer" className="hidden lg:flex w-80 lg:w-88 shrink-0 border-s border-stone-200/80 bg-white flex-col h-full overflow-hidden">
+            <ConversationDetails
+              conversation={selected as never}
+              session={session}
+              onChanged={() => {
+                loadConvos()
+                if (selectedId) loadMessages(selectedId)
+              }}
+            />
+          </div>
+
+          {/* Off-canvas Sheet for screens < lg (mobile & tablet) */}
+          <Sheet open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
+            <SheetContent side="right" className="w-full sm:max-w-md p-0 h-full overflow-hidden bg-white">
+              <div className="h-full flex flex-col pt-6">
+                <ConversationDetails
+                  conversation={selected as never}
+                  session={session}
+                  onChanged={() => {
+                    loadConvos()
+                    if (selectedId) loadMessages(selectedId)
+                  }}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </>
       )}
+
+      {/* Workspace Label Management Dialog */}
+      <LabelManagerDialog
+        open={manageLabelsOpen}
+        onOpenChange={setManageLabelsOpen}
+        onLabelsChanged={() => {
+          loadConvos()
+          if (selectedId) loadMessages(selectedId)
+        }}
+      />
     </div>
   )
 }
