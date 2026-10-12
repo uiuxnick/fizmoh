@@ -76,7 +76,7 @@ export async function siteSeo(): Promise<ResolvedSeo> {
     description: description || DEFAULT_DESCRIPTION,
     keywords: keywords ? splitKeywords(keywords) : [...KEYWORDS_EN, ...KEYWORDS_AR],
     ogImage: ogImage || DEFAULT_OG_IMAGE,
-    twitterHandle: twitter || "",
+    twitterHandle: twitter || "@fizmohcloud",
     googleSiteVerification: googleVerify || process.env.GOOGLE_SITE_VERIFICATION || "",
     bingSiteVerification: bingVerify || "",
   }
@@ -177,6 +177,8 @@ export async function pageSeo(
       siteName: site.siteName,
       title: fullTitle,
       description,
+      locale: "en_US",
+      alternateLocale: ["ar_OM", "ar_SA", "ar_AE"],
       images: [{ url: absoluteUrl(ogImage), width: 1200, height: 630, alt: `${title} — ${site.siteName}` }],
     },
     twitter: {

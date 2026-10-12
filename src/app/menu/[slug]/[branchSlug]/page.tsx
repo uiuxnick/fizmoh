@@ -1,10 +1,56 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { raw } from "@/lib/db"
+import { absoluteUrl } from "@/lib/seo"
 import CustomerMenu from "@/components/restaurant/customer-menu"
 
 interface PageProps {
   params: Promise<{ slug: string; branchSlug: string }>
   searchParams: Promise<{ tableToken?: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug, branchSlug } = await params
+  const tenant = await raw.tenant
+    .findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true, logoUrl: true },
+    })
+    .catch(() => null)
+  const branch = tenant
+    ? await raw.restaurantBranch
+        .findFirst({
+          where: { tenantId: tenant.id, slug: branchSlug, isActive: true },
+          select: { name: true },
+        })
+        .catch(() => null)
+    : null
+  const label = tenant?.name
+    ? branch?.name
+      ? `${tenant.name} (${branch.name})`
+      : tenant.name
+    : "Restaurant"
+  const title = `${label} — Digital Menu & Online Ordering`
+  const description = `Browse the live digital menu and place your order online at ${label}.`
+  const canonical = absoluteUrl(`/menu/${slug}/${branchSlug}`)
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      url: canonical,
+      title,
+      description,
+      ...(tenant?.logoUrl ? { images: [{ url: tenant.logoUrl, alt: label }] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(tenant?.logoUrl ? { images: [tenant.logoUrl] } : {}),
+    },
+  }
 }
 
 export default async function BranchMenuPage({ params, searchParams }: PageProps) {

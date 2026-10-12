@@ -1,10 +1,45 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { raw } from "@/lib/db"
+import { absoluteUrl } from "@/lib/seo"
 import CustomerMenu from "@/components/restaurant/customer-menu"
 
 interface PageProps {
   params: Promise<{ slug: string }>
   searchParams: Promise<{ tableToken?: string; branch?: string; q?: string; item?: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const tenant = await raw.tenant
+    .findUnique({
+      where: { slug },
+      select: { name: true, slug: true, logoUrl: true },
+    })
+    .catch(() => null)
+  const title = tenant?.name ? `${tenant.name} — Digital Menu & Online Ordering` : "Digital Menu & Ordering"
+  const description = tenant?.name
+    ? `Browse the live digital menu and place your order online at ${tenant.name}.`
+    : "Browse our digital menu and order directly from your table or phone."
+  const canonical = absoluteUrl(`/menu/${slug}`)
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      url: canonical,
+      title,
+      description,
+      ...(tenant?.logoUrl ? { images: [{ url: tenant.logoUrl, alt: tenant.name }] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(tenant?.logoUrl ? { images: [tenant.logoUrl] } : {}),
+    },
+  }
 }
 
 export default async function TenantMenuPage({ params, searchParams }: PageProps) {

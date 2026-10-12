@@ -1,6 +1,12 @@
 import { mock } from 'bun:test'
 import assert from 'node:assert/strict'
 mock.module('@/lib/app-config', () => ({ getConfigValue: async () => '' }))
+mock.module('next/font/google', () => ({
+  DM_Sans: () => ({ variable: '--font-dm-sans' }),
+  Plus_Jakarta_Sans: () => ({ variable: '--font-plus-jakarta' }),
+  Instrument_Serif: () => ({ variable: '--font-instrument-serif' }),
+  Cairo: () => ({ variable: '--font-cairo' }),
+}))
 const { pageSeo } = await import('../../src/lib/seo-config')
 const resource = await pageSeo('/resources/support', 'Technical support', 'Get help')
 assert.equal(resource.alternates?.canonical, 'https://app.fizmoh.cloud/resources/support')
@@ -26,4 +32,17 @@ const rootGraph = JSON.parse(rootLd.props.dangerouslySetInnerHTML.__html)['@grap
 const homeGraph = JSON.parse(homeLd.props.dangerouslySetInnerHTML.__html)['@graph']
 assert.deepEqual(rootGraph.map((n: { '@type': string }) => n['@type']), ['Organization', 'WebSite'])
 assert.deepEqual(homeGraph.map((n: { '@type': string }) => n['@type']), ['SoftwareApplication', 'FAQPage'])
-console.log('Canonical, title length, pricing metadata, and JSON-LD deduplication passed')
+
+assert.equal(muscat.openGraph?.locale, 'en_US')
+assert.deepEqual(muscat.openGraph?.alternateLocale, ['ar_OM', 'ar_SA', 'ar_AE'])
+assert.equal((muscat.twitter as { site?: string })?.site, '@fizmohcloud')
+
+const { generateMetadata: generateRootMetadata } = await import('../../src/app/layout')
+const rootMeta = await generateRootMetadata()
+assert.equal(rootMeta.manifest, '/manifest.webmanifest')
+assert.ok(rootMeta.icons)
+
+const { generateMetadata: generateMenuMetadata } = await import('../../src/app/menu/[slug]/page')
+const menuMeta = await generateMenuMetadata({ params: Promise.resolve({ slug: 'demo-bistro' }), searchParams: Promise.resolve({}) })
+assert.equal(menuMeta.alternates?.canonical, 'https://app.fizmoh.cloud/menu/demo-bistro')
+console.log('Canonical, title length, pricing metadata, icons/manifest, og:locale, twitter:site, and JSON-LD deduplication passed')
