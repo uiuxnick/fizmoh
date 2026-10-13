@@ -1160,7 +1160,30 @@ export async function flowWouldMatch(ctx: FlowContext): Promise<boolean> {
       }
     } catch {}
   }
-  return flows.some(f => triggerMatches(f, ctx))
+  if (flows.some(f => triggerMatches(f, ctx))) return true
+
+  // Check if message matches any active or upcoming course in tenant catalog
+  try {
+    const { getTenantCourses } = await import("@/lib/training-service")
+    const courses = await getTenantCourses(ctx.tenantId).catch(() => [])
+    const cleanMsg = (ctx.message || "").trim().toLowerCase()
+    const matchesCourse = courses.some(c => {
+      const kw = (c.keyword || "").trim().toLowerCase()
+      if (!kw) return false
+      return kw.length <= 3 ? new RegExp(`\\b${kw}\\b`, "i").test(cleanMsg) : cleanMsg.includes(kw)
+    })
+    if (matchesCourse && flows.some(f =>
+      f.isActive && (
+        f.name.toLowerCase().includes("training") ||
+        f.name.toLowerCase().includes("tanfidh") ||
+        JSON.stringify(f.nodes).includes("payment_receipt")
+      )
+    )) {
+      return true
+    }
+  } catch {}
+
+  return false
 }
 
 export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
@@ -1179,9 +1202,40 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
     } catch {}
   }
 
+  // Load tenant courses for dynamic keyword matching and routing
+  const { getTenantCourses } = await import("@/lib/training-service")
+  const tenantCourses = await getTenantCourses(ctx.tenantId).catch(() => [])
+  const cleanMsg = (ctx.message || "").trim().toLowerCase()
+
+  const matchedCourse = tenantCourses.find(c => {
+    const kw = (c.keyword || "").trim().toLowerCase()
+    const slug = (c.slug || "").trim().toLowerCase()
+    const short = (c.shortTitle || "").trim().toLowerCase()
+    return (kw && (kw.length <= 3 ? new RegExp(`\\b${kw}\\b`, "i").test(cleanMsg) : cleanMsg.includes(kw))) ||
+           (slug && cleanMsg.includes(slug)) ||
+           (short && cleanMsg.includes(short))
+  })
+
   // Specific keyword or intent matches take precedence over generic catch-alls (e.g. matchType: "any")
   const specificFlow = flows.find(f => isSpecificMatch(f) && triggerMatches(f, ctx))
-  const flow = specificFlow || flows.find(f => triggerMatches(f, ctx))
+  let flow = specificFlow || flows.find(f => triggerMatches(f, ctx))
+
+  // If no static flow matched directly, check if message matched an upcoming or existing course keyword
+  if (!flow && matchedCourse) {
+    if (matchedCourse.botFlowId) {
+      flow = flows.find(f => f.id === matchedCourse.botFlowId && f.isActive)
+    }
+    if (!flow) {
+      flow = flows.find(f =>
+        f.isActive && (
+          f.name.toLowerCase().includes("training") ||
+          f.name.toLowerCase().includes("tanfidh") ||
+          JSON.stringify(f.nodes).includes("payment_receipt")
+        )
+      )
+    }
+  }
+
   if (!flow) return { matched: false }
 
   // Handle training masterclass flow personalization
@@ -1217,7 +1271,18 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
         const msgLower = (ctx.message || "").toLowerCase().trim()
         const buttonId = (ctx.buttonId || "").toLowerCase().trim()
 
+        const isDynamicCourseMatch = tenantCourses.some(c => {
+          const kw = (c.keyword || "").trim().toLowerCase()
+          const slug = (c.slug || "").trim().toLowerCase()
+          const short = (c.shortTitle || "").trim().toLowerCase()
+          if (kw && (kw.length <= 3 ? new RegExp(`\\b${kw}\\b`, "i").test(ctx.message) : msgLower.includes(kw))) return true
+          if (slug && msgLower.includes(slug)) return true
+          if (short && (short.length <= 3 ? new RegExp(`\\b${short}\\b`, "i").test(ctx.message) : msgLower.includes(short))) return true
+          return false
+        })
+
         const isExplicitCourseKeyword =
+          isDynamicCourseMatch ||
           /\b(strategy|strateg|bsc|kpi|perf|performance|exec|execution|se_bsc|sebsc|courses?|masterclass|training|curriculum|دورة|دورات|كورس|استراتيجية)\b/i.test(ctx.message)
 
         const wantsCurrentBooking =
@@ -1339,7 +1404,6 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
   }
 
   // Check if customer explicitly requested a specific course by keyword or clicked "Test ->" from the course card
-  const cleanMsg = ctx.message.trim().toLowerCase()
   let specificCourseStartId: string | undefined
   const initialAnswers: Record<string, string> = {}
 
@@ -1362,6 +1426,22 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
     } else if (/\b(se_bsc|se-bsc|sebsc)\b/i.test(cleanMsg)) {
       specificCourseStartId = nodes.find(n => n.id === "card_se_bsc_details")?.id
       initialAnswers.selected_course_id = "course_se_bsc"
+    } else if (matchedCourse) {
+      // Dynamic routing for any upcoming or custom course
+      const dynamicCardNode = nodes.find(n =>
+        n.id === `card_${matchedCourse.id}_details` ||
+        n.id === `card_${matchedCourse.slug}_details` ||
+        n.id === `card_${(matchedCourse.keyword || "").toLowerCase().replace(/[^a-z0-9]/g, "_")}_details` ||
+        (n.data as any)?.courseId === matchedCourse.id
+      )
+      if (dynamicCardNode) {
+        specificCourseStartId = dynamicCardNode.id
+      } else {
+        const coursesList = nodes.find(n => n.id === "courses_list")
+        if (coursesList) specificCourseStartId = "courses_list"
+      }
+      initialAnswers.selected_course_id = matchedCourse.id
+      initialAnswers.course_name = matchedCourse.name
     }
   }
 

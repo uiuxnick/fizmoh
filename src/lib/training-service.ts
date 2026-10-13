@@ -219,6 +219,44 @@ export async function saveTenantCourse(tenantId: string, courseData: Partial<Cou
     }),
   ])
 
+  // Automatically sync course keyword into linked BotFlow and training assistant flow triggers
+  if (fullCourse.keyword && fullCourse.keyword.trim()) {
+    try {
+      const cleanKeyword = fullCourse.keyword.trim()
+      const targetFlows = await db.botFlow.findMany({
+        where: {
+          tenantId: tid,
+          isActive: true,
+          OR: [
+            ...(fullCourse.botFlowId ? [{ id: fullCourse.botFlowId }] : []),
+            { name: { contains: "training", mode: "insensitive" } },
+            { name: { contains: "tanfidh", mode: "insensitive" } },
+          ],
+        },
+      })
+
+      for (const flow of targetFlows) {
+        const config = (flow.triggerConfig || {}) as any
+        const existingKeywords: string[] = Array.isArray(config.keywords) ? config.keywords : []
+        const hasKeyword = existingKeywords.some(k => k.toLowerCase() === cleanKeyword.toLowerCase())
+        if (!hasKeyword) {
+          const updatedKeywords = [...existingKeywords, cleanKeyword]
+          await db.botFlow.update({
+            where: { id: flow.id },
+            data: {
+              triggerConfig: {
+                ...config,
+                keywords: updatedKeywords,
+              },
+            },
+          })
+        }
+      }
+    } catch (err) {
+      console.warn("[training] Failed to sync course keyword to bot flow trigger:", err)
+    }
+  }
+
   return fullCourse
 }
 

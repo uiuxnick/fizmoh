@@ -274,5 +274,47 @@ describe("BotFlow Comprehensive Engine & Validator Audit", () => {
       const chosenFlow = specificFlow || flows.find(f => triggerMatches(f, ctx))
       expect(chosenFlow?.id).toBe("f_specific")
     })
+
+    it("verifies dynamic course catalog keywords match for all current and upcoming courses", () => {
+      // Catalog containing 6 existing courses + 2 upcoming courses
+      const catalog = [
+        { id: "course_bsc", keyword: "BSC", name: "Balanced Scorecard" },
+        { id: "course_strategy", keyword: "STRATEGY PRO", name: "Certified Strategy Professional" },
+        { id: "course_kpi", keyword: "KPI", name: "Certified KPI Professional" },
+        { id: "course_perf", keyword: "PERFORMANCE", name: "Performance Management Professional" },
+        { id: "course_exec", keyword: "EXECUTION", name: "Strategy Execution Professional" },
+        { id: "course_se_bsc", keyword: "SEBSC", name: "Strategy Execution BSC" },
+        // Future / Upcoming courses added dynamically
+        { id: "course_upcoming_cfo", keyword: "CFO PRO", name: "Chief Financial Officer Masterclass" },
+        { id: "course_upcoming_ai", keyword: "AI DATA", name: "AI & Data Leadership" },
+      ]
+
+      const checkExplicitCourseKeyword = (msg: string) => {
+        const cleanMsg = msg.toLowerCase().trim()
+        const isDynamicMatch = catalog.some(c => {
+          const kw = (c.keyword || "").trim().toLowerCase()
+          if (!kw) return false
+          return kw.length <= 3 ? new RegExp(`\\b${kw}\\b`, "i").test(cleanMsg) : cleanMsg.includes(kw)
+        })
+        const isStaticMatch = /\b(strategy|strateg|bsc|kpi|perf|performance|exec|execution|se_bsc|sebsc|courses?|masterclass|training|curriculum|دورة|دورات|كورس|استراتيجية)\b/i.test(msg)
+        return isDynamicMatch || isStaticMatch
+      }
+
+      // Current courses
+      expect(checkExplicitCourseKeyword("STRATEGY PRO")).toBe(true)
+      expect(checkExplicitCourseKeyword("bsc")).toBe(true)
+      expect(checkExplicitCourseKeyword("kpi")).toBe(true)
+      expect(checkExplicitCourseKeyword("performance")).toBe(true)
+      expect(checkExplicitCourseKeyword("execution")).toBe(true)
+      expect(checkExplicitCourseKeyword("sebsc")).toBe(true)
+
+      // Upcoming courses (not in any hardcoded regex)
+      expect(checkExplicitCourseKeyword("CFO PRO")).toBe(true)
+      expect(checkExplicitCourseKeyword("I want AI DATA")).toBe(true)
+
+      // Random greetings or normal messages should NOT match
+      expect(checkExplicitCourseKeyword("hello")).toBe(false)
+      expect(checkExplicitCourseKeyword("hi there")).toBe(false)
+    })
   })
 })
