@@ -1333,11 +1333,38 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
     }
   }
 
+  // Check if customer explicitly requested a specific course by keyword or clicked "Test ->" from the course card
+  const cleanMsg = ctx.message.trim().toLowerCase()
+  let specificCourseStartId: string | undefined
+  const initialAnswers: Record<string, string> = {}
+
+  if (isTrainingFlow) {
+    if (/\b(strategy|strateg|استراتيجية)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_strategy_details")?.id
+      initialAnswers.selected_course_id = "course_strategy"
+    } else if (/\b(bsc|balanced\s*scorecard|بطاقة\s*الأداء)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_bsc_details")?.id
+      initialAnswers.selected_course_id = "course_bsc"
+    } else if (/\b(kpi|kpis|مؤشرات)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_kpi_details")?.id
+      initialAnswers.selected_course_id = "course_kpi"
+    } else if (/\b(perf|performance|اداء|أداء)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_perf_details")?.id
+      initialAnswers.selected_course_id = "course_perf"
+    } else if (/\b(exec|execution|تنفيذ)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_exec_details")?.id
+      initialAnswers.selected_course_id = "course_exec"
+    } else if (/\b(se_bsc|se-bsc|sebsc)\b/i.test(cleanMsg)) {
+      specificCourseStartId = nodes.find(n => n.id === "card_se_bsc_details")?.id
+      initialAnswers.selected_course_id = "course_se_bsc"
+    }
+  }
+
   // Check if customer explicitly requested course list or training catalog
   const isCourseQuery = /courses?|masterclass(es)?|programs?|training|curriculum|دورات|دورة|كورس/i.test(ctx.message)
   const coursesNode = nodes.find(n => n.id === "courses_list")
-  const startId = isCourseQuery && coursesNode ? "courses_list" : (nodes.find(n => n.type === "TRIGGER") ?? nodes[0]).id
-  return walk(ctx, flow, startId, {})
+  const startId = specificCourseStartId || (isCourseQuery && coursesNode ? "courses_list" : (nodes.find(n => n.type === "TRIGGER") ?? nodes[0]).id)
+  return walk(ctx, flow, startId, initialAnswers)
 }
 
 /**
