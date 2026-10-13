@@ -1217,6 +1217,9 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
         const msgLower = (ctx.message || "").toLowerCase().trim()
         const buttonId = (ctx.buttonId || "").toLowerCase().trim()
 
+        const isExplicitCourseKeyword =
+          /\b(strategy|strateg|bsc|kpi|perf|performance|exec|execution|se_bsc|sebsc|courses?|masterclass|training|curriculum|دورة|دورات|كورس|استراتيجية)\b/i.test(ctx.message)
+
         const wantsCurrentBooking =
           buttonId === "btn_view_existing_reg" ||
           msgLower === "current booking" ||
@@ -1294,39 +1297,41 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
           return { matched: true, handledBy: "Existing Registration View" }
         }
 
-        // Customer has an existing registration — ask if they want to view current or book new
-        const statusLabel = existingReg.status === "CONFIRMED" || existingReg.paymentStatus === "PAID" ? "Confirmed" : "Submitted"
-        const promptBody = [
-          `🎓 *Welcome back, ${existingReg.customerName || "Executive"}!*`,
-          ``,
-          `You already have a registered booking for:`,
-          `*${existingReg.courseName}*`,
-          `📌 Ref: *${existingReg.registrationNumber}* (${statusLabel})`,
-          ``,
-          `Would you like to continue with your current booking or book a new masterclass?`,
-        ].join("\n")
+        // Only interrupt with existing registration prompt if customer sends a general greeting, NOT an explicit course keyword like STRATEGY PRO
+        if (!isExplicitCourseKeyword) {
+          const statusLabel = existingReg.status === "CONFIRMED" || existingReg.paymentStatus === "PAID" ? "Confirmed" : "Submitted"
+          const promptBody = [
+            `🎓 *Welcome back, ${existingReg.customerName || "Executive"}!*`,
+            ``,
+            `You already have a registered booking for:`,
+            `*${existingReg.courseName}*`,
+            `📌 Ref: *${existingReg.registrationNumber}* (${statusLabel})`,
+            ``,
+            `Would you like to continue with your current booking or book a new masterclass?`,
+          ].join("\n")
 
-        await sendInteractiveMessage({
-          to: ctx.customerPhone,
-          body: promptBody,
-          buttons: [
-            { id: "btn_view_existing_reg", title: "Current Booking" },
-            { id: "btn_book_new_course", title: "Book New Course" },
-          ],
-        })
+          await sendInteractiveMessage({
+            to: ctx.customerPhone,
+            body: promptBody,
+            buttons: [
+              { id: "btn_view_existing_reg", title: "Current Booking" },
+              { id: "btn_book_new_course", title: "Book New Course" },
+            ],
+          })
 
-        await db.message.create({
-          data: {
-            conversationId: ctx.conversationId,
-            customerId: ctx.customerId,
-            direction: "BOT",
-            type: "TEXT",
-            content: promptBody,
-            status: "SENT",
-          },
-        })
+          await db.message.create({
+            data: {
+              conversationId: ctx.conversationId,
+              customerId: ctx.customerId,
+              direction: "BOT",
+              type: "TEXT",
+              content: promptBody,
+              status: "SENT",
+            },
+          })
 
-        return { matched: true, handledBy: "Already Booked Prompt" }
+          return { matched: true, handledBy: "Already Booked Prompt" }
+        }
       }
     } catch (err) {
       console.warn("[botflow] Error checking confirmed registration in runBotFlows:", err)
