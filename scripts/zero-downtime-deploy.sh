@@ -102,6 +102,7 @@ ssh $SSH_OPTS "$HOST" "
   echo '→ Running automated enhancement test suite...'
   bun test tests/omnichannel-crm-enhancements.test.ts
   bun test tests/ai-and-hardcoded-flow-toggle.test.ts
+  bun test tests/botflow-comprehensive.test.ts
 
   echo '→ Building Next.js standalone application...'
   bun run build
