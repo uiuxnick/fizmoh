@@ -123,6 +123,16 @@ function asObject(value: unknown): Record<string, any> {
   }
 }
 
+export function isSpecificMatch(flow: { trigger: string; triggerConfig: unknown }): boolean {
+  if (flow.trigger === "ALWAYS") return false
+  const config = asObject(flow.triggerConfig) as { keywords?: string[]; matchType?: string }
+  if (flow.trigger === "KEYWORD") {
+    if (config.matchType === "any") return false
+    return Array.isArray(config.keywords) && config.keywords.length > 0
+  }
+  return flow.trigger === "INTENT"
+}
+
 export function triggerMatches(flow: { trigger: string; triggerConfig: unknown }, ctx: FlowContext): boolean {
   const selected = asObject(flow.triggerConfig).channels
   const channels = Array.isArray(selected) ? selected : ["WHATSAPP"]
@@ -898,6 +908,17 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
     return { matched: true, handledBy: flow.name, handoff: false }
   }
 
+  // Check if the customer sent a keyword explicitly triggering another active flow in the workspace
+  const activeFlows = await db.botFlow.findMany({
+    where: { tenantId: ctx.tenantId, isActive: true, trigger: { in: ["KEYWORD", "INTENT", "ALWAYS"] } },
+    orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+  })
+  const otherMatchingFlow = activeFlows.find(f => isSpecificMatch(f) && f.id !== session.flowId && triggerMatches(f, ctx))
+  if (otherMatchingFlow) {
+    await db.conversation.update({ where: { id: ctx.conversationId }, data: { flowState: Prisma.DbNull } })
+    return { matched: false }
+  }
+
   // ── 1. Executive One-Shot Entity Extraction ──
   try {
     const { extractExecutiveDetails } = await import("@/lib/executive-extractor")
@@ -926,6 +947,12 @@ export async function resumeFlow(ctx: FlowContext): Promise<FlowResult> {
 
   const checked = validateAnswer(node, ctx.message, ctx.customerPhone)
   if (!checked.ok) {
+    // If the answer is invalid for this step, check if the input matches ANY flow's specific keyword trigger (switching flows or restarting)
+    const matchingTriggerFlow = activeFlows.find(f => isSpecificMatch(f) && triggerMatches(f, ctx))
+    if (matchingTriggerFlow) {
+      await db.conversation.update({ where: { id: ctx.conversationId }, data: { flowState: Prisma.DbNull } })
+      return { matched: false }
+    }
     let smartRecoveryMessage = checked.retry
     try {
       const isQuestionOrChat =
@@ -1122,7 +1149,7 @@ export async function resumeFlowAt(params: {
 export async function flowWouldMatch(ctx: FlowContext): Promise<boolean> {
   const flows = await db.botFlow.findMany({
     where: { tenantId: ctx.tenantId, isActive: true, trigger: { in: ["KEYWORD", "INTENT", "ALWAYS"] } },
-    orderBy: { priority: "desc" },
+    orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
   })
   if (!ctx.intent && flows.some(f => f.trigger === "INTENT")) {
     try {
@@ -1139,7 +1166,7 @@ export async function flowWouldMatch(ctx: FlowContext): Promise<boolean> {
 export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
   const flows = await db.botFlow.findMany({
     where: { tenantId: ctx.tenantId, isActive: true, trigger: { in: ["KEYWORD", "INTENT", "ALWAYS"] } },
-    orderBy: { priority: "desc" },
+    orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
   })
 
   if (!ctx.intent && flows.some(f => f.trigger === "INTENT")) {
@@ -1152,7 +1179,9 @@ export async function runBotFlows(ctx: FlowContext): Promise<FlowResult> {
     } catch {}
   }
 
-  const flow = flows.find(f => triggerMatches(f, ctx))
+  // Specific keyword or intent matches take precedence over generic catch-alls (e.g. matchType: "any")
+  const specificFlow = flows.find(f => isSpecificMatch(f) && triggerMatches(f, ctx))
+  const flow = specificFlow || flows.find(f => triggerMatches(f, ctx))
   if (!flow) return { matched: false }
 
   // Handle training masterclass flow personalization

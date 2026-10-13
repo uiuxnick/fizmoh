@@ -20,7 +20,10 @@ function jsonValue(value: unknown, fallback: unknown) {
 export const GET = withErrors(withModule("FLOWS", async () => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  const flows = await db.botFlow.findMany({ orderBy: { priority: "desc" } })
+  const flows = await db.botFlow.findMany({
+    where: tenant.role === "PLATFORM" && !tenant.tenantId ? undefined : { tenantId: tenant.tenantId },
+    orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+  })
   return NextResponse.json({ flows })
 }))
 
@@ -67,8 +70,11 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest) 
     )
   }
 
+  const wantsPublish = (body.publish === true || body.action === "publish") && errors.length === 0
+
   const flow = await db.botFlow.create({
     data: {
+      tenantId: tenant.tenantId,
       name: name.slice(0, 200),
       description: body.description || null,
       trigger: body.trigger,
@@ -77,6 +83,10 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest) 
       edges: JSON.stringify(edges),
       priority: Number(body.priority) || 0,
       isActive: body.isActive ?? false,
+      publishedNodes: wantsPublish ? JSON.stringify(nodes) : undefined,
+      publishedEdges: wantsPublish ? JSON.stringify(edges) : undefined,
+      publishedAt: wantsPublish ? new Date() : undefined,
+      version: wantsPublish ? 1 : 1,
     },
   })
   return NextResponse.json({ flow, issues }, { status: 201 })

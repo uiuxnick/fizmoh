@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test"
 import { validateFlow } from "@/lib/flow-validate"
 import { parseExternalFlow } from "@/lib/flow-importer"
-import { validateAnswer, triggerMatches, type FlowNode, type FlowContext } from "@/lib/botflow-engine"
+import { validateAnswer, triggerMatches, isSpecificMatch, type FlowNode, type FlowContext } from "@/lib/botflow-engine"
 
 describe("BotFlow Comprehensive Engine & Validator Audit", () => {
   describe("validateFlow", () => {
@@ -237,6 +237,42 @@ describe("BotFlow Comprehensive Engine & Validator Audit", () => {
       const ctx2: FlowContext = { tenantId: "t1", conversationId: "c1", customerId: "u1", customerPhone: "+96891234567", message: "Hello", intent: "GREETING" }
       expect(triggerMatches(flow, ctx1)).toBe(true)
       expect(triggerMatches(flow, ctx2)).toBe(false)
+    })
+
+    it("distinguishes specific keyword flows from catch-all flows with isSpecificMatch", () => {
+      const catchAllFlow = { trigger: "KEYWORD", triggerConfig: { keywords: ["book"], matchType: "any" } }
+      const specificFlow = { trigger: "KEYWORD", triggerConfig: { keywords: ["strategy", "consulting"], matchType: "contains" } }
+      const alwaysFlow = { trigger: "ALWAYS", triggerConfig: {} }
+      const intentFlow = { trigger: "INTENT", triggerConfig: { intents: ["SUPPORT"] } }
+
+      expect(isSpecificMatch(catchAllFlow)).toBe(false)
+      expect(isSpecificMatch(alwaysFlow)).toBe(false)
+      expect(isSpecificMatch(specificFlow)).toBe(true)
+      expect(isSpecificMatch(intentFlow)).toBe(true)
+    })
+
+    it("prioritizes specific keyword flow over catch-all flow when resolving matching flows", () => {
+      const flows = [
+        { id: "f_catchall", trigger: "KEYWORD", triggerConfig: { keywords: ["book"], matchType: "any" }, priority: 50 },
+        { id: "f_specific", trigger: "KEYWORD", triggerConfig: { keywords: ["strategy", "consulting"], matchType: "contains" }, priority: 0 },
+      ]
+
+      const ctx: FlowContext = {
+        tenantId: "t1",
+        conversationId: "c1",
+        customerId: "u1",
+        customerPhone: "+96891234567",
+        message: "I am looking for strategy consulting",
+      }
+
+      // Both would technically match if evaluated blindly:
+      expect(triggerMatches(flows[0], ctx)).toBe(true)
+      expect(triggerMatches(flows[1], ctx)).toBe(true)
+
+      // But engine resolution chooses specific keyword flow before catch-all
+      const specificFlow = flows.find(f => isSpecificMatch(f) && triggerMatches(f, ctx))
+      const chosenFlow = specificFlow || flows.find(f => triggerMatches(f, ctx))
+      expect(chosenFlow?.id).toBe("f_specific")
     })
   })
 })
