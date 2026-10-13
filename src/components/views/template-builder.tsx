@@ -8,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CarouselEditor } from "@/components/views/carousel-editor"
-import { Wand2, Loader2 } from "lucide-react"
+import { Wand2, Loader2, Zap, Sparkles, Check, X, ShieldAlert, Info } from "lucide-react"
 import { validateCarousel, type CarouselCard } from "@/lib/carousel"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Plus, Trash2, Save, Send, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react"
 import { WhatsAppPreview, type PreviewButton } from "@/components/whatsapp-preview"
+import { PRE_APPROVED_TEMPLATES, generateSmartSamples, evaluateFastApprovalCompliance, type FastApprovalPreset } from "@/lib/fast-approval-templates"
 
 /**
  * WhatsApp template builder with live preview.
@@ -216,6 +217,14 @@ export function TemplateBuilder({
   const vars = useMemo(() => variablesIn(draft.bodyContent), [draft.bodyContent])
   const errors = useMemo(() => validateTemplate(draft), [draft])
   const rejectionRisks = useMemo(() => analyzeRejectionRisks(draft), [draft])
+  const compliance = useMemo(() => evaluateFastApprovalCompliance({
+    name: draft.name,
+    category: draft.category,
+    bodyContent: draft.bodyContent,
+    headerContent: draft.headerContent,
+    sampleValues: draft.sampleValues,
+    buttons: draft.buttons,
+  }), [draft])
 
   /**
    * Writes the whole template from a sentence.
@@ -354,6 +363,58 @@ export function TemplateBuilder({
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* ─── Form ─── */}
           <div className="min-w-0 space-y-4">
+            {/* ⚡ Fast-Approval Pre-approved Presets Hub */}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                  <Zap className="h-4 w-4 text-emerald-600" />
+                  Load Fast-Approval Template (Approved in &lt; 2 mins)
+                </div>
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-bold">
+                  8 Meta Verified Presets
+                </Badge>
+              </div>
+              <Select
+                onValueChange={presetId => {
+                  const p = PRE_APPROVED_TEMPLATES.find(t => t.id === presetId)
+                  if (!p) return
+                  setDraft({
+                    ...draft,
+                    name: p.name,
+                    category: p.category,
+                    language: p.language,
+                    headerType: p.headerType,
+                    headerContent: p.headerContent || "",
+                    bodyContent: p.bodyContent,
+                    footerContent: p.footerContent || "",
+                    buttons: p.buttons.map(b => ({
+                      type: b.type,
+                      text: b.text,
+                      url: b.url,
+                      phone: b.phone,
+                    })),
+                    sampleValues: [...p.sampleValues],
+                    cards: [],
+                  })
+                  toast.success(`Loaded "${p.title}" — 100% Meta compliant!`)
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white border-emerald-300">
+                  <SelectValue placeholder="Choose a pre-vetted template to avoid rejection..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {PRE_APPROVED_TEMPLATES.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      <div className="flex items-center justify-between gap-3 w-full">
+                        <span className="font-semibold text-stone-900">{p.title}</span>
+                        <span className="text-[10px] text-stone-500 font-mono">[{p.category} · {p.language === "ar" ? "العربية" : "EN"}]</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* One sentence in, a whole template out — name, body, footer,
                 buttons, and the cards when it is a carousel. */}
             <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
@@ -502,8 +563,24 @@ export function TemplateBuilder({
 
             {vars.length > 0 && (
               <div className="rounded-lg border bg-stone-50 p-3 space-y-2">
-                <div className="text-xs font-semibold text-stone-700">
-                  Sample values <span className="font-normal text-stone-500">— required by Meta for review</span>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold text-stone-700">
+                    Sample values <span className="font-normal text-stone-500">— required by Meta for review</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10.5px] px-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 bg-white"
+                    onClick={() => {
+                      const generated = generateSmartSamples(draft.bodyContent, vars.length)
+                      set("sampleValues", generated)
+                      toast.success("Filled realistic business samples for Meta review")
+                    }}
+                  >
+                    <Sparkles className="h-3 w-3 mr-1 text-emerald-600" />
+                    Auto-Fill Realistic Samples
+                  </Button>
                 </div>
                 {vars.map(v => (
                   <div key={v} className="flex items-center gap-2">
@@ -627,6 +704,66 @@ export function TemplateBuilder({
               sampleValues={draft.sampleValues}
             />
 
+            {/* ⚡ Meta 60-Second Fast-Approval Speed Meter */}
+            <div className="rounded-xl border p-3.5 space-y-2.5 shadow-2xs bg-white border-stone-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800">
+                  <Zap className={`h-4 w-4 ${compliance.isReadyForFastApproval ? "text-emerald-600" : "text-amber-500"}`} />
+                  Meta Fast-Approval Score
+                </div>
+                <Badge
+                  className={`text-[10.5px] font-bold ${
+                    compliance.score === 100
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : compliance.score >= 70
+                        ? "bg-amber-100 text-amber-800 border-amber-300"
+                        : "bg-rose-100 text-rose-800 border-rose-300"
+                  }`}
+                  variant="outline"
+                >
+                  {compliance.score}% Readiness
+                </Badge>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    compliance.score === 100 ? "bg-emerald-500" : compliance.score >= 70 ? "bg-amber-500" : "bg-rose-500"
+                  }`}
+                  style={{ width: `${compliance.score}%` }}
+                />
+              </div>
+
+              <div className="pt-1 space-y-1.5 text-[11px]">
+                {compliance.checklist.map((c, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    {c.passed ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <X className="h-3.5 w-3.5 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <div className="leading-tight">
+                      <span className={`font-semibold ${c.passed ? "text-stone-700" : "text-rose-700"}`}>{c.title}</span>
+                      {!c.passed && <p className="text-[10px] text-stone-500 mt-0.5">{c.advice}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {compliance.isReadyForFastApproval ? (
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-[10.5px] text-emerald-800 font-medium flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  Estimated Meta Approval Time: <strong>&lt; 2 minutes</strong>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-2 text-[10.5px] text-amber-800 font-medium flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  Fix checklist items above to guarantee instant automated approval.
+                </div>
+              )}
+            </div>
+
             {errors.length > 0 && (
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 shadow-2xs">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
@@ -651,16 +788,6 @@ export function TemplateBuilder({
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-
-            {errors.length === 0 && rejectionRisks.length === 0 && draft.bodyContent.trim().length > 10 && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2.5 flex items-center gap-2 text-xs text-emerald-800 shadow-2xs">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                <div>
-                  <span className="font-bold">Meta Quality Readiness: 100%</span>
-                  <p className="text-[10px] text-emerald-700">Valid parameters, clean syntax &amp; high approval probability.</p>
-                </div>
               </div>
             )}
           </div>
