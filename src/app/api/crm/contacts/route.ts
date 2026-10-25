@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
+import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
 import { Prisma } from "@prisma/client"
 
 /**
  * The contact list, as a salesperson needs it.
  *
- * The old customers endpoint returned every row with no search, no filter and
- * no ordering — fine for forty contacts and useless at four thousand, which is
- * the point at which anybody actually needs a CRM. This one answers the
- * questions that get asked: who is new, who is mine, who has not been spoken
- * to, who owes us a follow-up today.
+ * Scoped strictly to the active workspace with staff authentication.
  */
 
 const PAGE = 50
 
 export const GET = withErrors(async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const params = new URL(request.url).searchParams
   const search = (params.get("q") || "").trim()
   const stage = params.get("stage") || ""
@@ -25,7 +34,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   const sort = params.get("sort") || "recent"
   const page = Math.max(1, Number(params.get("page")) || 1)
 
-  const where: Prisma.CustomerWhereInput = {}
+  const where: Prisma.CustomerWhereInput = { tenantId }
   if (search) {
     // Phone, name and email together: people search for whichever of the
     // three they happen to have in front of them.
@@ -60,7 +69,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     }),
     db.customer.count({ where }),
     // The pipeline counts, which is the first thing anybody looks at.
-    db.customer.groupBy({ by: ["stage"], _count: { _all: true } }),
+    db.customer.groupBy({ by: ["stage"], where: { tenantId }, _count: { _all: true } }),
   ])
 
   const filtered = tag
@@ -68,7 +77,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     : rows
 
   const staff = await db.staff.findMany({
-    where: { isActive: true },
+    where: { isActive: true, tenantId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   })
@@ -85,6 +94,17 @@ export const GET = withErrors(async (request: NextRequest) => {
 
 /** Bulk edits from the list — assigning an owner, moving a stage, tagging. */
 export const PATCH = withErrors(async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const body = await request.json().catch(() => null)
   const ids: string[] = Array.isArray(body?.ids) ? body.ids.map(String) : []
   if (ids.length === 0) return NextResponse.json({ error: "Nothing selected" }, { status: 400 })
@@ -99,8 +119,7 @@ export const PATCH = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Nothing to change" }, { status: 400 })
   }
 
-  // updateMany is already narrowed to this business by the scoped client, so
-  // an id from another workspace simply matches nothing.
-  const result = await db.customer.updateMany({ where: { id: { in: ids } }, data })
+  // updateMany is strictly narrowed to this tenant
+  const result = await db.customer.updateMany({ where: { id: { in: ids }, tenantId }, data })
   return NextResponse.json({ updated: result.count })
 })

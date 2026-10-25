@@ -20,6 +20,10 @@ const PUBLIC_EXACT = new Set([
   "/api/auth/magic-login",
   "/api/auth/provider-login",
   "/api/auth/logout",
+  "/api/v1/auth/login",
+  "/api/v1/auth/refresh",
+  "/api/v1/auth/otp/send",
+  "/api/v1/auth/otp/verify",
   "/api/signup",
   "/api/signup/availability",
   "/api/coupons/validate",
@@ -36,6 +40,7 @@ const PUBLIC_EXACT = new Set([
   "/api/social/webhook/facebook",
   "/api/social/webhook/instagram",
   "/api/woocommerce/webhook",
+  "/api/webhooks/incoming",
   "/api/cron",
   "/api/demo/book",
   "/api/contact",
@@ -53,8 +58,16 @@ function isPublic(request: NextRequest) {
   // Same arrangement as the voucher above: WhatsApp fetches the document by
   // URL, and the cuid is what makes the address unguessable.
   if (request.method === "GET" && /^\/api\/invoices\/[^/]+\/pdf$/.test(path)) return true
-  if ((request.method === "GET" || request.method === "HEAD") && /^\/api\/training\/registrations\/[^/]+\/pdf$/.test(path)) return true
-  if ((request.method === "GET" || request.method === "HEAD") && /^\/api\/training\/calendar\/[^/]+$/.test(path)) return true
+  if (path.startsWith("/api/training/")) {
+    if (path === "/api/training/attendance/checkin" && request.method === "POST") return true
+    if (/^\/api\/training\/courses\/[^/]+\/register$/.test(path) && request.method === "POST") return true
+    if (path === "/api/training/feedback" && request.method === "POST") return true
+    if (path === "/api/training/certificates" && request.method === "GET" && (request.nextUrl.searchParams.has("id") || request.nextUrl.searchParams.has("verify"))) return true
+    if (path === "/api/training/courses" && request.method === "GET") return true
+    if (/^\/api\/training\/courses\/[^/]+$/.test(path) && request.method === "GET") return true
+    if ((request.method === "GET" || request.method === "HEAD") && /^\/api\/training\/registrations\/[^/]+\/pdf$/.test(path)) return true
+    if ((request.method === "GET" || request.method === "HEAD") && /^\/api\/training\/calendar\/[^/]+$/.test(path)) return true
+  }
   // GET only used to be enough for WhatsApp's own fetch, but Messenger/
   // Instagram's Send API sends a HEAD probe first to check content-type and
   // size before downloading — a HEAD here fell through to auth and got a 401,

@@ -2,24 +2,32 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
 
 /**
  * Everything known about one contact, in one request.
  *
- * The panel used to answer this by opening four screens and remembering what
- * was on each. What somebody actually wants when they open a contact is the
- * story: when they first appeared, what they bought, what they paid, what they
- * asked, what we promised. So the pieces are gathered here and merged into one
- * timeline, newest first.
+ * Scoped strictly to the active workspace with staff authentication.
  */
 
 export const GET = withErrors(async (
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const { id } = await context.params
 
-  const contact = await db.customer.findFirst({ where: { id } })
+  const contact = await db.customer.findFirst({ where: { id, tenantId } })
   if (!contact) return NextResponse.json({ error: "No such contact" }, { status: 404 })
 
   const [orders, payments, conversations, appointments, notes, leads] = await Promise.all([
@@ -104,11 +112,22 @@ export const PATCH = withErrors(async (
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const { id } = await context.params
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 })
 
-  const existing = await db.customer.findFirst({ where: { id }, select: { id: true } })
+  const existing = await db.customer.findFirst({ where: { id, tenantId }, select: { id: true } })
   if (!existing) return NextResponse.json({ error: "No such contact" }, { status: 404 })
 
   const contact = await db.customer.update({
@@ -136,19 +155,29 @@ export const POST = withErrors(async (
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) => {
-  const { id } = await context.params
   const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
+  const { id } = await context.params
   const body = await request.json().catch(() => null)
   const text = String(body?.body ?? "").trim()
   if (!text) return NextResponse.json({ error: "Write something first" }, { status: 400 })
 
-  const contact = await db.customer.findFirst({ where: { id }, select: { id: true } })
+  const contact = await db.customer.findFirst({ where: { id, tenantId }, select: { id: true } })
   if (!contact) return NextResponse.json({ error: "No such contact" }, { status: 404 })
 
   const note = await db.contactNote.create({
     data: {
       customerId: contact.id,
-      staffId: session?.kind === "staff" ? session.staffId ?? null : null,
+      staffId: session.staffId ?? null,
       body: text.slice(0, 4000),
       kind: ["NOTE", "CALL", "MEETING", "EMAIL"].includes(String(body?.kind))
         ? String(body.kind)
