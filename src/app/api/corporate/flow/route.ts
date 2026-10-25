@@ -3,16 +3,25 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 import { BOT_TEMPLATES } from "@/lib/bot-templates"
 
-export const GET = withErrors(withModule("CORPORATE", async () => {
+export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
 
   const existingFlow = await db.botFlow.findFirst({
     where: {
+      tenantId,
       name: { contains: "EMADI" },
-      ...(tenantId ? { tenantId } : {}),
     },
   })
 
@@ -29,8 +38,16 @@ export const GET = withErrors(withModule("CORPORATE", async () => {
 }))
 
 export const POST = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
 
   const template = BOT_TEMPLATES.find(t => t.id === "emadi_corporate_architectural_flow")
   if (!template) {
@@ -40,8 +57,8 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
   // Check if already created for this tenant
   const existing = await db.botFlow.findFirst({
     where: {
+      tenantId,
       name: { contains: "EMADI" },
-      ...(tenantId ? { tenantId } : {}),
     },
   })
 
@@ -65,7 +82,7 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
   } else {
     flow = await db.botFlow.create({
       data: {
-        tenantId: tenantId || null,
+        tenantId,
         name: template.name,
         description: template.description,
         trigger: template.trigger || "KEYWORD",
@@ -79,6 +96,15 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
       },
     })
   }
+
+  const { notifyStaff } = await import("@/lib/realtime")
+  await notifyStaff({
+    tenantId,
+    type: "bot_flow_deployed",
+    title: "Corporate Workflow Deployed",
+    message: `${flow.name} has been deployed and set to active`,
+    data: { flowId: flow.id, url: `/dashboard/flows` },
+  }).catch(err => console.error("Failed to notify staff of flow deployment:", err))
 
   return NextResponse.json({
     success: true,

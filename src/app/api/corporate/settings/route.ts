@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
-import { currentTenant, PLATFORM } from "@/lib/tenant"
+import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 
 const DEFAULT_PRODUCTS = [
   {
@@ -123,9 +124,17 @@ const DEFAULT_PROFILE = {
   terms: "1. Quotation validity: 30 days from date of issuance.\n2. Payment terms: 50% advance on confirmation, 40% on delivery of materials to site, 10% on completion of installation.\n3. Warranty: 15-20 years on Qualicoat Class 2 architectural powder coating; 5 years against hermetic seal failure in IGU double glazed units.\n4. Delivery: 3 to 4 weeks from approved shop drawings and site clearance.",
 }
 
-export const GET = withErrors(withModule("CORPORATE", async () => {
+export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
 
   const [productsRow, locationsRow, faqsRow, profileRow] = await Promise.all([
     db.systemSetting.findFirst({ where: { tenantId, key: "corporate_products" } }),
@@ -166,8 +175,16 @@ export const GET = withErrors(withModule("CORPORATE", async () => {
 }))
 
 export const PUT = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
   const body = await request.json()
 
   const { products, locations, faqs, profile } = body

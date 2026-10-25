@@ -6,15 +6,22 @@ import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 
 export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
 
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
   const search = searchParams.get("search")?.toLowerCase().trim()
 
-  const where: any = {}
-  if (tenantId) where.tenantId = tenantId
+  const where: any = { tenantId }
   if (status && status !== "ALL") where.status = status
 
   const allLeads = await db.lead.findMany({
@@ -131,6 +138,10 @@ export const GET = withErrors(withModule("CORPORATE", async (request: NextReques
 export const POST = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const body = await request.json()
 
   const {
@@ -148,9 +159,9 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
     return NextResponse.json({ error: "Customer name and phone are required" }, { status: 400 })
   }
 
-  // Find or create customer
+  // Find or create customer scoped to tenant
   let customer = await db.customer.findFirst({
-    where: { phone: customerPhone, ...(tenantId ? { tenantId } : {}) },
+    where: { phone: customerPhone, tenantId },
   })
 
   if (!customer) {
@@ -158,7 +169,7 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
       data: {
         name: customerName,
         phone: customerPhone,
-        tenantId: tenantId || null,
+        tenantId,
         source: "CORPORATE_RFQ",
       },
     })
@@ -176,7 +187,7 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
 
   const lead = await db.lead.create({
     data: {
-      tenantId: tenantId || null,
+      tenantId,
       customerId: customer.id,
       flowName: "EMADI_CORPORATE_RFQ",
       answers: JSON.stringify(answers),
@@ -185,12 +196,38 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
     },
   })
 
+  // Dispatch real-time notification alert to staff
+  const { notifyStaff } = await import("@/lib/realtime")
+  await notifyStaff({
+    tenantId,
+    type: "corporate_rfq_created",
+    title: "New Architectural RFQ Received",
+    message: `${customerName} submitted RFQ for ${productType || "Architectural Systems"} (${projectLocation || "Oman"})`,
+    data: {
+      leadId: lead.id,
+      customerName,
+      customerPhone,
+      productType,
+      projectLocation,
+      url: `/dashboard/corporate`,
+    },
+  }).catch(err => console.error("Failed to notify staff of corporate RFQ:", err))
+
   return NextResponse.json({ success: true, leadId: lead.id })
 }))
 
 export const PATCH = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const body = await request.json()
   const { id, status, notes, quotedAmount, assignedStaffId } = body
 
@@ -198,8 +235,8 @@ export const PATCH = withErrors(withModule("CORPORATE", async (request: NextRequ
     return NextResponse.json({ error: "Lead ID is required" }, { status: 400 })
   }
 
-  const existing = await db.lead.findUnique({ where: { id } })
-  if (!existing || (tenantId && existing.tenantId && existing.tenantId !== tenantId)) {
+  const existing = await db.lead.findFirst({ where: { id, tenantId } })
+  if (!existing) {
     return NextResponse.json({ error: "Quotation request not found" }, { status: 404 })
   }
 
@@ -224,12 +261,32 @@ export const PATCH = withErrors(withModule("CORPORATE", async (request: NextRequ
     },
   })
 
+  if (status && status !== existing.status) {
+    const { notifyStaff } = await import("@/lib/realtime")
+    await notifyStaff({
+      tenantId,
+      type: "corporate_rfq_status_changed",
+      title: "RFQ Status Updated",
+      message: `Quote #${id.slice(-6)} updated to ${status}`,
+      data: { leadId: id, status, url: `/dashboard/corporate` },
+    }).catch(err => console.error("Failed to notify staff of RFQ update:", err))
+  }
+
   return NextResponse.json({ success: true, updated })
 }))
 
 export const DELETE = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get("id")
 
@@ -237,8 +294,8 @@ export const DELETE = withErrors(withModule("CORPORATE", async (request: NextReq
     return NextResponse.json({ error: "Quotation ID required" }, { status: 400 })
   }
 
-  const existing = await db.lead.findUnique({ where: { id } })
-  if (!existing || (tenantId && existing.tenantId && existing.tenantId !== tenantId)) {
+  const existing = await db.lead.findFirst({ where: { id, tenantId } })
+  if (!existing) {
     return NextResponse.json({ error: "Quotation request not found" }, { status: 404 })
   }
 
