@@ -20,6 +20,11 @@ export const GET = withErrors(async (request: NextRequest) => {
     return NextResponse.redirect(`${settings}&social=invalid_state`)
   }
 
+  const tenant = currentTenant()
+  if (!tenant?.tenantId) {
+    return NextResponse.redirect(`${settings}&social=session_expired`)
+  }
+
   const result = await completeInstagramConnection(code, baseUrl)
   if (!result.ok || !result.account) return NextResponse.redirect(`${settings}&social=${encodeURIComponent(result.error || "failed")}`)
 

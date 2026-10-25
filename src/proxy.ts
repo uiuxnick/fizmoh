@@ -39,6 +39,8 @@ const PUBLIC_EXACT = new Set([
   "/api/whatsapp/webhook",
   "/api/social/webhook/facebook",
   "/api/social/webhook/instagram",
+  "/api/social/oauth/facebook/callback",
+  "/api/social/oauth/instagram/callback",
   "/api/woocommerce/webhook",
   "/api/webhooks/incoming",
   "/api/cron",

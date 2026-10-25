@@ -26,6 +26,11 @@ export const GET = withErrors(async (request: NextRequest) => {
     return NextResponse.redirect(`${settings}&social=invalid_state`)
   }
 
+  const tenant = currentTenant()
+  if (!tenant?.tenantId) {
+    return NextResponse.redirect(`${settings}&social=session_expired`)
+  }
+
   const result = await completeFacebookConnection(code, baseUrl)
   if (!result.ok || !result.pages) return NextResponse.redirect(`${settings}&social=${encodeURIComponent(result.error || "failed")}`)
   if (result.pages.length === 0) return NextResponse.redirect(`${settings}&social=no_pages_found`)
