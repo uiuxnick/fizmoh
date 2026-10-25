@@ -4,7 +4,7 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
-const allowed = new Set(["OWNER", "ADMIN", "MANAGER", "SUPER_ADMIN"])
+const allowed = new Set(["OWNER", "ADMIN", "MANAGER", "SUPER_ADMIN", "PLATFORM"])
 export const GET = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   if (tenant.role && !allowed.has(tenant.role)) return NextResponse.json({ error: "Clinical audit access is restricted" }, { status: 403 })

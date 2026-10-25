@@ -19,7 +19,7 @@ export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
 export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const actor = currentTenant()
   if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
-  if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN"].includes(actor.role)) return NextResponse.json({ error: "Only hospital administrators can manage doctors" }, { status: 403 })
+  if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"].includes(actor.role)) return NextResponse.json({ error: "Only hospital administrators can manage doctors" }, { status: 403 })
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
   const schedules = Array.isArray(body.schedules) ? body.schedules : []

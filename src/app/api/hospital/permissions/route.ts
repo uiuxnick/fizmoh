@@ -4,7 +4,7 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
-const managers = new Set(["OWNER", "SUPER_ADMIN", "ADMIN"])
+const managers = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM"])
 const roles = new Set(["CLINICAL", "ADMINISTRATIVE", "HOSPITAL_MANAGER", "VIEWER"])
 
 export const GET = withErrors(withModule("HOSPITAL", async () => {

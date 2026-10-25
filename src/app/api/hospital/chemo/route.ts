@@ -15,6 +15,8 @@ function makeRef(date: Date, suffix: string) {
 }
 
 export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const dateStr = url.searchParams.get("date")

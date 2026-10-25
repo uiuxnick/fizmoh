@@ -7,6 +7,11 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 
 export const GET = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
+  if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"].includes(actor.role)) {
+    return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
+  }
   const tenantId = await resolveHospTenantId(request)
   const start = new Date()
   start.setHours(0, 0, 0, 0)
@@ -62,7 +67,7 @@ export const GET = withErrors(withModule("HOSPITAL", async (request: NextRequest
 export const POST = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only hospital administrators can send reminders" }, { status: 403 })
   }
   const body = await request.json().catch(() => ({}))

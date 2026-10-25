@@ -10,6 +10,8 @@ import { canReadPatient } from "@/lib/hospital-patient-access"
 import { withModule } from "@/lib/entitlements"
 
 export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const dateStr = url.searchParams.get("date")
@@ -46,10 +48,26 @@ export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) =
 
   const date = new Date(appointmentDate)
   if (Number.isNaN(date.getTime())) return NextResponse.json({ error: "Invalid appointment date" }, { status: 400 })
+
+  // Check for slot collision with existing active appointment
+  const normalizedDate = startOfDay(date)
+  const existingApt = await db.hospDoctorAppointment.findFirst({
+    where: {
+      tenantId,
+      doctorId,
+      appointmentDate: { gte: normalizedDate, lte: endOfDay(date) },
+      appointmentTime,
+      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+    },
+  })
+  if (existingApt) {
+    return NextResponse.json({ error: "This doctor is already booked for the selected time slot" }, { status: 409 })
+  }
+
   const appointmentRef = "APT-" + format(date, "yyMMdd") + "-" + nanoid(6).toUpperCase()
 
   const apt = await db.hospDoctorAppointment.create({
-    data: { tenantId, appointmentRef, patientId, doctorId, appointmentDate: date, appointmentTime, source },
+    data: { tenantId, appointmentRef, patientId, doctorId, appointmentDate: normalizedDate, appointmentTime, source },
     include: { patient: true, doctor: { include: { department: true } } },
   })
 

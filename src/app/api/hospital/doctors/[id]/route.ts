@@ -9,6 +9,7 @@ const access = new Set(["OWNER", "ADMIN", "MANAGER", "SUPER_ADMIN", "PLATFORM"])
 
 async function guard(request: Request) {
   const tenant = currentTenant()
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   if (!tenant?.role || !access.has(tenant.role)) return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
   return null
 }

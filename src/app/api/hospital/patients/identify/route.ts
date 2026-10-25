@@ -5,8 +5,9 @@ import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { canReadPatient } from "@/lib/hospital-patient-access"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { withModule } from "@/lib/entitlements"
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const { mrn, mobile } = await req.json()
   const rate = await checkRateLimit(`patient-identify:${requestIp(req.headers)}`, 10, 60_000)
@@ -35,4 +36,4 @@ export const POST = withErrors(async (req: NextRequest) => {
     fullName: patient.fullName,
     mobileMasked: patient.mobile.slice(0, -4).replace(/./g, "*") + patient.mobile.slice(-4),
   })
-})
+}))

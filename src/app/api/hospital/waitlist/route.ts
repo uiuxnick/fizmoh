@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { withModule } from "@/lib/entitlements"
+import { canReadPatient } from "@/lib/hospital-patient-access"
 
 export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
@@ -18,6 +19,11 @@ export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) =
   })
   if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 })
   const mobile = body.mobile ? String(body.mobile).trim() : patient.mobile
+
+  const actor = currentTenant()
+  if (!actor?.tenantId && !await canReadPatient(req, tenantId, mobile)) {
+    return NextResponse.json({ error: "Verify the patient's registered mobile number first" }, { status: 401 })
+  }
 
   const entry = await db.hospWaitlist.create({
     data: {
@@ -35,6 +41,8 @@ export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) =
 }))
 
 export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   const tenantId = await resolveHospTenantId(req)
   const url = new URL(req.url)
   const dateStr = url.searchParams.get("date")

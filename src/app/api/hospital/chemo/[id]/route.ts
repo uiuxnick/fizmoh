@@ -5,7 +5,11 @@ import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"])
+
 export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   const b = await db.hospChemoBooking.findFirst({
@@ -17,6 +21,9 @@ export const GET = withErrors(withModule("HOSPITAL", async (req: NextRequest, { 
 }))
 
 export const PUT = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
+  if (actor.role && !EDIT_ROLES.has(actor.role)) return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json()
@@ -32,6 +39,9 @@ export const PUT = withErrors(withModule("HOSPITAL", async (req: NextRequest, { 
 }))
 
 export const DELETE = withErrors(withModule("HOSPITAL", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
+  if (actor.role && !EDIT_ROLES.has(actor.role)) return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
   const { id } = await params
   const tenantId = await resolveHospTenantId(req)
   await db.hospChemoBooking.updateMany({

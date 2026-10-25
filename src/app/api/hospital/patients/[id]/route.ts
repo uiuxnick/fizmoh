@@ -6,7 +6,12 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
 const access = new Set(["OWNER", "ADMIN", "MANAGER", "SUPER_ADMIN", "PLATFORM"])
-async function guard() { const tenant = currentTenant(); return !tenant?.role || !access.has(tenant.role) ? NextResponse.json({ error: "Hospital management access required" }, { status: 403 }) : null }
+async function guard() {
+  const tenant = currentTenant()
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
+  if (!tenant.role || !access.has(tenant.role)) return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
+  return null
+}
 
 export const GET = withErrors(withModule("HOSPITAL", async (request, context: { params: Promise<{ id: string }> }) => {
   const denied = await guard(); if (denied) return denied

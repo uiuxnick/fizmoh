@@ -4,11 +4,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { canReadPatient } from "@/lib/hospital-patient-access"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { withModule } from "@/lib/entitlements"
 
 /** Public patient lookup for the booking portal. Only exact MRN + mobile
  * matches are accepted, and the response contains booking details rather than
  * the patient's clinical record. */
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) => {
   const tenantId = await resolveHospTenantId(req)
   const body = await req.json().catch(() => ({}))
   const mrn = String(body.mrn || "").trim()
@@ -41,4 +42,4 @@ export const POST = withErrors(async (req: NextRequest) => {
       ...chemo.map(c => ({ type: "Chemotherapy day care", reference: c.bookingRef, date: c.bookingDate.toISOString(), status: c.status, provider: c.doctor.name, bed: c.bed.bedNumber })),
     ],
   })
-})
+}))

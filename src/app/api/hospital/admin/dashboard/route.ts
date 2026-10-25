@@ -7,6 +7,11 @@ import { startOfDay, endOfDay } from "date-fns"
 import { withModule } from "@/lib/entitlements"
 
 export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
+  const actor = currentTenant()
+  if (!actor?.tenantId) return NextResponse.json({ error: "Staff sign-in required" }, { status: 401 })
+  if (actor.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"].includes(actor.role)) {
+    return NextResponse.json({ error: "Hospital management access required" }, { status: 403 })
+  }
   const tenantId = await resolveHospTenantId(req)
   const today = new Date()
 

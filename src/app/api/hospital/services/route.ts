@@ -38,7 +38,7 @@ export const GET = withErrors(withModule("HOSPITAL", async (request: NextRequest
 export const POST = withErrors(withModule("HOSPITAL", async (request: NextRequest) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only hospital administrators can manage therapies" }, { status: 403 })
   }
   const body = await request.json().catch(() => ({}))
