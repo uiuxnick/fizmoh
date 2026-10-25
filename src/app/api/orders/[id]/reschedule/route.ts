@@ -2,21 +2,46 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { confirmSlotSeats, createAuditLog } from "@/lib/slots-server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
 
 /**
  * Reschedule an order to a new slot
  * Per BRD §6.3: "modify booking (reschedule/date change)"
  * Per BRD §7: "Customer self-service reschedule/cancel"
  */
-export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params
-  const body = await request.json()
-  const { newSlotId, staffId, reason } = body
+export const POST = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can reschedule bookings" }, { status: 403 })
+  }
+  const staffId = session.staffId
+  const tenant = currentTenant()
 
-  const order = await db.order.findUnique({ where: { id }, include: { slot: true, tour: true } })
+  const { id } = await params
+  const body = await request.json().catch(() => ({}))
+  const { newSlotId, reason } = body
+
+  const order = await db.order.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+    include: { slot: true, tour: true },
+  })
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
 
-  const newSlot = await db.slot.findUnique({ where: { id: newSlotId }, include: { tour: true } })
+  const newSlot = await db.slot.findFirst({
+    where: {
+      id: newSlotId,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tour: { tenantId: tenant.tenantId } } : {}),
+    },
+    include: { tour: true },
+  })
   if (!newSlot) return NextResponse.json({ error: "New slot not found" }, { status: 400 })
 
   const available = newSlot.capacity - newSlot.seatsBooked - newSlot.seatsHeld
@@ -72,4 +97,4 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
   })
 
   return NextResponse.json({ order: updated })
-})
+}))

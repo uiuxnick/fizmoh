@@ -3,25 +3,36 @@ import { db } from "@/lib/db"
 import { createAuditLog } from "@/lib/slots-server"
 import { refundPayment } from "@/lib/amwalpay"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 import { notifyStaff } from "@/lib/realtime"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
 
 /**
  * Refund an order (full or partial)
  * Per BRD §6.3: "issue full/partial refund"
  * Per BRD §6.4.1: AmwalPay "refund"
  */
-export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const POST = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const session = await sessionFromRequest(request)
   if (session?.kind !== "staff") return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can issue refunds" }, { status: 403 })
+  }
   const staffId = session.staffId!
+  const tenant = currentTenant()
 
   const { id } = await params
-  const body = await request.json()
+  const body = await request.json().catch(() => ({}))
   const { amount, reason, isFull } = body
 
-  const order = await db.order.findUnique({
-    where: { id },
+  const order = await db.order.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
     include: { payments: true, customer: true },
   })
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
@@ -94,4 +105,4 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
   })
 
   return NextResponse.json({ success: true, refundAmount, newStatus })
-})
+}))

@@ -7,6 +7,8 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
+
 export const GET = withErrors(withModule("TOURS", async (request: NextRequest) => {
   /*
    * A public catalogue has to name its shop.
@@ -63,10 +65,14 @@ export const GET = withErrors(withModule("TOURS", async (request: NextRequest) =
   if (tours.length === 0 && !status) {
     const tid = currentTenant()?.tenantId
     if (tid) {
-      const wcCache = await db.systemSetting.findFirst({
-        where: { tenantId: tid, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+      const wcConfig = await db.systemSetting.findFirst({
+        where: { tenantId: tid, key: "WOOCOMMERCE_SETTINGS" },
       })
-      if (wcCache?.value) {
+      if (wcConfig?.value) {
+        const wcCache = await db.systemSetting.findFirst({
+          where: { tenantId: tid, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+        })
+        if (wcCache?.value) {
         try {
           const parsed = JSON.parse(wcCache.value)
           const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
@@ -98,12 +104,17 @@ export const GET = withErrors(withModule("TOURS", async (request: NextRequest) =
       }
     }
   }
+}
 
   return NextResponse.json({ tours })
 }))
 
 export const POST = withErrors(withModule("TOURS", async (request: NextRequest) => {
-  if ((await sessionFromRequest(request))?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can create tours" }, { status: 403 })
+  }
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 })
 

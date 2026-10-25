@@ -15,6 +15,9 @@ import { buildTourData } from "@/lib/tour-fields"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
 
 export const GET = withErrors(withModule("TOURS", async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params
@@ -30,46 +33,51 @@ export const GET = withErrors(withModule("TOURS", async (_: NextRequest, { param
   if (!tour) {
     const tid = currentTenant()?.tenantId
     if (tid) {
-      const wcCache = await db.systemSetting.findFirst({
-        where: { tenantId: tid, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+      const wcConfig = await db.systemSetting.findFirst({
+        where: { tenantId: tid, key: "WOOCOMMERCE_SETTINGS" },
       })
-      if (wcCache?.value) {
-        try {
-          const parsed = JSON.parse(wcCache.value)
-          const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
-          const p = productsList.find((item: any) => String(item.id) === id || item.slug === id)
-          if (p) {
-            tour = {
-              id: String(p.id),
-              tenantId: tid,
-              slug: p.slug || `product-${p.id}`,
-              name: p.name,
-              nameAr: null,
-              description: (p.short_description || p.description || "").replace(/<[^>]*>/g, ""),
-              media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
-              itinerary: "[]",
-              inclusions: "[]",
-              exclusions: "[]",
-              whatToBring: "[]",
-              pricingTiers: "[]",
-              basePrice: Number(p.price || p.regular_price || 0),
-              childPrice: null,
-              currency: "OMR",
-              durationHours: 1,
-              city: "Muscat",
-              category: p.categories?.[0]?.name || "Products",
-              featured: Boolean(p.featured),
-              rating: Number(p.average_rating) || 5,
-              reviewCount: Number(p.rating_count) || 1,
-              status: "ACTIVE",
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              addOns: [],
-              reviews: [],
-              _count: { orders: 0, slots: 0 },
-            } as any
-          }
-        } catch {}
+      if (wcConfig?.value) {
+        const wcCache = await db.systemSetting.findFirst({
+          where: { tenantId: tid, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+        })
+        if (wcCache?.value) {
+          try {
+            const parsed = JSON.parse(wcCache.value)
+            const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
+            const p = productsList.find((item: any) => String(item.id) === id || item.slug === id)
+            if (p) {
+              tour = {
+                id: String(p.id),
+                tenantId: tid,
+                slug: p.slug || `product-${p.id}`,
+                name: p.name,
+                nameAr: null,
+                description: (p.short_description || p.description || "").replace(/<[^>]*>/g, ""),
+                media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
+                itinerary: "[]",
+                inclusions: "[]",
+                exclusions: "[]",
+                whatToBring: "[]",
+                pricingTiers: "[]",
+                basePrice: Number(p.price || p.regular_price || 0),
+                childPrice: null,
+                currency: "OMR",
+                durationHours: 1,
+                city: "Muscat",
+                category: p.categories?.[0]?.name || "Products",
+                featured: Boolean(p.featured),
+                rating: Number(p.average_rating) || 5,
+                reviewCount: Number(p.rating_count) || 1,
+                status: "ACTIVE",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                addOns: [],
+                reviews: [],
+                _count: { orders: 0, slots: 0 },
+              } as any
+            }
+          } catch {}
+        }
       }
     }
   }
@@ -79,7 +87,19 @@ export const GET = withErrors(withModule("TOURS", async (_: NextRequest, { param
 }))
 
 export const PUT = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can edit tours" }, { status: 403 })
+  }
   const { id } = await params
+
+  const tenant = currentTenant()
+  if (tenant?.tenantId && tenant.tenantId !== "PLATFORM") {
+    const existing = await db.tour.findFirst({ where: { id, tenantId: tenant.tenantId } })
+    if (!existing) return NextResponse.json({ error: "Tour not found" }, { status: 404 })
+  }
+
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: "Invalid request" }, { status: 400 })
 
@@ -122,7 +142,19 @@ export const PUT = withErrors(withModule("TOURS", async (request: NextRequest, {
  * This exists so "archive" can be one action from the same place delete was.
  */
 export const PATCH = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can change tour status" }, { status: 403 })
+  }
   const { id } = await params
+
+  const tenant = currentTenant()
+  if (tenant?.tenantId && tenant.tenantId !== "PLATFORM") {
+    const existing = await db.tour.findFirst({ where: { id, tenantId: tenant.tenantId } })
+    if (!existing) return NextResponse.json({ error: "Tour not found" }, { status: 404 })
+  }
+
   const body = await request.json().catch(() => null)
   const status = String(body?.status || "")
   if (!TOUR_STATUSES.includes(status)) {
@@ -132,11 +164,20 @@ export const PATCH = withErrors(withModule("TOURS", async (request: NextRequest,
   return NextResponse.json({ tour })
 }))
 
-export const DELETE = withErrors(withModule("TOURS", async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can delete tours" }, { status: 403 })
+  }
   const { id } = await params
+  const tenant = currentTenant()
 
-  const tour = await db.tour.findUnique({
-    where: { id },
+  const tour = await db.tour.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
     select: { id: true, name: true },
   })
   if (!tour) {

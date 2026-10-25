@@ -3,8 +3,11 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 import { z } from "zod"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -25,9 +28,19 @@ const updateSchema = z.object({
   assignedStaffId: z.string().max(100).nullable().optional(),
 })
 
-export const GET = withErrors(withModule("VISA", async (_request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export const GET = withErrors(withModule("VISA", async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  const tenant = currentTenant()
   const { id } = await context.params
-  const enquiry = await db.visaEnquiry.findUnique({ where: { id }, include: { customer: true } })
+
+  const enquiry = await db.visaEnquiry.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+    include: { customer: true },
+  })
   if (!enquiry) return NextResponse.json({ error: "Enquiry not found" }, { status: 404 })
   return NextResponse.json({ enquiry })
 }))
@@ -37,7 +50,13 @@ export const PATCH = withErrors(withModule("VISA", async (request: NextRequest, 
   if (session?.kind !== "staff") return NextResponse.json({ error: "Sign in first" }, { status: 401 })
 
   const { id } = await context.params
-  const existing = await db.visaEnquiry.findUnique({ where: { id } })
+  const tenant = currentTenant()
+  const existing = await db.visaEnquiry.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+  })
   if (!existing) return NextResponse.json({ error: "Enquiry not found" }, { status: 404 })
 
   const parsed = updateSchema.safeParse(await request.json().catch(() => null))
@@ -63,13 +82,18 @@ export const PATCH = withErrors(withModule("VISA", async (request: NextRequest, 
 export const DELETE = withErrors(withModule("VISA", async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const session = await sessionFromRequest(request)
   if (session?.kind !== "staff") return NextResponse.json({ error: "Sign in first" }, { status: 401 })
-  const staff = await db.staff.findUnique({ where: { id: session.staffId } })
-  if (!staff || !["SUPER_ADMIN", "MANAGER"].includes(staff.role)) {
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Only an administrator can delete an enquiry" }, { status: 403 })
   }
 
   const { id } = await context.params
-  const existing = await db.visaEnquiry.findUnique({ where: { id } })
+  const tenant = currentTenant()
+  const existing = await db.visaEnquiry.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+  })
   if (!existing) return NextResponse.json({ error: "Enquiry not found" }, { status: 404 })
 
   await db.visaEnquiry.delete({ where: { id } })

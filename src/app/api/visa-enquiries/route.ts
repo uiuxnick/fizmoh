@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
 import { notifyStaff } from "@/lib/realtime"
 import { createAuditLog } from "@/lib/slots-server"
 import { VISA_STATUSES, DESTINATIONS, PURPOSES, visaEnabled } from "@/lib/visa-flow"
@@ -24,11 +25,18 @@ const createSchema = z.object({
 })
 
 export const GET = withErrors(withModule("VISA", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  const tenant = currentTenant()
+
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
   const search = searchParams.get("search")
 
   const where: Record<string, unknown> = {}
+  if (tenant?.tenantId && tenant.tenantId !== "PLATFORM") {
+    where.tenantId = tenant.tenantId
+  }
   if (status) where.status = status
   if (search) {
     where.OR = [
@@ -58,6 +66,7 @@ export const GET = withErrors(withModule("VISA", async (request: NextRequest) =>
 export const POST = withErrors(withModule("VISA", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (session?.kind !== "staff") return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  const tenant = currentTenant()
 
   const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: "Invalid enquiry details" }, { status: 400 })
@@ -65,6 +74,7 @@ export const POST = withErrors(withModule("VISA", async (request: NextRequest) =
 
   const enquiry = await db.visaEnquiry.create({
     data: {
+      tenantId: tenant?.tenantId || null,
       reference: `VIS-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       ...body,
       email: body.email || null,

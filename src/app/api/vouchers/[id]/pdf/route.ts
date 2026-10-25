@@ -11,15 +11,7 @@ import { withErrors } from "@/lib/api-handler"
  * so the endpoint cannot be walked to enumerate other customers' tickets.
  */
 
-export function voucherToken(orderId: string): string {
-  const secret = process.env.JWT_SECRET || "dev-secret"
-  return crypto.createHmac("sha256", secret).update(`voucher:${orderId}`).digest("hex").slice(0, 32)
-}
-
-export function voucherPdfUrl(orderId: string): string {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud"
-  return `${base}/api/vouchers/${orderId}/pdf?t=${voucherToken(orderId)}`
-}
+import { voucherToken } from "@/lib/voucher-url"
 
 export const GET = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params

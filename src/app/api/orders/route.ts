@@ -8,26 +8,57 @@ import { z } from "zod"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { sessionFromRequest } from "@/lib/auth"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { currentTenant, tenantOf, withTenant } from "@/lib/tenant"
 import { syncOrderToCalendar } from "@/lib/google-calendar"
+
+const addOnItemSchema = z.union([
+  z.string().min(1).max(120),
+  z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+  }),
+])
+
+const customerNestedSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).pipe(z.string().regex(/^\+[1-9]\d{7,14}$/)),
+  email: z.union([z.string().trim().email().max(254), z.literal("")]).optional(),
+  pickup: z.string().trim().max(500).optional(),
+  requests: z.string().trim().max(2000).optional(),
+}).optional()
 
 const createOrderSchema = z.object({
   tourId: z.string().min(1).max(100),
   slotId: z.string().min(1).max(100),
   paxAdult: z.coerce.number().int().min(1).max(50).default(1),
   paxChild: z.coerce.number().int().min(0).max(50).default(0),
-  addOns: z.array(z.object({ id: z.string().optional(), name: z.string().min(1).max(120) })).max(20).optional(),
-  customerName: z.string().trim().min(1).max(120),
-  customerPhone: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).pipe(z.string().regex(/^\+[1-9]\d{7,14}$/)),
+  addOns: z.array(addOnItemSchema).max(20).optional(),
+  customer: customerNestedSchema,
+  customerName: z.string().trim().min(1).max(120).optional(),
+  customerPhone: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).pipe(z.string().regex(/^\+[1-9]\d{7,14}$/)).optional(),
   customerEmail: z.union([z.string().trim().email().max(254), z.literal("")]).optional(),
   pickupLocation: z.string().trim().max(500).optional(),
   specialRequests: z.string().trim().max(2000).optional(),
   preferredLang: z.enum(["en", "ar"]).optional(),
   paymentMethod: z.enum(["AMWALPAY", "BANK_TRANSFER"]).default("BANK_TRANSFER"),
   couponCode: z.string().trim().toUpperCase().max(50).optional(),
+}).superRefine((data, ctx) => {
+  const name = data.customerName || data.customer?.name
+  const phone = data.customerPhone || data.customer?.phone
+  if (!name || name.trim().length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Customer name is required", path: ["customerName"] })
+  }
+  if (!phone || phone.trim().length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Customer phone is required", path: ["customerPhone"] })
+  }
 })
 
-export const GET = withErrors(async (request: NextRequest) => {
+export const GET = withErrors(withModule("TOURS", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+
+  const tenant = currentTenant()
   const { searchParams } = new URL(request.url)
   const status = searchParams.get("status")
   const channel = searchParams.get("channel")
@@ -35,6 +66,9 @@ export const GET = withErrors(async (request: NextRequest) => {
   const limit = parseInt(searchParams.get("limit") || "50")
 
   const where: any = {}
+  if (tenant?.tenantId && tenant.tenantId !== "PLATFORM") {
+    where.tenantId = tenant.tenantId
+  }
   if (status) where.orderStatus = status
   if (channel) where.channel = channel
   if (search) {
@@ -74,9 +108,9 @@ export const GET = withErrors(async (request: NextRequest) => {
   })
 
   return NextResponse.json({ orders, incremental, syncedAt: syncedAt.toISOString() })
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("TOURS", async (request: NextRequest) => {
   const rate = await checkRateLimit(`orders:${requestIp(request.headers)}`, 20, 60 * 60 * 1000)
   if (!rate.allowed) return NextResponse.json({ error: "Too many booking attempts" }, { status: 429 })
 
@@ -106,7 +140,7 @@ export const POST = withErrors(async (request: NextRequest) => {
     return withTenant(owner, () => createBooking(request, body, tour, slot, session))
   }
   return createBooking(request, body, tour, slot, session)
-})
+}))
 
 async function createBooking(
   request: NextRequest,
@@ -116,6 +150,12 @@ async function createBooking(
   session: Awaited<ReturnType<typeof sessionFromRequest>>,
 ) {
 
+  const customerName = (body.customerName || body.customer?.name || "").trim()
+  const customerPhone = (body.customerPhone || body.customer?.phone || "").trim()
+  const customerEmail = body.customerEmail || body.customer?.email || null
+  const pickupLocation = body.pickupLocation || body.customer?.pickup || null
+  const specialRequests = body.specialRequests || body.customer?.requests || null
+
   const available = slot.capacity - slot.seatsBooked - slot.seatsHeld
   const totalPax = body.paxAdult + body.paxChild
   if (available < totalPax) {
@@ -124,9 +164,13 @@ async function createBooking(
 
   const pricePerAdult = slot.priceOverride ?? tour.basePrice
   const pricePerChild = tour.childPrice ?? 0
-  const selectedAddOns = (body.addOns || []).map(requested => tour.addOns.find((a: import("@prisma/client").AddOn) =>
-    a.isActive && (requested.id ? a.id === requested.id : a.name === requested.name)
-  )).filter((item): item is NonNullable<typeof item> => Boolean(item))
+  const selectedAddOns = (body.addOns || []).map(requested => {
+    const reqId = typeof requested === "string" ? requested : requested.id
+    const reqName = typeof requested === "string" ? requested : requested.name
+    return tour.addOns.find((a: import("@prisma/client").AddOn) =>
+      a.isActive && ((reqId && a.id === reqId) || (reqName && a.name.toLowerCase() === reqName.toLowerCase()))
+    )
+  }).filter((item): item is NonNullable<typeof item> => Boolean(item))
   const addOnsTotal = selectedAddOns.reduce((sum, addOn) => sum + (addOn.type === "PER_PAX" ? addOn.price * totalPax : addOn.price), 0)
 
   const rawSubtotal = pricePerAdult * body.paxAdult + pricePerChild * body.paxChild + addOnsTotal
@@ -173,13 +217,13 @@ async function createBooking(
   const orderNumber = await generateOrderNumber()
 
   // Find or create customer
-  let customer = await db.customer.findFirst({ where: { phone: body.customerPhone } })
+  let customer = await db.customer.findFirst({ where: { phone: customerPhone } })
   if (!customer) {
     customer = await db.customer.create({
       data: {
-        name: body.customerName,
-        phone: body.customerPhone,
-        email: body.customerEmail || null,
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
         preferredLang: body.preferredLang || "en",
         whatsappOptIn: true,
       },
@@ -195,11 +239,11 @@ async function createBooking(
       paxAdult: body.paxAdult,
       paxChild: body.paxChild,
       addOns: selectedAddOns.length ? JSON.stringify(selectedAddOns.map(a => ({ addOnId: a.id, name: a.name, price: a.price, type: a.type }))) : undefined,
-      customerName: body.customerName,
-      customerPhone: body.customerPhone,
-      customerEmail: body.customerEmail || customer.email,
-      pickupLocation: body.pickupLocation || null,
-      specialRequests: body.specialRequests || null,
+      customerName,
+      customerPhone,
+      customerEmail: customerEmail || customer.email,
+      pickupLocation,
+      specialRequests,
       subtotal,
       discount,
       taxAmount,

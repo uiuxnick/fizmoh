@@ -3,6 +3,9 @@ import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
+import { sessionFromRequest } from "@/lib/auth"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
 
 export const GET = withErrors(withModule("TOURS", async (request: NextRequest) => {
   /*
@@ -43,7 +46,28 @@ export const GET = withErrors(withModule("TOURS", async (request: NextRequest) =
 }))
 
 export const POST = withErrors(withModule("TOURS", async (request: NextRequest) => {
-  const body = await request.json()
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can create slots" }, { status: 403 })
+  }
+
+  const tenant = currentTenant()
+  const body = await request.json().catch(() => ({}))
+
+  if (!body.tourId) {
+    return NextResponse.json({ error: "tourId is required" }, { status: 400 })
+  }
+
+  const tour = await db.tour.findFirst({
+    where: {
+      id: body.tourId,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+  })
+  if (!tour) return NextResponse.json({ error: "Tour not found in your workspace" }, { status: 404 })
+
+  const tenantId = tour.tenantId || tenant?.tenantId || null
 
   // Bulk creation
   if (body.bulk && body.tourId) {
@@ -55,6 +79,7 @@ export const POST = withErrors(withModule("TOURS", async (request: NextRequest) 
       if (!existing) {
         const slot = await db.slot.create({
           data: {
+            tenantId,
             tourId: body.tourId,
             date: new Date(s.date),
             startTime: s.startTime,
@@ -72,6 +97,7 @@ export const POST = withErrors(withModule("TOURS", async (request: NextRequest) 
 
   const slot = await db.slot.create({
     data: {
+      tenantId,
       tourId: body.tourId,
       date: new Date(body.date),
       startTime: body.startTime,

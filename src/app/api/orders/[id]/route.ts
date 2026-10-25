@@ -5,12 +5,24 @@ import { confirmSlotSeats, createAuditLog } from "@/lib/slots-server"
 import { refreshCustomerTotals } from "@/lib/customer-totals"
 import { syncOrderToCalendar } from "@/lib/google-calendar"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 import { sendOrderConfirmation } from "@/lib/notifications"
 
-export const GET = withErrors(async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
+
+export const GET = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  const tenant = currentTenant()
   const { id } = await params
-  const order = await db.order.findUnique({
-    where: { id },
+
+  const order = await db.order.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
     include: {
       tour: true,
       slot: true,
@@ -23,15 +35,30 @@ export const GET = withErrors(async (_: NextRequest, { params }: { params: Promi
   })
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
   return NextResponse.json({ order })
-})
+}))
 
-export const PATCH = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const PATCH = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  const staffId = session.staffId
+
   const { id } = await params
-  const body = await request.json()
-  const { action, staffId, reason, ...updateData } = body
+  const tenant = currentTenant()
+  const body = await request.json().catch(() => ({}))
+  const { action, reason, ...updateData } = body
 
-  const order = await db.order.findUnique({ where: { id }, include: { slot: true } })
+  const order = await db.order.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
+    include: { slot: true },
+  })
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 })
+
+  if (action && session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can change order status or reschedule" }, { status: 403 })
+  }
 
   // Direct status change from the admin UI. Kept separate from the semantic
   // actions below, which also move seats and issue vouchers — this is the
@@ -272,16 +299,26 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
     details: JSON.stringify(data),
   })
   return NextResponse.json({ order: updated })
-})
+}))
 
-export const DELETE = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("TOURS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  if (session.role && !EDIT_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can delete bookings" }, { status: 403 })
+  }
+  const staffId = session.staffId
+
   const { id } = await params
   const { searchParams } = new URL(request.url)
-  const staffId = searchParams.get("staffId") || undefined
   const reason = searchParams.get("reason") || "Deleted by staff"
+  const tenant = currentTenant()
 
-  const order = await db.order.findUnique({
-    where: { id },
+  const order = await db.order.findFirst({
+    where: {
+      id,
+      ...(tenant?.tenantId && tenant.tenantId !== "PLATFORM" ? { tenantId: tenant.tenantId } : {}),
+    },
     include: { slot: true },
   })
   if (!order) {
@@ -326,21 +363,19 @@ export const DELETE = withErrors(async (request: NextRequest, { params }: { para
   await refreshCustomerTotals(order.customerId).catch(() => null)
 
   // 5. Create audit log for the deletion
-  if (staffId) {
-    await createAuditLog({
-      staffId,
-      action: "DELETE_ORDER",
-      entity: "ORDER",
-      entityId: id,
-      reason,
-      details: JSON.stringify({
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        totalAmount: order.totalAmount,
-      }),
-    }).catch(() => null)
-  }
+  await createAuditLog({
+    staffId,
+    action: "DELETE_ORDER",
+    entity: "ORDER",
+    entityId: id,
+    reason,
+    details: JSON.stringify({
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      totalAmount: order.totalAmount,
+    }),
+  }).catch(() => null)
 
   return NextResponse.json({ success: true, message: `Booking ${order.orderNumber} deleted successfully` })
-})
+}))
 
