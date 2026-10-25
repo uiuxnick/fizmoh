@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { db, raw } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { sendAptConfirmation } from "@/lib/apt-whatsapp"
 import { localDateKey, fromLocal } from "@/lib/timezone"
 
-export const GET = withErrors(async (req: NextRequest) => {
+export const GET = withErrors(withModule("APPOINTMENTS", async (req: NextRequest) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") || ""
@@ -78,17 +79,17 @@ export const GET = withErrors(async (req: NextRequest) => {
   }
 
   return NextResponse.json({ appointments, stats })
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("APPOINTMENTS", async (req: NextRequest) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const {
     customerName, customerPhone, customerEmail, serviceId, providerId,
     branchId, date, startTime, durationMins, notes, bookingSource = "ADMIN",
-    sendWhatsappNotice = true,
+    sendWhatsappNotice = true, meetLink: customMeetLink,
   } = body
 
   if (!customerName || !customerPhone || !serviceId || !date || !startTime) {
@@ -100,15 +101,69 @@ export const POST = withErrors(async (req: NextRequest) => {
 
   const dur = Number(durationMins) || service.durationMins || 30
   const [h, m] = startTime.split(":").map(Number)
-  const endMins = h * 60 + m + dur
+  const newStartMins = (h || 0) * 60 + (m || 0)
+  const endMins = newStartMins + dur
   const endTime = `${String(Math.floor(endMins / 60)).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`
+
+  const startOfDay = fromLocal(date, "00:00")
+  const endOfDay = fromLocal(date, "23:59")
+
+  // 1. Collision check: existing confirmed/active appointments
+  const existingAppts = await db.aptAppointment.findMany({
+    where: {
+      tenantId: tenant.tenantId,
+      appointmentDate: { gte: startOfDay, lte: endOfDay },
+      status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] },
+      ...(providerId && providerId !== "default" ? { providerId } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  })
+
+  const hasApptConflict = existingAppts.some(apt => {
+    const [aStartH, aStartM] = apt.startTime.split(":").map(Number)
+    const [aEndH, aEndM] = (apt.endTime || "23:59").split(":").map(Number)
+    const aStartMins = aStartH * 60 + aStartM
+    const aEndMins = aEndH * 60 + aEndM
+    return newStartMins < aEndMins && endMins > aStartMins
+  })
+
+  if (hasApptConflict) {
+    return NextResponse.json({ error: "The selected time slot is already booked" }, { status: 409 })
+  }
+
+  // 2. Collision check: active holds by another customer
+  const activeHolds = await db.aptHold.findMany({
+    where: {
+      tenantId: tenant.tenantId,
+      slotDate: { gte: startOfDay, lte: endOfDay },
+      expiresAt: { gt: new Date() },
+      customerPhone: { not: customerPhone },
+      ...(providerId && providerId !== "default" ? { providerId } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  })
+
+  const hasHoldConflict = activeHolds.some(hold => {
+    const [hStartH, hStartM] = hold.startTime.split(":").map(Number)
+    const [hEndH, hEndM] = (hold.endTime || "23:59").split(":").map(Number)
+    const hStartMins = hStartH * 60 + hStartM
+    const hEndMins = hEndH * 60 + hEndM
+    return newStartMins < hEndMins && endMins > hStartMins
+  })
+
+  if (hasHoldConflict) {
+    return NextResponse.json({ error: "The selected time slot is currently on hold by another customer" }, { status: 409 })
+  }
 
   const refNum = Math.floor(100000 + Math.random() * 900000)
   const reference = `APT-${new Date().getFullYear()}-${refNum}`
 
-  const existingCustomer = await db.customer.findFirst({ where: { phone: customerPhone } })
+  const existingCustomer = await db.customer.findFirst({
+    where: { phone: customerPhone, tenantId: tenant.tenantId }
+  })
 
   const appointmentDate = fromLocal(date, startTime)
+  const meetLink = customMeetLink || (service.onlineInPerson === "ONLINE" ? `https://meet.google.com/apt-${reference.toLowerCase()}` : null)
 
   const appointment = await db.aptAppointment.create({
     data: {
@@ -117,9 +172,9 @@ export const POST = withErrors(async (req: NextRequest) => {
       customerId: existingCustomer?.id,
       customerName,
       customerPhone,
-      customerEmail,
+      customerEmail: customerEmail || null,
       serviceId,
-      providerId: providerId || null,
+      providerId: providerId && providerId !== "default" ? providerId : null,
       branchId: branchId || null,
       appointmentDate,
       startTime,
@@ -129,7 +184,8 @@ export const POST = withErrors(async (req: NextRequest) => {
       paymentStatus: service.price > 0 ? "PENDING" : "NOT_REQUIRED",
       totalAmount: service.price || 0,
       bookingSource,
-      notes,
+      notes: notes || null,
+      meetLink,
     },
     include: {
       service: true,
@@ -137,6 +193,11 @@ export const POST = withErrors(async (req: NextRequest) => {
       branch: true,
     },
   })
+
+  // Release any active hold by this customer
+  await db.aptHold.deleteMany({
+    where: { tenantId: tenant.tenantId, customerPhone },
+  }).catch(() => null)
 
   await db.aptHistory.create({
     data: {
@@ -154,6 +215,7 @@ export const POST = withErrors(async (req: NextRequest) => {
         phone: customerPhone,
         reference: appointment.reference,
         customerName: appointment.customerName,
+        customerEmail: appointment.customerEmail,
         serviceName: service.name,
         providerName: appointment.provider?.name,
         branchName: appointment.branch?.name,
@@ -162,6 +224,7 @@ export const POST = withErrors(async (req: NextRequest) => {
         durationMins: dur,
         price: service.price,
         currency: service.currency,
+        meetLink: appointment.meetLink,
       })
     } catch (e) {
       console.error("WhatsApp notification error:", e)
@@ -169,4 +232,4 @@ export const POST = withErrors(async (req: NextRequest) => {
   }
 
   return NextResponse.json({ appointment }, { status: 201 })
-})
+}))

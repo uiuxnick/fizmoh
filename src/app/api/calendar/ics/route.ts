@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { businessName } from "@/lib/app-config"
+import { currentTenant } from "@/lib/tenant"
 
 /**
  * The month's departures as an .ics file.
@@ -21,8 +22,11 @@ function stamp(date: Date): string {
 }
 
 export const GET = withErrors(async (request: NextRequest) => {
+  const tenant = currentTenant()
   const { searchParams } = new URL(request.url)
   const monthParam = searchParams.get("month")
+  const tenantParam = searchParams.get("tenantId") || (tenant?.tenantId !== "PLATFORM" ? tenant?.tenantId : undefined)
+
   const base = monthParam ? new Date(`${monthParam}-01T00:00:00.000Z`) : new Date()
   if (Number.isNaN(base.getTime())) return NextResponse.json({ error: "Invalid month" }, { status: 400 })
 
@@ -30,7 +34,10 @@ export const GET = withErrors(async (request: NextRequest) => {
   const to = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 1))
 
   const slots = await db.slot.findMany({
-    where: { date: { gte: from, lt: to } },
+    where: {
+      date: { gte: from, lt: to },
+      ...(tenantParam ? { tenantId: tenantParam } : {}),
+    },
     include: {
       tour: true,
       orders: { where: { orderStatus: { notIn: ["CANCELLED", "REFUNDED"] } } },

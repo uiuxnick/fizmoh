@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { sendAptCancellationNotice, sendAptRescheduleNotice } from "@/lib/apt-whatsapp"
 
-export const GET = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
+
+export const GET = withErrors(withModule("APPOINTMENTS", async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
 
   const appointment = await db.aptAppointment.findFirst({
@@ -27,6 +30,7 @@ export const GET = withErrors(async (req: NextRequest, { params }: { params: Pro
   if (appointment.customerId || appointment.customerPhone) {
     customerProfile = await db.customer.findFirst({
       where: {
+        tenantId: tenant.tenantId,
         OR: [
           { id: appointment.customerId || "" },
           { phone: appointment.customerPhone },
@@ -37,14 +41,17 @@ export const GET = withErrors(async (req: NextRequest, { params }: { params: Pro
   }
 
   return NextResponse.json({ appointment, customerProfile })
-})
+}))
 
-export const PUT = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const PUT = withErrors(withModule("APPOINTMENTS", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can update appointments" }, { status: 403 })
+  }
   const { id } = await params
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const { status, action, notes, date, startTime, providerId } = body
 
   const existing = await db.aptAppointment.findFirst({
@@ -70,14 +77,44 @@ export const PUT = withErrors(async (req: NextRequest, { params }: { params: Pro
   updateData.status = newStatus
 
   if (notes !== undefined) updateData.notes = notes
-  if (providerId !== undefined) updateData.providerId = providerId
+  if (providerId !== undefined) updateData.providerId = providerId && providerId !== "default" ? providerId : null
 
   if (date && startTime) {
+    const startOfDay = new Date(`${date}T00:00:00+04:00`)
+    const endOfDay = new Date(`${date}T23:59:59+04:00`)
+    const [h, m] = startTime.split(":").map(Number)
+    const newStartMins = (h || 0) * 60 + (m || 0)
+    const dur = existing.durationMins || 30
+    const newEndMins = newStartMins + dur
+    const targetProviderId = providerId !== undefined ? (providerId !== "default" ? providerId : null) : existing.providerId
+
+    // Check collision against active appointments
+    const conflicts = await db.aptAppointment.findMany({
+      where: {
+        tenantId: tenant.tenantId,
+        id: { not: id },
+        appointmentDate: { gte: startOfDay, lte: endOfDay },
+        status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] },
+        ...(targetProviderId ? { providerId: targetProviderId } : {}),
+      },
+      select: { startTime: true, endTime: true },
+    })
+
+    const hasConflict = conflicts.some(c => {
+      const [cStartH, cStartM] = c.startTime.split(":").map(Number)
+      const [cEndH, cEndM] = (c.endTime || "23:59").split(":").map(Number)
+      const cStartMins = (cStartH || 0) * 60 + (cStartM || 0)
+      const cEndMins = (cEndH || 0) * 60 + (cEndM || 0)
+      return newStartMins < cEndMins && newEndMins > cStartMins
+    })
+
+    if (hasConflict) {
+      return NextResponse.json({ error: "The new time slot conflicts with an existing booking" }, { status: 409 })
+    }
+
     updateData.appointmentDate = new Date(`${date}T00:00:00+04:00`)
     updateData.startTime = startTime
-    const [h, m] = startTime.split(":").map(Number)
-    const endMins = h * 60 + m + (existing.durationMins || 30)
-    updateData.endTime = `${String(Math.floor(endMins / 60)).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`
+    updateData.endTime = `${String(Math.floor(newEndMins / 60)).padStart(2, "0")}:${String(newEndMins % 60).padStart(2, "0")}`
     if (newStatus !== "CANCELLED") newStatus = "RESCHEDULED"
     updateData.status = newStatus
   }
@@ -117,13 +154,21 @@ export const PUT = withErrors(async (req: NextRequest, { params }: { params: Pro
   }
 
   return NextResponse.json({ appointment: updated })
-})
+}))
 
-export const DELETE = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("APPOINTMENTS", async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can delete appointments" }, { status: 403 })
+  }
   const { id } = await params
+
+  const existing = await db.aptAppointment.findFirst({
+    where: { id, tenantId: tenant.tenantId },
+  })
+  if (!existing) return NextResponse.json({ error: "Appointment not found" }, { status: 404 })
 
   await db.aptAppointment.delete({ where: { id } })
   return NextResponse.json({ success: true })
-})
+}))

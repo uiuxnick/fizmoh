@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 
-export const GET = withErrors(async (req: NextRequest) => {
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
+
+export const GET = withErrors(withModule("APPOINTMENTS", async (_req: NextRequest) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const providers = await db.aptProvider.findMany({
     where: { tenantId: tenant.tenantId },
@@ -18,11 +21,14 @@ export const GET = withErrors(async (req: NextRequest) => {
   })
 
   return NextResponse.json({ providers })
-})
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("APPOINTMENTS", async (req: NextRequest) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can add providers" }, { status: 403 })
+  }
 
   const body = await req.json()
   const { name, role, specialty, description, photoUrl, staffId, serviceIds } = body
@@ -68,4 +74,4 @@ export const POST = withErrors(async (req: NextRequest) => {
   }
 
   return NextResponse.json({ provider }, { status: 201 })
-})
+}))

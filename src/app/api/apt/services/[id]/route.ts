@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 
-export const GET = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"]
+
+export const GET = withErrors(withModule("APPOINTMENTS", async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
 
   const service = await db.aptService.findFirst({
@@ -19,14 +22,17 @@ export const GET = withErrors(async (req: NextRequest, { params }: { params: Pro
 
   if (!service) return NextResponse.json({ error: "Service not found" }, { status: 404 })
   return NextResponse.json({ service })
-})
+}))
 
-export const PUT = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const PUT = withErrors(withModule("APPOINTMENTS", async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can edit services" }, { status: 403 })
+  }
   const { id } = await params
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const { providerIds, ...updateData } = body
 
   const service = await db.aptService.update({
@@ -48,13 +54,16 @@ export const PUT = withErrors(async (req: NextRequest, { params }: { params: Pro
   }
 
   return NextResponse.json({ service })
-})
+}))
 
-export const DELETE = withErrors(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("APPOINTMENTS", async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
-  if (!tenant) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only workspace administrators can delete services" }, { status: 403 })
+  }
   const { id } = await params
 
   await db.aptService.delete({ where: { id } })
   return NextResponse.json({ success: true })
-})
+}))

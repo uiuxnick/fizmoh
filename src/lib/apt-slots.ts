@@ -274,7 +274,7 @@ export async function generateAvailableSlots(opts: SlotGenOptions): Promise<Gene
 }
 
 /**
- * Hold a slot for 10 minutes.
+ * Hold a slot for 10 minutes with collision checks against existing bookings and active holds.
  */
 export async function holdSlot(
   tenantId: string,
@@ -286,6 +286,62 @@ export async function holdSlot(
   providerId?: string,
   branchId?: string
 ) {
+  const startOfDay = new Date(`${date}T00:00:00+04:00`)
+  const endOfDay = new Date(`${date}T23:59:59+04:00`)
+
+  const [h, m] = startTime.split(":").map(Number)
+  const [endH, endM] = endTime.split(":").map(Number)
+  const newStartMins = (h || 0) * 60 + (m || 0)
+  const newEndMins = (endH || 0) * 60 + (endM || 0)
+
+  // 1. Collision check: existing confirmed/active appointments
+  const existingAppts = await db.aptAppointment.findMany({
+    where: {
+      tenantId,
+      appointmentDate: { gte: startOfDay, lte: endOfDay },
+      status: { notIn: ["CANCELLED", "EXPIRED", "NO_SHOW"] },
+      ...(providerId && providerId !== "default" ? { providerId } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  })
+
+  const hasApptConflict = existingAppts.some(apt => {
+    const [aStartH, aStartM] = apt.startTime.split(":").map(Number)
+    const [aEndH, aEndM] = (apt.endTime || "23:59").split(":").map(Number)
+    const aStartMins = aStartH * 60 + aStartM
+    const aEndMins = aEndH * 60 + aEndM
+    return newStartMins < aEndMins && newEndMins > aStartMins
+  })
+
+  if (hasApptConflict) return null
+
+  // 2. Collision check: active holds by another customer
+  const activeHolds = await db.aptHold.findMany({
+    where: {
+      tenantId,
+      slotDate: { gte: startOfDay, lte: endOfDay },
+      expiresAt: { gt: new Date() },
+      customerPhone: { not: customerPhone },
+      ...(providerId && providerId !== "default" ? { providerId } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  })
+
+  const hasHoldConflict = activeHolds.some(h => {
+    const [hStartH, hStartM] = h.startTime.split(":").map(Number)
+    const [hEndH, hEndM] = (h.endTime || "23:59").split(":").map(Number)
+    const hStartMins = hStartH * 60 + hStartM
+    const hEndMins = hEndH * 60 + hEndM
+    return newStartMins < hEndMins && newEndMins > hStartMins
+  })
+
+  if (hasHoldConflict) return null
+
+  // Release any prior hold by this customer for this tenant
+  await db.aptHold.deleteMany({
+    where: { tenantId, customerPhone },
+  })
+
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
   const slotDate = new Date(`${date}T00:00:00+04:00`)
 
@@ -293,8 +349,8 @@ export async function holdSlot(
     data: {
       tenantId,
       serviceId,
-      providerId,
-      branchId,
+      providerId: providerId !== "default" ? providerId : null,
+      branchId: branchId || null,
       slotDate,
       startTime,
       endTime,
