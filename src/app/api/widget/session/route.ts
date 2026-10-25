@@ -59,6 +59,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid widgetId or tenant workspace is required" }, { status: 404, headers: corsHeaders(origin) })
     }
 
+    if (origin && widget?.allowedDomains && Array.isArray(widget.allowedDomains) && widget.allowedDomains.length > 0) {
+      const originHost = origin.replace(/^https?:\/\//i, "").replace(/:\d+$/, "").toLowerCase()
+      const isAllowed = widget.allowedDomains.some((d: any) => {
+        const clean = String(d).trim().toLowerCase().replace(/^https?:\/\//i, "").replace(/\/.*$/, "")
+        return clean && (originHost === clean || originHost.endsWith("." + clean))
+      })
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "Widget embedding not authorized for this domain" },
+          { status: 403, headers: corsHeaders(origin) },
+        )
+      }
+    }
+
     // Find or create customer
     let customer: any = null
     const cleanPhone = phone ? String(phone).trim() : null
@@ -146,6 +160,28 @@ export async function POST(request: NextRequest) {
       })
 
       conversation.messages = [welcomeMsg]
+
+      // Notify live team inbox and staff in real-time
+      const { notifyStaff, publish } = await import("@/lib/realtime")
+      publish({
+        type: "conversation",
+        conversationId: conversation.id,
+        tenantId,
+      })
+
+      await notifyStaff({
+        tenantId,
+        type: "live_chat_started",
+        title: "New Website Chat Session",
+        message: `${displayName} started a live chat session${currentUrl ? ` on ${currentUrl}` : ""}`,
+        data: {
+          conversationId: conversation.id,
+          visitorId,
+          customerName: displayName,
+          channel: "LIVE_CHAT",
+          url: `/dashboard/inbox?conversationId=${conversation.id}`,
+        },
+      }).catch(err => console.error("Failed to notify staff of live chat session:", err))
     } else {
       // Update customer details if now supplied
       if (cleanName || customer) {

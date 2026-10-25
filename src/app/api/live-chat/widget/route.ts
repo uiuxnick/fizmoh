@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
 
-export const GET = withErrors(async () => {
+export const GET = withErrors(withModule("LIVE_CHAT", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenantCtx = currentTenant()
   if (!tenantCtx?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -21,6 +28,13 @@ export const GET = withErrors(async () => {
   })
 
   if (!widget) {
+    const tenantWa = await db.whatsAppAccount.findFirst({
+      where: { tenantId, displayPhone: { not: null } },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      select: { displayPhone: true },
+    })
+    const defaultWaNumber = tenantWa?.displayPhone ? tenantWa.displayPhone.replace(/[^0-9+]/g, "") : ""
+
     widget = await (db as any).liveChatWidget.create({
       data: {
         tenantId,
@@ -37,7 +51,7 @@ export const GET = withErrors(async () => {
         proactivePrompt: "Need help? Chat with our team!",
         proactiveDelay: 5,
         whatsappEnabled: true,
-        whatsappNumber: process.env.WHATSAPP_PHONE_NUMBER || "",
+        whatsappNumber: defaultWaNumber,
         whatsappMessage: "Hello! I have a question about your services.",
         webChatEnabled: true,
         requireLeadForm: true,
@@ -71,9 +85,14 @@ export const GET = withErrors(async () => {
     },
     embedSnippet: `<script src="https://app.fizmoh.cloud/widget.js" data-widget-id="${widget.id}" async></script>`,
   })
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("LIVE_CHAT", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenantCtx = currentTenant()
   if (!tenantCtx?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -131,4 +150,4 @@ export const POST = withErrors(async (request: NextRequest) => {
     widget,
     embedSnippet: `<script src="https://app.fizmoh.cloud/widget.js" data-widget-id="${widget.id}" async></script>`,
   })
-})
+}))

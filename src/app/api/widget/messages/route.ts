@@ -132,6 +132,20 @@ export async function POST(request: NextRequest) {
         channel: "LIVE_CHAT",
       })
 
+      const { notifyStaff } = await import("@/lib/realtime")
+      await notifyStaff({
+        tenantId: conversation.tenantId,
+        type: "live_chat_handoff",
+        title: "Live Chat Human Handoff Requested",
+        message: `${conversation.customerName || "Website Visitor"} requested a human support agent`,
+        data: {
+          conversationId: sessionId,
+          customerName: conversation.customerName,
+          channel: "LIVE_CHAT",
+          url: `/dashboard/inbox?conversationId=${sessionId}`,
+        },
+      }).catch(err => console.error("Failed to notify staff of live chat handoff:", err))
+
       return NextResponse.json(
         {
           success: true,
@@ -231,6 +245,20 @@ export async function POST(request: NextRequest) {
             conversationId: sessionId,
             tenantId: conversation.tenantId || undefined,
           })
+
+          const { notifyStaff } = await import("@/lib/realtime")
+          await notifyStaff({
+            tenantId: conversation.tenantId,
+            type: "live_chat_handoff",
+            title: "Live Chat Agent Assistance Needed",
+            message: `${conversation.customerName || "Website Visitor"} needs agent assistance: "${content.slice(0, 80)}"`,
+            data: {
+              conversationId: sessionId,
+              customerName: conversation.customerName,
+              channel: "LIVE_CHAT",
+              url: `/dashboard/inbox?conversationId=${sessionId}`,
+            },
+          }).catch(err => console.error("Failed to notify staff of intent handoff:", err))
         } else {
           // Fetch conversation history for smart grounded reply
           const recentMessages = await db.message.findMany({

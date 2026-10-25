@@ -59,25 +59,54 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const origin = request.headers.get("origin")
+    if (origin && widget?.allowedDomains && Array.isArray(widget.allowedDomains) && widget.allowedDomains.length > 0) {
+      const originHost = origin.replace(/^https?:\/\//i, "").replace(/:\d+$/, "").toLowerCase()
+      const isAllowed = widget.allowedDomains.some((d: any) => {
+        const clean = String(d).trim().toLowerCase().replace(/^https?:\/\//i, "").replace(/\/.*$/, "")
+        return clean && (originHost === clean || originHost.endsWith("." + clean))
+      })
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "Widget embedding not authorized for this domain" },
+          { status: 403, headers: corsHeaders(origin) },
+        )
+      }
+    }
+
+    let tenantWaNumber = ""
+    if (tenant?.id) {
+      const acc = await db.whatsAppAccount.findFirst({
+        where: { tenantId: tenant.id, displayPhone: { not: null } },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        select: { displayPhone: true },
+      })
+      if (acc?.displayPhone) {
+        tenantWaNumber = acc.displayPhone.replace(/[^0-9+]/g, "")
+      }
+    }
+
+    const resolvedWaNumber = widget?.whatsappNumber || tenantWaNumber || (tenantSlug === "fizmoh-support" ? SUPPORT_PHONE : "")
+
     // Default configuration if not found
     const defaultResponse = {
       id: widget?.id || "default",
       tenantId: tenant?.id || "",
-      tenantName: tenant?.name || "Fizmoh Support",
-      tenantSlug: tenant?.slug || "fizmoh-support",
+      tenantName: tenant?.name || (tenantSlug === "fizmoh-support" ? "Fizmoh Support" : "Customer Support"),
+      tenantSlug: tenant?.slug || tenantSlug || "fizmoh-support",
       primaryColor: widget?.primaryColor || "#00E785",
       position: widget?.position || "bottom-right",
-      headerTitle: widget?.headerTitle || "Fizmoh Support",
+      headerTitle: widget?.headerTitle || (tenant?.name ? `${tenant.name} Support` : "Customer Support"),
       headerSubtitle: widget?.headerSubtitle || "Typically replies in under 5 minutes",
-      agentName: widget?.agentName || "Fizmoh Support",
-      agentRole: widget?.agentRole || "Support & Growth Specialist",
+      agentName: widget?.agentName || "Customer Support",
+      agentRole: widget?.agentRole || "Support Specialist",
       avatarUrl: widget?.avatarUrl || tenant?.logoUrl || "/fizmoh-logo-light.png",
-      welcomeMessage: widget?.welcomeMessage || "Hi there! 👋 Welcome to Fizmoh Support. How can we help you with WhatsApp Business, Automation, or APIs today?",
-      proactivePrompt: widget?.proactivePrompt ?? "Need help? Chat with Fizmoh Support!",
+      welcomeMessage: widget?.welcomeMessage || "Hi there! 👋 How can we help you today?",
+      proactivePrompt: widget?.proactivePrompt ?? "Need help? Chat with our team!",
       proactiveDelay: widget?.proactiveDelay ?? 5,
-      whatsappEnabled: widget?.whatsappEnabled ?? true,
-      whatsappNumber: widget?.whatsappNumber || process.env.WHATSAPP_PHONE_NUMBER || "+96890000000",
-      whatsappMessage: widget?.whatsappMessage || "Hello Fizmoh Support! I have a question about your WhatsApp platform & pricing.",
+      whatsappEnabled: widget?.whatsappEnabled ?? Boolean(resolvedWaNumber),
+      whatsappNumber: resolvedWaNumber,
+      whatsappMessage: widget?.whatsappMessage || "Hello! I have a question about your services.",
       webChatEnabled: widget?.webChatEnabled ?? true,
       requireLeadForm: widget?.requireLeadForm ?? true,
       requirePhone: widget?.requirePhone ?? false,
