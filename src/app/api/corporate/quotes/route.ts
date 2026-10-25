@@ -5,6 +5,8 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"])
+
 export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
@@ -136,6 +138,14 @@ export const GET = withErrors(withModule("CORPORATE", async (request: NextReques
 }))
 
 export const POST = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+  if (session.role && !EDIT_ROLES.has(session.role)) {
+    return NextResponse.json({ error: "Only administrators can create quotation requests" }, { status: 403 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) {
@@ -221,6 +231,9 @@ export const PATCH = withErrors(withModule("CORPORATE", async (request: NextRequ
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
   }
+  if (session.role && !EDIT_ROLES.has(session.role)) {
+    return NextResponse.json({ error: "Only administrators can update quotation requests" }, { status: 403 })
+  }
 
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
@@ -279,6 +292,9 @@ export const DELETE = withErrors(withModule("CORPORATE", async (request: NextReq
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+  if (session.role && !EDIT_ROLES.has(session.role)) {
+    return NextResponse.json({ error: "Only administrators can delete quotation requests" }, { status: 403 })
   }
 
   const tenant = currentTenant()

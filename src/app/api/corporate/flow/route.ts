@@ -6,6 +6,8 @@ import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 import { BOT_TEMPLATES } from "@/lib/bot-templates"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"])
+
 export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
@@ -41,6 +43,9 @@ export const POST = withErrors(withModule("CORPORATE", async (request: NextReque
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+  if (session.role && !EDIT_ROLES.has(session.role)) {
+    return NextResponse.json({ error: "Only administrators can deploy corporate flows" }, { status: 403 })
   }
 
   const tenant = currentTenant()

@@ -124,6 +124,8 @@ const DEFAULT_PROFILE = {
   terms: "1. Quotation validity: 30 days from date of issuance.\n2. Payment terms: 50% advance on confirmation, 40% on delivery of materials to site, 10% on completion of installation.\n3. Warranty: 15-20 years on Qualicoat Class 2 architectural powder coating; 5 years against hermetic seal failure in IGU double glazed units.\n4. Delivery: 3 to 4 weeks from approved shop drawings and site clearance.",
 }
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "MANAGER", "ADMIN", "PLATFORM"])
+
 export const GET = withErrors(withModule("CORPORATE", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
@@ -178,6 +180,9 @@ export const PUT = withErrors(withModule("CORPORATE", async (request: NextReques
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+  if (session.role && !EDIT_ROLES.has(session.role)) {
+    return NextResponse.json({ error: "Only administrators can modify corporate settings" }, { status: 403 })
   }
 
   const tenant = currentTenant()
