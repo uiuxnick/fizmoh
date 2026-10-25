@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { db, raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
-import { currentModules } from "@/lib/entitlements"
+import { currentModules, withModule } from "@/lib/entitlements"
+import { sessionFromRequest } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -72,7 +73,12 @@ const DEFAULT_CONFIG: CloudBridgesConfig = {
   webhooks: [],
 }
 
-export const GET = withErrors(async () => {
+export const GET = withErrors(withModule("INTEGRATION", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -118,9 +124,14 @@ export const GET = withErrors(async () => {
     stats,
     inboundIngestUrl,
   })
-})
+}))
 
-export const PUT = withErrors(async (request: NextRequest) => {
+export const PUT = withErrors(withModule("INTEGRATION", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -173,9 +184,14 @@ export const PUT = withErrors(async (request: NextRequest) => {
   })
 
   return NextResponse.json({ success: true, config: updated })
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("INTEGRATION", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -220,6 +236,19 @@ export const POST = withErrors(async (request: NextRequest) => {
         type: "JSON",
       },
     })
+
+    const { notifyStaff } = await import("@/lib/realtime")
+    await notifyStaff({
+      tenantId,
+      type: "google_sheet_synced",
+      title: "Google Sheet Sync Completed",
+      message: `Synchronized ${syncedCount} records to Google Sheet tab '${existing.sheetSync.sheetName || "Fizmoh Leads & Orders"}'.`,
+      data: {
+        syncedRowsCount: syncedCount,
+        sheetName: existing.sheetSync.sheetName,
+        url: `/dashboard/cloud-bridges`,
+      },
+    }).catch(err => console.error("Failed to notify staff of sheet sync:", err))
 
     return NextResponse.json({
       success: true,
@@ -291,4 +320,4 @@ export const POST = withErrors(async (request: NextRequest) => {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
-})
+}))

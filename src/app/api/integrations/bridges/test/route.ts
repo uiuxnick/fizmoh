@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+import { assertSafeHttpUrl } from "@/lib/safe-url"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("INTEGRATION", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
@@ -42,6 +50,12 @@ export const POST = withErrors(async (request: NextRequest) => {
     const targetUrl = String(url || "").trim()
     if (!targetUrl || !targetUrl.startsWith("http")) {
       return NextResponse.json({ ok: false, error: "Please enter a valid http/https destination URL." }, { status: 400 })
+    }
+
+    try {
+      await assertSafeHttpUrl(targetUrl)
+    } catch (err: any) {
+      return NextResponse.json({ ok: false, error: `Security check: ${err.message || "Target URL is not allowed."}` }, { status: 400 })
     }
 
     const testPayload = {
@@ -102,4 +116,4 @@ export const POST = withErrors(async (request: NextRequest) => {
   }
 
   return NextResponse.json({ error: "Unsupported test type" }, { status: 400 })
-})
+}))
