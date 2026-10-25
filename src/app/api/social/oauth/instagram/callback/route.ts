@@ -35,7 +35,6 @@ export const GET = withErrors(async (request: NextRequest) => {
   const subscribed = await subscribeInstagramWebhook(result.account.id, result.account.accessToken)
   {
     const { db } = await import("@/lib/db")
-    const tenant = currentTenant()
     if (tenant?.tenantId) {
       await db.socialAccount.updateMany({
         where: { tenantId: tenant.tenantId, channel: "INSTAGRAM", externalAccountId: result.account.id },
@@ -44,7 +43,6 @@ export const GET = withErrors(async (request: NextRequest) => {
     }
   }
 
-  const tenant = currentTenant()
   await createAuditLog({ staffId: tenant?.staffId, action: "SOCIAL_INSTAGRAM_CONNECTED", entity: "SocialAccount", entityId: result.account.id, details: { username: result.account.username } })
 
   const response = NextResponse.redirect(`${settings}&social=connected`)

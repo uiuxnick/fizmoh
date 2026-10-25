@@ -43,7 +43,6 @@ export const GET = withErrors(async (request: NextRequest) => {
       // saveSocialAccount makes the newest connection active; only the first
       // page in this batch should end up active, so the rest step back down.
       const { db } = await import("@/lib/db")
-      const tenant = currentTenant()
       if (tenant?.tenantId) {
         await db.socialAccount.updateMany({ where: { tenantId: tenant.tenantId, channel: "FACEBOOK", externalAccountId: page.id }, data: { isActive: false } })
       }
@@ -53,7 +52,6 @@ export const GET = withErrors(async (request: NextRequest) => {
     // exactly why messages sent to a "Connected" Page never reached the inbox
     // with no visible reason anywhere.
     const { db } = await import("@/lib/db")
-    const tenant = currentTenant()
     if (tenant?.tenantId) {
       await db.socialAccount.updateMany({
         where: { tenantId: tenant.tenantId, channel: "FACEBOOK", externalAccountId: page.id },
@@ -62,7 +60,6 @@ export const GET = withErrors(async (request: NextRequest) => {
     }
   }
 
-  const tenant = currentTenant()
   await createAuditLog({ staffId: tenant?.staffId, action: "SOCIAL_FACEBOOK_CONNECTED", entity: "SocialAccount", entityId: result.pages[0].id, details: { pages: result.pages.map(p => p.name) } })
 
   const response = NextResponse.redirect(`${settings}&social=connected`)
