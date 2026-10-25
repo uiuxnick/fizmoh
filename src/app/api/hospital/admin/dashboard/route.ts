@@ -41,7 +41,7 @@ export const GET = withErrors(withModule("HOSPITAL", async (req?: Request) => {
     normal,
     special,
     totalChemo: (normal?.booked || 0) + (special?.booked || 0),
-    totalBeds: 30,
+    totalBeds: (normal?.total || 0) + (special?.total || 0),
     totalAvailable: (normal?.available || 0) + (special?.available || 0),
     doctorAppointmentsToday: totalApts,
   })

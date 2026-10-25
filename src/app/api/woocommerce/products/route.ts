@@ -4,11 +4,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
 
 /**
  * List & Create WooCommerce Products with Local PostgreSQL Cache Fallback & Audit Logging
  */
-export const GET = withErrors(async (request: NextRequest) => {
+export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
@@ -85,9 +86,9 @@ export const GET = withErrors(async (request: NextRequest) => {
     }
     return NextResponse.json({ error: e.message || "Failed to fetch WooCommerce products" }, { status: 400 })
   }
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
@@ -178,4 +179,4 @@ export const POST = withErrors(async (request: NextRequest) => {
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to create WooCommerce product" }, { status: 400 })
   }
-})
+}))

@@ -1,11 +1,18 @@
 import { withErrors } from "@/lib/api-handler"
 import { wcRequest } from "@/lib/woocommerce-client"
 import { NextRequest, NextResponse } from "next/server"
+import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
 
 /**
  * List WooCommerce Orders
  */
-export const GET = withErrors(async (request: NextRequest) => {
+export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const searchParams = request.nextUrl.searchParams
   const status = searchParams.get("status") || "any"
   const page = searchParams.get("page") || "1"
@@ -22,4 +29,4 @@ export const GET = withErrors(async (request: NextRequest) => {
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to fetch WooCommerce orders" }, { status: 400 })
   }
-})
+}))

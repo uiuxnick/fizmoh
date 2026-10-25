@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
+import { hasModule } from "@/lib/entitlements"
 import crypto from "crypto"
 
 export const GET = withErrors(async (request: NextRequest) => {
@@ -9,6 +10,20 @@ export const GET = withErrors(async (request: NextRequest) => {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
+  }
+
+  const tenant = await db.tenant.findUnique({ where: { id: auth.tenantId }, select: { slug: true } })
+  const tenantSlug = tenant?.slug || ""
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud").replace(/\/+$/, "")
 
   const stores = await db.ecommerceStore.findMany({
     where: { tenantId: auth.tenantId },
@@ -36,8 +51,8 @@ export const GET = withErrors(async (request: NextRequest) => {
     settings: s.settings,
     abandonedCartsCount: s._count.abandonedCarts,
     templateMappingsCount: s._count.templateMappings,
-    webhookUrl: `https://app.fizmoh.cloud/api/woocommerce/webhook?storeId=${s.id}`,
-    shopifyWebhookUrl: `https://app.fizmoh.cloud/api/ecommerce/webhooks/shopify?storeId=${s.id}`,
+    webhookUrl: `${baseUrl}/api/woocommerce/webhook?workspace=${tenantSlug}&storeId=${s.id}`,
+    shopifyWebhookUrl: `${baseUrl}/api/ecommerce/webhooks/shopify?workspace=${tenantSlug}&storeId=${s.id}`,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }))
@@ -49,6 +64,16 @@ export const POST = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const body = await request.json().catch(() => ({}))
@@ -81,6 +106,10 @@ export const POST = withErrors(async (request: NextRequest) => {
     },
   })
 
+  const tenant = await db.tenant.findUnique({ where: { id: auth.tenantId }, select: { slug: true } })
+  const tenantSlug = tenant?.slug || ""
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud").replace(/\/+$/, "")
+
   return NextResponse.json({
     success: true,
     store: {
@@ -90,8 +119,8 @@ export const POST = withErrors(async (request: NextRequest) => {
       storeUrl: store.storeUrl,
       apiKey: store.apiKey,
       webhookSecret: store.webhookSecret,
-      webhookUrl: `https://app.fizmoh.cloud/api/woocommerce/webhook?storeId=${store.id}`,
-      shopifyWebhookUrl: `https://app.fizmoh.cloud/api/ecommerce/webhooks/shopify?storeId=${store.id}`,
+      webhookUrl: `${baseUrl}/api/woocommerce/webhook?workspace=${tenantSlug}&storeId=${store.id}`,
+      shopifyWebhookUrl: `${baseUrl}/api/ecommerce/webhooks/shopify?workspace=${tenantSlug}&storeId=${store.id}`,
     },
   }, { status: 201 })
 })
@@ -100,6 +129,16 @@ export const DELETE = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const { searchParams } = new URL(request.url)

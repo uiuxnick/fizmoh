@@ -16,14 +16,24 @@ export const POST = withErrors(async (request: NextRequest) => {
   const shopDomain = request.headers.get("x-shopify-shop-domain") || ""
   const hmacHeader = request.headers.get("x-shopify-hmac-sha256") || ""
 
-  // Resolve tenant via query param ?workspace=<slug> or match storeUrl / settings
+  // Resolve tenant via query param ?workspace=<slug>, ?storeId=<id>, or match storeUrl / settings
   const { searchParams } = new URL(request.url)
   const workspaceSlug = searchParams.get("workspace")?.trim()
+  const storeIdParam = searchParams.get("storeId")?.trim()
 
   let tenantId: string | null = null
   let storeRecord: any = null
 
-  if (workspaceSlug) {
+  if (storeIdParam) {
+    storeRecord = await db.ecommerceStore.findUnique({
+      where: { id: storeIdParam },
+    })
+    if (storeRecord) {
+      tenantId = storeRecord.tenantId
+    }
+  }
+
+  if (!tenantId && workspaceSlug) {
     const t = await db.tenant.findUnique({ where: { slug: workspaceSlug }, select: { id: true } })
     if (t) tenantId = t.id
   }

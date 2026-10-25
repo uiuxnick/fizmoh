@@ -103,7 +103,40 @@ export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) =
     })
   })
 
-  await sendHospitalBookingUpdate({ phone: booking.patient.mobile, patientName: booking.patient.fullName, reference: booking.bookingRef, type: "chemo", date: format(booking.bookingDate, "yyyy-MM-dd"), time: booking.session ? `${booking.session.startTime} - ${booking.session.endTime}` : null, doctor: booking.doctor.name, bed: booking.bed.bedNumber })
+  // Instantly notify hospital staff via in-app notification & notification center
+  try {
+    const { notifyStaff } = await import("@/lib/realtime")
+    const docDisplayName = booking.doctor.name.match(/^(Dr\.?|د\.)\s*/i) ? booking.doctor.name : `Dr. ${booking.doctor.name}`
+    await notifyStaff({
+      tenantId,
+      type: "chemo",
+      title: `🏥 New Chemotherapy Bed Booking (${booking.bookingRef})`,
+      message: `${booking.patient.fullName} booked Bed ${booking.bed.bedNumber} with ${docDisplayName} for ${format(booking.bookingDate, "yyyy-MM-dd")}.`,
+      data: {
+        link: "/dashboard/addons/hospital-operations",
+        bookingId: booking.id,
+        bookingRef: booking.bookingRef,
+        patientId: booking.patientId,
+        bedNumber: booking.bed.bedNumber,
+      },
+    })
+  } catch (notifErr) {
+    console.error("[hospital/chemo] Staff notification error:", notifErr)
+  }
+
+  const hospSettings = await db.hospSettings.findUnique({ where: { tenantId }, select: { hospitalName: true } })
+  await sendHospitalBookingUpdate({
+    tenantId,
+    phone: booking.patient.mobile,
+    patientName: booking.patient.fullName,
+    reference: booking.bookingRef,
+    type: "chemo",
+    date: format(booking.bookingDate, "yyyy-MM-dd"),
+    time: booking.session ? `${booking.session.startTime} - ${booking.session.endTime}` : null,
+    doctor: booking.doctor.name,
+    bed: booking.bed.bedNumber,
+    hospitalName: hospSettings?.hospitalName,
+  })
 
   return NextResponse.json(booking, { status: 201 })
 }))

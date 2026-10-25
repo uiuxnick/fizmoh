@@ -453,12 +453,14 @@ export default function EcommerceSettingsView() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
-                          {store.platform === "WOOCOMMERCE" ? "WC" : "SH"}
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                          {store.platform === "WOOCOMMERCE" ? "WC" : store.platform === "SHOPIFY" ? "SH" : store.platform === "SALLA" ? "SL" : store.platform === "ZID" ? "ZD" : "API"}
                         </div>
                         <div>
                           <CardTitle className="text-base">{store.name}</CardTitle>
-                          <span className="text-xs text-muted-foreground">{store.platform}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {store.platform === "SALLA" ? "Salla GCC (سلة)" : store.platform === "ZID" ? "Zid GCC (زد)" : store.platform}
+                          </span>
                         </div>
                       </div>
                       <Badge variant="outline" className="text-emerald-600 border-emerald-300">
@@ -701,6 +703,8 @@ export default function EcommerceSettingsView() {
                 <SelectContent>
                   <SelectItem value="WOOCOMMERCE">WooCommerce (WordPress Plugin)</SelectItem>
                   <SelectItem value="SHOPIFY">Shopify (Webhooks & App)</SelectItem>
+                  <SelectItem value="SALLA">Salla GCC (سلة - Webhooks & API)</SelectItem>
+                  <SelectItem value="ZID">Zid GCC (زد - Webhooks & API)</SelectItem>
                   <SelectItem value="CUSTOM">Custom Platform / REST API</SelectItem>
                 </SelectContent>
               </Select>

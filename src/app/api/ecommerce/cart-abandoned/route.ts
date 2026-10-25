@@ -3,6 +3,7 @@ import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
 import { sendEcommerceNotification } from "@/lib/ecommerce-templates"
+import { hasModule } from "@/lib/entitlements"
 
 export const POST = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
@@ -11,6 +12,16 @@ export const POST = withErrors(async (request: NextRequest) => {
       { error: "Unauthorized: Invalid or missing API key / credentials" },
       { status: 401 },
     )
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const body = await request.json().catch(() => ({}))
@@ -150,6 +161,16 @@ export const GET = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const { searchParams } = new URL(request.url)

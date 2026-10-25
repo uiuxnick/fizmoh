@@ -2,11 +2,18 @@ import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { NextRequest, NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
 
 /**
  * Sync Products & Orders from WooCommerce Store with PostgreSQL Cache Persistence
  */
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenantId = currentTenant()?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const config = await db.systemSetting.findFirst({ where: { tenantId, key: "WOOCOMMERCE_SETTINGS" } })
@@ -95,9 +102,14 @@ export const POST = withErrors(async (request: NextRequest) => {
   } catch (e: any) {
     return NextResponse.json({ error: `Failed to connect to WooCommerce store: ${e.message || e}` }, { status: 500 })
   }
-})
+}))
 
-export const GET = withErrors(async () => {
+export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
   const tenantId = currentTenant()?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
 
@@ -115,4 +127,4 @@ export const GET = withErrors(async () => {
   } catch {
     return NextResponse.json({ lastSyncedAt: null, count: 0, products: [] })
   }
-})
+}))

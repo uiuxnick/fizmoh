@@ -57,7 +57,7 @@ export const POST = withErrors(async (request: NextRequest) => {
    * time: a comparison that returns early leaks, one character at a time, how
    * much of a guess was right.
    */
-  const secret = (await getConfigValue("woocommerce_webhook_secret")).trim()
+  const secret = (await getConfigValue("woocommerce_webhook_secret", tenant.tenantId)).trim()
   if (!secret) {
     console.error("[woocommerce] refused a delivery: no webhook secret is set for", tenant.slug)
     return NextResponse.json(

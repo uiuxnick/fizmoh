@@ -17,8 +17,22 @@ export async function verifiedPatientPhone(request: NextRequest, tenantId: strin
 
 export async function canReadPatient(request: NextRequest, tenantId: string, mobile: string): Promise<boolean> {
   const session = await sessionFromRequest(request)
-  const tenant = currentTenant()
-  if (session?.kind === "staff" && tenant?.tenantId === tenantId && tenant.staffId === session.staffId) return true
+  if (session?.kind === "staff") {
+    const tenant = currentTenant()
+    if (tenant?.tenantId === tenantId) return true
+    if ((session as any).tenantId === tenantId) return true
+    if (session.staffId) {
+      const member = await raw.tenantMember.findUnique({
+        where: { tenantId_staffId: { tenantId, staffId: session.staffId } },
+      })
+      if (member) return true
+      const staff = await raw.staff.findUnique({
+        where: { id: session.staffId },
+        select: { tenantId: true, role: true },
+      })
+      if (staff?.tenantId === tenantId || staff?.role === "SUPER_ADMIN") return true
+    }
+  }
   const phone = await verifiedPatientPhone(request, tenantId)
   return phone !== null && samePatientPhone(phone, mobile)
 }

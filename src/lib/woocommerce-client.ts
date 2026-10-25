@@ -20,20 +20,19 @@ const PLATFORM_SCOPES = ["", "PLATFORM"]
  */
 export async function getWcCredentials() {
   const tenantId = currentTenant()?.tenantId
-  const rows = await db.systemSetting.findMany({
+  if (!tenantId) return null
+
+  // STRICT MULTI-TENANT ISOLATION:
+  // Each tenant must strictly use their own connected WooCommerce store.
+  // Never bleed across tenants or fall back to platform/other tenants!
+  const config = await db.systemSetting.findFirst({
     where: {
+      tenantId,
       key: "WOOCOMMERCE_SETTINGS",
-      OR: [
-        ...(tenantId ? [{ tenantId }] : []),
-        { tenantId: { in: PLATFORM_SCOPES } },
-      ],
     },
-    select: { value: true, tenantId: true },
+    select: { value: true },
   })
 
-  const own = tenantId ? rows.find(r => r.tenantId === tenantId) : undefined
-  const shared = rows.find(r => PLATFORM_SCOPES.includes(r.tenantId))
-  const config = own ?? shared
   if (!config?.value) return null
   try {
     const parsed = JSON.parse(config.value)
@@ -57,6 +56,7 @@ export async function wcRequest(path: string, options: RequestInit = {}) {
 
   const res = await fetch(url, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(15000),
     headers: {
       "Content-Type": "application/json",
       "User-Agent": "Fizmoh-WooCommerce-Client/1.0",

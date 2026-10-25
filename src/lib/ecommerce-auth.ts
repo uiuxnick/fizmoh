@@ -8,7 +8,7 @@ export interface EcommerceAuthContext {
   tenantId: string
   storeId?: string | null
   storeName?: string
-  authMethod: "API_KEY" | "STORE_KEY" | "SESSION" | "WORKSPACE_PARAM"
+  authMethod: "API_KEY" | "STORE_KEY" | "SESSION" | "INTERNAL_CRON"
 }
 
 export async function resolveEcommerceAuth(request: NextRequest): Promise<EcommerceAuthContext | null> {
@@ -43,18 +43,23 @@ export async function resolveEcommerceAuth(request: NextRequest): Promise<Ecomme
 
   // 3. Check active staff session
   const session = await sessionFromRequest(request).catch(() => null)
-  const tenant = currentTenant()
-  if (session && tenant?.tenantId) {
-    return {
-      tenantId: tenant.tenantId,
-      authMethod: "SESSION",
+  if (session && session.kind === "staff") {
+    const tenant = currentTenant()
+    const tenantId = tenant?.tenantId || (session as any).tenantId
+    if (tenantId) {
+      return {
+        tenantId,
+        authMethod: "SESSION",
+      }
     }
   }
 
-  // 4. Query param ?workspace=<slug> with shared cron secret or internal token
+  // 4. Internal cron / system caller with verified CRON_SECRET only
+  const cronSecretHeader = request.headers.get("x-cron-secret") || request.headers.get("x-fizmoh-cron") || request.headers.get("x-internal-token")
   const { searchParams } = new URL(request.url)
   const workspaceSlug = searchParams.get("workspace")?.trim()
-  if (workspaceSlug) {
+
+  if (workspaceSlug && process.env.CRON_SECRET && cronSecretHeader === process.env.CRON_SECRET) {
     const targetTenant = await db.tenant.findUnique({
       where: { slug: workspaceSlug },
       select: { id: true, name: true },
@@ -63,7 +68,7 @@ export async function resolveEcommerceAuth(request: NextRequest): Promise<Ecomme
     if (targetTenant) {
       return {
         tenantId: targetTenant.id,
-        authMethod: "WORKSPACE_PARAM",
+        authMethod: "INTERNAL_CRON",
       }
     }
   }

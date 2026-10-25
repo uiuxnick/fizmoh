@@ -4,11 +4,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
 
 /**
  * Edit & Delete WooCommerce Product by ID with automatic cache synchronization and audit logging
  */
-export const PUT = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const PUT = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
@@ -87,9 +88,9 @@ export const PUT = withErrors(async (request: NextRequest, { params }: { params:
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to update WooCommerce product" }, { status: 400 })
   }
-})
+}))
 
-export const DELETE = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
@@ -136,4 +137,4 @@ export const DELETE = withErrors(async (request: NextRequest, { params }: { para
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Failed to delete WooCommerce product" }, { status: 400 })
   }
-})
+}))

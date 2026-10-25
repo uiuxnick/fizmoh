@@ -21,11 +21,14 @@ export function WooCommerceView() {
   const [storeUrl, setStoreUrl] = useState("")
   const [consumerKey, setConsumerKey] = useState("")
   const [consumerSecret, setConsumerSecret] = useState("")
+  const [webhookSecret, setWebhookSecret] = useState("")
+  const [webhookUrl, setWebhookUrl] = useState("")
   const [autoSync, setAutoSync] = useState(true)
   const [syncOrders, setSyncOrders] = useState(true)
   const [savingSettings, setSavingSettings] = useState(false)
   const [connected, setConnected] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [secretCopied, setSecretCopied] = useState(false)
   const [guideModalOpen, setGuideModalOpen] = useState(false)
 
   // Categories State
@@ -107,7 +110,7 @@ export function WooCommerceView() {
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [customerSearch, setCustomerSearch] = useState("")
 
-  const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : "https://app.fizmoh.cloud"}/api/woocommerce/webhook`
+  const defaultWebhookUrl = `${typeof window !== "undefined" ? window.location.origin : "https://app.fizmoh.cloud"}/api/woocommerce/webhook`
 
   const loadConfig = async () => {
     try {
@@ -117,6 +120,8 @@ export function WooCommerceView() {
         setStoreUrl(data.storeUrl || "")
         setConsumerKey(data.consumerKey || "")
         setConsumerSecret(data.consumerSecret || "")
+        if (data.webhookSecret) setWebhookSecret(data.webhookSecret)
+        if (data.webhookUrl) setWebhookUrl(data.webhookUrl)
         setAutoSync(data.autoSync !== false)
         setSyncOrders(data.syncOrders !== false)
         if (data.storeUrl && data.consumerKey) setConnected(true)
@@ -205,12 +210,13 @@ export function WooCommerceView() {
       const res = await fetch("/api/woocommerce/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeUrl, consumerKey, consumerSecret, autoSync, syncOrders }),
+        body: JSON.stringify({ storeUrl, consumerKey, consumerSecret, autoSync, syncOrders, webhookSecret }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to save settings")
       toast.success("WooCommerce credentials saved!")
       setConnected(true)
+      loadConfig()
       loadCategories()
       loadProducts()
       loadOrders()
@@ -1342,22 +1348,59 @@ export function WooCommerceView() {
                   <ShoppingBag className="h-4 w-4 text-purple-600" /> WooCommerce Webhook Endpoint
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-2 bg-white rounded border border-purple-200 font-mono text-[10px] break-all text-purple-900">
-                  {webhookUrl}
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-purple-950 flex items-center justify-between">
+                    <span>1. Delivery URL (Endpoint)</span>
+                    <span className="text-[10px] text-purple-600 font-normal">Pre-configured with workspace slug</span>
+                  </Label>
+                  <div className="p-2 bg-white rounded border border-purple-200 font-mono text-[10px] break-all text-purple-900 select-all">
+                    {webhookUrl || defaultWebhookUrl}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      navigator.clipboard.writeText(webhookUrl || defaultWebhookUrl)
+                      setCopied(true)
+                      toast.success("Webhook URL copied!")
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                    className="w-full h-8 text-xs bg-white text-purple-700 border border-purple-300 hover:bg-purple-100 font-medium gap-1.5"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copied URL!" : "Copy Webhook URL"}
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(webhookUrl)
-                    setCopied(true)
-                    toast.success("Webhook URL copied!")
-                    setTimeout(() => setCopied(false), 2000)
-                  }}
-                  className="w-full h-8 text-xs bg-white text-purple-700 border border-purple-300 hover:bg-purple-100 font-medium gap-1.5"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied!" : "Copy Webhook URL"}
-                </Button>
+
+                <div className="space-y-1.5 pt-1 border-t border-purple-100">
+                  <Label className="text-[11px] font-bold text-purple-950 flex items-center justify-between">
+                    <span>2. Webhook Secret (HMAC SHA-256)</span>
+                    <span className="text-[10px] text-stone-500 font-normal">Paste into WooCommerce Secret field</span>
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={webhookSecret}
+                      onChange={e => setWebhookSecret(e.target.value)}
+                      placeholder="Generating secret..."
+                      className="h-8 text-xs font-mono bg-white border-purple-200"
+                    />
+                    <Button
+                      onClick={() => {
+                        if (!webhookSecret) return
+                        navigator.clipboard.writeText(webhookSecret)
+                        setSecretCopied(true)
+                        toast.success("Webhook Secret copied!")
+                        setTimeout(() => setSecretCopied(false), 2000)
+                      }}
+                      className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white font-medium shrink-0 gap-1"
+                    >
+                      {secretCopied ? <Check className="h-3.5 w-3.5 text-white" /> : <Copy className="h-3.5 w-3.5" />}
+                      {secretCopied ? "Copied" : "Copy Secret"}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-stone-500">
+                    In WooCommerce, go to <b>Settings → Advanced → Webhooks</b>, set status to <b>Active</b>, paste this Secret, and save.
+                  </p>
+                </div>
 
                 <div className="border-t border-purple-200/80 pt-3 space-y-2 text-xs">
                   <div className="font-bold text-stone-800 text-[11px]">Recommended Webhooks to Create in WooCommerce:</div>

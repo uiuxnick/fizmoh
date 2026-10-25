@@ -52,6 +52,39 @@ export const POST = withErrors(withModule("HOSPITAL", async (req: NextRequest) =
     data: { tenantId, appointmentRef, patientId, doctorId, appointmentDate: date, appointmentTime, source },
     include: { patient: true, doctor: { include: { department: true } } },
   })
-  await sendHospitalBookingUpdate({ phone: apt.patient.mobile, patientName: apt.patient.fullName, reference: apt.appointmentRef, type: "doctor", date: format(apt.appointmentDate, "yyyy-MM-dd"), time: apt.appointmentTime, doctor: apt.doctor.name })
+
+  // Instantly notify hospital staff via in-app notification & notification center
+  try {
+    const { notifyStaff } = await import("@/lib/realtime")
+    const docDisplayName = apt.doctor.name.match(/^(Dr\.?|د\.)\s*/i) ? apt.doctor.name : `Dr. ${apt.doctor.name}`
+    await notifyStaff({
+      tenantId,
+      type: "appointment",
+      title: `🩺 New Doctor Appointment (${apt.appointmentRef})`,
+      message: `${apt.patient.fullName} booked consultation with ${docDisplayName} for ${format(apt.appointmentDate, "yyyy-MM-dd")} at ${apt.appointmentTime}.`,
+      data: {
+        link: "/dashboard/addons/hospital-operations",
+        appointmentId: apt.id,
+        appointmentRef: apt.appointmentRef,
+        patientId: apt.patientId,
+        doctorId: apt.doctorId,
+      },
+    })
+  } catch (notifErr) {
+    console.error("[hospital/appointments] Staff notification error:", notifErr)
+  }
+
+  const hospSettings = await db.hospSettings.findUnique({ where: { tenantId }, select: { hospitalName: true } })
+  await sendHospitalBookingUpdate({
+    tenantId,
+    phone: apt.patient.mobile,
+    patientName: apt.patient.fullName,
+    reference: apt.appointmentRef,
+    type: "doctor",
+    date: format(apt.appointmentDate, "yyyy-MM-dd"),
+    time: apt.appointmentTime,
+    doctor: apt.doctor.name,
+    hospitalName: hospSettings?.hospitalName,
+  })
   return NextResponse.json(apt, { status: 201 })
 }))

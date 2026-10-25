@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
+import { hasModule } from "@/lib/entitlements"
 import {
   DEFAULT_ECOMMERCE_TEMPLATES,
   EcommerceEventType,
@@ -12,6 +13,16 @@ export const GET = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const { searchParams } = new URL(request.url)
@@ -57,6 +68,16 @@ export const POST = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const body = await request.json().catch(() => ({}))
@@ -112,6 +133,16 @@ export const PUT = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  if (auth.authMethod === "SESSION") {
+    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+        { status: 403 },
+      )
+    }
   }
 
   const body = await request.json().catch(() => ({}))

@@ -1,23 +1,46 @@
+import crypto from "crypto"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { NextRequest, NextResponse } from "next/server"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
+import { withModule } from "@/lib/entitlements"
+import { getConfigValue, saveConfigValues } from "@/lib/app-config"
 
 /**
  * WooCommerce Credentials & Configuration API
  */
-export const GET = withErrors(async () => {
-  const tenantId = currentTenant()?.tenantId
+export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud").replace(/\/+$/, "")
+  const webhookUrl = `${baseUrl}/api/woocommerce/webhook?workspace=${encodeURIComponent(tenant.slug || "")}`
+
   const config = await db.systemSetting.findFirst({
     where: { tenantId, key: "WOOCOMMERCE_SETTINGS" },
   })
 
+  let webhookSecret = (await getConfigValue("woocommerce_webhook_secret")).trim()
+  if (!webhookSecret) {
+    webhookSecret = crypto.randomBytes(16).toString("hex")
+    await saveConfigValues({ woocommerce_webhook_secret: webhookSecret }).catch(() => {})
+  }
+
   if (!config?.value) {
     return NextResponse.json({
-      storeUrl: process.env.WOOCOMMERCE_STORE_URL || "",
-      consumerKey: process.env.WOOCOMMERCE_CONSUMER_KEY || "",
-      consumerSecret: process.env.WOOCOMMERCE_CONSUMER_SECRET ? "••••••••" : "",
+      storeUrl: "",
+      consumerKey: "",
+      consumerSecret: "",
+      webhookSecret,
+      webhookUrl,
+      workspaceSlug: tenant.slug || "",
       autoSync: true,
       syncOrders: true,
     })
@@ -27,18 +50,31 @@ export const GET = withErrors(async () => {
     const data = JSON.parse(config.value)
     return NextResponse.json({
       ...data,
+      webhookSecret,
+      webhookUrl,
+      workspaceSlug: tenant.slug || "",
       consumerSecret: data.consumerSecret ? "••••••••" : "",
     })
   } catch {
-    return NextResponse.json({ storeUrl: "", consumerKey: "", consumerSecret: "", autoSync: true, syncOrders: true })
+    return NextResponse.json({ storeUrl: "", consumerKey: "", consumerSecret: "", webhookSecret, webhookUrl, workspaceSlug: tenant.slug || "", autoSync: true, syncOrders: true })
   }
-})
+}))
 
-export const POST = withErrors(async (request: NextRequest) => {
+export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const role = session.role?.toUpperCase() || ""
+  if (!["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER"].includes(role)) {
+    return NextResponse.json({ error: "Insufficient permissions to manage WooCommerce settings" }, { status: 403 })
+  }
+
   const tenantId = currentTenant()?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const body = await request.json().catch(() => ({}))
-  const { storeUrl, consumerKey, consumerSecret, autoSync, syncOrders } = body
+  const { storeUrl, consumerKey, consumerSecret, autoSync, syncOrders, webhookSecret } = body
 
   const existing = await db.systemSetting.findFirst({ where: { tenantId, key: "WOOCOMMERCE_SETTINGS" } })
 
@@ -76,5 +112,9 @@ export const POST = withErrors(async (request: NextRequest) => {
     })
   }
 
+  if (webhookSecret && typeof webhookSecret === "string" && webhookSecret.trim()) {
+    await saveConfigValues({ woocommerce_webhook_secret: webhookSecret.trim() }).catch(() => {})
+  }
+
   return NextResponse.json({ success: true, message: "WooCommerce settings saved successfully!" })
-})
+}))
