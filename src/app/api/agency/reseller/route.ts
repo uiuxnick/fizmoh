@@ -39,13 +39,16 @@ const DEFAULT_AGENCY_BRANDING: AgencyBranding = {
 export const GET = withErrors(async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
   const tenant = currentTenant()
-  if (!tenant?.tenantId) {
-    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  if (!session?.staffId || !tenant?.tenantId) {
+    return NextResponse.json({ error: "Authentication and workspace required" }, { status: 401 })
   }
   const tenantId = tenant.tenantId
 
   const modules = await currentModules()
   const entitled = modules === null ? true : modules.includes("WHITE_LABEL")
+  if (!entitled) {
+    return NextResponse.json({ error: "WHITE_LABEL module entitlement required" }, { status: 403 })
+  }
 
   // Load agency branding from systemSetting
   const settingRow = await db.systemSetting.findUnique({
@@ -57,6 +60,15 @@ export const GET = withErrors(async (request: NextRequest) => {
     try {
       branding = { ...DEFAULT_AGENCY_BRANDING, ...JSON.parse(settingRow.value) }
     } catch {}
+  }
+  if (!branding.customDomain) {
+    const tenantRow = await raw.tenant.findUnique({
+      where: { id: tenantId },
+      select: { customDomain: true },
+    })
+    if (tenantRow?.customDomain) {
+      branding.customDomain = tenantRow.customDomain
+    }
   }
 
   // Find all sub-workspaces where this staff member is a member, or linked via agency_parent
@@ -177,6 +189,16 @@ export const PUT = withErrors(async (request: NextRequest) => {
     if (inUse) {
       return NextResponse.json({ error: `Domain '${updated.customDomain}' is already in use by another workspace.` }, { status: 400 })
     }
+    // Update tenant custom domain in DB so requests to the custom domain route here
+    await raw.tenant.update({
+      where: { id: tenantId },
+      data: { customDomain: updated.customDomain },
+    })
+  } else if (!updated.customDomain && existing.customDomain) {
+    await raw.tenant.update({
+      where: { id: tenantId },
+      data: { customDomain: null },
+    })
   }
 
   await db.systemSetting.upsert({
@@ -193,6 +215,20 @@ export const PUT = withErrors(async (request: NextRequest) => {
       type: "JSON",
     },
   })
+
+  // Dispatch real-time staff notification
+  const { notifyStaff } = await import("@/lib/realtime")
+  await notifyStaff({
+    tenantId,
+    type: "agency_branding_updated",
+    title: "Agency Branding Updated",
+    message: `Agency branding and white-label settings updated for "${updated.agencyName}"`,
+    data: {
+      agencyName: updated.agencyName,
+      customDomain: updated.customDomain,
+      marginPercentage: updated.marginPercentage,
+    },
+  }).catch(err => console.error("Failed to notify staff of branding update:", err))
 
   return NextResponse.json({ success: true, branding: updated })
 })
@@ -319,6 +355,21 @@ export const POST = withErrors(async (request: NextRequest) => {
       temporaryPassword: defaultPassword,
     }
   })
+
+  // Dispatch real-time staff notification
+  const { notifyStaff } = await import("@/lib/realtime")
+  await notifyStaff({
+    tenantId: agencyTenantId,
+    type: "agency_subaccount_created",
+    title: "Agency Sub-Account Created",
+    message: `Workspace "${created.name}" (${created.slug}) created for ${adminEmail}`,
+    data: {
+      subTenantId: created.id,
+      slug: created.slug,
+      name: created.name,
+      adminEmail,
+    },
+  }).catch(err => console.error("Failed to notify staff of subaccount creation:", err))
 
   return NextResponse.json({
     success: true,

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
+import { sessionFromRequest } from "@/lib/auth"
 import dns from "dns/promises"
 
 export const POST = withErrors(async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session?.staffId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const domain = typeof body.domain === "string" ? body.domain : ""
   if (!domain) {
