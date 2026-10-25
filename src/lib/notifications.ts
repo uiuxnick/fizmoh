@@ -73,30 +73,56 @@ function contactSentence(brand: { email: string; phone: string }): string {
 }
 
 export async function sendEmail(message: EmailMessage): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  // Settings saved in the admin panel take precedence over the environment.
-  const { getConfigValue } = await import("@/lib/app-config")
-  const host = await getConfigValue("smtp_host")
+  const { currentTenant } = await import("@/lib/tenant")
+  const activeTenantId = currentTenant()?.tenantId
+
+  let host = ""
+  let port = 587
+  let user = ""
+  let pass = ""
+  let from = ""
+  let lenient = false
+
+  // 1. Check if the active workspace configured its own outgoing SMTP in SystemSetting
+  if (activeTenantId) {
+    const customSettings = await db.systemSetting.findMany({
+      where: {
+        tenantId: activeTenantId,
+        key: { in: ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_from", "smtp_allow_self_signed"] },
+      },
+    })
+    const map = new Map(customSettings.map(s => [s.key, s.value]))
+    if (map.get("smtp_host")) {
+      host = map.get("smtp_host")!
+      port = Number(map.get("smtp_port") || 587)
+      user = map.get("smtp_user") || ""
+      pass = map.get("smtp_password") || ""
+      from = map.get("smtp_from") || ""
+      const selfSigned = (map.get("smtp_allow_self_signed") || "").toLowerCase().trim()
+      lenient = selfSigned === "on" || selfSigned === "true"
+    }
+  }
+
+  // 2. Fall back to platform global SMTP configuration
   if (!host) {
-    return { success: false, error: "Email is not configured — add an SMTP host in Settings" }
+    const { getConfigValue } = await import("@/lib/app-config")
+    host = await getConfigValue("smtp_host")
+    if (!host) {
+      return { success: false, error: "Email is not configured — add an SMTP host in Settings" }
+    }
+    port = Number((await getConfigValue("smtp_port")) || 587)
+    user = await getConfigValue("smtp_user")
+    pass = await getConfigValue("smtp_password")
+    if (user && !pass) {
+      return { success: false, error: "SMTP password is not configured — add an SMTP password in Settings" }
+    }
+    from = await getConfigValue("smtp_from")
+    const allowSelfSigned = (await getConfigValue("smtp_allow_self_signed")).toLowerCase().trim()
+    lenient = allowSelfSigned === "on" || allowSelfSigned === "true"
   }
 
   try {
     const nodemailer = (await import("nodemailer")).default
-    const port = Number((await getConfigValue("smtp_port")) || 587)
-    const user = await getConfigValue("smtp_user")
-    const pass = await getConfigValue("smtp_password")
-    if (user && !pass) {
-      return { success: false, error: "SMTP password is not configured — add an SMTP password in Settings" }
-    }
-    const from = await getConfigValue("smtp_from")
-    // A mail server on this same machine usually presents a self-signed
-    // certificate — the panel that installed it generated one. Verification is
-    // still on by default: turning it off for a remote server would mean any
-    // machine that can answer for that name can read the mail we send it.
-    const allowSelfSigned = (await getConfigValue("smtp_allow_self_signed"))
-      .toLowerCase()
-      .trim()
-    const lenient = allowSelfSigned === "on" || allowSelfSigned === "true"
 
     const transport = nodemailer.createTransport({
       host,
@@ -157,6 +183,7 @@ interface WhatsAppMessage {
   cards?: CarouselCardValues[]
   buttonText?: string
   buttonUrl?: string
+  buttonIndex?: number
   language?: string
   /** Bypass the 24h session check — only for replies inside a live webhook turn. */
   allowOutsideSession?: boolean
@@ -176,6 +203,7 @@ function templateParamsFor(message: WhatsAppMessage) {
     headerDocumentName: message.documentName,
     headerVideoUrl: message.videoUrl,
     buttonUrl: message.buttonUrl,
+    buttonIndex: message.buttonIndex,
     cards: message.cards,
   }
 }

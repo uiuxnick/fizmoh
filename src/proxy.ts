@@ -53,6 +53,7 @@ function isPublic(request: NextRequest) {
   if (path.startsWith("/api/ecommerce/")) return true
   if (path.startsWith("/api/cron")) return true
   if (path.startsWith("/api/campaigns/click/")) return true
+  if (path.startsWith("/api/v1/email/track/")) return true
   if (path === "/api/campaigns/unsubscribe") return true
   if (request.method === "GET" && /^\/api\/vouchers\/[^/]+\/pdf$/.test(path)) return true
   // Same arrangement as the voucher above: WhatsApp fetches the document by
