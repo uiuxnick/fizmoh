@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
-import { getTenantSequences, saveTenantSequence } from "@/lib/sequences"
+import { withModule } from "@/lib/entitlements"
+import { getTenantSequences, saveTenantSequence, getSequenceStats } from "@/lib/sequences"
 
-export const GET = withErrors(async (req: NextRequest) => {
+const CAMPAIGN_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
+
+export const GET = withErrors(withModule("BROADCAST", async (req: NextRequest) => {
   const session = await sessionFromRequest(req)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -12,14 +15,21 @@ export const GET = withErrors(async (req: NextRequest) => {
 
   const tenantId = currentTenant()?.tenantId || PLATFORM
   const sequences = await getTenantSequences(tenantId)
+  const stats = await getSequenceStats(tenantId)
 
-  return NextResponse.json({ sequences })
-})
+  return NextResponse.json({ sequences, stats })
+}))
 
-export const POST = withErrors(async (req: NextRequest) => {
+export const POST = withErrors(withModule("BROADCAST", async (req: NextRequest) => {
   const session = await sessionFromRequest(req)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const tenant = currentTenant()
+  const role = (tenant?.role || session.role || "").toUpperCase()
+  if (role && !CAMPAIGN_EDIT_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage sequences" }, { status: 403 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -32,4 +42,4 @@ export const POST = withErrors(async (req: NextRequest) => {
   const saved = await saveTenantSequence(tenantId, sequence)
 
   return NextResponse.json({ sequence: saved })
-})
+}))

@@ -14,7 +14,7 @@ import { sessionFromRequest } from "@/lib/auth"
  * spreadsheet somebody has to work through.
  */
 
-export const GET = withErrors(
+export const GET = withErrors(withModule("BROADCAST", 
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
     const session = await sessionFromRequest(request)
@@ -27,12 +27,23 @@ export const GET = withErrors(
     const format = url.searchParams.get("format")
     const take = Math.min(1000, Number(url.searchParams.get("limit") || 200))
 
-    const where = {
+    const where: any = {
       campaignId: id,
-      ...(status && ["PENDING", "SENT", "FAILED", "SKIPPED"].includes(status) ? { status } : {}),
     }
 
-    const [rows, counts] = await Promise.all([
+    if (status) {
+      if (["PENDING", "SENT", "FAILED", "SKIPPED"].includes(status)) {
+        where.status = status
+      } else if (status === "DELIVERED") {
+        where.deliveredAt = { not: null }
+      } else if (status === "READ") {
+        where.readAt = { not: null }
+      } else if (status === "CLICKED") {
+        where.clickedAt = { not: null }
+      }
+    }
+
+    const [rows, statusCounts, deliveredCount, readCount, clickedCount] = await Promise.all([
       db.campaignRecipient.findMany({
         where,
         orderBy: [{ status: "asc" }, { sentAt: "desc" }],
@@ -42,6 +53,15 @@ export const GET = withErrors(
         by: ["status"],
         where: { campaignId: id },
         _count: true,
+      }),
+      db.campaignRecipient.count({
+        where: { campaignId: id, deliveredAt: { not: null } },
+      }),
+      db.campaignRecipient.count({
+        where: { campaignId: id, readAt: { not: null } },
+      }),
+      db.campaignRecipient.count({
+        where: { campaignId: id, clickedAt: { not: null } },
       }),
     ])
 
@@ -84,6 +104,13 @@ export const GET = withErrors(
       })
     }
 
+    const countsMap: Record<string, number> = Object.fromEntries(
+      statusCounts.map(c => [c.status.toLowerCase(), c._count])
+    )
+    countsMap.delivered = deliveredCount
+    countsMap.read = readCount
+    countsMap.clicked = clickedCount
+
     return NextResponse.json({
       recipients: rows.map(r => ({
         id: r.id,
@@ -98,7 +125,7 @@ export const GET = withErrors(
         readAt: r.readAt,
         clickedAt: r.clickedAt,
       })),
-      counts: Object.fromEntries(counts.map(c => [c.status.toLowerCase(), c._count])),
+      counts: countsMap,
     })
   },
-)
+))

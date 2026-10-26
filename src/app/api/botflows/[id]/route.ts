@@ -30,7 +30,7 @@ export const GET = withErrors(withModule("FLOWS", async (_: NextRequest, { param
 export const PUT = withErrors(withModule("FLOWS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER", "MARKETING"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING"].includes(tenant.role)) {
     return NextResponse.json({ error: "You do not have permission to manage flows" }, { status: 403 })
   }
   const { id } = await params
@@ -111,7 +111,7 @@ export const PUT = withErrors(withModule("FLOWS", async (request: NextRequest, {
 export const POST = withErrors(withModule("FLOWS", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only workspace administrators can publish a flow" }, { status: 403 })
   }
 
@@ -151,7 +151,7 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest, 
 export const DELETE = withErrors(withModule("FLOWS", async (_: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only workspace administrators can delete flows" }, { status: 403 })
   }
   const { id } = await params

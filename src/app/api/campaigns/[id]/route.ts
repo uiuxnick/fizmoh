@@ -5,6 +5,9 @@ import { withModule } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
 import { fromLocal } from "@/lib/timezone"
 import { placeholderCount } from "@/lib/campaign-send"
+import { currentTenant } from "@/lib/tenant"
+
+const CAMPAIGN_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 /** One campaign, with what it needs to be sent correctly. */
 export const GET = withErrors(withModule("BROADCAST", 
@@ -50,6 +53,11 @@ export const PATCH = withErrors(withModule("BROADCAST",
     const session = await sessionFromRequest(request)
     if (session?.kind !== "staff") {
       return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+    }
+    const tenant = currentTenant()
+    const role = (tenant?.role || session.role || "").toUpperCase()
+    if (role && !CAMPAIGN_EDIT_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Forbidden: insufficient permissions to manage campaigns" }, { status: 403 })
     }
 
     const campaign = await db.campaign.findUnique({ where: { id } })
@@ -105,6 +113,11 @@ export const DELETE = withErrors(withModule("BROADCAST",
     const session = await sessionFromRequest(request)
     if (session?.kind !== "staff") {
       return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+    }
+    const tenant = currentTenant()
+    const role = (tenant?.role || session.role || "").toUpperCase()
+    if (role && !CAMPAIGN_EDIT_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Forbidden: insufficient permissions to manage campaigns" }, { status: 403 })
     }
 
     const campaign = await db.campaign.findUnique({ where: { id } })

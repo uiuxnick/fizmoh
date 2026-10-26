@@ -6,7 +6,10 @@ import { sessionFromRequest } from "@/lib/auth"
 import { sendWhatsApp, sendEmail } from "@/lib/notifications"
 import { parseCards } from "@/lib/carousel"
 import { placeholderCount, resolveVariables } from "@/lib/campaign-send"
+import { currentTenant } from "@/lib/tenant"
 import { z } from "zod"
+
+const CAMPAIGN_TEST_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 /**
  * One copy, to yourself, before it goes to everybody.
@@ -30,6 +33,11 @@ export const POST = withErrors(withModule("BROADCAST",
     const session = await sessionFromRequest(request)
     if (session?.kind !== "staff") {
       return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+    }
+    const tenant = currentTenant()
+    const role = (tenant?.role || session.role || "").toUpperCase()
+    if (role && !CAMPAIGN_TEST_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Forbidden: insufficient permissions to test campaigns" }, { status: 403 })
     }
 
     const parsed = schema.safeParse(await request.json().catch(() => null))
@@ -159,9 +167,9 @@ export const POST = withErrors(withModule("BROADCAST",
         sample,
         placeholderCount(campaign.template.bodyContent || ""),
       ),
-      imageUrl: campaign.headerMediaType === "IMAGE" ? campaign.headerMediaUrl || undefined : undefined,
-      videoUrl: campaign.headerMediaType === "VIDEO" ? campaign.headerMediaUrl || undefined : undefined,
-      documentUrl: campaign.headerMediaType === "DOCUMENT" ? campaign.headerMediaUrl || undefined : undefined,
+      imageUrl: (campaign.headerMediaType === "IMAGE" || (!campaign.headerMediaType && campaign.template.headerType === "IMAGE")) ? (campaign.headerMediaUrl || campaign.template.headerContent || undefined) : undefined,
+      videoUrl: (campaign.headerMediaType === "VIDEO" || (!campaign.headerMediaType && campaign.template.headerType === "VIDEO")) ? (campaign.headerMediaUrl || campaign.template.headerContent || undefined) : undefined,
+      documentUrl: (campaign.headerMediaType === "DOCUMENT" || (!campaign.headerMediaType && campaign.template.headerType === "DOCUMENT")) ? (campaign.headerMediaUrl || campaign.template.headerContent || undefined) : undefined,
       cards: cards.length
         ? cards.map(card => ({
             imageUrl: card.imageUrl,

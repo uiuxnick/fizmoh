@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
+import { refreshTotals } from "@/lib/campaign-send"
 
 /**
  * A tracked link.
@@ -32,16 +33,13 @@ export const GET = withErrors(
     })
 
     if (!recipient.clickedAt) {
-      await db.$transaction([
-        db.campaignRecipient.update({
+      try {
+        await db.campaignRecipient.update({
           where: { id: recipient.id },
           data: { clickedAt: new Date() },
-        }),
-        db.campaign.update({
-          where: { id: recipient.campaignId },
-          data: { totalClicked: { increment: 1 } },
-        }),
-      ]).catch(() => {})
+        })
+        await refreshTotals(recipient.campaignId)
+      } catch {}
     }
 
     return NextResponse.redirect(campaign?.linkUrl || fallback, 302)

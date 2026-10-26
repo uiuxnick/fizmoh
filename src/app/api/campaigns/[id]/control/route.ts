@@ -4,7 +4,10 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
 import { runCampaignSlice, refreshTotals } from "@/lib/campaign-send"
+import { currentTenant } from "@/lib/tenant"
 import { z } from "zod"
+
+const CAMPAIGN_CONTROL_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 /**
  * The brake, and the way back.
@@ -25,6 +28,11 @@ export const POST = withErrors(withModule("BROADCAST",
     const session = await sessionFromRequest(request)
     if (session?.kind !== "staff") {
       return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+    }
+    const tenant = currentTenant()
+    const role = (tenant?.role || session.role || "").toUpperCase()
+    if (role && !CAMPAIGN_CONTROL_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Forbidden: insufficient permissions to control campaigns" }, { status: 403 })
     }
 
     const parsed = schema.safeParse(await request.json().catch(() => null))

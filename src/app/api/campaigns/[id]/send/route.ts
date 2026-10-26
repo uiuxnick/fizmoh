@@ -5,6 +5,10 @@ import { withModule, withinLimit, limitReached } from "@/lib/entitlements"
 import { buildSegmentWhere, consentFilter } from "@/lib/segments"
 import { runCampaignSlice } from "@/lib/campaign-send"
 import { parseCards } from "@/lib/carousel"
+import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
+
+const CAMPAIGN_SEND_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 /**
  * Send a broadcast campaign.
@@ -19,7 +23,17 @@ import { parseCards } from "@/lib/carousel"
 
 export const maxDuration = 300
 
-export const POST = withErrors(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const POST = withErrors(withModule("BROADCAST", async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") {
+    return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  }
+  const tenant = currentTenant()
+  const role = (tenant?.role || session.role || "").toUpperCase()
+  if (role && !CAMPAIGN_SEND_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to dispatch campaigns" }, { status: 403 })
+  }
+
   // A broadcast is the fastest way to spend a month of allowance, so it is checked before the first message rather than partway through.
   const room = await withinLimit("messagesPerMonth")
   if (!room.ok) return limitReached("messagesPerMonth", room.used, room.cap)
@@ -32,6 +46,19 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
   })
   if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 })
   if (campaign.status === "SENDING") {
+    const pendingCount = await db.campaignRecipient.count({
+      where: { campaignId: id, status: "PENDING" },
+    })
+    if (pendingCount > 0) {
+      const result = await runCampaignSlice(campaign.id)
+      return NextResponse.json({
+        ...result,
+        message:
+          result.remaining > 0
+            ? `${result.sent} sent. ${result.remaining} still to go — they continue automatically.`
+            : `${result.sent} sent.`,
+      })
+    }
     return NextResponse.json({ error: "Campaign is already sending" }, { status: 409 })
   }
   if (campaign.status === "SENT") {
@@ -137,4 +164,4 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
         ? `${result.sent} sent. ${result.remaining} still to go — they continue automatically.`
         : `${result.sent} sent.`,
   })
-})
+}))

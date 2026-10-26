@@ -3,8 +3,16 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { fromLocal } from "@/lib/timezone"
+import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
 
-export const GET = withErrors(withModule("BROADCAST", async () => {
+const CAMPAIGN_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
+
+export const GET = withErrors(withModule("BROADCAST", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") {
+    return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  }
   const campaigns = await db.campaign.findMany({
     include: { template: true, segment: true },
     orderBy: { createdAt: "desc" },
@@ -13,6 +21,16 @@ export const GET = withErrors(withModule("BROADCAST", async () => {
 }))
 
 export const POST = withErrors(withModule("BROADCAST", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (session?.kind !== "staff") {
+    return NextResponse.json({ error: "Sign in first" }, { status: 401 })
+  }
+  const tenant = currentTenant()
+  const role = (tenant?.role || session.role || "").toUpperCase()
+  if (role && !CAMPAIGN_EDIT_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to create campaigns" }, { status: 403 })
+  }
+
   const body = await request.json()
   const campaign = await db.campaign.create({
     data: {
