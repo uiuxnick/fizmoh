@@ -13,7 +13,10 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   if (session?.kind !== "staff") {
     return NextResponse.json({ error: "Sign in first" }, { status: 401 })
   }
+  const tenant = currentTenant()
+  const tenantId: string | undefined = tenant?.tenantId || (typeof session.tenantId === "string" ? session.tenantId : undefined)
   const campaigns = await db.campaign.findMany({
+    where: tenantId ? { tenantId } : undefined,
     include: { template: true, segment: true },
     orderBy: { createdAt: "desc" },
   })

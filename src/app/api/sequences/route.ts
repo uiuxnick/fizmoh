@@ -13,7 +13,11 @@ export const GET = withErrors(withModule("BROADCAST", async (req: NextRequest) =
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const tenantId = currentTenant()?.tenantId || PLATFORM
+  const tenant = currentTenant()
+  const tenantId: string = tenant?.tenantId || (typeof session.tenantId === "string" ? session.tenantId : "")
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
   const sequences = await getTenantSequences(tenantId)
   const stats = await getSequenceStats(tenantId)
 
@@ -38,7 +42,10 @@ export const POST = withErrors(withModule("BROADCAST", async (req: NextRequest) 
     return NextResponse.json({ error: "Sequence name is required" }, { status: 400 })
   }
 
-  const tenantId = currentTenant()?.tenantId || PLATFORM
+  const tenantId: string = tenant?.tenantId || (typeof session.tenantId === "string" ? session.tenantId : "")
+  if (!tenantId) {
+    return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
+  }
   const saved = await saveTenantSequence(tenantId, sequence)
 
   return NextResponse.json({ sequence: saved })
