@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
+import { modulesFor } from "@/lib/entitlements"
 import { sendEcommerceNotification } from "@/lib/ecommerce-templates"
 
 export const POST = withErrors(async (request: NextRequest) => {
@@ -58,6 +59,14 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json(
       { error: "Unrecognized workspace. Append ?workspace=<slug> to webhook URL." },
       { status: 400 },
+    )
+  }
+
+  const entitledModules = await modulesFor(tenantId)
+  if (!entitledModules.includes("ECOMMERCE") && !entitledModules.includes("WOOCOMMERCE")) {
+    return NextResponse.json(
+      { error: "Access Denied: Workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED" },
+      { status: 403 },
     )
   }
 

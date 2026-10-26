@@ -9,6 +9,8 @@ export interface EcommerceAuthContext {
   storeId?: string | null
   storeName?: string
   authMethod: "API_KEY" | "STORE_KEY" | "SESSION" | "INTERNAL_CRON"
+  role?: string | null
+  staffId?: string | null
 }
 
 export async function resolveEcommerceAuth(request: NextRequest): Promise<EcommerceAuthContext | null> {
@@ -50,6 +52,8 @@ export async function resolveEcommerceAuth(request: NextRequest): Promise<Ecomme
       return {
         tenantId,
         authMethod: "SESSION",
+        role: session.role || null,
+        staffId: session.staffId || null,
       }
     }
   }

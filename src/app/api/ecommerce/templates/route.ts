@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
-import { hasModule } from "@/lib/entitlements"
+import { hasModule, modulesFor } from "@/lib/entitlements"
 import {
   DEFAULT_ECOMMERCE_TEMPLATES,
   EcommerceEventType,
   sendEcommerceNotification,
 } from "@/lib/ecommerce-templates"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
 
 export const GET = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
@@ -15,14 +17,15 @@ export const GET = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
   }
 
   const { searchParams } = new URL(request.url)
@@ -70,14 +73,22 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
+  }
+
+  if (auth.authMethod === "SESSION" && auth.role && !EDIT_ROLES.includes(auth.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: insufficient permissions to update templates" },
+      { status: 403 },
+    )
   }
 
   const body = await request.json().catch(() => ({}))
@@ -135,14 +146,22 @@ export const PUT = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
+  }
+
+  if (auth.authMethod === "SESSION" && auth.role && !EDIT_ROLES.includes(auth.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: insufficient permissions to test templates" },
+      { status: 403 },
+    )
   }
 
   const body = await request.json().catch(() => ({}))

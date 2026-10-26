@@ -52,7 +52,16 @@ const PUBLIC_EXACT = new Set([
 function isPublic(request: NextRequest) {
   const path = request.nextUrl.pathname
   if (PUBLIC_EXACT.has(path) || path.startsWith("/api/external/")) return true
-  if (path.startsWith("/api/ecommerce/")) return true
+  if (path.startsWith("/api/ecommerce/")) {
+    if (path === "/api/ecommerce/webhooks/shopify") return true
+    if (path === "/api/ecommerce/plugin/download" && request.method === "GET") return true
+    if (path === "/api/ecommerce/orders" && (request.method === "POST" || request.method === "GET")) return true
+    if (path === "/api/ecommerce/cart-abandoned" && request.method === "POST") return true
+    if (path === "/api/ecommerce/newsletter" && request.method === "POST") return true
+    // Direct store API key or platform API key headers pass through to route handlers for validation
+    if (request.headers.get("x-api-key") || request.headers.get("authorization")?.startsWith("Bearer fiz_")) return true
+    return false
+  }
   if (path.startsWith("/api/cron")) return true
   if (path.startsWith("/api/campaigns/click/")) return true
   if (path.startsWith("/api/v1/email/track/")) return true

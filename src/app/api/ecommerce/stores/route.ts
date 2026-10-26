@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
-import { hasModule } from "@/lib/entitlements"
+import { hasModule, modulesFor } from "@/lib/entitlements"
 import crypto from "crypto"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
 
 export const GET = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
@@ -11,14 +13,15 @@ export const GET = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
   }
 
   const tenant = await db.tenant.findUnique({ where: { id: auth.tenantId }, select: { slug: true } })
@@ -66,14 +69,22 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
+  }
+
+  if (auth.authMethod === "SESSION" && auth.role && !EDIT_ROLES.includes(auth.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: insufficient permissions to create or modify stores" },
+      { status: 403 },
+    )
   }
 
   const body = await request.json().catch(() => ({}))
@@ -87,6 +98,17 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   if (!name || typeof name !== "string") {
     return NextResponse.json({ error: "Store name is required" }, { status: 400 })
+  }
+
+  if (storeUrl && typeof storeUrl === "string" && storeUrl.trim().length > 0) {
+    try {
+      const parsed = new URL(storeUrl.trim())
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return NextResponse.json({ error: "Store URL must use http or https" }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid Store URL format" }, { status: 400 })
+    }
   }
 
   const apiKey = `fiz_live_${crypto.randomBytes(20).toString("hex")}`
@@ -131,14 +153,22 @@ export const DELETE = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if (auth.authMethod === "SESSION") {
-    const entitled = (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
-    if (!entitled) {
-      return NextResponse.json(
-        { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
-        { status: 403 },
-      )
-    }
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
+    )
+  }
+
+  if (auth.authMethod === "SESSION" && auth.role && !EDIT_ROLES.includes(auth.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: insufficient permissions to delete stores" },
+      { status: 403 },
+    )
   }
 
   const { searchParams } = new URL(request.url)
@@ -148,6 +178,6 @@ export const DELETE = withErrors(async (request: NextRequest) => {
   const store = await db.ecommerceStore.findFirst({ where: { id, tenantId: auth.tenantId } })
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 })
 
-  await db.ecommerceStore.delete({ where: { id } })
+  await db.ecommerceStore.delete({ where: { id: store.id } })
   return NextResponse.json({ success: true, message: `Store ${store.name} disconnected` })
 })

@@ -3,6 +3,7 @@ import { withErrors } from "@/lib/api-handler"
 import { db } from "@/lib/db"
 import { resolveEcommerceAuth } from "@/lib/ecommerce-auth"
 import { EcommerceEventType, sendEcommerceNotification } from "@/lib/ecommerce-templates"
+import { hasModule, modulesFor } from "@/lib/entitlements"
 
 export const POST = withErrors(async (request: NextRequest) => {
   const auth = await resolveEcommerceAuth(request)
@@ -10,6 +11,17 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json(
       { error: "Unauthorized: Invalid or missing API key / credentials" },
       { status: 401 },
+    )
+  }
+
+  const isEntitled = auth.authMethod === "SESSION"
+    ? (await hasModule("ECOMMERCE")) || (await hasModule("WOOCOMMERCE"))
+    : (await modulesFor(auth.tenantId)).some(m => m === "ECOMMERCE" || m === "WOOCOMMERCE")
+
+  if (!isEntitled) {
+    return NextResponse.json(
+      { error: "Access Denied: Your workspace does not have an active E-Commerce connector addon.", code: "MODULE_NOT_ENTITLED", upgrade: true },
+      { status: 403 },
     )
   }
 
@@ -40,6 +52,21 @@ export const POST = withErrors(async (request: NextRequest) => {
   const trackingNumber = String(order.trackingNumber || order.tracking_number || "").trim()
   const trackingUrl = String(order.trackingUrl || order.tracking_url || "").trim()
   const orderUrl = String(order.orderUrl || order.order_status_url || "").trim()
+
+  for (const [field, val] of [["trackingUrl", trackingUrl], ["orderUrl", orderUrl]]) {
+    if (val && typeof val === "string" && val.length > 0) {
+      try {
+        const parsed = new URL(val)
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          return NextResponse.json({ error: `${field} must use http or https` }, { status: 400 })
+        }
+      } catch {
+        if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(val)) {
+          return NextResponse.json({ error: `${field} has invalid protocol` }, { status: 400 })
+        }
+      }
+    }
+  }
 
   // 1. Upsert / update customer in CRM
   await db.customer.upsert({
