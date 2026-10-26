@@ -5,8 +5,8 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM", "MANAGER", "MARKETING"]
-const AUTOMATIC_MODE_ROLES = ["OWNER", "SUPER_ADMIN", "PLATFORM"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING"]
+const AUTOMATIC_MODE_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM"]
 const CHANNELS = ["FACEBOOK", "INSTAGRAM"]
 const MODES = ["MANUAL_APPROVAL", "AUTOMATIC", "DRAFT_ONLY"]
 const TONES = ["professional", "friendly", "casual", "luxury", "short", "custom"]

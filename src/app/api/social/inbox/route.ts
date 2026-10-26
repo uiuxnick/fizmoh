@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
+import { sessionFromRequest } from "@/lib/auth"
 
 const CHANNELS = ["WHATSAPP", "FACEBOOK", "INSTAGRAM"]
 const PAGE_SIZE = 25
 
 /** The unified inbox — WhatsApp, Messenger and Instagram DMs and comments, one list. */
 export const GET = withErrors(withModule("SOCIAL_INBOX", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const channel = searchParams.get("channel")
   const status = searchParams.get("status")

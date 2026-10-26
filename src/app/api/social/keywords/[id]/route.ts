@@ -4,7 +4,7 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING"]
 
 export const PATCH = withErrors(withModule("SOCIAL_INBOX", async (
   request: NextRequest, { params }: { params: Promise<{ id: string }> },

@@ -3,10 +3,15 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING"]
 
 export const GET = withErrors(withModule("SOCIAL_INBOX", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const channel = new URL(request.url).searchParams.get("channel")
   const rules = await db.socialKeywordReply.findMany({
     where: channel ? { channel } : undefined, orderBy: { createdAt: "desc" },

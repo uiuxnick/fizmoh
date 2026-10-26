@@ -3,12 +3,17 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { sessionFromRequest } from "@/lib/auth"
 import { disconnectSocialAccount } from "@/lib/social/social-oauth"
 import { createAuditLog } from "@/lib/slots-server"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING"]
 
-export const GET = withErrors(withModule("SOCIAL_INBOX", async () => {
+export const GET = withErrors(withModule("SOCIAL_INBOX", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const accounts = await db.socialAccount.findMany({ orderBy: [{ channel: "asc" }, { connectedAt: "desc" }] })
   return NextResponse.json({
     accounts: accounts.map(a => ({

@@ -6,7 +6,7 @@ import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 import { sendNewSocialMessage } from "@/lib/social/social-engine"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING", "AGENT", "CHAT_AGENT"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM", "MANAGER", "MARKETING", "AGENT", "CHAT_AGENT"]
 
 /** The full thread for one conversation, plus its notes. */
 export const GET = withErrors(withModule("SOCIAL_INBOX", async (

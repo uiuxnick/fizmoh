@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
+import { sessionFromRequest } from "@/lib/auth"
 
 const SOCIAL_CHANNELS = ["FACEBOOK", "INSTAGRAM"]
 
 /** Real, query-computed numbers only — per channel and combined. */
-export const GET = withErrors(withModule("SOCIAL_INBOX", async () => {
+export const GET = withErrors(withModule("SOCIAL_INBOX", async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session || session.kind !== "staff") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const [receivedByChannel, sentByChannel, aiReplies, humanReplies, escalated, failed, leadsGenerated] = await Promise.all([
     Promise.all(SOCIAL_CHANNELS.map(async channel => ({
       channel, count: await db.message.count({ where: { direction: "INBOUND", conversation: { channel } } }),
