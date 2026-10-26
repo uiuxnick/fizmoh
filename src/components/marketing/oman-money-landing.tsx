@@ -61,17 +61,56 @@ export function OmanMoneyLanding({ data }: { data: OmanPageData }) {
   const legacyCost = (conversations * (metaRate + aggregatorMarkup)).toFixed(1)
   const annualSavings = (conversations * aggregatorMarkup * 12).toFixed(0)
 
-  const faqSchema = {
+  const schemaGraph = {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: data.faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: f.a,
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": `https://app.fizmoh.cloud/${data.slug}#software`,
+        name: data.h1,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Cloud, Web, iOS, Android",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "OMR",
+          description: "14-day free trial on official WhatsApp Business Cloud API in Oman",
+        },
+        provider: {
+          "@type": "Organization",
+          name: "Fizmoh",
+          url: "https://app.fizmoh.cloud",
+        },
       },
-    })),
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: "https://app.fizmoh.cloud",
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: data.h1,
+            item: `https://app.fizmoh.cloud/${data.slug}`,
+          },
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: data.faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: f.a,
+          },
+        })),
+      },
+    ],
   }
 
   const codeSnippets = {
@@ -182,7 +221,7 @@ print(f"Delivered in {message.latency_ms}ms via Muscat Edge")`,
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaGraph) }}
       />
       <div className="min-h-screen bg-[#0A2540] text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
         <SiteHeader />
@@ -235,10 +274,7 @@ print(f"Delivered in {message.latency_ms}ms via Muscat Edge")`,
                   </div>
 
                   <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-black tracking-tight leading-[1.05] text-white">
-                    WhatsApp Business API for Oman.{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300">
-                      Direct from Meta.
-                    </span>
+                    {data.h1}
                   </h1>
 
                   <p className="text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed font-normal">
@@ -364,6 +400,22 @@ print(f"Delivered in {message.latency_ms}ms via Muscat Edge")`,
               </div>
             </div>
           </section>
+
+          {/* ========================================================================= */}
+          {/* INTRODUCTORY OVERVIEW SECTION (INDEXABLE KEYWORD-RICH COPY)               */}
+          {/* ========================================================================= */}
+          {data.introHeading && (
+            <section className="py-16 bg-[#07192C] border-b border-white/10">
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+                  {data.introHeading}
+                </h2>
+                <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                  {data.introText}
+                </p>
+              </div>
+            </section>
+          )}
 
           {/* ========================================================================= */}
           {/* CLIENT PROOF / TRUSTED BRANDS WALL                                       */}
