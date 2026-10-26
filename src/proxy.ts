@@ -105,8 +105,6 @@ function isPublic(request: NextRequest) {
   if (path.startsWith("/api/restaurant/")) {
     if (path.startsWith("/api/restaurant/public/")) return true
     if (path === "/api/restaurant/stream") return true
-    if (request.method === "GET" && path === "/api/restaurant/menu") return true
-    if (request.method === "POST" && (path === "/api/restaurant/orders" || path === "/api/restaurant/reservations")) return true
     return false
   }
 

@@ -4,6 +4,8 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { approveMenuImport } from "@/lib/restaurant-ai-import"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
+
 export const POST = withErrors(withModule("RESTAURANT", async (
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -11,6 +13,10 @@ export const POST = withErrors(withModule("RESTAURANT", async (
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to approve menu import" }, { status: 403 })
+  }
 
   const { id: importId } = await context.params
   const body = await req.json()

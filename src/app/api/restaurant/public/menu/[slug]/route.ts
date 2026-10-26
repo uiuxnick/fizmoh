@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
+import { modulesFor } from "@/lib/entitlements"
 
 export async function GET(
   req: NextRequest,
@@ -27,6 +28,14 @@ export async function GET(
   }
 
   const tenantId = tenant.id
+
+  const entitled = (await modulesFor(tenantId)).includes("RESTAURANT")
+  if (!entitled) {
+    return NextResponse.json(
+      { error: "Online menu is not available for this workspace.", code: "MODULE_NOT_ENTITLED" },
+      { status: 403 },
+    )
+  }
 
   // If tableToken provided, resolve table and its branch
   let tableInfo: any = null

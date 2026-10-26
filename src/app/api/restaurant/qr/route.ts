@@ -5,6 +5,8 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
+
 export const GET = withErrors(withModule("RESTAURANT", async () => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace" }, { status: 400 })
   const tokens = await db.restaurantQrToken.findMany({ where: { tenantId: tenant.tenantId, isActive: true }, include: { table: true }, orderBy: { createdAt: "desc" } })
@@ -13,6 +15,9 @@ export const GET = withErrors(withModule("RESTAURANT", async () => {
 
 export const POST = withErrors(withModule("RESTAURANT", async (request: NextRequest) => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace" }, { status: 400 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to create table QR" }, { status: 403 })
+  }
   const body = await request.json().catch(() => null); const tableId = String(body?.tableId ?? "")
   const table = await db.restaurantTable.findFirst({ where: { id: tableId, tenantId: tenant.tenantId } })
   if (!table) return NextResponse.json({ error: "Table not found" }, { status: 404 })

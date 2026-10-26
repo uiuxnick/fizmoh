@@ -4,6 +4,8 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
+const RES_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "CHAT_AGENT", "PLATFORM"]
+
 export const GET = withErrors(withModule("RESTAURANT", async () => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
@@ -23,6 +25,10 @@ export const POST = withErrors(withModule("RESTAURANT", async (req: NextRequest)
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+
+  if (tenant.role && !RES_EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage reservations" }, { status: 403 })
+  }
 
   const body = await req.json()
   const { tableId, customerName, customerPhone, customerEmail, partySize, reservationDate, reservationTime, specialRequests } = body
@@ -60,6 +66,10 @@ export const PUT = withErrors(withModule("RESTAURANT", async (req: NextRequest) 
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+
+  if (tenant.role && !RES_EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage reservations" }, { status: 403 })
+  }
 
   const body = await req.json()
   const { id, status } = body

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
+import { modulesFor } from "@/lib/entitlements"
 import { callWaiter } from "@/lib/restaurant"
 
 export async function POST(req: NextRequest) {
@@ -52,6 +53,14 @@ export async function POST(req: NextRequest) {
 
     if (!tenantId) {
       return NextResponse.json({ error: "Restaurant or Table could not be resolved" }, { status: 400 })
+    }
+
+    const entitled = (await modulesFor(tenantId)).includes("RESTAURANT")
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Digital waiter call service is not available for this restaurant.", code: "MODULE_NOT_ENTITLED" },
+        { status: 403 },
+      )
     }
 
     const result = await callWaiter({

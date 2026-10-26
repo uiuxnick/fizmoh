@@ -4,10 +4,16 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
+
 export const POST = withErrors(withModule("RESTAURANT", async () => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to seed restaurant data" }, { status: 403 })
+  }
 
   // 1. Seed Restaurant Tables if none exist
   const existingTablesCount = await raw.restaurantTable.count({ where: { tenantId } })

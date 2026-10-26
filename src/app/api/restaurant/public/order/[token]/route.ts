@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
+import { modulesFor } from "@/lib/entitlements"
 
 export async function GET(
   req: NextRequest,
@@ -17,6 +18,11 @@ export async function GET(
 
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 })
+  }
+
+  const allowed = await modulesFor(order.tenantId)
+  if (!allowed.includes("RESTAURANT")) {
+    return NextResponse.json({ error: "Restaurant module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
   }
 
   const tenant = await raw.tenant.findUnique({

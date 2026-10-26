@@ -7,10 +7,16 @@ import { parseDirectMenuSpreadsheet, commitCategoriesToMenu } from "@/lib/restau
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
+
 export const POST = withErrors(withModule("RESTAURANT", async (req: NextRequest) => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to import menu" }, { status: 403 })
+  }
 
   const body = await req.json()
   const { branchId, menuId, categories: providedCategories, csvText, parseOnly } = body

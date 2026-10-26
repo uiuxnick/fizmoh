@@ -4,6 +4,8 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "PLATFORM"]
+
 export const GET = withErrors(withModule("RESTAURANT", async () => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace" }, { status: 400 })
   const items = await db.restaurantInventoryItem.findMany({ where: { tenantId: tenant.tenantId, isActive: true }, orderBy: { name: "asc" } })
@@ -12,6 +14,9 @@ export const GET = withErrors(withModule("RESTAURANT", async () => {
 
 export const POST = withErrors(withModule("RESTAURANT", async (request: NextRequest) => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace" }, { status: 400 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage inventory" }, { status: 403 })
+  }
   const body = await request.json().catch(() => null)
   const name = String(body?.name ?? "").trim(); if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 })
   const item = await db.restaurantInventoryItem.create({ data: { tenantId: tenant.tenantId, name, sku: body?.sku ? String(body.sku).trim() : null, unit: String(body?.unit ?? "unit"), quantity: Number(body?.quantity) || 0, lowStockAt: Math.max(0, Number(body?.lowStockAt) || 0), menuItemId: body?.menuItemId ? String(body.menuItemId) : null } })
@@ -20,6 +25,9 @@ export const POST = withErrors(withModule("RESTAURANT", async (request: NextRequ
 
 export const PATCH = withErrors(withModule("RESTAURANT", async (request: NextRequest) => {
   const tenant = currentTenant(); if (!tenant?.tenantId) return NextResponse.json({ error: "No workspace" }, { status: 400 })
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage inventory" }, { status: 403 })
+  }
   const id = new URL(request.url).searchParams.get("id") || ""; const body = await request.json().catch(() => null)
   const item = await db.restaurantInventoryItem.updateMany({ where: { id, tenantId: tenant.tenantId }, data: { ...(body?.name !== undefined ? { name: String(body.name).trim() } : {}), ...(body?.quantity !== undefined ? { quantity: Number(body.quantity) || 0 } : {}), ...(body?.lowStockAt !== undefined ? { lowStockAt: Math.max(0, Number(body.lowStockAt) || 0) } : {}) } })
   return NextResponse.json({ updated: item.count })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
+import { modulesFor } from "@/lib/entitlements"
 import { placeOrder } from "@/lib/restaurant"
 
 export async function POST(req: NextRequest) {
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 })
     }
     const tenantId = tenant.id
+
+    const entitled = (await modulesFor(tenantId)).includes("RESTAURANT")
+    if (!entitled) {
+      return NextResponse.json(
+        { error: "Online menu & ordering is not available for this restaurant.", code: "MODULE_NOT_ENTITLED" },
+        { status: 403 },
+      )
+    }
 
     // Resolve branch
     let branchId: string | null = null
