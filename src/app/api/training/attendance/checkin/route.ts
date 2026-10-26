@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
 import { processAttendeeCheckIn } from "@/lib/training-service"
+import { modulesFor } from "@/lib/entitlements"
 
 export const dynamic = "force-dynamic"
 
 export const POST = withErrors(async (request: NextRequest) => {
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId || PLATFORM
+
+  if (tenantId !== PLATFORM && !(await modulesFor(tenantId)).includes("TRAINING")) {
+    return NextResponse.json({ error: "Training module not active for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
+
   const body = await request.json()
 
   const qrToken = body.qrToken || body.token || body.attendeeId
@@ -18,6 +24,11 @@ export const POST = withErrors(async (request: NextRequest) => {
   const result = await processAttendeeCheckIn(tenantId, qrToken.trim())
   if (!result.success) {
     return NextResponse.json({ success: false, error: result.message }, { status: 404 })
+  }
+
+  const regTenantId = result.registration?.tenantId || result.course?.tenantId
+  if (regTenantId && regTenantId !== PLATFORM && !(await modulesFor(regTenantId)).includes("TRAINING")) {
+    return NextResponse.json({ error: "Training module not active for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
   }
 
   return NextResponse.json(result)

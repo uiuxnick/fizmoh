@@ -1,5 +1,9 @@
 "use client"
 
+import { AcademyHeader, AcademyFooter } from "@/components/training/academy-chrome"
+import { academyHome, type AcademyBrand } from "@/lib/academy-brand"
+import { formatCourseSchedule } from "@/lib/course-schedule"
+
 import React, { useState } from "react"
 import Link from "next/link"
 import {
@@ -31,6 +35,7 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 
 interface Props {
   course: Course
+  brand?: AcademyBrand
   registrationId?: string
   initialSource?: string
   bankAccounts?: Array<{
@@ -46,7 +51,9 @@ interface Props {
   }>
 }
 
-export default function TrainingLandingClient({ course: rawCourse, registrationId, initialSource, bankAccounts = [] }: Props) {
+export default function TrainingLandingClient({ course: rawCourse, registrationId, initialSource, bankAccounts = [], brand }: Props) {
+  const academy = brand || { slug: "tanfidh", name: rawCourse.trainerCompany || "Training Courses" }
+  const home = academyHome(academy)
   // Normalize course with safe defaults so missing properties never trigger client exceptions
   const course: Course = {
     ...rawCourse,
@@ -62,7 +69,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
     faqs: Array.isArray(rawCourse.faqs) ? rawCourse.faqs : [],
     customFields: Array.isArray(rawCourse.customFields) ? rawCourse.customFields : [],
     currency: rawCourse.currency || "OMR",
-    standardPrice: Number(rawCourse.standardPrice) || 650,
+    standardPrice: Number(rawCourse.standardPrice) || 0,
     offerType: rawCourse.offerType || "NONE",
     offerTitle: rawCourse.offerTitle || "",
     venueName: rawCourse.venueName || "Muscat, Oman",
@@ -70,13 +77,13 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
     maxSeats: rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null,
     availableSeats: rawCourse.availableSeats != null ? Number(rawCourse.availableSeats) : (rawCourse.maxSeats != null ? Number(rawCourse.maxSeats) : null),
     termsAndConditions: rawCourse.termsAndConditions || "",
-    trainerName: rawCourse.trainerName || "Said bin Saif Al Harthi",
-    trainerDesignation: rawCourse.trainerDesignation || "Executive Director and Senior Consultant and Trainer",
-    trainerCompany: rawCourse.trainerCompany || "Tanfidh Management Consultants",
-    trainerBio: rawCourse.trainerBio || "Said advises and trains organizations on strategy development, translation and execution, Balanced Scorecards, KPI design, cascading, dashboards and performance reviews. His work spans public and private sector assignments in Oman and Tanzania, helping leadership and departmental teams turn strategic plans into measurable actions. His training combines practical frameworks, facilitated exercises and examples drawn from consulting practice.",
-    trainerImage: (rawCourse.trainerImage && !rawCourse.trainerImage.includes("unsplash")) ? rawCourse.trainerImage : "/said-al-harthi.jpg",
-    trainerEmail: rawCourse.trainerEmail || "saidalharthy@tanfidh.com",
-    trainerPhone: rawCourse.trainerPhone || "+968 99 355 438",
+    trainerName: rawCourse.trainerName || "Lead instructor",
+    trainerDesignation: rawCourse.trainerDesignation || "",
+    trainerCompany: rawCourse.trainerCompany || "",
+    trainerBio: rawCourse.trainerBio || "",
+    trainerImage: rawCourse.trainerImage || "",
+    trainerEmail: rawCourse.trainerEmail || "",
+    trainerPhone: rawCourse.trainerPhone || "",
   }
 
   // State for Booking Modal
@@ -156,7 +163,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
         })),
       }
 
-      const res = await fetch(`/api/training/courses/${course.id}/register`, {
+      const res = await fetch(`/api/training/courses/${course.id}/register?tenantId=${encodeURIComponent(course.tenantId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -177,105 +184,21 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
 
   const cleanWhatsAppNumber = (course.whatsappNumber || "+96892009161").replace(/[^0-9]/g, "")
   const whatsappInquiryUrl = `https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(
-    `Hello Tanfidh Consultants! I am interested in the "${course.name}" (${course.startDate}). Can you provide more details?`,
+    `Hello ${course.trainerCompany || "there"}! I am interested in the "${course.name}" (${course.startDate}). Can you provide more details?`,
   )}`
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-emerald-100 selection:text-emerald-950">
-      {/* Top Notice Bar matching Tanfidh Storefront */}
-      <div className="bg-[#052e16] text-[#86efac] text-xs py-2 px-4 border-b border-emerald-950">
-        <div className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold border border-emerald-500/30 text-[11px]">
-              <Sparkles className="h-3 w-3" />
-              Official Executive Training & Masterclasses
-            </span>
-            <span className="hidden sm:inline text-emerald-200/80 text-[12px]">
-              Certified Credentials · 5-Star Muscat Venues · Corporate BOGO Grants
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <Link
-              href="/training/verify-certificate"
-              className="text-emerald-300 hover:text-white underline underline-offset-2 flex items-center gap-1 font-medium transition"
-            >
-              <FileCheck className="h-3.5 w-3.5" />
-              <span>Verify Certificate</span>
-            </Link>
-            <Link
-              href="/tanfidh"
-              className="text-emerald-300 hover:text-white flex items-center gap-1 font-semibold transition"
-            >
-              <span>← Back to Academy</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Header matching Tanfidh Storefront */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          <Link href="/tanfidh" className="flex items-center gap-3 group">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white flex items-center justify-center font-bold text-lg shadow-sm border border-emerald-500/30 group-hover:scale-105 transition">
-              T
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-stone-900 leading-tight group-hover:text-emerald-800 transition">
-                {course.trainerCompany || "Tanfidh Management Consultants"}
-              </h1>
-              <p className="text-[11.5px] font-medium text-emerald-700">
-                Executive Academy & Management Consulting
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-stone-600">
-            <Link href="/tanfidh#courses" className="hover:text-emerald-700 transition">
-              All Masterclasses
-            </Link>
-            <a href="#instructor" className="hover:text-emerald-700 transition">
-              Meet Instructor
-            </a>
-            <a href="#syllabus" className="hover:text-emerald-700 transition">
-              Agenda & Syllabus
-            </a>
-            <Link href="/tanfidh#corporate" className="hover:text-emerald-700 transition">
-              Corporate In-House
-            </Link>
-            <Link href="/training/verify-certificate" className="hover:text-emerald-700 transition">
-              Verify Certificate
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <a
-              href={whatsappInquiryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#00A859] hover:bg-[#008f4c] text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-xs transition transform active:scale-95"
-            >
-              <WhatsAppIcon className="h-4 w-4 fill-current" />
-              <span className="hidden sm:inline">WhatsApp Inquiries</span>
-            </a>
-
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-stone-900 text-white hover:bg-black shadow-xs transition-all active:scale-95"
-            >
-              Book Now
-            </button>
-          </div>
-        </div>
-      </header>
+      <AcademyHeader brand={academy} />
 
       {/* Breadcrumb banner */}
       <div className="bg-stone-100/90 border-b border-stone-200/80 py-2.5 px-4 text-xs text-stone-600">
         <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
-          <Link href="/tanfidh" className="hover:text-emerald-700 font-medium transition">
-            Tanfidh Academy
+          <Link href={home} className="hover:text-emerald-700 font-medium transition">
+            {course.trainerCompany || "Training Courses"}
           </Link>
           <span className="text-stone-400">/</span>
-          <Link href="/tanfidh#courses" className="hover:text-emerald-700 font-medium transition">
+          <Link href={`${home}#courses`} className="hover:text-emerald-700 font-medium transition">
             Masterclasses
           </Link>
           <span className="text-stone-400">/</span>
@@ -337,7 +260,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                   <div>
                     <div className="text-[11px] font-medium text-stone-500">Dates & Duration</div>
                     <div className="text-xs font-bold text-stone-900">
-                      {course.startDate} to {course.endDate} ({course.duration})
+                      {formatCourseSchedule(course)} ({course.duration})
                     </div>
                   </div>
                 </div>
@@ -431,7 +354,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
 
                     <div className="text-right">
                       {course.vatPercent && course.vatPercent > 0 ? (
-                        <div className="text-[10px] text-stone-400 font-medium">VAT ({course.vatPercent}%) Included</div>
+                        <div className="text-[10px] text-stone-400 font-medium">VAT ({course.vatPercent}%) added at registration</div>
                       ) : null}
                       <div className="text-xs font-semibold text-amber-700">Official Receipt</div>
                     </div>
@@ -450,23 +373,15 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                   )}
 
                   <ul className="space-y-2.5 text-xs text-stone-600">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>2 Days executive workshop with Said Al Harthi</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>Full strategic toolkit & AI scorecards package</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>5-Star executive lunches & networking receptions</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span>Cryptographically verifiable certificate</span>
-                    </li>
+                    {course.highlights.map((highlight, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>{highlight}</span>
+                      </li>
+                    ))}
                   </ul>
+                  {course.certificationDetails && <div className="text-xs text-stone-600 whitespace-pre-line"><strong>Certification: </strong>{course.certificationDetails}</div>}
+                  {course.paymentTerms && <div className="text-xs text-stone-600 whitespace-pre-line"><strong>Payment terms: </strong>{course.paymentTerms}</div>}
 
                   <button
                     onClick={() => setIsModalOpen(true)}
@@ -486,7 +401,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
       </section>
 
       {/* HIGHLIGHTS & LEARNING OBJECTIVES */}
-      <section className="py-14 border-b border-stone-200 bg-stone-50">
+      <section id="syllabus" className="py-14 border-b border-stone-200 bg-stone-50">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Learning Objectives */}
@@ -554,7 +469,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
           <div className="p-8 sm:p-10 rounded-3xl border border-stone-200 bg-stone-50/80 shadow-xs flex flex-col md:flex-row items-center md:items-start gap-8">
             <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden shadow-md border-4 border-white shrink-0 bg-stone-100">
               <img
-                src={course.trainerImage || "/said-al-harthi.jpg"}
+                src={course.trainerImage || undefined}
                 alt={course.trainerName}
                 className="w-full h-full object-cover object-top"
               />
@@ -589,7 +504,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
 
               <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
                 <a
-                  href={`https://wa.me/96899355438?text=${encodeURIComponent(`Hello Said Al Harthi! I am inquiring about the ${course.name} masterclass.`)}`}
+                  href={`https://wa.me/${(course.trainerPhone || course.whatsappNumber || "").replace(/\D/g, "")}?text=${encodeURIComponent(`Hello! I am inquiring about ${course.name}.`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition"
@@ -623,12 +538,10 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                 </p>
                 <p className="text-[11px] text-stone-400 mt-1">Timezone: {course.timezone}</p>
               </div>
-              <ul className="text-xs text-stone-600 space-y-1.5 pt-2 border-t border-stone-100">
-                <li>&bull; 08:30 AM: Registration & Welcome Coffee</li>
-                <li>&bull; 09:00 AM - 12:30 PM: Morning Sessions & AI Labs</li>
-                <li>&bull; 12:30 PM - 01:30 PM: 5-Star Executive Buffet Lunch</li>
-                <li>&bull; 01:30 PM - 04:00 PM: Afternoon Strategy Cascading & Q&A</li>
-              </ul>
+              <div className="text-sm font-medium text-stone-800 pt-2 border-t border-stone-100">
+                <span className="block text-xs text-stone-500 mb-1">Available course dates</span>
+                {formatCourseSchedule(course)}
+              </div>
             </div>
 
             <div className="p-6 rounded-2xl bg-white border border-stone-200 space-y-4">
@@ -730,17 +643,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
       </section>
 
       {/* FOOTER */}
-      <footer className="py-8 bg-stone-950 text-stone-400 text-xs text-center border-t border-stone-800">
-        <div className="max-w-6xl mx-auto px-4 space-y-2">
-          <p className="text-stone-300 font-semibold">{course.trainerCompany || "Tanfidh Management Consultants"}</p>
-          <p className="max-w-2xl mx-auto text-[11px] text-stone-500 leading-relaxed">
-            {course.termsAndConditions}
-          </p>
-          <div className="pt-4 text-[10px] text-stone-600">
-            Powered by Fizmoh Training Courses Management System &bull; All Rights Reserved &copy; 2026
-          </div>
-        </div>
-      </footer>
+      <AcademyFooter brand={academy} />
 
       {/* ==================================================================== */}
       {/* REGISTRATION MODAL WITH MULTI-ATTENDEE & OFFER MATH */}
@@ -800,7 +703,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                   <div className="flex justify-between border-b border-stone-200 pb-2">
                     <span className="text-stone-500">Dates:</span>
                     <span className="font-medium text-stone-800">
-                      {course.startDate} to {course.endDate}
+                      {formatCourseSchedule(course)}
                     </span>
                   </div>
 
@@ -832,7 +735,7 @@ export default function TrainingLandingClient({ course: rawCourse, registrationI
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
                   <a
                     href={`https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(
-                      `Hello Tanfidh Consultants! I have registered for "${course.name}" (Reference: ${bookingSuccess.registration?.registrationNumber || ""}). Here is my payment receipt for verification.`,
+                      `Hello ${course.trainerCompany || "there"}! I have registered for "${course.name}" (Reference: ${bookingSuccess.registration?.registrationNumber || ""}). Here is my payment receipt for verification.`,
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"

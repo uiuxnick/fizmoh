@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getTenantCourses } from "@/lib/training-service"
+import { modulesFor } from "@/lib/entitlements"
+import { PLATFORM } from "@/lib/tenant"
 
 export async function GET(
   req: NextRequest,
@@ -9,6 +11,10 @@ export async function GET(
   const url = new URL(req.url)
   const slot = url.searchParams.get("slot") || url.searchParams.get("date") || ""
   const tenantId = url.searchParams.get("tenantId") || "cmujurq9w005ci36afzax588l"
+
+  if (tenantId !== PLATFORM && !(await modulesFor(tenantId)).includes("TRAINING")) {
+    return NextResponse.json({ error: "Training module not active for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
 
   const courses = await getTenantCourses(tenantId).catch(() => [])
   const course = courses.find(

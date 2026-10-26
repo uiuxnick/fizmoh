@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
+import { modulesFor } from "@/lib/entitlements"
 import {
   getTenantCertificates,
   issueAttendeeCertificate,
@@ -12,6 +13,8 @@ import {
 import { sendWhatsApp } from "@/lib/flow-delivery"
 
 export const dynamic = "force-dynamic"
+
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
 
 export const GET = withErrors(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
@@ -26,14 +29,36 @@ export const GET = withErrors(async (request: NextRequest) => {
   }
 
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
+
+  const allowed = await modulesFor(tenantId)
+  if (!allowed.includes("TRAINING")) {
+    return NextResponse.json({ error: "Training & Course module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
+
   const list = await getTenantCertificates(tenantId)
   return NextResponse.json({ certificates: list, total: list.length })
 })
 
 export const POST = withErrors(async (request: NextRequest) => {
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+  }
+
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage certificates" }, { status: 403 })
+  }
+
+  const allowed = await modulesFor(tenantId)
+  if (!allowed.includes("TRAINING")) {
+    return NextResponse.json({ error: "Training & Course module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
+
   const body = await request.json()
 
   if (body.action === "apply-global-template") {
@@ -72,25 +97,31 @@ export const POST = withErrors(async (request: NextRequest) => {
   let whatsappDelivered = false
   if (sendWhatsAppNotice && body.recipientPhone) {
     try {
-      const msg =
-        `🎓 *${certificate.certificateTitle || "Certificate of Completion"} — ${certificate.courseName}*\n\n` +
-        `Congratulations *${certificate.recipientName}*!\n\n` +
-        `Your official training credential has been generated and cryptographically verified:\n\n` +
-        `• *Credential ID:* ${certificate.id}\n` +
-        (certificate.courseDates ? `• *Course Dates:* ${certificate.courseDates}\n` : "") +
-        `• *Issue Date:* ${certificate.issueDate}\n` +
-        `• *Instructor:* ${certificate.trainerName}\n\n` +
-        `🔗 View & Download your Verifiable Certificate:\n` +
-        `${certificate.credentialUrl}\n\n` +
-        `We wish you continued professional excellence!`
+      const targetTenantId = certificate.tenantId || tenantId || PLATFORM
+      const { withTenant } = await import("@/lib/tenant")
+      const { sendWhatsApp: notifyWhatsApp } = await import("@/lib/notifications")
 
-      const cleanPhone = body.recipientPhone.replace(/[^0-9+]/g, "")
-      const res = await sendWhatsApp({
-        to: cleanPhone,
-        body: msg,
-        allowOutsideSession: true,
+      await withTenant({ tenantId: targetTenantId, slug: "" }, async () => {
+        const msg =
+          `🎓 *${certificate.certificateTitle || "Certificate of Completion"} — ${certificate.courseName}*\n\n` +
+          `Congratulations *${certificate.recipientName}*!\n\n` +
+          `Your official training credential has been generated and cryptographically verified:\n\n` +
+          `• *Credential ID:* ${certificate.id}\n` +
+          (certificate.courseDates ? `• *Course Dates:* ${certificate.courseDates}\n` : "") +
+          `• *Issue Date:* ${certificate.issueDate}\n` +
+          `• *Instructor:* ${certificate.trainerName}\n\n` +
+          `🔗 View & Download your Verifiable Certificate:\n` +
+          `${certificate.credentialUrl}\n\n` +
+          `We wish you continued professional excellence!`
+
+        const cleanPhone = body.recipientPhone.replace(/[^0-9+]/g, "")
+        const res = await notifyWhatsApp({
+          to: cleanPhone,
+          body: msg,
+          allowOutsideSession: true,
+        })
+        whatsappDelivered = !!res?.success
       })
-      whatsappDelivered = !!res?.success
     } catch (waErr) {
       console.warn("[training] Failed to send WhatsApp certificate notice:", waErr)
     }
@@ -105,7 +136,20 @@ export const POST = withErrors(async (request: NextRequest) => {
 
 export const PUT = withErrors(async (request: NextRequest) => {
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+  }
+
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage certificates" }, { status: 403 })
+  }
+
+  const allowed = await modulesFor(tenantId)
+  if (!allowed.includes("TRAINING")) {
+    return NextResponse.json({ error: "Training & Course module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
+
   const body = await request.json()
   const id = body.id || body.certificateId
   if (!id) {

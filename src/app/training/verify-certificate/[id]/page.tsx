@@ -2,7 +2,8 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { verifyCertificateById } from "@/lib/training-service"
 import { interpolateCertificateVariables } from "@/lib/training-types"
-import { Award, CheckCircle2, ShieldCheck, Calendar, Clock, User, Download, Printer } from "lucide-react"
+import { Award, CheckCircle2, ShieldCheck, Calendar, Clock, User, Download } from "lucide-react"
+import PrintCertificateButton from "@/components/training/print-certificate-button"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -223,13 +224,7 @@ export default async function CertificateVerificationPage({ params }: PageProps)
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href="javascript:window.print()"
-              className="px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 font-medium flex items-center gap-1"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print</span>
-            </a>
+            <PrintCertificateButton />
           </div>
         </div>
       </div>

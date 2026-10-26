@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
-import { currentTenant, PLATFORM } from "@/lib/tenant"
+import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
 import {
   getTenantCourses,
   getTenantRegistrations,
@@ -9,9 +10,12 @@ import {
 
 export const dynamic = "force-dynamic"
 
-export const GET = withErrors(async (request: NextRequest) => {
+export const GET = withErrors(withModule("TRAINING", async (_request: NextRequest) => {
   const tenant = currentTenant()
-  const tenantId = tenant?.tenantId || request.nextUrl.searchParams.get("tenantId") || PLATFORM
+  const tenantId = tenant?.tenantId
+  if (!tenantId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+  }
 
   const [courses, registrations, feedback] = await Promise.all([
     getTenantCourses(tenantId),
@@ -75,4 +79,4 @@ export const GET = withErrors(async (request: NextRequest) => {
     },
     recentRegistrations: registrations.slice(0, 10),
   })
-})
+}))

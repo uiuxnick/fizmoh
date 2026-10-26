@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
+import { modulesFor } from "@/lib/entitlements"
 import {
   getTenantRegistrations,
   updateRegistrationStatus,
@@ -12,11 +13,21 @@ import { sendWhatsApp } from "@/lib/flow-delivery"
 
 export const dynamic = "force-dynamic"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"]
+
 export const GET = withErrors(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
     const tenant = currentTenant()
-    const tenantId = tenant?.tenantId || request.nextUrl.searchParams.get("tenantId") || PLATFORM
+    const tenantId = tenant?.tenantId
+    if (!tenantId) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const allowed = await modulesFor(tenantId)
+    if (!allowed.includes("TRAINING")) {
+      return NextResponse.json({ error: "Training & Course module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+    }
 
     const all = await getTenantRegistrations(tenantId)
     const registration = all.find(r => r.id === id || r.registrationNumber === id)
@@ -33,7 +44,20 @@ export const PUT = withErrors(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
     const tenant = currentTenant()
-    const tenantId = tenant?.tenantId || PLATFORM
+    const tenantId = tenant?.tenantId
+    if (!tenantId) {
+      return NextResponse.json({ error: "Unauthorized workspace" }, { status: 401 })
+    }
+
+    if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+      return NextResponse.json({ error: "Forbidden: insufficient permissions to manage registrations" }, { status: 403 })
+    }
+
+    const allowed = await modulesFor(tenantId)
+    if (!allowed.includes("TRAINING")) {
+      return NextResponse.json({ error: "Training & Course module is not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+    }
+
     const body = (await request.json()) as Partial<Registration> & { notifyWhatsApp?: boolean }
 
     // Handle direct attendee update if requested
@@ -67,51 +91,59 @@ export const PUT = withErrors(
         const cleanPhone = rawPhone.replace(/[^0-9+]/g, "")
 
         if (cleanPhone && cleanPhone.length >= 7) {
-          const course = await getCourseByIdOrSlug(tenantId, updated.courseId)
+          const targetTenantId = updated.tenantId || tenantId || PLATFORM
+          const course = await getCourseByIdOrSlug(targetTenantId, updated.courseId)
           if (course) {
+            const { withTenant } = await import("@/lib/tenant")
+            const { sendWhatsApp: notifyWhatsApp } = await import("@/lib/notifications")
+            const companyName = course.trainerCompany || "Management Consultants"
+            const trainerName = course.trainerName || "Lead Instructor"
+
             const confirmationMsg =
               `🧾 *OFFICIAL PAYMENT RECEIPT & ENROLMENT CONFIRMATION*\n` +
-              `*Tanfidh Management Consultants*\n\n` +
+              `*${companyName}*\n\n` +
               `Dear *${updated.customerName}*,\n\n` +
-              `Your bank transfer payment has been successfully verified! Your seat registration is fully confirmed.\n\n` +
+              `Your payment has been successfully verified! Your seat registration is fully confirmed.\n\n` +
               `━━━━━━━━━━━━━━━━━━━━\n` +
               `📋 *Registration Reference:* ${updated.registrationNumber}\n` +
               `🎓 *Course:* ${course.name}\n` +
-              `👨‍💼 *Lead Trainer:* Said Al Harthi (Managing Consultant)\n` +
+              `👨‍💼 *Lead Trainer:* ${trainerName}\n` +
               `📅 *Dates:* ${course.startDate} to ${course.endDate}\n` +
               `⏱ *Timing:* ${course.startTime} - ${course.endTime}\n` +
-              `📍 *Venue:* ${course.venueName}, ${course.address || "Ruwi Financial District"}, ${course.city}\n` +
+              `📍 *Venue:* ${course.venueName}, ${course.address || "Training Center"}, ${course.city}\n` +
               `👥 *Confirmed Seats:* ${updated.numberOfSeats} Attendee(s)\n` +
               `━━━━━━━━━━━━━━━━━━━━\n` +
-              `💰 *Total Investment:* OMR ${updated.totalAmount}\n` +
-              `💳 *Paid Balance:* OMR ${updated.totalAmount} (Bank Transfer Verified)\n` +
-              `⚖️ *Remaining Balance:* OMR 0.00 (Fully Paid)\n` +
+              `💰 *Total Investment:* ${course.currency} ${updated.totalAmount}\n` +
+              `💳 *Paid Balance:* ${course.currency} ${updated.totalAmount} (Verified)\n` +
+              `⚖️ *Remaining Balance:* ${course.currency} 0.00 (Fully Paid)\n` +
               `━━━━━━━━━━━━━━━━━━━━\n\n` +
               `🎫 *Your Digital Check-In Pass:*\n` +
               `https://app.fizmoh.cloud/training/checkin?ref=${updated.registrationNumber}\n\n` +
               (course.mapUrl ? `📍 *Google Maps Venue Location:*\n${course.mapUrl}\n\n` : "") +
               `We look forward to hosting you at this executive masterclass!`
 
-            await sendWhatsApp({
-              to: cleanPhone,
-              body: confirmationMsg,
-              allowOutsideSession: true,
-            })
-
-            // Also dispatch the official PDF receipt document directly to WhatsApp
-            try {
-              const { sendMediaMessage } = await import("@/lib/flow-delivery")
-              const pdfUrl = `https://app.fizmoh.cloud/api/training/registrations/${updated.id}/pdf`
-              await sendMediaMessage({
+            await withTenant({ tenantId: targetTenantId, slug: "" }, async () => {
+              await notifyWhatsApp({
                 to: cleanPhone,
-                type: "document",
-                mediaUrl: pdfUrl,
-                filename: `Tanfidh-Receipt-${updated.registrationNumber}.pdf`,
-                caption: `Official Payment Receipt & Confirmation Voucher — ${updated.registrationNumber}`,
+                body: confirmationMsg,
+                allowOutsideSession: true,
               })
-            } catch (pdfErr) {
-              console.warn("[training] Failed to send PDF receipt document via WhatsApp:", pdfErr)
-            }
+
+              // Also dispatch the official PDF receipt document directly to WhatsApp
+              try {
+                const { sendMediaMessage } = await import("@/lib/flow-delivery")
+                const pdfUrl = `https://app.fizmoh.cloud/api/training/registrations/${updated.id}/pdf`
+                await sendMediaMessage({
+                  to: cleanPhone,
+                  mediaUrl: pdfUrl,
+                  type: "document",
+                  filename: `${companyName.replace(/[^a-zA-Z0-9_-]/g, "_")}-Receipt-${updated.registrationNumber}.pdf`,
+                  caption: `Official Payment Receipt & Badge Check-in Pass — ${course.name}`,
+                })
+              } catch (pdfWaErr) {
+                console.warn("[training] Optional PDF media attachment skipped:", pdfWaErr)
+              }
+            })
           }
         }
       } catch (waErr) {

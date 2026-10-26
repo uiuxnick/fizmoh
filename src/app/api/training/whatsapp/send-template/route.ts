@@ -10,8 +10,12 @@ import {
   type Registration,
 } from "@/lib/training-service"
 import { sendWhatsApp } from "@/lib/flow-delivery"
+import { sessionFromRequest } from "@/lib/auth"
+import { modulesFor } from "@/lib/entitlements"
 
 export const dynamic = "force-dynamic"
+
+const SEND_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "AGENT", "CHAT_AGENT", "PLATFORM"]
 
 export type TrainingMessageType =
   | "CONFIRMATION"
@@ -23,6 +27,14 @@ export type TrainingMessageType =
   | "CUSTOM"
 
 export const POST = withErrors(async (request: NextRequest) => {
+  const session = await sessionFromRequest(request)
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  if (!SEND_ROLES.includes((session.role || "").toUpperCase())) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to send training messages" }, { status: 403 })
+  }
+
   const tenant = currentTenant()
   const tenantId = tenant?.tenantId || PLATFORM
   const body = await request.json()
@@ -51,6 +63,11 @@ export const POST = withErrors(async (request: NextRequest) => {
   const course = await getCourseByIdOrSlug(tenantId, courseId)
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 })
+  }
+
+  const targetTenantId = course.tenantId || tenantId || PLATFORM
+  if (targetTenantId !== PLATFORM && !(await modulesFor(targetTenantId)).includes("TRAINING")) {
+    return NextResponse.json({ error: "Training module not active for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
   }
 
   let registration: Registration | undefined
@@ -156,10 +173,42 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "A valid recipient phone number is required" }, { status: 400 })
   }
 
-  const result = await sendWhatsApp({
-    to: cleanPhone,
-    body: finalMessage,
-    allowOutsideSession: true,
+  const { withTenant } = await import("@/lib/tenant")
+  const { sendWhatsApp: notifyWhatsApp } = await import("@/lib/notifications")
+  const { db } = await import("@/lib/db")
+
+  let result: { success: boolean; messageId?: string; error?: string } = { success: false }
+
+  await withTenant({ tenantId: targetTenantId, slug: "" }, async () => {
+    const customTemplate = (body as any).templateName
+    const customVars = (body as any).templateVariables
+
+    if (customTemplate) {
+      result = await notifyWhatsApp({
+        to: cleanPhone,
+        templateName: customTemplate,
+        templateVariables: Array.isArray(customVars) ? customVars : undefined,
+        forceTemplate: true,
+        allowOutsideSession: true,
+      })
+    } else {
+      // Look for approved template that can be used if outside 24h session
+      const approvedTemplate = await db.template.findFirst({
+        where: {
+          tenantId: targetTenantId,
+          status: "APPROVED",
+        },
+        orderBy: { updatedAt: "desc" },
+      })
+
+      result = await notifyWhatsApp({
+        to: cleanPhone,
+        body: finalMessage,
+        templateName: approvedTemplate?.name,
+        templateVariables: approvedTemplate ? [vars.customer_name || "Valued Delegate", course.name, vars.registration_id || ""] : undefined,
+        allowOutsideSession: true,
+      })
+    }
   })
 
   return NextResponse.json({
