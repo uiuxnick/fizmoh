@@ -84,6 +84,7 @@ export const POST = withErrors(async (request: NextRequest) => {
   // Log incoming WooCommerce webhook event
   await db.auditLog.create({
     data: {
+      tenantId: tenant.tenantId,
       action: `WOOCOMMERCE_WEBHOOK_${String(topic).toUpperCase().replace(/\./g, "_")}`,
       entity: "WOOCOMMERCE",
       entityId: String(payload.id || "webhook"),

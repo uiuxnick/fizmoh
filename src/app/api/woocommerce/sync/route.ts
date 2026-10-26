@@ -5,6 +5,8 @@ import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"])
+
 /**
  * Sync Products & Orders from WooCommerce Store with PostgreSQL Cache Persistence
  */
@@ -12,6 +14,11 @@ export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextReq
   const session = await sessionFromRequest(request)
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
+  }
+
+  const role = session.role?.toUpperCase() || ""
+  if (!EDIT_ROLES.has(role)) {
+    return NextResponse.json({ error: "Insufficient permissions to sync WooCommerce store" }, { status: 403 })
   }
 
   const tenantId = currentTenant()?.tenantId

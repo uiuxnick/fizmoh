@@ -6,6 +6,8 @@ import { sessionFromRequest } from "@/lib/auth"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"])
+
 /**
  * List & Sync WooCommerce Customers
  */
@@ -16,6 +18,7 @@ export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequ
   }
 
   const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const searchParams = request.nextUrl.searchParams
   const search = searchParams.get("search") || ""
   const page = searchParams.get("page") || "1"
@@ -66,6 +69,14 @@ export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextReq
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
   }
+
+  const role = session.role?.toUpperCase() || ""
+  if (!EDIT_ROLES.has(role)) {
+    return NextResponse.json({ error: "Insufficient permissions to create WooCommerce customers" }, { status: 403 })
+  }
+
+  const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const { email, first_name, last_name, phone } = body

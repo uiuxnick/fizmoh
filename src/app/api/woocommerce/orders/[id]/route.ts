@@ -5,6 +5,8 @@ import { sessionFromRequest } from "@/lib/auth"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant, withTenant } from "@/lib/tenant"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"])
+
 /**
  * Edit WooCommerce Order Status & Add Notes
  */
@@ -14,8 +16,14 @@ export const PUT = withErrors(withModule("WOOCOMMERCE", async (request: NextRequ
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
   }
 
+  const role = session.role?.toUpperCase() || ""
+  if (!EDIT_ROLES.has(role)) {
+    return NextResponse.json({ error: "Insufficient permissions to update WooCommerce orders" }, { status: 403 })
+  }
+
   const { id } = await params
   const tenant = currentTenant()
+  if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const body = await request.json().catch(() => ({}))
   const { status, note, notifyCustomer } = body
 

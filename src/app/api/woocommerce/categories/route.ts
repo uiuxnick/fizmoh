@@ -3,6 +3,7 @@ import { wcRequest } from "@/lib/woocommerce-client"
 import { NextRequest, NextResponse } from "next/server"
 import { sessionFromRequest } from "@/lib/auth"
 import { withModule } from "@/lib/entitlements"
+import { currentTenant } from "@/lib/tenant"
 
 /**
  * List WooCommerce Product Categories
@@ -12,6 +13,9 @@ export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequ
   if (!session || session.kind !== "staff") {
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
   }
+
+  const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
 
   try {
     const categories = await wcRequest("products/categories?per_page=100&hide_empty=true")

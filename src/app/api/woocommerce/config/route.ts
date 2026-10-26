@@ -67,7 +67,7 @@ export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextReq
   }
 
   const role = session.role?.toUpperCase() || ""
-  if (!["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER"].includes(role)) {
+  if (!["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"].includes(role)) {
     return NextResponse.json({ error: "Insufficient permissions to manage WooCommerce settings" }, { status: 403 })
   }
 
@@ -75,6 +75,17 @@ export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextReq
   if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const body = await request.json().catch(() => ({}))
   const { storeUrl, consumerKey, consumerSecret, autoSync, syncOrders, webhookSecret } = body
+
+  if (storeUrl) {
+    try {
+      const parsedUrl = new URL(storeUrl)
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return NextResponse.json({ error: "Store URL must use http or https" }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid store URL format" }, { status: 400 })
+    }
+  }
 
   const existing = await db.systemSetting.findFirst({ where: { tenantId, key: "WOOCOMMERCE_SETTINGS" } })
 

@@ -6,6 +6,8 @@ import { currentTenant } from "@/lib/tenant"
 import { sessionFromRequest } from "@/lib/auth"
 import { withModule } from "@/lib/entitlements"
 
+const EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"])
+
 /**
  * List & Create WooCommerce Products with Local PostgreSQL Cache Fallback & Audit Logging
  */
@@ -16,6 +18,7 @@ export const GET = withErrors(withModule("WOOCOMMERCE", async (request: NextRequ
   }
 
   const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const searchParams = request.nextUrl.searchParams
   const search = searchParams.get("search") || ""
   const category = searchParams.get("category") || "all"
@@ -94,7 +97,13 @@ export const POST = withErrors(withModule("WOOCOMMERCE", async (request: NextReq
     return NextResponse.json({ error: "Staff authentication required" }, { status: 401 })
   }
 
+  const role = session.role?.toUpperCase() || ""
+  if (!EDIT_ROLES.has(role)) {
+    return NextResponse.json({ error: "Insufficient permissions to create WooCommerce products" }, { status: 403 })
+  }
+
   const tenantId = currentTenant()?.tenantId
+  if (!tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
   const body = await request.json().catch(() => ({}))
   const {
     name,
