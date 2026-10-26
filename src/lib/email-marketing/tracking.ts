@@ -1,6 +1,6 @@
-import { createHmac } from "node:crypto"
+import { createHmac, timingSafeEqual } from "node:crypto"
 
-const SECRET = process.env.AUTH_SECRET || "fizmoh_email_tracking_secret_2026"
+const SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || "fizmoh_email_tracking_secret_2026"
 
 export interface TrackingTokenPayload {
   tId: string // tenantId
@@ -24,7 +24,9 @@ export function decodeTrackingToken(token: string): TrackingTokenPayload | null 
     if (!base64 || !sig) return null
 
     const expected = createHmac("sha256", SECRET).update(base64).digest("base64url")
-    if (sig !== expected) return null
+    const sigBuf = Buffer.from(sig)
+    const expBuf = Buffer.from(expected)
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null
 
     const json = Buffer.from(base64, "base64url").toString("utf8")
     return JSON.parse(json) as TrackingTokenPayload

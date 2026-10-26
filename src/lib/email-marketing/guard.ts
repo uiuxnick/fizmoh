@@ -36,8 +36,10 @@ export async function requireEmailMarketingAuth(
   const headerNamed = request.headers.get("x-fizmoh-workspace") || null
   const urlNamed = new URL(request.url).searchParams.get("workspace") || null
   const tenantSlug = cookieNamed || headerNamed || urlNamed
+  const host = request.headers.get("host")
 
   const tenant = await resolveTenant({
+    host,
     staffId: session.staffId,
     slug: tenantSlug,
     trustedSlug: cookieNamed,
