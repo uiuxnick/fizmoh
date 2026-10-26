@@ -69,6 +69,10 @@ export const POST = withErrors(withModule("RESTAURANT", async (req: NextRequest)
     notes: item.notes || null,
   }))
 
+  if (normalizedItems.some((i: any) => !i.menuItemId)) {
+    return NextResponse.json({ error: "Each order item must specify a valid menuItemId" }, { status: 400 })
+  }
+
   const order = await placeOrder({
     tenantId,
     branchId: branchId || null,

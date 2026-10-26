@@ -199,7 +199,10 @@ export async function calculateOrder(params: {
   const deliveryFee = orderType === "DELIVERY" ? (branch.deliveryFee || 0) : 0
 
   // 2. Fetch all menu items belonging to tenant in one query (multi-tenant safe)
-  const itemIds = Array.from(new Set(items.map((i) => i.menuItemId)))
+  const itemIds = Array.from(new Set(items.map((i) => i.menuItemId).filter(Boolean)))
+  if (itemIds.length === 0) {
+    throw new Error("Each order item must specify a valid menuItemId")
+  }
   const menuItems = await db.menuItem.findMany({
     where: {
       id: { in: itemIds },
@@ -489,6 +492,31 @@ export async function placeOrder(input: PlaceOrderInput) {
     tenantId,
   })
 
+  // Instantly notify staff via in-app notification & notification center
+  try {
+    const { notifyStaff } = await import("@/lib/realtime")
+    const locText = order.tableNumber
+      ? `Table ${order.tableNumber}`
+      : order.roomNumber
+      ? `Room ${order.roomNumber}`
+      : order.orderType
+    await notifyStaff({
+      tenantId,
+      type: "order",
+      title: `🍽️ New Order Received (${order.orderNumber})`,
+      message: `${locText} placed order for ${order.currency} ${order.totalAmount.toFixed(3)}${customerName ? ` (${customerName})` : ""}.`,
+      data: {
+        link: "/dashboard/addons/smart-menu-ordering/kitchen",
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        currency: order.currency,
+      },
+    })
+  } catch (notifErr) {
+    console.error("[restaurant/placeOrder] Staff notification error:", notifErr)
+  }
+
   // 8. Optionally send WhatsApp Order Confirmation
   if (customerPhone) {
     sendKitchenOrderWhatsAppNotification(order.id).catch((e) => {
@@ -513,75 +541,115 @@ export async function sendKitchenOrderWhatsAppNotification(orderId: string): Pro
       return { success: false, error: "Order or customer phone not found" }
     }
 
+    const targetPhone = order.customerPhone
+    if (!targetPhone) {
+      return { success: false, error: "Order customer phone not found" }
+    }
+
     const tenant = await db.tenant.findUnique({
       where: { id: order.tenantId },
-      select: { name: true, slug: true },
+      select: { name: true, slug: true, locale: true },
     })
 
-    const businessName = tenant?.name || "Our Restaurant"
-    const trackingUrl = `https://app.fizmoh.cloud/order/${order.publicToken || order.id}`
-    const locationText = order.orderType === "DINE_IN" && order.tableNumber
-      ? `Table ${order.tableNumber}`
-      : order.orderType === "ROOM_SERVICE" && order.roomNumber
-      ? `Room ${order.roomNumber}`
-      : order.orderType
+    const { withTenant } = await import("@/lib/tenant")
+    return await withTenant({ tenantId: order.tenantId, slug: tenant?.slug || "restaurant" }, async () => {
+      const businessName = tenant?.name || "Our Restaurant"
+      const trackingUrl = `https://app.fizmoh.cloud/order/${order.publicToken || order.id}`
+      const isArabic = Boolean(
+        tenant?.locale === "ar" ||
+        /[\u0600-\u06FF]/.test(businessName) ||
+        (order.customerName && /[\u0600-\u06FF]/.test(order.customerName))
+      )
 
-    let itemsList = ""
-    try {
-      const items = JSON.parse(order.itemsJson || "[]")
-      if (Array.isArray(items)) {
-        itemsList = items.map((i: any) => {
-          const portion = i.variant ? ` (${i.variant.name})` : ""
-          return `• ${i.qty || 1}x ${i.name || i.menuItem?.name || "Item"}${portion} — ${order.currency} ${(Number(i.price || 0) * Number(i.qty || 1)).toFixed(3)}`
-        }).join("\n")
+      const locationText = isArabic
+        ? (order.orderType === "DINE_IN" && order.tableNumber
+            ? `طاولة ${order.tableNumber}`
+            : order.orderType === "ROOM_SERVICE" && order.roomNumber
+            ? `غرفة ${order.roomNumber}`
+            : order.orderType === "TAKEAWAY"
+            ? "استلام من المطعم"
+            : "توصيل")
+        : (order.orderType === "DINE_IN" && order.tableNumber
+            ? `Table ${order.tableNumber}`
+            : order.orderType === "ROOM_SERVICE" && order.roomNumber
+            ? `Room ${order.roomNumber}`
+            : order.orderType)
+
+      let itemsList = ""
+      try {
+        const items = JSON.parse(order.itemsJson || "[]")
+        if (Array.isArray(items)) {
+          itemsList = items.map((i: any) => {
+            const portion = i.variant ? ` (${i.variant.name})` : ""
+            const name = isArabic && i.menuItem?.nameAr ? i.menuItem.nameAr : (i.name || i.menuItem?.name || "Item")
+            return `• ${i.qty || 1}x ${name}${portion} — ${order.currency} ${(Number(i.price || 0) * Number(i.qty || 1)).toFixed(3)}`
+          }).join("\n")
+        }
+      } catch {}
+
+      const isPaid = order.paymentStatus === "PAID"
+      const subtotal = order.subtotalAmount != null ? order.subtotalAmount : order.totalAmount
+      const tax = order.taxAmount != null ? order.taxAmount : 0
+      const discount = order.discountAmount != null ? order.discountAmount : 0
+
+      const body = isArabic
+        ? `🍽️ *${businessName} — تم استلام وتأكيد طلبك!*\n\n` +
+          `رقم الطلب: *${order.orderNumber}*\n` +
+          `النوع: *${locationText}*\n\n` +
+          (itemsList ? `📋 *تفاصيل الطلب:*\n${itemsList}\n\n` : "") +
+          `💰 المجموع الجزئي: ${order.currency} ${subtotal.toFixed(3)}\n` +
+          (tax > 0 ? `🧾 الضريبة / VAT: ${order.currency} ${tax.toFixed(3)}\n` : "") +
+          (discount > 0 ? `🏷️ الخصم: -${order.currency} ${discount.toFixed(3)}\n` : "") +
+          `💵 *الإجمالي النهائي:* *${order.currency} ${order.totalAmount.toFixed(3)}*\n` +
+          `💳 *حالة الدفع:* ${isPaid ? "✅ تم الدفع إلكترونياً" : "⚠️ الدفع عند الاستلام / في المطعم"}\n\n` +
+          `اضغط على الزر أدناه لتتبع حالة تجهيز طلبك وعرض الفاتورة الرقمية:`
+        : `🍽️ *${businessName} — Order Confirmed!*\n\n` +
+          `Order Number: *${order.orderNumber}*\n` +
+          `Type: *${locationText}*\n\n` +
+          (itemsList ? `📋 *Order Details:*\n${itemsList}\n\n` : "") +
+          `💰 Subtotal: ${order.currency} ${subtotal.toFixed(3)}\n` +
+          (tax > 0 ? `🧾 VAT / Tax: ${order.currency} ${tax.toFixed(3)}\n` : "") +
+          (discount > 0 ? `🏷️ Discount: -${order.currency} ${discount.toFixed(3)}\n` : "") +
+          `💵 *Total Amount:* *${order.currency} ${order.totalAmount.toFixed(3)}*\n` +
+          `💳 *Payment:* ${isPaid ? "✅ Paid Online" : "⚠️ Pending Payment"}\n\n` +
+          `Tap below to track cooking progress & view your digital receipt:`
+
+      // 1. Message with in-app WhatsApp browser Track button
+      const cta = await sendCtaUrlMessage({
+        to: targetPhone,
+        body,
+        buttonText: isArabic ? "تتبع الطلب" : "Track Order",
+        url: trackingUrl,
+      }).catch(() => ({ success: false }))
+
+      if (!cta.success) {
+        const fallback = `${body}\n📍 ${trackingUrl}`
+        await sendTextMessage(targetPhone, fallback).catch(() => {})
       }
-    } catch {}
 
-    const isPaid = order.paymentStatus === "PAID"
-    const subtotal = order.subtotalAmount != null ? order.subtotalAmount : order.totalAmount
-    const tax = order.taxAmount != null ? order.taxAmount : 0
-    const discount = order.discountAmount != null ? order.discountAmount : 0
+      // 2. Interactive action buttons (Call Waiter / Pay / Bill)
+      if (order.orderType === "DINE_IN" || order.tableNumber || order.roomNumber) {
+        await sendInteractiveMessage({
+          to: targetPhone,
+          body: isArabic ? `هل تحتاج إلى أي مساعدة أثناء تجهيز طعامك؟` : `Need assistance at your table while your food is prepared?`,
+          buttons: isArabic
+            ? [
+                { id: `call_waiter_${order.id}`, title: "🔔 طلب النادل" },
+                ...(!isPaid
+                  ? [{ id: `pay_order_${order.id}`, title: "💳 دفع إلكتروني" }]
+                  : [{ id: `request_bill_${order.id}`, title: "🧾 طلب الحساب" }]),
+              ]
+            : [
+                { id: `call_waiter_${order.id}`, title: "🔔 Call Waiter" },
+                ...(!isPaid
+                  ? [{ id: `pay_order_${order.id}`, title: "💳 Pay Online" }]
+                  : [{ id: `request_bill_${order.id}`, title: "🧾 Request Bill" }]),
+              ],
+        }).catch(() => {})
+      }
 
-    const body =
-      `🍽️ *${businessName} — Order Confirmed!*\n\n` +
-      `Order Number: *${order.orderNumber}*\n` +
-      `Type: *${locationText}*\n\n` +
-      (itemsList ? `📋 *Order Details:*\n${itemsList}\n\n` : "") +
-      `💰 Subtotal: ${order.currency} ${subtotal.toFixed(3)}\n` +
-      (tax > 0 ? `🧾 VAT / Tax: ${order.currency} ${tax.toFixed(3)}\n` : "") +
-      (discount > 0 ? `🏷️ Discount: -${order.currency} ${discount.toFixed(3)}\n` : "") +
-      `💵 *Total Amount:* *${order.currency} ${order.totalAmount.toFixed(3)}*\n` +
-      `💳 *Payment:* ${isPaid ? "✅ Paid Online" : "⚠️ Pending Payment"}\n\n` +
-      `Tap below to track cooking progress & view your digital receipt:`
-
-    // 1. Message with in-app WhatsApp browser Track button
-    const cta = await sendCtaUrlMessage({
-      to: order.customerPhone,
-      body,
-      buttonText: "Track Order",
-      url: trackingUrl,
-    }).catch(() => ({ success: false }))
-
-    if (!cta.success) {
-      const fallback = `${body}\n📍 ${trackingUrl}`
-      await sendTextMessage(order.customerPhone, fallback).catch(() => {})
-    }
-
-    // 2. Interactive action buttons (Call Waiter / Pay / Bill)
-    if (order.orderType === "DINE_IN" || order.tableNumber || order.roomNumber) {
-      await sendInteractiveMessage({
-        to: order.customerPhone,
-        body: `Need assistance at your table while your food is prepared?`,
-        buttons: [
-          { id: `call_waiter_${order.id}`, title: "🔔 Call Waiter" },
-          ...(!isPaid
-            ? [{ id: `pay_order_${order.id}`, title: "💳 Pay Online" }]
-            : [{ id: `request_bill_${order.id}`, title: "🧾 Request Bill" }]),
-        ],
-      }).catch(() => {})
-    }
-
-    return { success: true }
+      return { success: true }
+    })
   } catch (error: any) {
     console.error("sendKitchenOrderWhatsAppNotification error:", error)
     return { success: false, error: error?.message || "Failed to send notification" }
@@ -654,15 +722,33 @@ export async function updateOrderStatus(
   })
 
   // WhatsApp notification if order moves to READY
-  if (newStatus === "READY" && updated.customerPhone) {
+  const readyPhone = updated.customerPhone
+  if (newStatus === "READY" && readyPhone) {
     try {
-      const trackingUrl = updated.publicToken ? `https://app.fizmoh.cloud/order/${updated.publicToken}` : ""
-      const readyMsg = `🎉 Your order ${updated.orderNumber || ""} is READY! ${
-        updated.orderType === "TAKEAWAY"
-          ? "Please collect your order at the counter."
-          : "Our team is serving it to you now."
-      }\n${trackingUrl}`
-      await sendTextMessage(updated.customerPhone, readyMsg).catch(() => {})
+      const tenant = await db.tenant.findUnique({
+        where: { id: tenantId },
+        select: { slug: true },
+      })
+      const { withTenant } = await import("@/lib/tenant")
+      await withTenant({ tenantId, slug: tenant?.slug || "restaurant" }, async () => {
+        const trackingUrl = updated.publicToken ? `https://app.fizmoh.cloud/order/${updated.publicToken}` : ""
+        const isArabic = Boolean(
+          (updated.customerName && /[\u0600-\u06FF]/.test(updated.customerName)) ||
+          /[\u0600-\u06FF]/.test(updated.branch?.name || "")
+        )
+        const readyMsg = isArabic
+          ? `🎉 طلبك ${updated.orderNumber || ""} جاهز الآن! ${
+              updated.orderType === "TAKEAWAY"
+                ? "يرجى التوجه إلى الكاونتر لاستلام طلبك."
+                : "فريق الخدمة يقوم بتقديمه إلى طاولتك الآن."
+            }\n${trackingUrl}`
+          : `🎉 Your order ${updated.orderNumber || ""} is READY! ${
+              updated.orderType === "TAKEAWAY"
+                ? "Please collect your order at the counter."
+                : "Our team is serving it to you now."
+            }\n${trackingUrl}`
+        await sendTextMessage(readyPhone, readyMsg).catch(() => {})
+      })
     } catch {}
   }
 
@@ -728,6 +814,30 @@ export async function callWaiter(params: {
       where: { id: tableId },
       data: { status: "BILL_REQUESTED" },
     }).catch(() => {})
+  }
+
+  // Instantly notify staff via in-app & mobile push notification
+  try {
+    const { notifyStaff } = await import("@/lib/realtime")
+    const loc = tableNumber ? `Table ${tableNumber}` : roomNumber ? `Room ${roomNumber}` : "Customer"
+    const isBill = requestType === "BILL"
+    await notifyStaff({
+      tenantId,
+      type: isBill ? "bill" : "waiter",
+      title: isBill ? `🧾 Bill Requested — ${loc}` : `🔔 Waiter Call — ${loc}`,
+      message: isBill
+        ? `${loc} requested their bill.`
+        : `${loc} requested ${requestType}${message ? `: "${message}"` : "."}`,
+      data: {
+        link: "/dashboard/addons/smart-menu-ordering/kitchen",
+        requestId: req.id,
+        tableNumber: tableNumber || undefined,
+        roomNumber: roomNumber || undefined,
+        requestType,
+      },
+    })
+  } catch (notifErr) {
+    console.error("[restaurant/callWaiter] Staff notification error:", notifErr)
   }
 
   // Publish Realtime SSE
