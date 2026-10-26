@@ -22,6 +22,9 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
     if (!session) return { error: "No such session", status: 404 }
     if (!session.rating) return { error: "A rating must be selected first", status: 400 }
 
+    const tenantRow = await db.tenant.findUnique({ where: { id: tenant.tenantId }, select: { name: true } }).catch(() => null)
+    const businessName = tenantRow?.name || session.campaign.name
+
     let suggestions
     try {
       suggestions = await generateReviewSuggestions({
@@ -31,6 +34,7 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
         language: session.campaign.language,
         tone: session.campaign.aiTone,
         count: session.campaign.aiSuggestionCount,
+        businessName,
       })
     } catch (e) {
       return { error: e instanceof Error ? e.message : "AI is unavailable right now", status: 502, aiUnavailable: true }

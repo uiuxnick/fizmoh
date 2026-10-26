@@ -5,16 +5,21 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { generateDesignCopy } from "@/lib/qr-design-ai"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
+
 /** AI-suggested headline/subtitle/CTA for a QR code's printed design. */
 export const POST = withErrors(withModule("DIGITAL_QR", async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const tenant = currentTenant()
+  if (tenant?.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only marketing or workspace administrators can generate AI designs" }, { status: 403 })
+  }
   const { id } = await params
   const qrCode = await db.qrCode.findUnique({ where: { id } })
   if (!qrCode) return NextResponse.json({ error: "No such QR code" }, { status: 404 })
 
-  const tenant = currentTenant()
   const tenantRow = tenant?.tenantId ? await db.tenant.findUnique({ where: { id: tenant.tenantId }, select: { name: true } }) : null
 
   const body = await request.json().catch(() => ({}))

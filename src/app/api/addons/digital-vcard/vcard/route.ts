@@ -7,6 +7,8 @@ import { vCardUpdateSchema } from "@/lib/digital-vcard/validation"
 import { isSlugAvailable, suggestAvailableSlug, slugify } from "@/lib/digital-vcard/slug"
 import { DEFAULT_WEEKLY_SCHEDULE } from "@/lib/digital-vcard/business-hours"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
+
 /**
  * Returns or initializes the digital business card for the active tenant.
  */
@@ -75,6 +77,9 @@ export const PUT = withErrors(withModule("DIGITAL_VCARD", async (request: NextRe
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "No active tenant selected" }, { status: 400 })
+  }
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage digital business card" }, { status: 403 })
   }
 
   const existingCard = await (db as any).businessVCard.findFirst({

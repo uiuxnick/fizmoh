@@ -3,7 +3,7 @@ import { withErrors } from "@/lib/api-handler"
 import { raw } from "@/lib/db"
 import { tenantOf, withTenant } from "@/lib/tenant"
 import { scanFingerprint, qrRateLimited } from "@/lib/qr-review"
-import { withinLimit } from "@/lib/entitlements"
+import { withinLimit, modulesFor } from "@/lib/entitlements"
 
 /**
  * A QR code has just been scanned.
@@ -33,6 +33,11 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
 
   const tenant = await tenantOf(qr.tenantId)
   if (!tenant) return NextResponse.json({ error: "No such workspace" }, { status: 404 })
+
+  const allowed = await modulesFor(qr.tenantId)
+  if (!allowed.includes("DIGITAL_QR") && !allowed.includes("REPUTATION")) {
+    return NextResponse.json({ error: "Digital QR and review features are not enabled for this workspace", code: "MODULE_NOT_ENTITLED" }, { status: 403 })
+  }
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
   const userAgent = request.headers.get("user-agent") || ""

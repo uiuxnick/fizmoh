@@ -12,6 +12,7 @@ import { NextResponse } from "next/server"
 import { db, raw } from "@/lib/db"
 import { tenantOf, withTenant, type TenantContext } from "@/lib/tenant"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
+import { modulesFor } from "@/lib/entitlements"
 
 export const REVIEW_SESSION_STATUSES = [
   "STARTED", "RATED", "INPUT_GIVEN", "AI_GENERATED",
@@ -50,6 +51,10 @@ export async function withSessionTenant<T>(
   if (!stub) return { error: "No such review session", status: 404 }
   const tenant = await tenantOf(stub.tenantId)
   if (!tenant) return { error: "No such workspace", status: 404 }
+  const allowed = await modulesFor(stub.tenantId)
+  if (!allowed.includes("DIGITAL_QR") && !allowed.includes("REPUTATION")) {
+    return { error: "Digital QR and review features are not enabled for this workspace", status: 403 }
+  }
   return withTenant(tenant, () => work({ tenant }))
 }
 

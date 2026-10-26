@@ -6,7 +6,7 @@ import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 import { approveAndPublish, retryReply, regenerateReviewReply } from "@/lib/review-reply-engine"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 function requireEditRole(): NextResponse | null {
   const tenant = currentTenant()

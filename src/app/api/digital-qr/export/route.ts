@@ -4,7 +4,10 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { toCsv, csvResponseHeaders } from "@/lib/csv"
 
+import { currentTenant } from "@/lib/tenant"
+
 const DATE = () => new Date().toISOString().slice(0, 10)
+const EXPORT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 /**
  * Digital QR Addons exports — section 59 of the spec.
@@ -14,6 +17,10 @@ const DATE = () => new Date().toISOString().slice(0, 10)
  * (src/lib/csv.ts) rather than a second export format or library.
  */
 export const GET = withErrors(withModule("DIGITAL_QR", async (request: NextRequest) => {
+  const tenant = currentTenant()
+  if (tenant?.role && !EXPORT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to export feedback and reputation data" }, { status: 403 })
+  }
   const type = new URL(request.url).searchParams.get("type") || "campaigns"
 
   if (type === "campaigns") {

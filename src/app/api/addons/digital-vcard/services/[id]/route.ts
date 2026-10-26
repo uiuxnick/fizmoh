@@ -5,13 +5,18 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { vCardItemSchema } from "@/lib/digital-vcard/validation"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
+
 export const PUT = withErrors(withModule("DIGITAL_VCARD", async (
   request: NextRequest,
-  context?: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "No active tenant selected" }, { status: 400 })
+  }
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage services" }, { status: 403 })
   }
 
   const params = await context?.params
@@ -48,11 +53,14 @@ export const PUT = withErrors(withModule("DIGITAL_VCARD", async (
 
 export const DELETE = withErrors(withModule("DIGITAL_VCARD", async (
   _request: NextRequest,
-  context?: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) {
     return NextResponse.json({ error: "No active tenant selected" }, { status: 400 })
+  }
+  if (tenant.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient permissions to manage services" }, { status: 403 })
   }
 
   const params = await context?.params

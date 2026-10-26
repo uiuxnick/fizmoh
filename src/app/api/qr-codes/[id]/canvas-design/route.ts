@@ -3,7 +3,9 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { defaultCanvasDesign, type CanvasDesign, PAPER_SIZES } from "@/lib/qr-canvas-design"
+import { currentTenant } from "@/lib/tenant"
 
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 const MAX_DESIGN_BYTES = 8 * 1024 * 1024 // generous — a design can carry a few embedded logo images
 
 /** Loads the saved canvas design, or a sane default if nobody has customised one yet. */
@@ -32,6 +34,10 @@ export const PUT = withErrors(withModule("DIGITAL_QR", async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const tenant = currentTenant()
+  if (tenant?.role && !EDIT_ROLES.includes(tenant.role)) {
+    return NextResponse.json({ error: "Only marketing or workspace administrators can save QR designs" }, { status: 403 })
+  }
   const { id } = await params
   const qrCode = await db.qrCode.findUnique({ where: { id }, select: { id: true } })
   if (!qrCode) return NextResponse.json({ error: "No such QR code" }, { status: 404 })

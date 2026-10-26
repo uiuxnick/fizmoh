@@ -40,6 +40,22 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
       },
     })
 
+    // Instantly notify staff of private shield feedback so they can resolve the issue before a public 1-star review
+    try {
+      const { notifyStaff } = await import("@/lib/realtime")
+      await notifyStaff({
+        tenantId: tenant.tenantId,
+        type: "lead",
+        title: `⚠️ Private Feedback Received (${session.rating}★)`,
+        message: wantsCallback
+          ? `Customer requested a callback: "${feedbackText.slice(0, 100)}" (Phone: ${contactPhone || "Not provided"})`
+          : `Customer submitted private feedback: "${feedbackText.slice(0, 120)}"`,
+        data: { feedbackId: feedback.id, sessionId: id, rating: session.rating, contactPhone, wantsCallback },
+      })
+    } catch (err) {
+      console.error("Failed to notify staff of private feedback:", err)
+    }
+
     // Additive: if the customer already confirmed a review or clicked
     // through to Google, that progress stands. This only marks the journey's
     // end state when private feedback is genuinely the only thing they did.

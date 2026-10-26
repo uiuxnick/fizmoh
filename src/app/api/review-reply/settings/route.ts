@@ -5,9 +5,9 @@ import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 import { createAuditLog } from "@/lib/slots-server"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 /** Only these can flip mode to AUTOMATIC — full unattended publishing to a public review is not a routine settings change. */
-const AUTOMATIC_MODE_ROLES = ["OWNER", "SUPER_ADMIN"]
+const AUTOMATIC_MODE_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "PLATFORM"]
 
 const MODES = ["MANUAL_APPROVAL", "AUTOMATIC", "DRAFT_ONLY"]
 const TONES = ["professional", "warm", "formal", "casual", "luxury", "custom"]

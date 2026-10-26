@@ -4,7 +4,7 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
 
-const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "MANAGER", "MARKETING"]
+const EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "MARKETING", "PLATFORM"]
 
 export const PATCH = withErrors(withModule("DIGITAL_QR", async (
   request: NextRequest,
