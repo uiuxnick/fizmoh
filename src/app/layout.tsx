@@ -120,6 +120,12 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [absoluteUrl(seo.ogImage)],
       ...(seo.twitterHandle ? { site: seo.twitterHandle, creator: seo.twitterHandle } : {}),
     },
+    other: {
+      "geo.region": "OM",
+      "geo.placename": "Muscat",
+      "geo.position": "23.5880;58.3829",
+      ICBM: "23.5880, 58.3829",
+    },
   }
 }
 

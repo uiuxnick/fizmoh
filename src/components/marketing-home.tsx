@@ -964,17 +964,39 @@ export default function MarketingHome() {
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  { en: "Oman · Muscat", ar: "عُمان · مسقط" },
-                  { en: "UAE · Dubai", ar: "الإمارات · دبي" },
-                  { en: "Saudi Arabia", ar: "المملكة العربية السعودية" },
-                  { en: "Qatar · Doha", ar: "قطر · الدوحة" },
-                  { en: "Bahrain", ar: "البحرين" },
-                  { en: "Kuwait", ar: "الكويت" },
+                  { en: "Oman · Muscat", ar: "عُمان · مسقط", href: "/locations/muscat" },
+                  { en: "UAE · Dubai", ar: "الإمارات · دبي", href: "/locations/dubai" },
+                  { en: "Saudi Arabia", ar: "المملكة العربية السعودية", href: "/locations/riyadh" },
+                  { en: "Qatar · Doha", ar: "قطر · الدوحة", href: "/locations/doha" },
+                  { en: "Bahrain", ar: "البحرين", href: "/locations/manama" },
+                  { en: "Kuwait", ar: "الكويت", href: "/locations/kuwait-city" },
                 ].map((r, i) => (
-                  <div key={i} className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-surface-2)] px-3.5 py-2.5 text-center">
-                    <p className="text-[13.5px] font-bold text-[var(--mk-ink)]">{isAr ? r.ar : r.en}</p>
-                  </div>
+                  <Link key={i} href={r.href} className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-surface-2)] hover:border-emerald-500/50 hover:bg-emerald-500/5 px-3.5 py-2.5 text-center transition group block">
+                    <p className="text-[13.5px] font-bold text-[var(--mk-ink)] group-hover:text-emerald-700">{isAr ? r.ar : r.en}</p>
+                  </Link>
                 ))}
+              </div>
+
+              {/* Dedicated WhatsApp Business Oman Solutions Internal Links */}
+              <div className="pt-2 space-y-2">
+                <p className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--mk-ink-soft)]">
+                  {isAr ? "حلول واتساب المخصصة لسلطنة عمان" : "Official WhatsApp Oman Solutions"}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { en: "WhatsApp Business API Oman", ar: "واتساب بزنس API عمان", href: "/whatsapp-business-api-oman" },
+                    { en: "WhatsApp Automation Software", ar: "أتمتة وحملات واتساب", href: "/whatsapp-automation-oman" },
+                    { en: "WhatsApp AI Chatbots Oman", ar: "شات بوت واتساب الذكي", href: "/whatsapp-chatbot-oman" },
+                    { en: "WhatsApp CRM & Team Inbox", ar: "واتساب CRM وصندوق الفريق", href: "/whatsapp-crm-oman" },
+                    { en: "WhatsApp Marketing Oman", ar: "تسويق وبث واتساب", href: "/whatsapp-marketing-oman" },
+                    { en: "AmwalPay Online Payments", ar: "بوابة أموال باي بالريال", href: "/product/payments" },
+                  ].map((s, i) => (
+                    <Link key={i} href={s.href} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--mk-line)] bg-white hover:border-emerald-500 hover:shadow-sm transition group">
+                      <span className="text-[13px] font-semibold text-[var(--mk-ink)] group-hover:text-emerald-700">{isAr ? s.ar : s.en}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 transition group-hover:translate-x-0.5" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
