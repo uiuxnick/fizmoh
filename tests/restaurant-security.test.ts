@@ -2,7 +2,7 @@ import { expect, test, describe } from "bun:test"
 
 describe("Restaurant Table Ordering & Smart Menu Security and Role Controls", () => {
   const MENU_EDIT_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "PLATFORM"])
-  const POS_OPERATIONAL_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "CHAT_AGENT", "PLATFORM"])
+  const POS_OPERATIONAL_ROLES = new Set(["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "AGENT", "CHAT_AGENT", "PLATFORM"])
 
   test("authorized management roles can modify menu categories, items, branches, and tables", () => {
     expect(MENU_EDIT_ROLES.has("OWNER")).toBe(true)
@@ -14,6 +14,7 @@ describe("Restaurant Table Ordering & Smart Menu Security and Role Controls", ()
 
   test("operational and read-only roles cannot modify menu catalog or table layouts", () => {
     expect(MENU_EDIT_ROLES.has("STAFF")).toBe(false)
+    expect(MENU_EDIT_ROLES.has("AGENT")).toBe(false)
     expect(MENU_EDIT_ROLES.has("CHAT_AGENT")).toBe(false)
     expect(MENU_EDIT_ROLES.has("VIEWER")).toBe(false)
     expect(MENU_EDIT_ROLES.has("FINANCE")).toBe(false)
@@ -22,6 +23,7 @@ describe("Restaurant Table Ordering & Smart Menu Security and Role Controls", ()
 
   test("staff and agents can manage operational POS orders, reservations, and waiter calls", () => {
     expect(POS_OPERATIONAL_ROLES.has("STAFF")).toBe(true)
+    expect(POS_OPERATIONAL_ROLES.has("AGENT")).toBe(true)
     expect(POS_OPERATIONAL_ROLES.has("CHAT_AGENT")).toBe(true)
     expect(POS_OPERATIONAL_ROLES.has("MANAGER")).toBe(true)
     expect(POS_OPERATIONAL_ROLES.has("ADMIN")).toBe(true)

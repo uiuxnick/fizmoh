@@ -5,7 +5,7 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { resolveWaiterRequest } from "@/lib/restaurant"
 
-const RESOLVE_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "CHAT_AGENT", "PLATFORM"]
+const RESOLVE_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "AGENT", "CHAT_AGENT", "PLATFORM"]
 
 export const GET = withErrors(withModule("RESTAURANT", async (req: NextRequest) => {
   const tenant = currentTenant()

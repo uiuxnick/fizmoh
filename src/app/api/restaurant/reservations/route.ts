@@ -4,7 +4,7 @@ import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 
-const RES_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "CHAT_AGENT", "PLATFORM"]
+const RES_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "AGENT", "CHAT_AGENT", "PLATFORM"]
 
 export const GET = withErrors(withModule("RESTAURANT", async () => {
   const tenant = currentTenant()

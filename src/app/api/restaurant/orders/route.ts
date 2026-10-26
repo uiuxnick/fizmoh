@@ -5,7 +5,7 @@ import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { placeOrder, updateOrderStatus } from "@/lib/restaurant"
 
-const ORDER_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "CHAT_AGENT", "PLATFORM"]
+const ORDER_EDIT_ROLES = ["OWNER", "SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF", "AGENT", "CHAT_AGENT", "PLATFORM"]
 
 export const GET = withErrors(withModule("RESTAURANT", async (req: NextRequest) => {
   const tenant = currentTenant()
