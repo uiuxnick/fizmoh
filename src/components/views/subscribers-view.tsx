@@ -22,6 +22,35 @@ import {
   LayoutList, LayoutGrid, Radio, Shield, Send, MoreHorizontal,
   Facebook, Instagram, MessageCircle, X, Play, Pause,
 } from "lucide-react"
+
+function ChevronLeftIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m15 19-7-7 7-7" />
+    </svg>
+  )
+}
+function ChevronRightIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+    </svg>
+  )
+}
+function ChevronsLeftIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m11 19-7-7 7-7m8 14-7-7 7-7" />
+    </svg>
+  )
+}
+function ChevronsRightIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m13 5 7 7-7 7M5 5l7 7-7 7" />
+    </svg>
+  )
+}
 import { AVAILABLE_LABELS, labelClass, parseLabels } from "@/components/views/conversation-tools"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { useApp } from "@/lib/store"
@@ -35,6 +64,8 @@ import {
 import { matchesSegment, type Rule } from "@/lib/segments"
 import { SegmentBuilderModal } from "@/components/views/segment-builder-modal"
 import { CsvImportWizard } from "@/components/views/csv-import-wizard"
+import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
+import { maskPhoneNumber, hasPermission } from "@/lib/permissions"
 
 type Subscriber = {
   id: string
@@ -115,7 +146,9 @@ function formatDetailDate(dateString?: string | null): string {
 }
 
 export default function SubscribersView() {
-  const { setView, subscriberChannelFilter, setSubscriberChannelFilter } = useApp()
+  const { setView, subscriberChannelFilter, setSubscriberChannelFilter, staffUser } = useApp()
+  const canViewPhone = staffUser?.canViewPhoneNumbers !== false
+  const canExport = staffUser ? hasPermission(staffUser, "export_contacts") : true
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [stats, setStats] = useState<SubscriberStats>({ total: 0, optedIn: 0, optedOut: 0 })
   const [tags, setTags] = useState<string[]>([])
@@ -124,6 +157,7 @@ export default function SubscribersView() {
   const [status, setStatus] = useState("all")
   const [tagFilter, setTagFilter] = useState("all")
   const [bulkLabelOpen, setBulkLabelOpen] = useState(false)
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
   const [bulkLabelSearch, setBulkLabelSearch] = useState("")
   const [sortBy, setSortBy] = useState<"latest" | "oldest" | "name">("latest")
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -132,6 +166,10 @@ export default function SubscribersView() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<"overview" | "agent" | "labels" | "lists" | "sequences" | "input_flows" | "custom_fields" | "notes">("overview")
   const [workspaceName, setWorkspaceName] = useState("Fizmoh")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [totalSubscribers, setTotalSubscribers] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   const allCombinedTags = useMemo(() => {
     return Array.from(new Set([...tags, ...AVAILABLE_LABELS])).filter(Boolean).sort((a, b) => a.localeCompare(b))
@@ -303,11 +341,15 @@ export default function SubscribersView() {
     }
   }
 
-  // Load subscribers list
-  const load = useCallback(async (selectFirst = false) => {
+  // Load subscribers list with server-side pagination & stats
+  const load = useCallback(async (selectFirst = false, pageOverride?: number) => {
     setLoading(true)
     try {
+      const targetPage = pageOverride ?? page
       const params = new URLSearchParams()
+      params.set("page", String(targetPage))
+      params.set("limit", String(pageSize))
+      params.set("sortBy", sortBy)
       if (search) params.set("search", search)
       if (status !== "all") params.set("status", status)
       if (tagFilter !== "all") params.set("tag", tagFilter)
@@ -321,6 +363,8 @@ export default function SubscribersView() {
       const data = await res.json()
       const list: Subscriber[] = data.subscribers || []
       setSubscribers(list)
+      setTotalSubscribers(data.pagination?.total ?? data.total ?? list.length)
+      setTotalPages(data.pagination?.totalPages ?? 1)
       setStats(data.stats || { total: 0, optedIn: 0, optedOut: 0 })
       setTags(data.tags || [])
 
@@ -337,7 +381,17 @@ export default function SubscribersView() {
     } finally {
       setLoading(false)
     }
-  }, [search, status, tagFilter, selectedSegmentId, subscriberChannelFilter, activeId])
+  }, [search, status, tagFilter, selectedSegmentId, subscriberChannelFilter, sortBy, page, pageSize, activeId])
+
+  // Reset page to 1 whenever filters or search query change
+  const [filterFingerprint, setFilterFingerprint] = useState("")
+  useEffect(() => {
+    const currentFingerprint = `${search}|${status}|${tagFilter}|${selectedSegmentId}|${subscriberChannelFilter}|${sortBy}`
+    if (filterFingerprint && filterFingerprint !== currentFingerprint) {
+      setPage(1)
+    }
+    setFilterFingerprint(currentFingerprint)
+  }, [search, status, tagFilter, selectedSegmentId, subscriberChannelFilter, sortBy, filterFingerprint])
 
   useEffect(() => {
     const t = setTimeout(() => load(false), 200)
@@ -694,17 +748,22 @@ export default function SubscribersView() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setManageLabelsOpen(true)} className="h-9 font-medium text-stone-700 hover:text-stone-900 border-stone-200 bg-white shadow-2xs">
+            <Tag className="h-3.5 w-3.5 mr-1.5 text-emerald-600" /> Manage Labels
+          </Button>
           <Button variant="outline" size="sm" onClick={() => load(false)} disabled={loading} className="h-9">
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="h-9">
             <Upload className="h-3.5 w-3.5 mr-1.5" /> Import CSV
           </Button>
-          <a href="/api/subscribers/export" download>
-            <Button variant="outline" size="sm" className="h-9">
-              <Download className="h-3.5 w-3.5 mr-1.5" /> Export
-            </Button>
-          </a>
+          {canExport && (
+            <a href="/api/subscribers/export" download>
+              <Button variant="outline" size="sm" className="h-9">
+                <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+              </Button>
+            </a>
+          )}
           <Button size="sm" onClick={() => setAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 h-9 font-semibold">
             <Plus className="h-4 w-4 mr-1.5" /> Add Subscriber
           </Button>
@@ -980,6 +1039,19 @@ export default function SubscribersView() {
                           ))
                         )}
                       </div>
+                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkLabelOpen(false)
+                            setManageLabelsOpen(true)
+                          }}
+                          className="text-[11px] text-stone-600 hover:text-stone-900 font-semibold flex items-center gap-1 hover:underline"
+                        >
+                          <Tag className="h-3 w-3 text-stone-500" />
+                          <span>Manage all workspace labels...</span>
+                        </button>
+                      </div>
                     </PopoverContent>
                   </Popover>
 
@@ -992,17 +1064,80 @@ export default function SubscribersView() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-[11px] text-stone-400 font-medium">Sort:</span>
-                <select
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value as any)}
-                  className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white font-medium text-stone-700"
-                >
-                  <option value="latest">Latest</option>
-                  <option value="oldest">Oldest</option>
-                  <option value="name">Name</option>
-                </select>
+              <div className="flex items-center gap-2 ml-auto flex-wrap">
+                {/* Top Pagination Bar */}
+                <div className="flex items-center gap-1.5 bg-stone-100/90 px-2 py-0.5 rounded-lg border border-stone-200 text-xs">
+                  <span className="text-[11px] text-stone-600 font-medium whitespace-nowrap">
+                    {totalSubscribers > 0 ? (
+                      <>
+                        <strong className="text-stone-800">
+                          {((page - 1) * pageSize + 1).toLocaleString()}–{Math.min(page * pageSize, totalSubscribers).toLocaleString()}
+                        </strong>
+                        <span className="text-stone-400 mx-0.5">/</span>
+                        <strong className="text-stone-800">{totalSubscribers.toLocaleString()}</strong>
+                      </>
+                    ) : (
+                      "0"
+                    )}
+                  </span>
+                  <div className="h-3 w-px bg-stone-300 mx-0.5" />
+                  <div className="flex items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-stone-600 hover:text-stone-900 disabled:opacity-30 p-0"
+                      disabled={page <= 1 || loading}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      title="Previous page"
+                    >
+                      <ChevronLeftIcon className="h-3 w-3" />
+                    </Button>
+                    <span className="text-[11px] font-bold text-stone-700 px-1 whitespace-nowrap">
+                      {page}/{totalPages}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-stone-600 hover:text-stone-900 disabled:opacity-30 p-0"
+                      disabled={page >= totalPages || loading}
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      title="Next page"
+                    >
+                      <ChevronRightIcon className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="h-3 w-px bg-stone-300 mx-0.5" />
+                  <select
+                    value={pageSize}
+                    onChange={e => {
+                      const newSize = Number(e.target.value)
+                      setPageSize(newSize)
+                      setPage(1)
+                    }}
+                    className="text-[11px] bg-white border border-stone-200 rounded px-1 py-0.5 text-stone-700 font-semibold cursor-pointer h-5 hover:border-stone-300"
+                    title="Subscribers per page"
+                  >
+                    <option value={25}>25 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                    <option value={200}>200 / page</option>
+                    <option value={500}>500 / page</option>
+                    <option value={10000}>All ({totalSubscribers.toLocaleString()})</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-stone-400 font-medium">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as any)}
+                    className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white font-medium text-stone-700 h-7"
+                  >
+                    <option value="latest">Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="name">Name</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1034,16 +1169,36 @@ export default function SubscribersView() {
                 <option value="opted_in">Subscribed</option>
                 <option value="opted_out">Opted Out</option>
               </select>
-              <select
-                value={tagFilter}
-                onChange={e => setTagFilter(e.target.value)}
-                className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white font-medium text-stone-700 h-8 max-w-[120px] truncate"
-              >
-                <option value="all">All Labels</option>
-                {allCombinedTags.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={tagFilter}
+                  onChange={e => {
+                    if (e.target.value === "__manage__") {
+                      setManageLabelsOpen(true)
+                    } else {
+                      setTagFilter(e.target.value)
+                    }
+                  }}
+                  className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white font-medium text-stone-700 h-8 max-w-[130px] truncate"
+                >
+                  <option value="all">All Labels</option>
+                  {allCombinedTags.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                  <option value="__manage__">⚙️ Manage Labels...</option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setManageLabelsOpen(true)}
+                  className="h-8 px-2.5 text-xs text-stone-700 hover:text-stone-900 border-stone-200 bg-white hover:bg-stone-50 shadow-2xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0"
+                  title="Manage workspace labels (create, modify, delete)"
+                >
+                  <Tag className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Manage Labels</span>
+                </Button>
+              </div>
               <select
                 value={selectedSegmentId}
                 onChange={e => {
@@ -1103,7 +1258,7 @@ export default function SubscribersView() {
           </div>
 
           {/* Subscribers List Rows */}
-          <div className="divide-y divide-stone-100 max-h-[calc(100vh-290px)] overflow-y-auto">
+          <div className="divide-y divide-stone-100 max-h-[480px] lg:max-h-[calc(100vh-420px)] overflow-y-auto">
             {loading ? (
               <div className="p-4 space-y-3">
                 {[...Array(6)].map((_, i) => (
@@ -1132,7 +1287,7 @@ export default function SubscribersView() {
                 const isActive = activeId === sub.id
                 const ch = resolveSubscriberChannel(sub)
                 const isOptedIn = isSubscriberOptedIn(sub)
-                const disp = formatDisplayIdentifier(sub)
+                const disp = formatDisplayIdentifier(sub, canViewPhone)
                 const initial = (sub.name || disp.displayIdentifier || "S")[0]?.toUpperCase() || "S"
 
                 return (
@@ -1282,6 +1437,89 @@ export default function SubscribersView() {
               })
             )}
           </div>
+
+          {/* Pagination Toolbar */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 bg-stone-50 border-t border-stone-200 text-xs shrink-0 select-none">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-stone-600 font-medium whitespace-nowrap">
+                {totalSubscribers > 0 ? (
+                  <>
+                    <strong className="text-stone-800">
+                      {((page - 1) * pageSize + 1).toLocaleString()}–{Math.min(page * pageSize, totalSubscribers).toLocaleString()}
+                    </strong>{" "}
+                    of <strong className="text-stone-800">{totalSubscribers.toLocaleString()}</strong>
+                  </>
+                ) : (
+                  "0 of 0"
+                )}
+              </span>
+              <select
+                value={pageSize}
+                onChange={e => {
+                  const newSize = Number(e.target.value)
+                  setPageSize(newSize)
+                  setPage(1)
+                }}
+                className="text-[11px] border border-stone-200 rounded px-1.5 py-0.5 bg-white text-stone-700 font-semibold cursor-pointer h-6 hover:border-stone-300"
+                title="Subscribers per page"
+              >
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+                <option value={200}>200 / page</option>
+                <option value={500}>500 / page</option>
+                <option value={10000}>All contacts</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 text-stone-500 hover:text-stone-800 disabled:opacity-30"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage(1)}
+                title="First page"
+              >
+                <ChevronsLeftIcon className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 text-stone-500 hover:text-stone-800 disabled:opacity-30"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                title="Previous page"
+              >
+                <ChevronLeftIcon className="h-3 w-3" />
+              </Button>
+
+              <div className="px-2 text-[11px] font-bold text-stone-700 whitespace-nowrap">
+                Page {page} <span className="text-stone-400 font-normal">/</span> {totalPages}
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 text-stone-500 hover:text-stone-800 disabled:opacity-30"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                title="Next page"
+              >
+                <ChevronRightIcon className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 text-stone-500 hover:text-stone-800 disabled:opacity-30"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage(totalPages)}
+                title="Last page"
+              >
+                <ChevronsRightIcon className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* ─── RIGHT COLUMN: ONE-TAP SUBSCRIBER DETAIL PANE (7 of 12 columns) ─── */}
@@ -1313,7 +1551,7 @@ export default function SubscribersView() {
               {(() => {
                 const ch = resolveSubscriberChannel(activeCustomer)
                 const isOptedIn = isSubscriberOptedIn(activeCustomer)
-                const disp = formatDisplayIdentifier(activeCustomer)
+                const disp = formatDisplayIdentifier(activeCustomer, canViewPhone)
                 const initial = (activeCustomer.name || disp.displayIdentifier || "S")[0]?.toUpperCase() || "S"
 
                 return (
@@ -1490,7 +1728,7 @@ export default function SubscribersView() {
 
                       {(() => {
                         const ch = resolveSubscriberChannel(activeCustomer)
-                        const disp = formatDisplayIdentifier(activeCustomer)
+                        const disp = formatDisplayIdentifier(activeCustomer, canViewPhone)
 
                         return (
                           <div className="space-y-2 text-xs">
@@ -1500,13 +1738,19 @@ export default function SubscribersView() {
                               </span>
                               <span className="font-mono font-semibold text-stone-800 flex items-center gap-1.5 mt-0.5">
                                 {disp.displayIdentifier}
-                                <Copy
-                                  className="h-3 w-3 text-stone-400 hover:text-stone-700 cursor-pointer"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(disp.displayIdentifier)
-                                    toast.success("Copied to clipboard")
-                                  }}
-                                />
+                                {canViewPhone ? (
+                                  <Copy
+                                    className="h-3 w-3 text-stone-400 hover:text-stone-700 cursor-pointer"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(disp.displayIdentifier)
+                                      toast.success("Copied to clipboard")
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                    🔒 Masked
+                                  </span>
+                                )}
                               </span>
                             </div>
 
@@ -1706,14 +1950,26 @@ export default function SubscribersView() {
                       <h4 className="font-bold text-stone-800 text-sm">Labels &amp; Tags</h4>
                       <p className="text-[11px] text-stone-500">Categorize contacts for segmentation, campaigns, and team routing.</p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={saveActiveCustomer}
-                      disabled={busy}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs font-semibold"
-                    >
-                      Save Changes
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setManageLabelsOpen(true)}
+                        className="h-7 text-xs font-medium border-stone-200 text-stone-700 hover:bg-stone-50"
+                      >
+                        <Tag className="h-3 w-3 mr-1 text-stone-500" />
+                        Manage Workspace Labels
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={saveActiveCustomer}
+                        disabled={busy}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs font-semibold"
+                      >
+                        Save Changes
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Active Labels */}
@@ -2588,6 +2844,38 @@ export default function SubscribersView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Workspace Label Management Dialog */}
+      <LabelManagerDialog
+        open={manageLabelsOpen}
+        onOpenChange={setManageLabelsOpen}
+        onLabelsChanged={() => {
+          load(false)
+          loadSegments()
+          if (activeCustomer?.id) {
+            fetch(`/api/customers/${activeCustomer.id}`)
+              .then(r => r.json())
+              .then(d => {
+                if (d.customer) {
+                  setActiveCustomer(d.customer)
+                  const rawTags = d.customer.tags
+                  let parsed: string[] = []
+                  if (Array.isArray(rawTags)) {
+                    parsed = rawTags
+                  } else if (typeof rawTags === "string") {
+                    try {
+                      parsed = JSON.parse(rawTags)
+                    } catch {
+                      parsed = rawTags.split(",").map((s: string) => s.trim()).filter(Boolean)
+                    }
+                  }
+                  setEditForm(prev => ({ ...prev, tags: parsed }))
+                }
+              })
+              .catch(() => {})
+          }
+        }}
+      />
     </div>
   )
 }

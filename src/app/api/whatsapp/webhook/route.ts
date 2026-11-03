@@ -132,6 +132,13 @@ function parseMessage(msg: any): { content: string; mediaId: string | null; mess
   if (type === "unsupported") {
     return { content: "[unsupported]", mediaId: null, messageType: "UNSUPPORTED" }
   }
+  if (type === "revoke" || msg.protocol?.type === "revoke" || msg.revoke) {
+    return {
+      content: "[Message deleted on WhatsApp — Retained in Fizmoh CRM for business privacy and audit records]",
+      mediaId: null,
+      messageType: "REVOKE",
+    }
+  }
   if (type === "reaction") {
     const emoji = msg.reaction?.emoji || "👍"
     return { content: `[reaction: ${emoji}]`, mediaId: null, messageType: "REACTION" }
@@ -689,6 +696,88 @@ async function processMessage(msg: any, contact: any) {
   }
 
   const conversation = await resolveConversation(from, customerName, customer.id, currentTenant()?.tenantId)
+
+  // ─── ANTI-DELETION / FULL PRIVACY PRESERVATION ───
+  // If someone deletes a message from Business WhatsApp or WhatsApp ("Delete for Everyone"),
+  // Fizmoh NEVER deletes the message from the system. Instead, the message remains preserved
+  // in CRM with full audit trail and is marked as deleted on WhatsApp.
+  const isRevoke =
+    type === "revoke" ||
+    msg.protocol?.type === "revoke" ||
+    !!msg.revoke ||
+    messageType === "REVOKE"
+
+  if (isRevoke) {
+    const targetWamid =
+      msg.revoke?.original_message_id ||
+      msg.protocol?.message_id ||
+      msg.protocol?.original_message_id ||
+      msg.context?.id ||
+      null
+
+    if (targetWamid) {
+      const existing = await db.message.findFirst({
+        where: { externalId: targetWamid },
+      })
+      if (existing) {
+        const prevInteractive =
+          existing.interactiveData && typeof existing.interactiveData === "object"
+            ? (existing.interactiveData as Record<string, any>)
+            : {}
+
+        await db.message.update({
+          where: { id: existing.id },
+          data: {
+            interactiveData: {
+              ...prevInteractive,
+              deletedOnWhatsApp: true,
+              deletedOnWhatsAppAt: new Date().toISOString(),
+              deletedBy: from,
+              revokeWamid: msg.id || null,
+            },
+          },
+        })
+
+        publish({
+          type: "conversation",
+          conversationId: conversation.id,
+          tenantId: conversation.tenantId || currentTenant()?.tenantId || undefined,
+        })
+      }
+    }
+
+    try {
+      await db.message.create({
+        data: {
+          externalId: msg.id ? `audit_revoke_${msg.id}` : null,
+          conversationId: conversation.id,
+          customerId: customer.id,
+          tenantId: conversation.tenantId || currentTenant()?.tenantId || null,
+          direction: "INBOUND",
+          type: "SYSTEM_EVENT",
+          content: `🛡️ Notice: A message was deleted for everyone on WhatsApp. Original content is preserved in Fizmoh CRM for compliance and record-keeping.`,
+          interactiveData: {
+            isRevokeAudit: true,
+            targetWamid,
+            revokedAt: new Date().toISOString(),
+            deletedBy: from,
+          },
+        },
+      })
+      publish({
+        type: "message",
+        conversationId: conversation.id,
+        direction: "INBOUND",
+        preview: "🛡️ Message deleted on WhatsApp (preserved in CRM)",
+        tenantId: conversation.tenantId || currentTenant()?.tenantId || undefined,
+      })
+    } catch {
+      // Ignore duplicate audit creation
+    }
+
+    // Do NOT trigger bot or AI assistant response on message deletion
+    return
+  }
 
   // Only show blue ticks + typing animation when the AI/bot will actually reply.
   // When AI is disabled, a human agent will respond — we must not send fake typing cues.
@@ -2503,6 +2592,54 @@ async function processEcho(echo: any) {
     orderBy: { lastMessageAt: "desc" },
   })
   if (!conversation) return
+
+  // Handle echo of a revoked/deleted message from Business WhatsApp phone
+  const isRevoke =
+    echo.type === "revoke" ||
+    echo.protocol?.type === "revoke" ||
+    !!echo.revoke ||
+    String(echo.type || "").toUpperCase() === "REVOKE"
+
+  if (isRevoke) {
+    const targetWamid =
+      echo.revoke?.original_message_id ||
+      echo.protocol?.message_id ||
+      echo.protocol?.original_message_id ||
+      echo.context?.id ||
+      null
+
+    if (targetWamid) {
+      const existing = await db.message.findFirst({
+        where: { externalId: targetWamid },
+      })
+      if (existing) {
+        const prevInteractive =
+          existing.interactiveData && typeof existing.interactiveData === "object"
+            ? (existing.interactiveData as Record<string, any>)
+            : {}
+
+        await db.message.update({
+          where: { id: existing.id },
+          data: {
+            interactiveData: {
+              ...prevInteractive,
+              deletedOnWhatsApp: true,
+              deletedOnWhatsAppAt: new Date().toISOString(),
+              deletedBy: "BUSINESS_WHATSAPP_APP",
+              revokeWamid: echo.id || null,
+            },
+          },
+        })
+
+        publish({
+          type: "conversation",
+          conversationId: conversation.id,
+          tenantId: conversation.tenantId || currentTenant()?.tenantId || undefined,
+        })
+      }
+    }
+    return
+  }
 
   const text =
     echo?.text?.body ??

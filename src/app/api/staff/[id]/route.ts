@@ -90,15 +90,35 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
     return NextResponse.json({ error: "You cannot change your own role or deactivate yourself" }, { status: 400 })
   }
 
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(data).length === 0 && body.permissions === undefined) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
   }
 
-  const staff = await db.staff.update({
-    where: { id },
-    data,
-    select: { id: true, email: true, name: true, phone: true, role: true, isActive: true },
-  })
+  const tenantId = currentTenant()?.tenantId
+  if (tenantId && (body.permissions !== undefined || body.role !== undefined)) {
+    await raw.tenantMember.upsert({
+      where: { tenantId_staffId: { tenantId, staffId: id } },
+      update: {
+        ...(body.role ? { role: body.role } : {}),
+        ...(body.permissions !== undefined ? { permissions: body.permissions } : {}),
+      },
+      create: {
+        tenantId,
+        staffId: id,
+        role: body.role || existing.role || "CHAT_AGENT",
+        permissions: body.permissions || null,
+      },
+    })
+  }
+
+  let staff: Record<string, any> = existing
+  if (Object.keys(data).length > 0) {
+    staff = await db.staff.update({
+      where: { id },
+      data,
+      select: { id: true, email: true, name: true, phone: true, role: true, isActive: true },
+    })
+  }
 
   await createAuditLog({
     staffId: actor.id,

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hash } from "bcryptjs"
-import { db } from "@/lib/db"
+import { db, raw } from "@/lib/db"
 import { Prisma } from "@prisma/client"
 import { withErrors } from "@/lib/api-handler"
 import { withinLimit, limitReached } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
+import { resolveStaffPermissions } from "@/lib/permissions"
 
-const ROLES = ["SUPER_ADMIN", "MANAGER", "FINANCE", "CHAT_AGENT", "GUIDE", "MARKETING"]
+const ROLES = ["SUPER_ADMIN", "OPS_ADMIN", "MANAGER", "FINANCE", "CHAT_AGENT", "GUIDE", "MARKETING"]
 
 /** Matches the cost used for the existing administrator account. */
 const BCRYPT_ROUNDS = 12
@@ -14,7 +15,7 @@ const BCRYPT_ROUNDS = 12
 export const GET = withErrors(async () => {
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "PLATFORM"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only workspace administrators can view staff" }, { status: 403 })
   }
   const staff = await db.staff.findMany({
@@ -33,7 +34,27 @@ export const GET = withErrors(async () => {
     },
     orderBy: { createdAt: "asc" },
   })
-  return NextResponse.json({ staff })
+
+  const memberships = await raw.tenantMember.findMany({
+    where: { tenantId: tenant.tenantId },
+  })
+  const memberMap = new Map(memberships.map(m => [m.staffId, m]))
+
+  const enrichedStaff = staff.map(s => {
+    const m = memberMap.get(s.id)
+    const effectiveRole = m?.role || s.role
+    const customPermissions = (m?.permissions as Record<string, boolean>) || null
+    const permissions = resolveStaffPermissions(effectiveRole, customPermissions)
+    return {
+      ...s,
+      role: effectiveRole,
+      customPermissions,
+      permissions,
+      canViewPhoneNumbers: permissions.view_phone_numbers === true,
+    }
+  })
+
+  return NextResponse.json({ staff: enrichedStaff })
 })
 
 export const POST = withErrors(async (request: NextRequest) => {

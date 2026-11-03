@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
 import { createAuditLog } from "@/lib/slots-server"
+import { currentTenant } from "@/lib/tenant"
+import { resolveStaffPermissions, hasPermission } from "@/lib/permissions"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 
@@ -25,10 +27,32 @@ export const GET = withErrors(async (request: NextRequest) => {
   const staffId = session?.kind === "staff" ? session.staffId : null
   if (!staffId) return NextResponse.json({ error: "Sign in first" }, { status: 401 })
 
-  const staff = await db.staff.findUnique({ where: { id: staffId }, select: publicFields })
+  const staff = await raw.staff.findUnique({ where: { id: staffId }, select: publicFields })
   if (!staff) return NextResponse.json({ error: "Account not found" }, { status: 404 })
+
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId || staff.tenantId || null
+  const membership = tenantId
+    ? await raw.tenantMember.findUnique({
+        where: { tenantId_staffId: { tenantId, staffId } },
+      })
+    : null
+
+  const effectiveRole = membership?.role || staff.role || "CHAT_AGENT"
+  const rawOverrides = (membership?.permissions as Record<string, boolean>) || null
+  const permissions = resolveStaffPermissions(effectiveRole, rawOverrides)
+  const canViewPhoneNumbers = hasPermission({ role: effectiveRole, permissions }, "view_phone_numbers")
+
   const isPlatformOperator = (staff.role === "SUPER_ADMIN" && (!staff.tenantId || staff.tenantId === "")) || staff.email === "uiuxnick@gmail.com"
-  return NextResponse.json({ staff: { ...staff, isPlatformOperator } })
+  return NextResponse.json({
+    staff: {
+      ...staff,
+      role: effectiveRole,
+      isPlatformOperator,
+      permissions,
+      canViewPhoneNumbers,
+    },
+  })
 })
 
 /**
@@ -49,7 +73,7 @@ export const PATCH = withErrors(async (request: NextRequest) => {
   }
   const changes = parsed.data
 
-  const existing = await db.staff.findUnique({ where: { id: staffId } })
+  const existing = await raw.staff.findUnique({ where: { id: staffId } })
   if (!existing) return NextResponse.json({ error: "Account not found" }, { status: 404 })
 
   const data: Record<string, unknown> = {}
@@ -59,7 +83,7 @@ export const PATCH = withErrors(async (request: NextRequest) => {
   if (changes.address !== undefined) data.address = changes.address || null
 
   if (changes.email && changes.email.toLowerCase() !== existing.email.toLowerCase()) {
-    const taken = await db.staff.findUnique({ where: { email: changes.email.toLowerCase() } })
+    const taken = await raw.staff.findUnique({ where: { email: changes.email.toLowerCase() } })
     if (taken) return NextResponse.json({ error: "Another account already uses that email" }, { status: 409 })
     data.email = changes.email.toLowerCase()
   }
@@ -77,7 +101,7 @@ export const PATCH = withErrors(async (request: NextRequest) => {
 
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to change" }, { status: 400 })
 
-  const staff = await db.staff.update({ where: { id: staffId }, data, select: publicFields })
+  const staff = await raw.staff.update({ where: { id: staffId }, data, select: publicFields })
 
   await createAuditLog({
     staffId: staffId,

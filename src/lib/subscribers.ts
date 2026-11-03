@@ -1,3 +1,5 @@
+import { maskPhoneNumber } from "@/lib/permissions"
+
 export type SubscriberChannel = "WHATSAPP" | "FACEBOOK" | "INSTAGRAM"
 
 export interface SubscriberChannelInfo {
@@ -43,13 +45,16 @@ export function resolveSubscriberChannel(c: {
  * Formats a clean, human-readable identifier for display in tables and headers.
  * Converts raw synthetic social phone values into clean @handles or Messenger usernames.
  */
-export function formatDisplayIdentifier(c: {
-  channel?: string | null
-  phone: string
-  socialUsername?: string | null
-  socialId?: string | null
-  name?: string | null
-}): { displayIdentifier: string; handle?: string; rawPhone: string } {
+export function formatDisplayIdentifier(
+  c: {
+    channel?: string | null
+    phone: string
+    socialUsername?: string | null
+    socialId?: string | null
+    name?: string | null
+  },
+  unmasked = true
+): { displayIdentifier: string; handle?: string; rawPhone: string } {
   const ch = resolveSubscriberChannel(c)
 
   if (ch === "INSTAGRAM") {
@@ -87,7 +92,8 @@ export function formatDisplayIdentifier(c: {
   }
 
   // Standard WhatsApp phone number
-  return { displayIdentifier: c.phone, rawPhone: c.phone }
+  const formatted = unmasked ? c.phone : maskPhoneNumber(c.phone, false)
+  return { displayIdentifier: formatted, rawPhone: unmasked ? c.phone : formatted }
 }
 
 /**

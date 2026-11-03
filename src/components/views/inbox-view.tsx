@@ -30,8 +30,9 @@ import { CatalogPicker } from "@/components/views/catalog-picker"
 import { ConversationDetails } from "@/components/views/conversation-details"
 import { ChatTrainingModal } from "@/components/views/chat-training-modal"
 import {
-  ComposerAttachments, VoiceRecorder, AttachmentChip, MessageMedia, type Attachment,
+  ComposerAttachments, VoiceRecorder, AiVoiceReplyButton, AttachmentChip, MessageMedia, type Attachment,
 } from "@/components/views/composer-tools"
+import { maskPhoneNumber, hasPermission } from "@/lib/permissions"
 
 interface Conversation {
   id: string
@@ -92,11 +93,11 @@ function formatPhoneDisplay(phone: string): string {
 }
 
 /** A conversation's "display phone" is a synthetic social:facebook:<psid> placeholder for non-WhatsApp channels — never shown as if it were a real number. */
-function displayIdentity(c: Conversation): string {
+function displayIdentity(c: Conversation, canView = true): string {
   if (c.customerName && c.customerName !== "Unknown") return c.customerName
   if (c.channel === "LIVE_CHAT" || c.channel === "WEBSITE") return "Website Visitor"
   if (c.channel && c.channel !== "WHATSAPP") return "A customer"
-  return formatPhoneDisplay(c.customerPhone)
+  return canView ? formatPhoneDisplay(c.customerPhone) : maskPhoneNumber(c.customerPhone, false)
 }
 
 function avatarInitial(nameOrPhone: string): string {
@@ -403,7 +404,8 @@ export default function InboxView() {
   const [text, setText] = useState("")
   const [loading, setLoading] = useState(true)
   const [botTyping, setBotTyping] = useState(false)
-  const { currentStaffId } = useApp()
+  const { currentStaffId, staffUser } = useApp()
+  const canViewPhoneNumbers = staffUser?.canViewPhoneNumbers !== false
   const scrollRef = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState("all")
   const [channelFilter, setChannelFilter] = useState("all")
@@ -1052,7 +1054,7 @@ export default function InboxView() {
                       <div className="relative shrink-0 mt-0.5">
                         <Avatar className="h-11 w-11 rounded-2xl border border-stone-200/70 shadow-2xs">
                           <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
-                            {avatarInitial(displayIdentity(c))}
+                            {avatarInitial(displayIdentity(c, canViewPhoneNumbers))}
                           </AvatarFallback>
                         </Avatar>
                         <div
@@ -1074,7 +1076,7 @@ export default function InboxView() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
                           <span className={`text-xs font-bold truncate ${isSelected ? "text-emerald-950" : "text-stone-900"}`}>
-                            {displayIdentity(c)}
+                            {displayIdentity(c, canViewPhoneNumbers)}
                           </span>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {isSnoozed && (
@@ -1228,7 +1230,7 @@ export default function InboxView() {
                 <div className="relative shrink-0">
                   <Avatar className="h-9 w-9 sm:h-10 sm:w-10 rounded-2xl border border-stone-200 shadow-2xs">
                     <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-sm">
-                      {avatarInitial(displayIdentity(selected))}
+                      {avatarInitial(displayIdentity(selected, canViewPhoneNumbers))}
                     </AvatarFallback>
                   </Avatar>
                   <div
@@ -1241,7 +1243,7 @@ export default function InboxView() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-stone-900 leading-tight">
-                      {displayIdentity(selected)}
+                      {displayIdentity(selected, canViewPhoneNumbers)}
                     </span>
                     <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0">{channelLabel(selected.channel)}</Badge>
                     {selected.customer?.loyaltyTier && (
@@ -1254,7 +1256,16 @@ export default function InboxView() {
                     {(!selected.channel || selected.channel === "WHATSAPP") && (
                       <span className="flex items-center gap-1 font-mono">
                         <Phone className="h-3 w-3 text-stone-400" />
-                        {selected.customerPhone}
+                        {canViewPhoneNumbers ? (
+                          selected.customerPhone
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            {maskPhoneNumber(selected.customerPhone, false)}
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                              <Lock className="h-2.5 w-2.5" /> Masked
+                            </span>
+                          </span>
+                        )}
                       </span>
                     )}
                     {(!selected.channel || selected.channel === "WHATSAPP") && (
@@ -1467,6 +1478,18 @@ export default function InboxView() {
                       }`}
                     >
                       {/* Sender Meta Badges */}
+                      {Boolean(m.interactiveData?.deletedOnWhatsApp) && (
+                        <div
+                          className={`flex items-center gap-1.5 text-[10px] font-bold mb-1.5 px-2 py-1 rounded-md border ${
+                            outgoing
+                              ? "bg-amber-950/80 border-amber-500/50 text-amber-200"
+                              : "bg-amber-50 border-amber-300 text-amber-900"
+                          }`}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span>Deleted on WhatsApp · Preserved in Fizmoh CRM</span>
+                        </div>
+                      )}
                       {m.isAiGenerated ? (
                         <div className={`flex items-center gap-1 text-[10px] font-bold mb-1 ${outgoing ? "text-emerald-200" : "text-amber-600"}`}>
                           <Sparkles className="h-3 w-3" /> {assistantName} AI Assistant
@@ -1741,11 +1764,11 @@ export default function InboxView() {
                       <div className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl px-3.5 py-2 flex items-center gap-2 shadow-xs">
                         <Avatar className="h-5 w-5 rounded-full border border-stone-200">
                           <AvatarFallback className="text-[9px] font-bold bg-stone-200 text-stone-700">
-                            {avatarInitial(displayIdentity(selected))}
+                            {avatarInitial(displayIdentity(selected, canViewPhoneNumbers))}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
-                          {displayIdentity(selected)} is typing
+                          {displayIdentity(selected, canViewPhoneNumbers)} is typing
                         </span>
                         <span className="flex items-center gap-0.5 ms-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -2015,6 +2038,7 @@ export default function InboxView() {
                     <CannedPicker onPick={value => setText(value)} />
                     <ComposerAttachments onAttach={setAttachment} />
                     <VoiceRecorder onRecorded={setAttachment} />
+                    <AiVoiceReplyButton text={text} onGenerated={setAttachment} />
                     {(!selected.channel || selected.channel === "WHATSAPP") && (
                       <>
                         <TemplatePicker

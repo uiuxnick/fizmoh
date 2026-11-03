@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -11,9 +12,13 @@ import {
   Clock, Globe, Languages, MapPin, UserRound, Tag, StickyNote, Plus,
   ShoppingBag, Mail, CheckCircle2, AlertTriangle, Bot, ShieldCheck, Sparkles,
   Phone, UserCheck, Copy, PhoneCall, ExternalLink, Smile, Frown, Meh, X, Download,
+  SlidersHorizontal, Save, Settings2,
 } from "lucide-react"
 import { formatCurrency, formatDateTime, timeAgo } from "@/lib/helpers"
 import { AVAILABLE_LABELS, labelClass, parseLabels } from "@/components/views/conversation-tools"
+import { CustomFieldsDialog, type CustomFieldDef } from "@/components/views/custom-fields-dialog"
+import { useApp } from "@/lib/store"
+import { maskPhoneNumber, hasPermission } from "@/lib/permissions"
 
 interface Conversation {
   id: string
@@ -28,6 +33,7 @@ interface Conversation {
   createdAt?: string
   lastMessageAt: string | null
   customer: {
+    id?: string
     name: string | null
     email?: string | null
     preferredLang?: string
@@ -38,6 +44,7 @@ interface Conversation {
     whatsappOptIn?: boolean
     optInSource?: string | null
     optInAt?: string | null
+    customFields?: any
   } | null
 }
 
@@ -116,6 +123,10 @@ export function ConversationDetails({
   } | null>(null)
   const [savingSummaryNote, setSavingSummaryNote] = useState(false)
 
+  const { staffUser } = useApp()
+  const canViewPhone = staffUser?.canViewPhoneNumbers !== false
+  const canExport = staffUser ? hasPermission(staffUser, "export_contacts") : true
+
   useEffect(() => {
     setSummaryData(null)
   }, [conversation.id])
@@ -173,6 +184,70 @@ export function ConversationDetails({
   useEffect(() => {
     fetch("/api/staff").then(r => r.json()).then(d => setStaff(d.staff || [])).catch(() => setStaff([]))
   }, [])
+
+  // Custom CRM Fields State
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([])
+  const [customValues, setCustomValues] = useState<Record<string, any>>({})
+  const [isCustomFieldsDirty, setIsCustomFieldsDirty] = useState(false)
+  const [savingCustomFields, setSavingCustomFields] = useState(false)
+  const [customFieldsDialogOpen, setCustomFieldsDialogOpen] = useState(false)
+
+  const loadCustomFields = useCallback(async () => {
+    try {
+      const res = await fetch("/api/custom-fields")
+      if (res.ok) {
+        const data = await res.json()
+        setCustomFieldDefs(data.fields || [])
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    loadCustomFields()
+  }, [loadCustomFields])
+
+  useEffect(() => {
+    const raw = conversation.customer?.customFields
+    let parsed: Record<string, any> = {}
+    if (typeof raw === "string") {
+      try { parsed = JSON.parse(raw) } catch {}
+    } else if (raw && typeof raw === "object") {
+      parsed = { ...raw }
+    }
+    setCustomValues(parsed)
+    setIsCustomFieldsDirty(false)
+  }, [conversation.id, conversation.customer])
+
+  const handleCustomFieldChange = (key: string, value: any) => {
+    setCustomValues(prev => ({ ...prev, [key]: value }))
+    setIsCustomFieldsDirty(true)
+  }
+
+  const saveCustomFields = async () => {
+    const customerId = conversation.customer?.id
+    if (!customerId) {
+      toast.error("No customer profile linked to save custom attributes to")
+      return
+    }
+    setSavingCustomFields(true)
+    try {
+      const res = await fetch(`/api/customers/${customerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customFields: customValues }),
+      })
+      if (!res.ok) throw new Error("Failed to save CRM attributes")
+      toast.success("CRM attributes updated!")
+      setIsCustomFieldsDirty(false)
+      onChanged()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update custom attributes")
+    } finally {
+      setSavingCustomFields(false)
+    }
+  }
 
   const patch = async (body: Record<string, unknown>, message: string) => {
     const res = await fetch(`/api/conversations/${conversation.id}`, {
@@ -265,8 +340,9 @@ export function ConversationDetails({
       <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-stone-50 to-emerald-50/30 border border-stone-200/80">
         {(() => {
           const hasRealName = Boolean(conversation.customerName && conversation.customerName !== "Unknown")
-          const displayName = hasRealName ? conversation.customerName : conversation.customerPhone
-          const initial = hasRealName ? conversation.customerName!.slice(0, 2).toUpperCase() : (conversation.customerPhone.replace(/^[+]/, "")[0] || "#")
+          const phoneDisplay = canViewPhone ? conversation.customerPhone : maskPhoneNumber(conversation.customerPhone, false)
+          const displayName = hasRealName ? conversation.customerName : phoneDisplay
+          const initial = hasRealName ? conversation.customerName!.slice(0, 2).toUpperCase() : (phoneDisplay.replace(/^[+]/, "")[0] || "#")
           return (
             <>
               <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black mx-auto mb-2 shadow-sm shadow-emerald-600/20">
@@ -274,7 +350,14 @@ export function ConversationDetails({
               </div>
               <div className="font-bold text-sm text-stone-900">{displayName}</div>
               {hasRealName && (
-                <div className="text-xs text-stone-500 font-mono mt-0.5">{conversation.customerPhone}</div>
+                <div className="text-xs text-stone-500 font-mono mt-0.5 flex items-center justify-center gap-1">
+                  <span>{phoneDisplay}</span>
+                  {!canViewPhone && (
+                    <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                      🔒 Masked
+                    </span>
+                  )}
+                </div>
               )}
             </>
           )
@@ -284,41 +367,51 @@ export function ConversationDetails({
         <div className="flex items-center justify-center gap-1.5 mt-2.5">
           <button
             onClick={() => {
+              if (!canViewPhone) {
+                toast.info("Customer phone number is masked for privacy")
+                return
+              }
               navigator.clipboard.writeText(conversation.customerPhone)
               toast.success("Phone copied to clipboard")
             }}
-            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
-            title="Copy phone number"
+            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs cursor-pointer"
+            title={canViewPhone ? "Copy phone number" : "Phone number is masked"}
           >
             <Copy className="h-3 w-3 text-stone-500" />
-            <span>Copy</span>
+            <span>{canViewPhone ? "Copy" : "Masked"}</span>
           </button>
-          <a
-            href={`https://wa.me/${conversation.customerPhone.replace(/[^0-9]/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[11px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
-            title="Direct WhatsApp"
-          >
-            <ExternalLink className="h-3 w-3 text-emerald-600" />
-            <span>WhatsApp</span>
-          </a>
-          <a
-            href={`tel:${conversation.customerPhone}`}
-            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
-            title="Voice Call"
-          >
-            <PhoneCall className="h-3 w-3 text-stone-500" />
-            <span>Call</span>
-          </a>
-          <button
-            onClick={exportTranscript}
-            className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
-            title="Download conversation transcript (.txt)"
-          >
-            <Download className="h-3 w-3 text-stone-500" />
-            <span>Export</span>
-          </button>
+          {canViewPhone && (
+            <>
+              <a
+                href={`https://wa.me/${conversation.customerPhone.replace(/[^0-9]/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+                title="Direct WhatsApp"
+              >
+                <ExternalLink className="h-3 w-3 text-emerald-600" />
+                <span>WhatsApp</span>
+              </a>
+              <a
+                href={`tel:${conversation.customerPhone}`}
+                className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs"
+                title="Voice Call"
+              >
+                <PhoneCall className="h-3 w-3 text-stone-500" />
+                <span>Call</span>
+              </a>
+            </>
+          )}
+          {canExport && (
+            <button
+              onClick={exportTranscript}
+              className="flex items-center gap-1 text-[11px] font-medium bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-lg px-2 py-1 transition-all shadow-2xs cursor-pointer"
+              title="Download conversation transcript (.txt)"
+            >
+              <Download className="h-3 w-3 text-stone-500" />
+              <span>Export</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-1.5 mt-2">
@@ -645,6 +738,122 @@ export function ConversationDetails({
           </div>
         </Section>
 
+        {/* Custom CRM Attributes */}
+        <Section title="Custom CRM Fields" icon={SlidersHorizontal}>
+          <div className="flex items-center justify-between pb-1">
+            <span className="text-[10px] text-stone-500 font-medium">
+              {customFieldDefs.length} attribute{customFieldDefs.length === 1 ? "" : "s"} defined
+            </span>
+            <button
+              type="button"
+              onClick={() => setCustomFieldsDialogOpen(true)}
+              className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 hover:underline"
+              title="Manage Schema"
+            >
+              <Settings2 className="h-3 w-3" />
+              <span>Manage Schema</span>
+            </button>
+          </div>
+
+          {customFieldDefs.length === 0 ? (
+            <div className="p-2.5 rounded-xl bg-white border border-dashed border-stone-200 text-center space-y-1.5">
+              <p className="text-[11px] text-stone-500">No custom CRM fields configured for this workspace.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCustomFieldsDialogOpen(true)}
+                className="h-7 text-[10px] text-emerald-700 border-emerald-300 hover:bg-emerald-50 rounded-lg"
+              >
+                <Plus className="h-3 w-3 mr-1" /> Add Custom Field
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
+                {customFieldDefs.map(def => {
+                  const val = customValues[def.key]
+                  return (
+                    <div key={def.key} className="space-y-1 bg-white p-2 rounded-xl border border-stone-200/70 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10.5px] font-bold text-stone-700 flex items-center gap-1">
+                          <span>{def.label}</span>
+                          <span className="text-[9px] text-stone-400 font-mono font-normal">({def.type})</span>
+                        </label>
+                      </div>
+
+                      {def.type === "boolean" ? (
+                        <div className="flex items-center justify-between py-0.5">
+                          <span className="text-[11px] text-stone-600 font-medium">{val ? "Yes / Active" : "No / Inactive"}</span>
+                          <Switch
+                            checked={Boolean(val)}
+                            onCheckedChange={checked => handleCustomFieldChange(def.key, checked)}
+                          />
+                        </div>
+                      ) : def.type === "select" ? (
+                        <select
+                          value={val ?? ""}
+                          onChange={e => handleCustomFieldChange(def.key, e.target.value)}
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border border-stone-200 bg-stone-50/50 focus:bg-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                        >
+                          <option value="">-- Select {def.label} --</option>
+                          {def.options?.map(opt => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      ) : def.type === "date" ? (
+                        <Input
+                          type="date"
+                          value={val ?? ""}
+                          onChange={e => handleCustomFieldChange(def.key, e.target.value)}
+                          className="h-7 text-xs bg-stone-50/50 focus:bg-white px-2 py-1"
+                        />
+                      ) : def.type === "number" ? (
+                        <Input
+                          type="number"
+                          value={val ?? ""}
+                          onChange={e => handleCustomFieldChange(def.key, e.target.value === "" ? "" : Number(e.target.value))}
+                          placeholder={`Enter ${def.label.toLowerCase()}...`}
+                          className="h-7 text-xs bg-stone-50/50 focus:bg-white px-2 py-1"
+                        />
+                      ) : (
+                        <Input
+                          type="text"
+                          value={val ?? ""}
+                          onChange={e => handleCustomFieldChange(def.key, e.target.value)}
+                          placeholder={`Enter ${def.label.toLowerCase()}...`}
+                          className="h-7 text-xs bg-stone-50/50 focus:bg-white px-2 py-1"
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {conversation.customer?.id ? (
+                <Button
+                  size="sm"
+                  onClick={saveCustomFields}
+                  disabled={savingCustomFields || !isCustomFieldsDirty}
+                  className={`w-full h-7 text-[11px] font-bold rounded-lg transition-all ${
+                    isCustomFieldsDirty
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                      : "bg-stone-100 text-stone-400 border border-stone-200 hover:bg-stone-100 cursor-not-allowed"
+                  }`}
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  {savingCustomFields ? "Saving Attributes..." : isCustomFieldsDirty ? "Save Attributes (Unsaved changes)" : "Attributes Saved"}
+                </Button>
+              ) : (
+                <p className="text-[10px] text-stone-400 italic text-center">
+                  Attribute editing requires an attached customer profile.
+                </p>
+              )}
+            </div>
+          )}
+        </Section>
+
         {/* Team Internal Notes */}
         <Section title="Internal Staff Notes" icon={StickyNote}>
           <div className="space-y-2">
@@ -681,6 +890,12 @@ export function ConversationDetails({
             )}
           </div>
         </Section>
+
+        <CustomFieldsDialog
+          open={customFieldsDialogOpen}
+          onOpenChange={setCustomFieldsDialogOpen}
+          onFieldsChanged={fields => setCustomFieldDefs(fields)}
+        />
     </div>
   )
 }

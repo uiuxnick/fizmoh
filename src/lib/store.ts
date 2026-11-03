@@ -41,6 +41,7 @@ export type ViewKey =
   | "cloud-bridges"
   | "white-label"
   | "training"
+  | "email-marketing"
 
 type AuthMode = "login" | "admin" | "customer" | null
 
@@ -53,6 +54,8 @@ interface StaffUser {
   phone: string | null
   tenantId?: string | null
   isPlatformOperator?: boolean
+  permissions?: Record<string, boolean>
+  canViewPhoneNumbers?: boolean
 }
 
 interface CustomerUser {
@@ -83,9 +86,9 @@ interface AppState {
   subscriberChannelFilter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM"
   setSubscriberChannelFilter: (filter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM") => void
 
-  // Campaign channel filter (WhatsApp, Facebook, Instagram, Email, Comment-to-DM, All)
-  campaignChannelFilter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM" | "EMAIL" | "COMMENT_TO_DM"
-  setCampaignChannelFilter: (filter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM" | "EMAIL" | "COMMENT_TO_DM") => void
+  // Campaign channel filter (WhatsApp, Facebook, Instagram, Email, Comment-to-DM, Drip Sequences, All)
+  campaignChannelFilter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM" | "EMAIL" | "COMMENT_TO_DM" | "DRIP_SEQUENCES"
+  setCampaignChannelFilter: (filter: "ALL" | "WHATSAPP" | "FACEBOOK" | "INSTAGRAM" | "EMAIL" | "COMMENT_TO_DM" | "DRIP_SEQUENCES") => void
 
   // Auth
   authMode: AuthMode

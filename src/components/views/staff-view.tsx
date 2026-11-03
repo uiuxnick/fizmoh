@@ -12,8 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
-import { UserCog, Plus, Mail, Phone, Shield, CheckCircle, X, Edit, Loader2, Trash2 } from "lucide-react"
+import { UserCog, Plus, Mail, Phone, Shield, CheckCircle, X, Edit, Loader2, Trash2, Sliders, Lock, CheckSquare, RotateCcw, AlertTriangle } from "lucide-react"
 import { timeAgo } from "@/lib/helpers"
+import {
+  ALL_PERMISSIONS,
+  PERMISSION_CATEGORIES,
+  resolveStaffPermissions,
+  type PermissionDefinition,
+} from "@/lib/permissions"
 
 const ROLE_COLORS: Record<string, string> = {
   SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
@@ -51,6 +57,9 @@ interface Staff {
   isActive: boolean
   _count: { ordersVerified: number; conversationsOwned: number; orders: number }
   createdAt: string
+  permissions?: Record<string, boolean>
+  customPermissions?: Record<string, boolean> | null
+  canViewPhoneNumbers?: boolean
 }
 
 export default function StaffView() {
@@ -63,6 +72,7 @@ export default function StaffView() {
   }[]>([])
   const [resetting, setResetting] = useState<Staff | null>(null)
   const [editingRole, setEditingRole] = useState<Staff | null>(null)
+  const [editingPermissions, setEditingPermissions] = useState<Staff | null>(null)
   const [removing, setRemoving] = useState<Staff | null>(null)
 
   const loadInvitations = useCallback(async () => {
@@ -141,6 +151,60 @@ export default function StaffView() {
         </div>
       )}
 
+      {/* Workspace Privacy & Anti-Leak Protection Banner */}
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/50 p-4 sm:p-5 shadow-xs">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
+                <Shield className="h-4 w-4" />
+              </span>
+              <h3 className="font-bold text-stone-900 text-base">
+                Customer Data Privacy &amp; Anti-Message Deletion Architecture
+              </h3>
+            </div>
+            <p className="text-xs text-stone-600 max-w-2xl leading-relaxed">
+              Granular access control prevents customer contact theft and guarantees full compliance records even if messages are revoked on WhatsApp.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> WhatsApp Anti-Delete: Active
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+              <Lock className="h-3.5 w-3.5 text-indigo-600" /> Phone Masking: Ready
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-white/90 border border-emerald-100 shadow-2xs">
+            <div className="font-bold text-stone-800 flex items-center gap-1.5 mb-1">
+              <span>🔒 Customer Phone Number Masking</span>
+            </div>
+            <p className="text-stone-500 text-[11px] leading-relaxed">
+              When disabled, agents see masked numbers (<code className="bg-stone-100 px-1 py-0.5 rounded font-mono">+968 9200 ****</code>) so departing employees cannot copy customer contacts or steal sales leads.
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-white/90 border border-emerald-100 shadow-2xs">
+            <div className="font-bold text-stone-800 flex items-center gap-1.5 mb-1">
+              <span>🛡️ Anti-Deletion CRM Preservation</span>
+            </div>
+            <p className="text-stone-500 text-[11px] leading-relaxed">
+              When a user deletes a message from Business WhatsApp or WhatsApp ("Delete for Everyone"), Fizmoh preserves all text, attachments, and timestamps in CRM for audit integrity.
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-white/90 border border-emerald-100 shadow-2xs">
+            <div className="font-bold text-stone-800 flex items-center gap-1.5 mb-1">
+              <span>⚙️ Granular Allow / Disallow Toggles</span>
+            </div>
+            <p className="text-stone-500 text-[11px] leading-relaxed">
+              Every staff member can have specific features independently allowed or disallowed, overriding default role capabilities per employee.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Role legend */}
       <div className="flex flex-wrap gap-2">
         {Object.entries(ROLE_LABELS).map(([role, label]) => (
@@ -192,16 +256,35 @@ export default function StaffView() {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-stone-100">
-                  <div className="text-[10px] font-semibold uppercase text-stone-400 mb-1.5">Permissions</div>
+                  <div className="flex items-center justify-between gap-1 mb-1.5">
+                    <span className="text-[10px] font-semibold uppercase text-stone-400">Permissions</span>
+                    <span className={`text-[10px] font-mono flex items-center gap-1 ${s.canViewPhoneNumbers ? "text-emerald-700" : "text-amber-700"}`}>
+                      {s.canViewPhoneNumbers ? "📞 Phone Visible" : "🔒 Phone Masked"}
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-1">
-                    {ROLE_PERMISSIONS[s.role]?.map(p => (
-                      <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{p}</span>
-                    ))}
+                    {s.customPermissions ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+                        ⚡ {Object.values(s.permissions || {}).filter(Boolean).length} Granular Options Enabled
+                      </span>
+                    ) : (
+                      ROLE_PERMISSIONS[s.role]?.map(p => (
+                        <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{p}</span>
+                      ))
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 flex justify-between items-center gap-2 text-[11px] text-stone-400">
                   <span className="truncate">Joined {timeAgo(s.createdAt)}</span>
                   <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50 font-medium"
+                      onClick={() => setEditingPermissions(s)}
+                    >
+                      <Sliders className="h-3 w-3 mr-1" />Permissions
+                    </Button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingRole(s)}>
                       <Shield className="h-3 w-3 mr-1" />Role
                     </Button>
@@ -233,6 +316,13 @@ export default function StaffView() {
       {showNew && <NewStaffDialog onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load() }} />}
       {resetting && <SetPasswordDialog member={resetting} onClose={() => setResetting(null)} onDone={() => { setResetting(null); load() }} />}
       {editingRole && <RoleDialog member={editingRole} onClose={() => setEditingRole(null)} onDone={() => { setEditingRole(null); load() }} />}
+      {editingPermissions && (
+        <CustomPermissionsDialog
+          member={editingPermissions}
+          onClose={() => setEditingPermissions(null)}
+          onDone={() => { setEditingPermissions(null); load() }}
+        />
+      )}
       {removing && <RemoveDialog member={removing} onClose={() => setRemoving(null)} onDone={() => { setRemoving(null); load() }} />}
     </div>
   )
@@ -648,6 +738,231 @@ function RemoveDialog({ member, onClose, onDone }: { member: Staff; onClose: () 
             </Button>
           </div>
         </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/**
+ * Advanced Granular Role & Permission Management Dialog.
+ *
+ * Allows workspace administrators to customize allow/disallow overrides
+ * for each individual capability per staff member.
+ */
+function CustomPermissionsDialog({
+  member,
+  onClose,
+  onDone,
+}: {
+  member: Staff
+  onClose: () => void
+  onDone: () => void
+}) {
+  const role = member.role || "CHAT_AGENT"
+  const defaultPerms = resolveStaffPermissions(role)
+  const [perms, setPerms] = useState<Record<string, boolean>>(() => ({
+    ...defaultPerms,
+    ...(member.customPermissions || member.permissions || {}),
+  }))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  const toggle = (key: string) => {
+    setPerms(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const resetToDefaults = () => {
+    setPerms(resolveStaffPermissions(role))
+    toast.info(`Reset to default permissions for ${ROLE_LABELS[role] || role}`)
+  }
+
+  const allowAll = () => {
+    const all: Record<string, boolean> = {}
+    ALL_PERMISSIONS.forEach(p => { all[p.key] = true })
+    setPerms(all)
+    toast.success("All permissions enabled")
+  }
+
+  const save = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/staff/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissions: perms }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || "Could not save custom permissions")
+        return
+      }
+      toast.success(`Granular permissions saved for ${member.name}`)
+      onDone()
+    } catch {
+      setError("Network error saving permissions")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const categories = Object.entries(PERMISSION_CATEGORIES) as [
+    keyof typeof PERMISSION_CATEGORIES,
+    { label: string; icon: string }
+  ][]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in-50 duration-150" onClick={onClose}>
+      <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white shadow-2xl rounded-2xl border border-stone-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-stone-200 flex items-start justify-between gap-3 shrink-0 bg-stone-50/70">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                <Sliders className="h-4 w-4" />
+              </span>
+              <h3 className="text-lg font-bold text-stone-900">Custom Role &amp; Permissions</h3>
+              <Badge variant="outline" className={ROLE_COLORS[role]}>{ROLE_LABELS[role] || role}</Badge>
+            </div>
+            <p className="text-xs text-stone-500 mt-1">
+              Custom allow or disallow overrides for <strong className="text-stone-800">{member.name}</strong> ({member.email})
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/50 transition cursor-pointer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Quick Presets Bar */}
+        <div className="px-5 py-2.5 bg-indigo-50/50 border-b border-indigo-100/80 flex items-center justify-between gap-2 text-xs shrink-0 flex-wrap">
+          <span className="text-stone-600 font-medium">Quick Presets:</span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetToDefaults}
+              className="h-7 text-xs bg-white text-stone-700 hover:bg-stone-100"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" /> Reset to Role Defaults
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={allowAll}
+              className="h-7 text-xs bg-white text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+            >
+              <CheckSquare className="h-3 w-3 mr-1" /> Allow All Options
+            </Button>
+          </div>
+        </div>
+
+        {/* Scrollable Permissions List */}
+        <ScrollArea className="flex-1 p-5 overflow-y-auto">
+          <div className="space-y-6">
+            {categories.map(([catKey, catMeta]) => {
+              const permsInCat = ALL_PERMISSIONS.filter(p => p.category === catKey)
+              if (permsInCat.length === 0) return null
+
+              return (
+                <div key={catKey} className="space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-500 pb-1 border-b border-stone-100">
+                    {catKey === "PRIVACY_DATA" && <Shield className="h-3.5 w-3.5 text-emerald-600" />}
+                    {catKey === "MESSAGING" && <Mail className="h-3.5 w-3.5 text-teal-600" />}
+                    {catKey === "COMMERCE" && <Shield className="h-3.5 w-3.5 text-amber-600" />}
+                    {catKey === "ADMIN" && <UserCog className="h-3.5 w-3.5 text-purple-600" />}
+                    <span>{catMeta.label}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {permsInCat.map(p => {
+                      const isAllowed = perms[p.key] === true
+                      const isMaskingOption = p.key === "view_phone_numbers"
+
+                      return (
+                        <div
+                          key={p.key}
+                          className={`p-3.5 rounded-xl border transition-all ${
+                            isAllowed
+                              ? "bg-emerald-50/20 border-emerald-200/70"
+                              : "bg-stone-50/60 border-stone-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold text-stone-900">{p.label}</span>
+                                {isAllowed ? (
+                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Allowed
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-stone-100 text-stone-600 border border-stone-200">
+                                    Disallowed
+                                  </span>
+                                )}
+                                {isMaskingOption && !isAllowed && (
+                                  <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                                    <Lock className="h-2.5 w-2.5" /> Masking Active
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-stone-500 leading-relaxed">
+                                {p.description}
+                              </p>
+                              {isMaskingOption && (
+                                <p className="text-[11px] text-amber-800 font-medium bg-amber-50/80 p-2 rounded-lg border border-amber-200 mt-1">
+                                  🔒 Customer Phone Masking: When disabled, customer numbers appear as <code className="font-mono bg-amber-100/70 px-1 py-0.5 rounded">+968 9200 ****</code> in Inbox, customer directory, order screens, and export files.
+                                </p>
+                              )}
+                            </div>
+                            <div className="pt-0.5">
+                              <Switch
+                                checked={isAllowed}
+                                onCheckedChange={() => toggle(p.key)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ScrollArea>
+
+        {error && (
+          <div className="px-5 py-2 bg-rose-50 border-t border-rose-200 text-xs text-rose-700">
+            {error}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-2 shrink-0">
+          <div className="text-xs text-stone-500 font-mono">
+            {Object.values(perms).filter(Boolean).length} / {ALL_PERMISSIONS.length} options enabled
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+              onClick={save}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              {saving ? "Saving Changes…" : "Save Custom Permissions"}
+            </Button>
+          </div>
+        </div>
       </Card>
     </div>
   )
