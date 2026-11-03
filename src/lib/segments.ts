@@ -121,11 +121,21 @@ export function buildSegmentWhere(rules: Rule[]): Prisma.CustomerWhereInput {
     else if (field === "tag") {
       const tag = String(value || "").trim()
       if (!tag) continue
-      const clause: Prisma.CustomerWhereInput =
-        op === "not_contains"
-          ? { NOT: { tags: { string_contains: tag } } }
-          : { tags: { string_contains: tag } }
-      and.push(clause)
+      const lower = tag.toLowerCase()
+      const upper = tag.toUpperCase()
+      const title = tag.replace(/\b\w/g, c => c.toUpperCase())
+      const variants = Array.from(new Set([tag, lower, upper, title])).filter(Boolean)
+
+      const tagConditions: Prisma.CustomerWhereInput[] = variants.flatMap(v => [
+        { tags: { array_contains: v } },
+        { tags: { string_contains: v } },
+      ])
+
+      if (op === "not_contains") {
+        and.push({ NOT: tagConditions })
+      } else {
+        and.push({ OR: tagConditions })
+      }
     }
 
     // Custom Field Rules

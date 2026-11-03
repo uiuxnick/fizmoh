@@ -1805,23 +1805,37 @@ export async function testAIConnection(prompt = "Reply with exactly: OK"): Promi
 export async function transcribeAudio(
   audio: Buffer,
   mimeType: string,
+  options?: { prompt?: string; language?: string }
 ): Promise<{ text?: string; error?: string }> {
   const config = await getAIConfig()
   const key = config.openaiKey || process.env.OPENAI_API_KEY
   if (!key) return { error: "No OpenAI key is configured, and only OpenAI can transcribe audio" }
 
   try {
-    const extension = mimeType.includes("mp4") || mimeType.includes("m4a") ? "m4a"
-      : mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3"
-      : mimeType.includes("wav") ? "wav"
+    const rawMime = mimeType.split(";")[0].trim().toLowerCase()
+    const extension = rawMime.includes("mp4") || rawMime.includes("m4a") ? "m4a"
+      : rawMime.includes("mpeg") || rawMime.includes("mp3") ? "mp3"
+      : rawMime.includes("wav") ? "wav"
       : "ogg" // WhatsApp voice notes are opus in an ogg container
-    const file = new File([new Uint8Array(audio)], `voice.${extension}`, { type: mimeType })
+
+    const cleanMime = extension === "ogg" ? "audio/ogg"
+      : extension === "mp3" ? "audio/mpeg"
+      : extension === "m4a" ? "audio/mp4"
+      : extension === "wav" ? "audio/wav"
+      : rawMime
+
+    const file = new File([new Uint8Array(audio)], `voice.${extension}`, { type: cleanMime })
 
     const form = new FormData()
     form.append("file", file)
     form.append("model", "whisper-1")
-    // No language is forced: customers here write and speak in Arabic, English,
-    // Hindi and Urdu, and guessing wrong produces confident nonsense.
+    
+    // Arabic, Omani/Gulf dialect, and English prompt guidance
+    const prompt = options?.prompt || "مرحباً، حجز، استفسار، رحلة، مسقط، صلالة، عُمان، تدريب، دورة، فندق، طلب، Omani Arabic, Gulf Arabic, bookings, customer inquiries, WhatsApp voice note"
+    form.append("prompt", prompt)
+    if (options?.language) {
+      form.append("language", options.language)
+    }
     form.append("response_format", "json")
 
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -1842,6 +1856,56 @@ export async function transcribeAudio(
   } catch (error) {
     console.error("Transcription error:", error)
     return { error: "Could not reach the transcription service" }
+  }
+}
+
+/**
+ * Generates an audio voice note from text (Text-to-Speech) using OpenAI TTS.
+ * Supports natural Arabic, English, and multilingual speech.
+ */
+export async function generateSpeech(
+  text: string,
+  options?: {
+    voice?: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer"
+    speed?: number
+    model?: "tts-1" | "tts-1-hd"
+  }
+): Promise<{ audio?: Buffer; mimeType: string; error?: string }> {
+  const config = await getAIConfig()
+  const key = config.openaiKey || process.env.OPENAI_API_KEY
+  if (!key) return { error: "No OpenAI key is configured for voice generation", mimeType: "audio/ogg" }
+
+  const cleanText = text.trim()
+  if (!cleanText) return { error: "Text content is required to generate speech", mimeType: "audio/ogg" }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: options?.model || "tts-1",
+        input: cleanText.slice(0, 4096),
+        voice: options?.voice || "alloy",
+        response_format: "opus",
+        speed: options?.speed || 1.0,
+      }),
+    })
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "")
+      console.error("Speech generation failed:", response.status, detail.slice(0, 200))
+      return { error: `Speech service returned ${response.status}`, mimeType: "audio/ogg" }
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const audio = Buffer.from(arrayBuffer)
+    return { audio, mimeType: "audio/ogg" }
+  } catch (error) {
+    console.error("Speech generation error:", error)
+    return { error: "Could not reach speech generation service", mimeType: "audio/ogg" }
   }
 }
 

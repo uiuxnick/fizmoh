@@ -274,9 +274,19 @@ export function formatWhatsAppRecipient(rawPhone: string): string {
   let cleaned = (rawPhone || "").replace(/[^\d]/g, "").trim()
   if (!cleaned) return ""
 
+  // Strip international dial prefix 00 (e.g. 0096899... -> 96899...)
+  if (cleaned.startsWith("00")) {
+    cleaned = cleaned.replace(/^00+/, "")
+  }
+
   // If 8 digits starting with 7 or 9 (Oman local number) -> 968
   if (cleaned.length === 8 && /^[79]/.test(cleaned)) {
     return `968${cleaned}`
+  }
+
+  // If 9 digits starting with 0 followed by 7 or 9 (Oman local with trunk prefix 0) -> 968
+  if (cleaned.length === 9 && /^0[79]/.test(cleaned)) {
+    return `968${cleaned.slice(1)}`
   }
 
   // If 10 digits starting with 6, 7, 8, 9 (Indian local mobile number) -> 91
@@ -293,9 +303,22 @@ export function formatWhatsAppRecipient(rawPhone: string): string {
 }
 
 /**
+ * Ensures any media URL (whether relative /api/media/... or full http(s))
+ * is converted into a fully qualified HTTPS URI required by Meta Cloud API.
+ */
+export function toAbsoluteMediaUrl(url?: string | null): string | undefined {
+  if (!url) return undefined
+  const trimmed = String(url).trim()
+  if (!trimmed) return undefined
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "https://app.fizmoh.cloud").replace(/\/+$/, "")
+  return `${baseUrl}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`
+}
+
+/**
  * Send a text message via WhatsApp Cloud API
  */
-export async function sendTextMessage(to: string, body: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendTextMessage(to: string, body: string, options?: { signal?: AbortSignal }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const config = await getWhatsAppConfig()
   if (!(await isWhatsAppConfigured())) {
     if (process.env.NODE_ENV === "production") {
@@ -310,6 +333,7 @@ export async function sendTextMessage(to: string, body: string): Promise<{ succe
     const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/messages`
     const response = await fetch(url, {
       method: "POST",
+      signal: options?.signal,
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${config.accessToken}`,
@@ -361,6 +385,7 @@ export async function sendTemplateMessage(params: {
   headerVideoUrl?: string
   headerDocumentName?: string
   buttonUrl?: string
+  buttonIndex?: number
   cards?: CarouselCardValues[]
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const config = await getWhatsAppConfig()
@@ -375,26 +400,30 @@ export async function sendTemplateMessage(params: {
   try {
     const components: any[] = []
 
+    const headerImageUrl = toAbsoluteMediaUrl(params.headerImageUrl)
+    const headerDocumentUrl = toAbsoluteMediaUrl(params.headerDocumentUrl)
+    const headerVideoUrl = toAbsoluteMediaUrl(params.headerVideoUrl)
+
     // Header component
-    if (params.headerImageUrl) {
+    if (headerImageUrl) {
       components.push({
         type: "header",
-        parameters: [{ type: "image", image: { link: params.headerImageUrl } }],
+        parameters: [{ type: "image", image: { link: headerImageUrl } }],
       })
-    } else if (params.headerDocumentUrl) {
+    } else if (headerDocumentUrl) {
       components.push({
         type: "header",
         parameters: [{
           type: "document",
           // WhatsApp shows this name to the customer. Defaulting every
           // document to "voucher.pdf" mislabelled anything that was not one.
-          document: { link: params.headerDocumentUrl, filename: params.headerDocumentName || "document.pdf" },
+          document: { link: headerDocumentUrl, filename: params.headerDocumentName || "document.pdf" },
         }],
       })
-    } else if (params.headerVideoUrl) {
+    } else if (headerVideoUrl) {
       components.push({
         type: "header",
-        parameters: [{ type: "video", video: { link: params.headerVideoUrl } }],
+        parameters: [{ type: "video", video: { link: headerVideoUrl } }],
       })
     }
 
@@ -416,15 +445,17 @@ export async function sendTemplateMessage(params: {
         type: "carousel",
         cards: params.cards.map((card, index) => {
           const cardComponents: any[] = []
-          if (card.imageUrl) {
+          const cardImageUrl = toAbsoluteMediaUrl(card.imageUrl)
+          const cardVideoUrl = toAbsoluteMediaUrl(card.videoUrl)
+          if (cardImageUrl) {
             cardComponents.push({
               type: "header",
-              parameters: [{ type: "image", image: { link: card.imageUrl } }],
+              parameters: [{ type: "image", image: { link: cardImageUrl } }],
             })
-          } else if (card.videoUrl) {
+          } else if (cardVideoUrl) {
             cardComponents.push({
               type: "header",
-              parameters: [{ type: "video", video: { link: card.videoUrl } }],
+              parameters: [{ type: "video", video: { link: cardVideoUrl } }],
             })
           }
           if (card.variables?.length) {
@@ -451,7 +482,7 @@ export async function sendTemplateMessage(params: {
       components.push({
         type: "button",
         sub_type: "url",
-        index: 0,
+        index: params.buttonIndex ?? 0,
         parameters: [{ type: "text", text: params.buttonUrl }],
       })
     }
@@ -769,10 +800,16 @@ export async function uploadTemplateMedia(imageUrl: string): Promise<{ success: 
   if (!appId) return { success: false, error: "WHATSAPP_APP_ID is not set — it is needed to upload template images" }
   if (!config.accessToken) return { success: false, error: "No WhatsApp access token" }
 
+  let resolvedUrl = imageUrl
+  if (resolvedUrl.startsWith("/")) {
+    const base = process.env.NEXT_PUBLIC_APP_URL || "https://app.fizmoh.cloud"
+    resolvedUrl = `${base.replace(/\/$/, "")}${resolvedUrl}`
+  }
+
   let bytes: Buffer
   let contentType = "image/jpeg"
   try {
-    const response = await fetch(imageUrl, { signal: AbortSignal.timeout(20_000) })
+    const response = await fetch(resolvedUrl, { signal: AbortSignal.timeout(20_000) })
     if (!response.ok) return { success: false, error: `Could not fetch the image (HTTP ${response.status})` }
     contentType = response.headers.get("content-type")?.split(";")[0] || contentType
     bytes = Buffer.from(await response.arrayBuffer())

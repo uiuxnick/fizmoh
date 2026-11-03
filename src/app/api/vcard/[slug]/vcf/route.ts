@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { db } from "@/lib/db"
 import { generateVcfString, type VCardContactInput } from "@/lib/digital-vcard/vcf"
+import { verifySession, STAFF_COOKIE } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
@@ -11,11 +13,24 @@ export async function GET(
     return NextResponse.json({ error: "Slug is required" }, { status: 400 })
   }
 
-  // Public cards must be PUBLISHED
+  // Check if requesting user is authenticated staff to permit previewing DRAFT cards
+  let isStaff = false
+  try {
+    const cookieStore = await cookies()
+    const staffToken = cookieStore.get(STAFF_COOKIE)?.value
+    if (staffToken) {
+      const payload = await verifySession(staffToken)
+      if (payload && payload.kind === "staff") {
+        isStaff = true
+      }
+    }
+  } catch {}
+
+  // Public cards must be PUBLISHED unless accessed by authenticated staff
   const card = await (db as any).businessVCard.findFirst({
     where: {
       slug: slug.toLowerCase(),
-      status: "PUBLISHED",
+      ...(isStaff ? {} : { status: "PUBLISHED" }),
     },
   })
 
@@ -30,9 +45,12 @@ export async function GET(
   const addressParts = [card.building, card.street, card.area].filter(Boolean).join(", ")
   const streetAddress = addressParts || card.addressLine1 || undefined
 
+  const fallbackOrg = card.companyName || card.legalName || card.title || "Business"
+  const fallbackName = card.contactName || card.title || card.companyName || "Contact"
+
   const contactInput: VCardContactInput = {
-    fullName: card.contactName || card.title,
-    organization: card.legalName || card.title,
+    fullName: fallbackName,
+    organization: fallbackOrg,
     title: card.contactTitle || undefined,
     department: card.contactDept || undefined,
     mobile: card.showPhone ? card.mobileNumber : undefined,
@@ -70,15 +88,18 @@ export async function GET(
     },
   }).catch(() => {})
 
-  const safeFileName = (card.contactName || card.title || "contact")
+  const rawFileName = card.contactName || card.title || card.companyName || "contact"
+  const safeAsciiName = rawFileName
     .replace(/[^a-zA-Z0-9_\-]/g, "_")
-    .slice(0, 40)
+    .replace(/_+/g, "_")
+    .slice(0, 40) || "contact"
+  const encodedUtf8Name = encodeURIComponent(`${rawFileName}.vcf`)
 
   return new Response(vcf, {
     status: 200,
     headers: {
       "Content-Type": "text/vcard; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${safeFileName}.vcf"`,
+      "Content-Disposition": `attachment; filename="${safeAsciiName}.vcf"; filename*=UTF-8''${encodedUtf8Name}`,
       "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
     },
   })

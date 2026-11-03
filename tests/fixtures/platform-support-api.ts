@@ -13,7 +13,7 @@ const replies = [{ id: 'welcome', staffId: 'platform-support-ai', body: 'Welcome
 mock.module('@/lib/rate-limit', () => ({ checkSharedRateLimit: async () => ({ allowed: true }), requestIp: () => 'test' }))
 mock.module('@/lib/platform-support-ai', () => ({ platformSupportReply: async () => { if (aiAction === 'takeover') { ticket.status = 'IN_PROGRESS'; ticket.assignedStaffId = 'owner' } if (aiAction === 'fail') throw new Error('unavailable'); return 'AI reply' } }))
 mock.module('@/lib/api-handler', () => ({ withErrors: (handler: unknown) => handler }))
-mock.module('@/app/api/platform/tenants/route', () => ({ requirePlatformAdmin: async () => admin }))
+mock.module('@/lib/platform-admin', () => ({ requirePlatformAdmin: async () => admin }))
 const fake = {
   supportTicket: {
     create: async ({ data }: any) => { ticket = { ...data, assignedStaffId: null }; return ticket },

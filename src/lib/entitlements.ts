@@ -17,7 +17,7 @@ export type { Module } from "@/lib/module-registry"
  * trusts its own navigation is not access control.
  */
 
-export type Limit = "staff" | "contacts" | "messagesPerMonth" | "numbers" | "qrCampaigns" | "qrScansPerMonth"
+export type Limit = "staff" | "contacts" | "messagesPerMonth" | "numbers" | "qrCampaigns" | "qrScansPerMonth" | "emailSubscribers" | "emailSendsPerMonth"
 
 type JsonRecord = Record<string, unknown>
 
@@ -28,7 +28,7 @@ function record(value: unknown): JsonRecord {
 function numericLimits(value: unknown): Partial<Record<Limit, number>> {
   const source = record(value)
   const result: Partial<Record<Limit, number>> = {}
-  for (const key of ["staff", "contacts", "messagesPerMonth", "numbers", "qrCampaigns", "qrScansPerMonth"] as Limit[]) {
+  for (const key of ["staff", "contacts", "messagesPerMonth", "numbers", "qrCampaigns", "qrScansPerMonth", "emailSubscribers", "emailSendsPerMonth"] as Limit[]) {
     const n = Number(source[key])
     if (Number.isFinite(n) && n > 0) result[key] = Math.round(n)
   }
@@ -116,6 +116,16 @@ async function countFor(limit: Limit, tenantId: string): Promise<number> {
       start.setHours(0, 0, 0, 0)
       return db.qrScan.count({ where: { tenantId, scannedAt: { gte: start } } })
     }
+    case "emailSubscribers":
+      return db.emailSubscriber.count({ where: { tenantId, status: "SUBSCRIBED" } })
+    case "emailSendsPerMonth": {
+      const start = new Date()
+      start.setDate(1)
+      start.setHours(0, 0, 0, 0)
+      return db.emailCampaignRecipient.count({
+        where: { tenantId, status: { in: ["SENT", "DELIVERED"] }, createdAt: { gte: start } },
+      })
+    }
   }
 }
 
@@ -128,6 +138,8 @@ export function limitReached(limit: Limit, used?: number, cap?: number): Respons
     numbers: "WhatsApp numbers",
     qrCampaigns: "QR campaigns",
     qrScansPerMonth: "QR scans this month",
+    emailSubscribers: "email subscribers",
+    emailSendsPerMonth: "email sends this month",
   }
   return NextResponse.json(
     {
@@ -160,6 +172,12 @@ export async function getTenantEntitledModules(tenantId: string): Promise<Module
   for (const assignment of addons) {
     const moduleKey = assignment.addon.module as Module | null
     if (moduleKey && !modules.includes(moduleKey)) modules.push(moduleKey)
+  }
+  // DIGITAL_QR and REPUTATION govern the Google Review Booster & QR Reputation surface.
+  // If either is entitled, ensure both are included so APIs and navigation match seamlessly.
+  if (modules.includes("REPUTATION" as Module) || modules.includes("DIGITAL_QR" as Module)) {
+    if (!modules.includes("REPUTATION" as Module)) modules.push("REPUTATION" as Module)
+    if (!modules.includes("DIGITAL_QR" as Module)) modules.push("DIGITAL_QR" as Module)
   }
   return modules
 }
@@ -274,6 +292,9 @@ export async function hasModule(module: Module): Promise<boolean> {
   if (tenant?.role === "PLATFORM") return true
   if (!tenant?.tenantId) return false
   const modules = await modulesFor(tenant.tenantId)
+  if (module === "DIGITAL_QR" || module === "REPUTATION") {
+    return modules.includes("DIGITAL_QR") || modules.includes("REPUTATION")
+  }
   return modules.includes(module)
 }
 
@@ -289,21 +310,25 @@ export function withModule<C>(module: Module, handler: Handler<C>): Handler<C> {
   return async (request: NextRequest, context: C) => {
     const tenant = currentTenant()
     if (tenant?.role === "PLATFORM") return handler(request, context)
-    if (tenant?.tenantId) {
-      const suspended = await suspensionOf(request)
-      if (suspended) return suspended
-      const entitled = await hasModule(module)
-      if (!entitled) {
-        return NextResponse.json(
-          {
-            error: `403 – Access Denied: Your workspace does not have access to the ${title(module)} module.`,
-            module,
-            code: "MODULE_NOT_ENTITLED",
-            upgrade: true,
-          },
-          { status: 403 },
-        )
-      }
+    if (!tenant?.tenantId) {
+      return NextResponse.json(
+        { error: "Authentication required: workspace context required", code: "WORKSPACE_REQUIRED" },
+        { status: 401 },
+      )
+    }
+    const suspended = await suspensionOf(request)
+    if (suspended) return suspended
+    const entitled = await hasModule(module)
+    if (!entitled) {
+      return NextResponse.json(
+        {
+          error: `403 – Access Denied: Your workspace does not have access to the ${title(module)} module.`,
+          module,
+          code: "MODULE_NOT_ENTITLED",
+          upgrade: true,
+        },
+        { status: 403 },
+      )
     }
     return handler(request, context)
   }

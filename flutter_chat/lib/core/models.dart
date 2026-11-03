@@ -1362,7 +1362,14 @@ class RestaurantOrder {
     this.roomNumber,
     this.customerName,
     this.customerPhone,
+    this.customerEmail,
     this.specialNotes,
+    this.paymentStatus = 'UNPAID',
+    this.paymentMethod,
+    this.subtotalAmount,
+    this.taxAmount,
+    this.discountAmount,
+    this.branchName,
     this.items = const [],
   });
 
@@ -1377,7 +1384,14 @@ class RestaurantOrder {
   final String? roomNumber;
   final String? customerName;
   final String? customerPhone;
+  final String? customerEmail;
   final String? specialNotes;
+  final String paymentStatus;
+  final String? paymentMethod;
+  final double? subtotalAmount;
+  final double? taxAmount;
+  final double? discountAmount;
+  final String? branchName;
   final List<RestaurantOrderItem> items;
 
   factory RestaurantOrder.fromJson(Map<String, dynamic> json) {
@@ -1405,7 +1419,14 @@ class RestaurantOrder {
       roomNumber: json['roomNumber']?.toString() ?? json['table']?['roomNumber']?.toString(),
       customerName: json['customerName']?.toString(),
       customerPhone: json['customerPhone']?.toString(),
+      customerEmail: json['customerEmail']?.toString(),
       specialNotes: json['specialNotes']?.toString(),
+      paymentStatus: json['paymentStatus']?.toString() ?? 'UNPAID',
+      paymentMethod: json['paymentMethod']?.toString(),
+      subtotalAmount: (json['subtotalAmount'] as num?)?.toDouble(),
+      taxAmount: (json['taxAmount'] as num?)?.toDouble(),
+      discountAmount: (json['discountAmount'] as num?)?.toDouble(),
+      branchName: json['branch']?['name']?.toString(),
       items: parsedItems,
     );
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { summarizeConversationThread, isAIConfigured } from "@/lib/ai"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 
 /**
  * Generates an executive 3-bullet AI summary of the conversation thread:

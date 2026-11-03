@@ -196,31 +196,28 @@ async function runScheduledCampaigns(request: NextRequest) {
         { status: "SENDING", pausedAt: null, cancelledAt: null },
       ],
     },
-    select: { id: true },
+    select: { id: true, status: true },
     take: 5,
   })
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
   let dispatched = 0
-  for (const { id } of due) {
+  for (const { id, status } of due) {
     try {
-      const res = await fetch(`${baseUrl}/api/campaigns/${id}/send`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-      })
-      if (res.ok) dispatched++
-      else {
-        const text = await res.text()
-        await db.campaign.update({
-          where: { id },
-          data: { status: "FAILED", lastError: text.slice(0, 500) },
+      if (status === "SCHEDULED") {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || new URL(request.url).origin
+        const res = await fetch(`${baseUrl}/api/campaigns/${id}/send`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
         })
+        if (res.ok) dispatched++
+      } else {
+        // For ongoing SENDING campaigns, directly run next slice
+        const { runCampaignSlice } = await import("@/lib/campaign-send")
+        const res = await runCampaignSlice(id)
+        if (res.sent > 0 || res.remaining > 0 || res.failed > 0) dispatched++
       }
     } catch (error) {
-      await db.campaign.update({
-        where: { id },
-        data: { status: "FAILED", lastError: String(error).slice(0, 500) },
-      })
+      console.error(`[cron] Campaign ${id} processing error:`, error)
     }
   }
   return { due: due.length, dispatched }
@@ -591,7 +588,12 @@ export const POST = withErrors(async (request: NextRequest) => {
     },
     review_auto_reply: async () => {
       const { runReviewAutoReplyForTenant } = await import("@/lib/review-reply-engine")
-      return runReviewAutoReplyForTenant()
+      const { syncAllCampaignRatings } = await import("@/lib/google-business-sync")
+      const [replyStats, syncStats] = await Promise.all([
+        runReviewAutoReplyForTenant(),
+        syncAllCampaignRatings(),
+      ])
+      return { replyStats, syncStats }
     },
     social_token_refresh: async () => {
       const { refreshSocialTokensForTenant } = await import("@/lib/social/social-oauth")
@@ -600,7 +602,7 @@ export const POST = withErrors(async (request: NextRequest) => {
     snooze_sweep: runSnoozedConversationsSweep,
     drip_sequences: async () => {
       const { processDueSequences } = await import("@/lib/sequences")
-      return processDueSequences()
+      return processDueSequences(currentTenant()?.tenantId)
     },
     overdue_alerts: runOverdueAlerts,
     daily_digest: runDailyDigest,

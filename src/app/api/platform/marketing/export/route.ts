@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 /**
  * GET /api/platform/marketing/export

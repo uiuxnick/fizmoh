@@ -17,8 +17,9 @@ import {
   ListChecks, FlaskConical, Download, Facebook, Instagram, X, Sparkles,
   Smartphone, ShieldCheck, Check, Upload, ArrowRight, MessageCircle,
   ExternalLink, Zap, Phone, Video, MoreVertical, Search, CheckCheck, Loader2,
-  Lock, ArrowUpRight
+  Lock, ArrowUpRight, Tag
 } from "lucide-react"
+import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import { formatDate } from "@/lib/helpers"
 import { WhatsAppPreview, type PreviewButton } from "@/components/whatsapp-preview"
@@ -26,6 +27,7 @@ import { CarouselPreview } from "@/components/views/carousel-editor"
 import { parseCards } from "@/lib/carousel"
 import { useApp } from "@/lib/store"
 import { AutomationRulesTab } from "@/components/views/social-channels-view"
+import DripSequencesManager from "@/components/views/drip-sequences-manager"
 import { cn } from "@/lib/utils"
 
 interface Campaign {
@@ -64,6 +66,7 @@ export default function CampaignsView() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
 
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -136,7 +139,7 @@ export default function CampaignsView() {
   const { campaignChannelFilter, setCampaignChannelFilter } = useApp()
 
   const filteredCampaigns = campaigns.filter(c => {
-    if (campaignChannelFilter === "ALL" || campaignChannelFilter === "COMMENT_TO_DM") return true
+    if (campaignChannelFilter === "ALL" || campaignChannelFilter === "COMMENT_TO_DM" || campaignChannelFilter === "DRIP_SEQUENCES") return true
     return c.channel === campaignChannelFilter
   })
 
@@ -153,6 +156,14 @@ export default function CampaignsView() {
           <p className="text-sm text-stone-500 mt-0.5">Multi-channel broadcasting across WhatsApp, Instagram, Facebook &amp; Email</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setManageLabelsOpen(true)}
+            className="border-stone-200 bg-white hover:bg-stone-50 text-stone-700 shadow-2xs font-semibold"
+          >
+            <Tag className="h-4 w-4 mr-1.5 text-emerald-600" /> Manage Labels
+          </Button>
           <Button
             data-tour="camp-create-btn"
             onClick={() => setShowNew(true)}
@@ -171,6 +182,7 @@ export default function CampaignsView() {
           { id: "INSTAGRAM" as const, label: "Instagram Direct", icon: Instagram, accent: "text-[#E1306C]", count: campaigns.filter(c => c.channel === "INSTAGRAM").length },
           { id: "FACEBOOK" as const, label: "Facebook Messenger", icon: Facebook, accent: "text-[#1877F2]", count: campaigns.filter(c => c.channel === "FACEBOOK").length },
           { id: "COMMENT_TO_DM" as const, label: "Viral Comment-to-DM", icon: MessageCircle, accent: "text-purple-500", badge: "VIRAL" },
+          { id: "DRIP_SEQUENCES" as const, label: "Drip Sequences", icon: Zap, accent: "text-amber-500", badge: "AUTO" },
           { id: "EMAIL" as const, label: "Email Campaigns", icon: Mail, accent: "text-teal-600", count: campaigns.filter(c => c.channel === "EMAIL").length },
         ].map(tab => {
           const active = campaignChannelFilter === tab.id
@@ -207,7 +219,9 @@ export default function CampaignsView() {
         })}
       </div>
 
-      {campaignChannelFilter === "COMMENT_TO_DM" ? (
+      {campaignChannelFilter === "DRIP_SEQUENCES" ? (
+        <DripSequencesManager />
+      ) : campaignChannelFilter === "COMMENT_TO_DM" ? (
         <div className="space-y-4">
           <Card className="border-purple-200 bg-gradient-to-r from-purple-50 via-indigo-50/40 to-pink-50/50 p-5">
             <div className="flex items-start gap-4">
@@ -434,6 +448,10 @@ export default function CampaignsView() {
       )}
       {testFor && <TestSendDialog campaign={testFor} onClose={() => setTestFor(null)} />}
       {reportFor && <RecipientReport campaign={reportFor} onClose={() => setReportFor(null)} />}
+      <LabelManagerDialog
+        open={manageLabelsOpen}
+        onOpenChange={setManageLabelsOpen}
+      />
     </div>
   )
 }
@@ -521,6 +539,7 @@ function NewCampaignDialog({
   const [scheduledAt, setScheduledAt] = useState("")
   const [saving, setSaving] = useState(false)
   const [labels, setLabels] = useState<{ name: string; customers: number }[]>([])
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
   const [segments, setSegments] = useState<any[]>([])
   const [audienceLabel, setAudienceLabel] = useState("")
   const [audience, setAudience] = useState<{ count: number; totalReachable: number; sample: { id: string; name: string | null; phone: string }[] } | null>(null)
@@ -533,6 +552,7 @@ function NewCampaignDialog({
   const [ratePerSecond, setRatePerSecond] = useState(10)
   const [respectQuietHours, setRespectQuietHours] = useState(true)
   const [previewSample, setPreviewSample] = useState(true)
+  const [activeMobileTab, setActiveMobileTab] = useState<"setup" | "preview">("setup")
 
   const isSocial = channel === "FACEBOOK" || channel === "INSTAGRAM"
   const isEmail = channel === "EMAIL"
@@ -715,19 +735,19 @@ function NewCampaignDialog({
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-stone-200/80 bg-stone-50/80 flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-stone-200/80 bg-stone-50/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20">
+            <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
               <Megaphone className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-stone-900">New Broadcast Campaign</h2>
+                <h2 className="text-base sm:text-lg font-bold text-stone-900 leading-tight">New Broadcast Campaign</h2>
                 <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200">
                   {CHANNELS.find(c => c.id === channel)?.name}
                 </Badge>
               </div>
-              <p className="text-xs text-stone-500">Target opted-in customers with personalized, interactive broadcasts</p>
+              <p className="text-xs text-stone-500 hidden sm:block">Target opted-in customers with personalized, interactive broadcasts</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full text-stone-400 hover:text-stone-700" onClick={onClose}>
@@ -735,10 +755,39 @@ function NewCampaignDialog({
           </Button>
         </div>
 
+        {/* Mobile Tab Switcher (Visible only below lg) */}
+        <div className="flex lg:hidden border-b border-stone-200 bg-stone-100/70 p-1.5 shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab("setup")}
+            className={cn(
+              "flex-1 py-1.5 rounded-xl text-xs font-semibold text-center transition-all",
+              activeMobileTab === "setup"
+                ? "bg-white text-stone-900 shadow-2xs font-bold"
+                : "text-stone-600 hover:text-stone-900"
+            )}
+          >
+            1. Campaign Setup
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab("preview")}
+            className={cn(
+              "flex-1 py-1.5 rounded-xl text-xs font-semibold text-center transition-all flex items-center justify-center gap-1.5",
+              activeMobileTab === "preview"
+                ? "bg-white text-stone-900 shadow-2xs font-bold"
+                : "text-stone-600 hover:text-stone-900"
+            )}
+          >
+            <Smartphone className="h-3.5 w-3.5 text-stone-500" />
+            <span>2. Device Preview</span>
+          </button>
+        </div>
+
         {/* Modal Body: 2 Columns */}
-        <div className="flex-1 overflow-y-auto p-6 grid lg:grid-cols-12 gap-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid lg:grid-cols-12 gap-6">
           {/* Left Column: Setup & Content (7 Cols) */}
-          <div className="lg:col-span-7 space-y-5">
+          <div className={cn("lg:col-span-7 space-y-5", activeMobileTab === "setup" ? "block" : "hidden lg:block")}>
             {/* Channel Selection Cards */}
             <div>
               <Label className="text-xs font-semibold text-stone-700 mb-2 block">Choose Broadcast Channel</Label>
@@ -807,13 +856,35 @@ function NewCampaignDialog({
               </div>
 
               <div>
-                <Label className="text-xs text-stone-600 font-medium">Target Audience Segment</Label>
-                <Select value={audienceLabel || "__all"} onValueChange={v => setAudienceLabel(v === "__all" ? "" : v)}>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-stone-600 font-medium">Target Audience Segment</Label>
+                  <button
+                    type="button"
+                    onClick={() => setManageLabelsOpen(true)}
+                    className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Tag className="h-3 w-3" />
+                    Manage Labels
+                  </button>
+                </div>
+                <Select
+                  value={audienceLabel || "__all"}
+                  onValueChange={v => {
+                    if (v === "__manage_labels__") {
+                      setManageLabelsOpen(true)
+                    } else {
+                      setAudienceLabel(v === "__all" ? "" : v)
+                    }
+                  }}
+                >
                   <SelectTrigger className="mt-1 bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all">Everyone who has opted in (Broadcast list)</SelectItem>
+                    <SelectItem value="__manage_labels__" className="text-emerald-700 font-semibold bg-emerald-50/70 hover:bg-emerald-50 cursor-pointer">
+                      ⚙️ Manage Workspace Labels...
+                    </SelectItem>
                     {segments.length > 0 && (
                       <>
                         <div className="px-2 py-1 text-[10px] font-bold text-purple-700 uppercase tracking-wider bg-purple-50/60 mt-1">
@@ -1171,7 +1242,10 @@ function NewCampaignDialog({
           </div>
 
           {/* Right Column: Authentic Smartphone Preview (5 Cols) */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-start bg-stone-100/70 rounded-3xl p-4 border border-stone-200/80">
+          <div className={cn(
+            "lg:col-span-5 flex-col items-center justify-start bg-stone-100/70 rounded-3xl p-4 border border-stone-200/80",
+            activeMobileTab === "preview" ? "flex" : "hidden lg:flex"
+          )}>
             <div className="w-full flex items-center justify-between mb-3 px-2">
               <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
                 <Smartphone className="h-3.5 w-3.5 text-stone-500" /> Live Device Mockup
@@ -1477,6 +1551,13 @@ function NewCampaignDialog({
           </div>
         </div>
       </div>
+      <LabelManagerDialog
+        open={manageLabelsOpen}
+        onOpenChange={setManageLabelsOpen}
+        onLabelsChanged={() => {
+          fetch("/api/labels").then(r => r.json()).then(d => setLabels(d.labels || [])).catch(() => {})
+        }}
+      />
     </div>
   )
 }
@@ -1605,20 +1686,34 @@ function RecipientReport({ campaign, onClose }: { campaign: Campaign; onClose: (
           </div>
         </CardHeader>
         <CardContent className="space-y-3 overflow-hidden flex flex-col">
-          <div className="flex flex-wrap gap-2">
-            {[["", "All"], ["FAILED", "Failed"], ["SENT", "Sent"], ["SKIPPED", "Skipped"], ["PENDING", "Waiting"]].map(
-              ([value, label]) => (
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ["", "All"],
+              ["SENT", "Sent"],
+              ["DELIVERED", "Delivered"],
+              ["READ", "Read"],
+              ["CLICKED", "Clicked"],
+              ["FAILED", "Failed"],
+              ["SKIPPED", "Skipped"],
+              ["PENDING", "Waiting"],
+            ].map(([value, label]) => {
+              const countKey = (value || "all").toLowerCase()
+              const countVal = value === ""
+                ? rows.length && !filter ? rows.length : undefined
+                : counts[countKey]
+              return (
                 <Button
                   key={label}
                   size="sm"
                   variant={filter === value ? "default" : "outline"}
                   onClick={() => setFilter(value)}
+                  className="h-8 text-xs font-semibold px-2.5"
                 >
                   {label}
-                  {value && counts[value.toLowerCase()] ? ` ${counts[value.toLowerCase()]}` : ""}
+                  {countVal !== undefined ? ` (${countVal})` : ""}
                 </Button>
-              ),
-            )}
+              )
+            })}
           </div>
 
           <ScrollArea className="h-[55vh] rounded-lg border">

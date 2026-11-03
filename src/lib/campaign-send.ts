@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { withTenant, currentTenant } from "@/lib/tenant-context"
 import { sendWhatsApp, sendEmail } from "@/lib/notifications"
 import { parseCards } from "@/lib/carousel"
 import { getConfigValue } from "@/lib/app-config"
@@ -6,6 +7,7 @@ import { toLocalParts } from "@/lib/timezone"
 import { decryptSecret } from "@/lib/secret-box"
 import { messengerAdapter } from "@/lib/social/messenger-adapter"
 import { instagramAdapter } from "@/lib/social/instagram-adapter"
+import { publish } from "@/lib/realtime"
 
 /**
  * Resolves social text message variables and appends tracking link if provided.
@@ -122,6 +124,125 @@ export function placeholderCount(body: string): number {
   return new Set([...String(body || "").matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map(m => m[1])).size
 }
 
+/** Renders a WhatsApp template text with its resolved variables for chat log display. */
+export function renderWhatsAppTemplateText(templateBody: string, variables: string[]): string {
+  let text = templateBody || ""
+  for (let i = 0; i < variables.length; i++) {
+    const placeholder = new RegExp(`\\{\\{\\s*${i + 1}\\s*\\}\\}`, "g")
+    text = text.replace(placeholder, variables[i])
+  }
+  return text
+}
+
+/**
+ * Records an outbound broadcast message into Conversation and Message tables
+ * so operators see the campaign broadcast in the inbox and customer replies
+ * appear seamlessly in the same conversation thread.
+ */
+export async function recordBroadcastOutboundChat(params: {
+  tenantId?: string | null
+  customerId: string
+  customerPhone: string
+  customerName: string | null
+  channel: string
+  externalUserId?: string | null
+  externalMessageId?: string | null
+  type: string
+  templateName?: string | null
+  content: string
+  mediaUrl?: string | null
+  interactiveData?: any
+}) {
+  try {
+    const cleanPhone = params.customerPhone.trim()
+    const cleanNoPlus = cleanPhone.replace(/^\+/, "")
+    const cleanWithPlus = `+${cleanNoPlus}`
+
+    const phoneConditions: string[] = Array.from(new Set([cleanPhone, cleanNoPlus, cleanWithPlus])).filter(Boolean)
+
+    let conv = await db.conversation.findFirst({
+      where: {
+        AND: [
+          params.tenantId ? { tenantId: params.tenantId } : {},
+          { channel: params.channel },
+          {
+            OR: [
+              { customerId: params.customerId },
+              ...(params.externalUserId ? [{ externalUserId: params.externalUserId }] : []),
+              { customerPhone: { in: phoneConditions } },
+            ],
+          },
+        ],
+      },
+      orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
+    })
+
+    const preview = (params.content || (params.templateName ? `[Template: ${params.templateName}]` : "[Broadcast]")).slice(0, 120)
+
+    if (!conv) {
+      conv = await db.conversation.create({
+        data: {
+          tenantId: params.tenantId || null,
+          customerId: params.customerId,
+          customerPhone: cleanPhone,
+          customerName: params.customerName || null,
+          channel: params.channel,
+          externalUserId: params.externalUserId || null,
+          status: "OPEN",
+          botActive: false, // Human or normal bot can respond when customer replies
+          automationPaused: false,
+          lastMessageAt: new Date(),
+          lastMessageText: preview,
+        },
+      })
+    } else {
+      await db.conversation.update({
+        where: { id: conv.id },
+        data: {
+          lastMessageAt: new Date(),
+          lastMessageText: preview,
+          status: "OPEN",
+        },
+      })
+    }
+
+    const message = await db.message.create({
+      data: {
+        tenantId: params.tenantId || null,
+        conversationId: conv.id,
+        customerId: params.customerId,
+        direction: "OUTBOUND",
+        type: params.type,
+        content: params.content || (params.templateName ? `[Template: ${params.templateName}]` : ""),
+        templateName: params.templateName || null,
+        mediaUrl: params.mediaUrl || null,
+        interactiveData: params.interactiveData ? JSON.stringify(params.interactiveData) : undefined,
+        externalId: params.externalMessageId || null,
+        status: "SENT",
+        createdAt: new Date(),
+      },
+    })
+
+    publish({
+      type: "message",
+      conversationId: conv.id,
+      direction: "OUTBOUND",
+      preview,
+      tenantId: params.tenantId || undefined,
+    })
+    publish({
+      type: "conversation",
+      conversationId: conv.id,
+      tenantId: params.tenantId || undefined,
+    })
+
+    return { conv, message }
+  } catch (err) {
+    console.error("[campaign-send] Failed to record broadcast message in chat:", err)
+    return null
+  }
+}
+
 /** Whether now is inside the hours a marketing message may be sent. */
 export async function withinSendingHours(): Promise<boolean> {
   const [startRaw, endRaw] = await Promise.all([
@@ -151,6 +272,15 @@ export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
   })
   if (!campaign) throw new Error("Campaign not found")
 
+  if (campaign.tenantId && currentTenant()?.tenantId !== campaign.tenantId) {
+    return withTenant({ tenantId: campaign.tenantId, slug: "" }, () =>
+      executeCampaignSlice(campaign, campaignId, started)
+    )
+  }
+  return executeCampaignSlice(campaign, campaignId, started)
+}
+
+async function executeCampaignSlice(campaign: any, campaignId: string, started: number): Promise<RunResult> {
   const isWhatsApp = campaign.channel === "WHATSAPP"
   const isEmail = campaign.channel === "EMAIL"
   const isFacebook = campaign.channel === "FACEBOOK"
@@ -294,6 +424,20 @@ export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
           data: { status: "SENT", sentAt: new Date(), externalId: result.externalMessageId, error: null },
         })
         sent++
+
+        // Log broadcast into conversation so operators see it in inbox and can receive replies
+        await recordBroadcastOutboundChat({
+          tenantId: campaign.tenantId,
+          customerId: customer.id,
+          customerPhone: customer.phone,
+          customerName: customer.name || null,
+          channel: campaign.channel,
+          externalUserId: customer.socialId,
+          externalMessageId: result.externalMessageId || null,
+          type: campaign.headerMediaUrl ? (campaign.headerMediaType || "IMAGE") : "TEXT",
+          content: text,
+          mediaUrl: campaign.headerMediaUrl || null,
+        })
       } else {
         const rateLimited = /rate|throttl|too many/i.test(result.error || "")
         if (rateLimited) {
@@ -318,27 +462,52 @@ export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
         if (shouldFail) failed++
       }
     } else if (isWhatsApp) {
+      const headerMedia = campaign.headerMediaUrl || campaign.template?.headerContent || undefined
+      const isImg = campaign.headerMediaType === "IMAGE" || (!campaign.headerMediaType && campaign.template?.headerType === "IMAGE")
+      const isVid = campaign.headerMediaType === "VIDEO" || (!campaign.headerMediaType && campaign.template?.headerType === "VIDEO")
+      const isDocument = campaign.headerMediaType === "DOCUMENT" || (!campaign.headerMediaType && campaign.template?.headerType === "DOCUMENT")
       const variables = resolveVariables(campaign.variableMap, customer, wanted)
-      const result = await sendWhatsApp({
-        to: customer.phone,
-        templateName: campaign.template!.name,
-        language: campaign.template!.language || "en_US",
-        templateVariables: variables,
-        // A media template is rejected without its header, and a carousel
-        // without its cards. Both travel with every message.
-        imageUrl: campaign.headerMediaType === "IMAGE" ? campaign.headerMediaUrl || undefined : undefined,
-        videoUrl: campaign.headerMediaType === "VIDEO" ? campaign.headerMediaUrl || undefined : undefined,
-        documentUrl: campaign.headerMediaType === "DOCUMENT" ? campaign.headerMediaUrl || undefined : undefined,
-        cards: templateCards.length
-          ? templateCards.map(card => ({
-              imageUrl: card.imageUrl,
-              variables: resolveVariables(campaign.variableMap, customer, placeholderCount(card.body)),
-            }))
-          : undefined,
-        // The button's dynamic suffix is this recipient's tracking id, which
-        // is how a click is attributed to a person rather than merely counted.
-        buttonUrl: campaign.linkUrl ? `c/${recipient.id}` : undefined,
-      })
+
+      // Only attach dynamic buttonUrl if the template actually defines a dynamic URL button (containing {{1}}).
+      // Passing buttonUrl on quick-reply or static-url templates causes Meta API rejection.
+      let dynamicButtonIndex: number | undefined = undefined
+        if (campaign.linkUrl && campaign.template?.buttons) {
+          try {
+            const btns = typeof campaign.template.buttons === "string"
+              ? JSON.parse(campaign.template.buttons)
+              : campaign.template.buttons
+            if (Array.isArray(btns)) {
+              const idx = btns.findIndex((b: any) =>
+                (b?.type === "URL" || b?.type === "url") &&
+                typeof b?.url === "string" &&
+                b.url.includes("{{1}}")
+              )
+              if (idx >= 0) dynamicButtonIndex = idx
+            }
+          } catch {}
+        }
+
+        const result = await sendWhatsApp({
+          to: customer.phone,
+          templateName: campaign.template!.name,
+          language: campaign.template!.language || "en_US",
+          templateVariables: variables,
+          // A media template is rejected without its header, and a carousel
+          // without its cards. Both travel with every message.
+          imageUrl: isImg ? headerMedia : undefined,
+          videoUrl: isVid ? headerMedia : undefined,
+          documentUrl: isDocument ? headerMedia : undefined,
+          cards: templateCards.length
+            ? templateCards.map(card => ({
+                imageUrl: card.imageUrl,
+                variables: resolveVariables(campaign.variableMap, customer, placeholderCount(card.body)),
+              }))
+            : undefined,
+          // The button's dynamic suffix is this recipient's tracking id, which
+          // is how a click is attributed to a person rather than merely counted.
+          buttonUrl: dynamicButtonIndex !== undefined ? `c/${recipient.id}` : undefined,
+          buttonIndex: dynamicButtonIndex,
+        })
 
       if (result.success) {
         await db.campaignRecipient.update({
@@ -346,6 +515,22 @@ export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
           data: { status: "SENT", sentAt: new Date(), externalId: result.messageId, error: null },
         })
         sent++
+
+        // Log broadcast into conversation so operators see it in inbox and can receive replies
+        const renderedText = renderWhatsAppTemplateText(campaign.template?.bodyContent || "", variables)
+        await recordBroadcastOutboundChat({
+          tenantId: campaign.tenantId,
+          customerId: customer.id,
+          customerPhone: customer.phone,
+          customerName: customer.name || null,
+          channel: "WHATSAPP",
+          externalMessageId: result.messageId || null,
+          type: "TEMPLATE",
+          templateName: campaign.template?.name || null,
+          content: renderedText,
+          mediaUrl: campaign.headerMediaUrl || null,
+          interactiveData: templateCards.length ? { cards: templateCards } : undefined,
+        })
       } else {
         // A rate limit is the one failure worth waiting on rather than
         // recording: the message was never refused, only deferred.
@@ -442,11 +627,23 @@ export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
 
 /** The campaign's counters, recomputed from its recipients. */
 export async function refreshTotals(campaignId: string) {
-  const totals = await db.campaignRecipient.groupBy({
-    by: ["status"],
-    where: { campaignId },
-    _count: true,
-  })
+  const [totals, totalDelivered, totalRead, totalClicked] = await Promise.all([
+    db.campaignRecipient.groupBy({
+      by: ["status"],
+      where: { campaignId },
+      _count: true,
+    }),
+    db.campaignRecipient.count({
+      where: { campaignId, deliveredAt: { not: null } },
+    }),
+    db.campaignRecipient.count({
+      where: { campaignId, readAt: { not: null } },
+    }),
+    db.campaignRecipient.count({
+      where: { campaignId, clickedAt: { not: null } },
+    }),
+  ])
+
   const count = (status: string) => totals.find(t => t.status === status)?._count ?? 0
   await db.campaign.update({
     where: { id: campaignId },
@@ -454,6 +651,9 @@ export async function refreshTotals(campaignId: string) {
       totalSent: count("SENT"),
       totalFailed: count("FAILED"),
       totalOptOut: count("SKIPPED"),
+      totalDelivered,
+      totalRead,
+      totalClicked,
     },
   })
 }

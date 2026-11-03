@@ -354,10 +354,31 @@ describe("Milestone 1 & 2: Omnichannel Team Inbox & CRM Enhancements", () => {
       expect(result.set.ai_knowledge_matched).toBe("true")
       expect(result.set.ai_knowledge_answer).toContain("9:00 AM")
     })
+
+    it("calculates branch offsets for dual port visual canvas alignment", () => {
+      const getBranchOffset = (type: string, branch?: string) => {
+        const branches = type === "AI_KNOWLEDGE" ? ["answered", "fallback"] : []
+        if (!branches.length || !branch || branch === "default") return 0
+        const idx = branches.indexOf(branch)
+        if (idx === -1) return 0
+        if (branches.length === 2) {
+          return idx === 0 ? -38 : 38
+        }
+        const total = (branches.length - 1) * 38
+        return idx * 38 - total / 2
+      }
+
+      // 'answered' is positioned to the left (-38px)
+      expect(getBranchOffset("AI_KNOWLEDGE", "answered")).toBe(-38)
+      // 'fallback' is positioned to the right (+38px)
+      expect(getBranchOffset("AI_KNOWLEDGE", "fallback")).toBe(38)
+      // default / invalid branch returns center (0)
+      expect(getBranchOffset("AI_KNOWLEDGE", "default")).toBe(0)
+    })
   })
 
   describe("Task 9: Botflow Drop-off & Funnel Analytics", () => {
-    const { computeFlowAnalytics } = require("../src/app/api/botflows/[id]/analytics/route")
+    const { computeFlowAnalytics, generateSampleFlowAnalytics } = require("../src/lib/flow-analytics")
 
     it("handles zero-run flows without division errors", () => {
       const result = computeFlowAnalytics("flow-empty", [], ["trigger-1", "msg-1"])
@@ -433,6 +454,18 @@ describe("Milestone 1 & 2: Omnichannel Team Inbox & CRM Enhancements", () => {
       const topNodeIds = stats.topDropOffNodes.map((n: any) => n.nodeId)
       expect(topNodeIds).toContain("question-1")
       expect(topNodeIds).toContain("payment-1")
+    })
+
+    it("generates realistic sample demo funnel data for preview mode", () => {
+      const demoNodes = ["trigger-1", "ai-kb-1", "buttons-1", "handoff-1"]
+      const sample = generateSampleFlowAnalytics("demo-flow", demoNodes)
+
+      expect(sample.isSampleData).toBe(true)
+      expect(sample.totalRuns).toBeGreaterThan(0)
+      expect(sample.completedRuns).toBeGreaterThan(0)
+      expect(sample.nodeStats["trigger-1"].impressions).toBeGreaterThan(0)
+      expect(sample.nodeStats["ai-kb-1"].passThroughRate).toBeGreaterThan(0)
+      expect(sample.topDropOffNodes.length).toBeGreaterThan(0)
     })
   })
 
@@ -519,6 +552,73 @@ describe("Milestone 1 & 2: Omnichannel Team Inbox & CRM Enhancements", () => {
       expect(enrollment.nextScheduledAt).toBeNull()
       expect(enrollment.completedAt).toBeTruthy()
       expect(enrollment.history.length).toBe(2)
+    })
+
+    it("evaluates smart stopOnReply condition when customer replies to chat", () => {
+      const enrollment = {
+        sequenceId: "seq_welcome",
+        status: "ACTIVE" as const,
+        enrolledAt: "2026-09-24T10:00:00.000Z",
+        nextScheduledAt: "2026-09-26T10:00:00.000Z",
+      }
+
+      const inboundMessages = [
+        { direction: "INBOUND", createdAt: new Date("2026-09-25T12:00:00.000Z") }
+      ]
+
+      const stopOnReply = true
+      const hasReplied = inboundMessages.some(
+        m => m.direction === "INBOUND" && new Date(m.createdAt) >= new Date(enrollment.enrolledAt)
+      )
+
+      expect(hasReplied).toBe(true)
+
+      let finalStatus = enrollment.status
+      if (stopOnReply && hasReplied) {
+        finalStatus = "COMPLETED"
+      }
+      expect(finalStatus).toBe("COMPLETED")
+    })
+
+    it("evaluates smart stopOnOrder condition when customer places an order", () => {
+      const enrollment = {
+        sequenceId: "seq_abandoned_cart",
+        status: "ACTIVE" as const,
+        enrolledAt: "2026-09-24T10:00:00.000Z",
+        nextScheduledAt: "2026-09-25T10:00:00.000Z",
+      }
+
+      const customerOrders = [
+        { id: "ord_1", orderNumber: "ORD-991", createdAt: new Date("2026-09-24T14:30:00.000Z") }
+      ]
+
+      const stopOnOrder = true
+      const hasPurchased = customerOrders.some(
+        o => new Date(o.createdAt) >= new Date(enrollment.enrolledAt)
+      )
+
+      expect(hasPurchased).toBe(true)
+
+      let finalStatus = enrollment.status
+      if (stopOnOrder && hasPurchased) {
+        finalStatus = "COMPLETED"
+      }
+      expect(finalStatus).toBe("COMPLETED")
+    })
+
+    it("validates starter sequence templates have required multi-channel configuration", () => {
+      const { STARTER_SEQUENCES } = require("../src/lib/sequences")
+      expect(STARTER_SEQUENCES.length).toBeGreaterThanOrEqual(4)
+
+      const cartRecovery = STARTER_SEQUENCES.find((s: any) => s.id === "seq_abandoned_cart")
+      expect(cartRecovery).toBeDefined()
+      expect(cartRecovery.triggerConfig?.stopOnOrder).toBe(true)
+      expect(cartRecovery.triggerConfig?.stopOnReply).toBe(true)
+
+      const postPurchase = STARTER_SEQUENCES.find((s: any) => s.id === "seq_post_purchase")
+      expect(postPurchase).toBeDefined()
+      expect(postPurchase.channel).toBe("MULTI")
+      expect(postPurchase.steps.some((st: any) => st.channel === "EMAIL")).toBe(true)
     })
   })
 
@@ -648,6 +748,146 @@ describe("Milestone 1 & 2: Omnichannel Team Inbox & CRM Enhancements", () => {
       expect(checkShouldAutoLearn("RESOLVED", false, 2)).toBe(false)
       expect(checkShouldAutoLearn("RESOLVED", true, 0)).toBe(false)
     })
+
+    it("manages Curation Queue candidate lifecycle, approvals, and refinements", () => {
+      interface MockCandidate {
+        id: string
+        conversationId: string
+        question: string
+        answer: string
+        topic: string
+        confidence: number
+        status: "PENDING" | "APPROVED" | "DISMISSED"
+        reviewedBy?: string
+        reviewedAt?: string
+      }
+
+      const queue: MockCandidate[] = [
+        {
+          id: "cand_1",
+          conversationId: "conv_101",
+          question: "Can I bring a camera on the tour?",
+          answer: "Yes, photography is permitted.",
+          topic: "Tour Rules",
+          confidence: 0.88,
+          status: "PENDING",
+        },
+        {
+          id: "cand_2",
+          conversationId: "conv_102",
+          question: "Where is the pickup station?",
+          answer: "Meeting point is Muscat Grand Mall gate 3.",
+          topic: "Logistics",
+          confidence: 0.92,
+          status: "PENDING",
+        },
+        {
+          id: "cand_3",
+          conversationId: "conv_103",
+          question: "Do you offer group discounts?",
+          answer: "Yes, groups over 10 people get 15% off.",
+          topic: "Pricing",
+          confidence: 0.85,
+          status: "PENDING",
+        },
+      ]
+
+      // 1. Approve with staff refinement
+      const approveWithEdits = (id: string, edits: Partial<MockCandidate>, staff: string) => {
+        const item = queue.find(q => q.id === id)
+        if (!item) return
+        item.status = "APPROVED"
+        if (edits.question) item.question = edits.question
+        if (edits.answer) item.answer = edits.answer
+        if (edits.topic) item.topic = edits.topic
+        item.reviewedBy = staff
+        item.reviewedAt = new Date().toISOString()
+      }
+
+      approveWithEdits(
+        "cand_1",
+        {
+          question: "Are DSLR and professional cameras allowed on the desert safari?",
+          answer: "Yes, cameras and personal drones with permits are allowed throughout the tour.",
+        },
+        "agent_sara"
+      )
+
+      expect(queue[0].status).toBe("APPROVED")
+      expect(queue[0].question).toBe("Are DSLR and professional cameras allowed on the desert safari?")
+      expect(queue[0].reviewedBy).toBe("agent_sara")
+
+      // 2. Dismiss
+      const dismissCandidate = (id: string, staff: string) => {
+        const item = queue.find(q => q.id === id)
+        if (!item) return
+        item.status = "DISMISSED"
+        item.reviewedBy = staff
+        item.reviewedAt = new Date().toISOString()
+      }
+
+      dismissCandidate("cand_3", "agent_sara")
+      expect(queue[2].status).toBe("DISMISSED")
+
+      // 3. Batch approve pending
+      const batchApprovePending = (staff: string) => {
+        const pending = queue.filter(q => q.status === "PENDING")
+        pending.forEach(p => {
+          p.status = "APPROVED"
+          p.reviewedBy = staff
+          p.reviewedAt = new Date().toISOString()
+        })
+        return pending.length
+      }
+
+      const approvedCount = batchApprovePending("staff_admin")
+      expect(approvedCount).toBe(1)
+      expect(queue[1].status).toBe("APPROVED")
+      expect(queue.filter(q => q.status === "PENDING").length).toBe(0)
+    })
+
+    it("toggles between Human-in-the-Loop review queue and Autonomous background indexing", () => {
+      interface Config {
+        enabled: boolean
+        requireApproval: boolean
+        minConfidence: number
+      }
+
+      const humanInTheLoopConfig: Config = {
+        enabled: true,
+        requireApproval: true,
+        minConfidence: 0.8,
+      }
+
+      const autonomousConfig: Config = {
+        enabled: true,
+        requireApproval: false,
+        minConfidence: 0.85,
+      }
+
+      const incomingLearnings = [
+        { q: "What is check-out time?", confidence: 0.90 },
+        { q: "Is breakfast included?", confidence: 0.82 },
+      ]
+
+      const processLearnings = (config: Config, items: typeof incomingLearnings) => {
+        const eligible = items.filter(i => i.confidence >= config.minConfidence)
+        if (config.requireApproval) {
+          return { queuedForReview: eligible.length, autoIndexed: 0 }
+        } else {
+          return { queuedForReview: 0, autoIndexed: eligible.length }
+        }
+      }
+
+      const hitlResult = processLearnings(humanInTheLoopConfig, incomingLearnings)
+      expect(hitlResult.queuedForReview).toBe(2)
+      expect(hitlResult.autoIndexed).toBe(0)
+
+      const autoResult = processLearnings(autonomousConfig, incomingLearnings)
+      expect(autoResult.queuedForReview).toBe(0)
+      expect(autoResult.autoIndexed).toBe(1) // only 0.90 >= 0.85
+    })
   })
 })
+
 

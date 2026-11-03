@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 
 export const GET = withErrors(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
@@ -35,7 +35,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     where,
     include: {
       customer: true,
-      assignedStaff: true,
+      assignedStaff: { omit: { passwordHash: true } },
       messages: { orderBy: { createdAt: "desc" }, take: 1 },
     },
     orderBy: { lastMessageAt: "desc" },

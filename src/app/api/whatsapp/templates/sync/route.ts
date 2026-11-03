@@ -35,16 +35,24 @@ export const POST = withErrors(async (_request: NextRequest) => {
     const components = meta.components || []
     const header = components.find((c: any) => c.type === "HEADER")
     const buttons = components.find((c: any) => c.type === "BUTTONS")
+    const language = meta.language || "en_US"
+
+    const existing = await db.template.findFirst({
+      where: { name: meta.name, language, channel: "WHATSAPP" },
+    })
+
+    const headerType = header?.format || (existing?.headerType && existing.headerType !== "NONE" ? existing.headerType : "NONE")
+    const headerContent = header?.text ?? header?.example?.header_handle?.[0] ?? existing?.headerContent ?? null
 
     const data = {
       name: meta.name,
       channel: "WHATSAPP",
-      type: header?.format && header.format !== "TEXT" ? "MEDIA" : buttons ? "INTERACTIVE" : "TEXT",
+      type: headerType !== "NONE" && headerType !== "TEXT" ? "MEDIA" : buttons ? "INTERACTIVE" : "TEXT",
       category: meta.category || "UTILITY",
-      language: meta.language || "en_US",
+      language,
       status: meta.status || "PENDING", // APPROVED | PENDING | REJECTED
-      headerType: header?.format || "NONE",
-      headerContent: header?.text ?? null,
+      headerType,
+      headerContent,
       bodyContent: componentText(components, "BODY") || "",
       footerContent: componentText(components, "FOOTER"),
       // Json column: undefined leaves it untouched. `null` is rejected by
@@ -53,10 +61,6 @@ export const POST = withErrors(async (_request: NextRequest) => {
       metaTemplateId: meta.id ?? null,
       rejectionReason: meta.rejected_reason ?? null,
     }
-
-    const existing = await db.template.findFirst({
-      where: { name: meta.name, language: data.language, channel: "WHATSAPP" },
-    })
 
     if (existing) {
       await db.template.update({ where: { id: existing.id }, data })

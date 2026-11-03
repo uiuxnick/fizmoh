@@ -23,12 +23,13 @@ import {
   CheckCircle2, AlertTriangle, Lock, Copy, RefreshCw, ExternalLink,
   Sparkles, Zap, XCircle, KeyRound, Loader2, Plus, Trash2,
   Plug, Upload, Palette, Video, Download, FileText, Code2, Facebook, Send, ShoppingBag, Pencil, Check, Boxes,
-  Eye, Layers,
+  Eye, Layers, UserCog, Sliders,
 } from "lucide-react"
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
 import EcommerceSettingsView from "@/components/views/ecommerce-settings-view"
 import { WorkspaceModulesManager } from "@/components/views/workspace-modules-manager"
+import StaffView from "@/components/views/staff-view"
 import { WEBSITE_THEMES, getWebsiteTheme } from "@/lib/website-themes"
 
 interface BankAccount {
@@ -532,6 +533,7 @@ export default function SettingsView() {
             ) : (
               <>
                 <TabsTrigger data-tour="settings-business-profile" value="business" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
+                <TabsTrigger value="team" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><UserCog className="h-3.5 w-3.5 text-indigo-600" />Team Roles &amp; Permissions</TabsTrigger>
                 <TabsTrigger value="modules" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
                 <TabsTrigger value="google" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Video className="h-3.5 w-3.5" />Google Calendar &amp; Meet</TabsTrigger>
                 <TabsTrigger value="website" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Globe className="h-3.5 w-3.5" />Website &amp; Domain</TabsTrigger>
@@ -550,6 +552,10 @@ export default function SettingsView() {
             )}
           </TabsList>
         </div>
+
+        <TabsContent value="team" className="mt-4 space-y-4">
+          <StaffView />
+        </TabsContent>
 
         <TabsContent value="google" className="mt-4 space-y-4">
           <GoogleConnectCard />

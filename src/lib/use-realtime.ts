@@ -17,21 +17,26 @@ export type RealtimeEvent =
  * caller can pass an inline closure without tearing down and re-opening the
  * connection on every render — reopening would drop events in the gap.
  */
-export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = true) {
+export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = true, onReady?: () => void) {
   const [connectionState, setConnectionState] = useState<"connecting" | "live" | "retrying" | "offline">("connecting")
   const handler = useRef(onEvent)
+  const readyHandler = useRef(onReady)
   useEffect(() => {
     handler.current = onEvent
-  }, [onEvent])
+    readyHandler.current = onReady
+  }, [onEvent, onReady])
 
+  const canReconcile = typeof onReady === "function"
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return
 
-    const source = new EventSource("/api/realtime/stream")
+    const source = new EventSource(canReconcile ? "/api/realtime/stream?reconcile=ready" : "/api/realtime/stream")
     const opened = () => setConnectionState("live")
     const failed = () => setConnectionState(source.readyState === EventSource.CLOSED ? "offline" : "retrying")
     source.addEventListener("open", opened)
-    source.addEventListener("ready", opened)
+    // The server sends one ready frame per connection, including reconnects.
+    // Do not also reconcile on open: that would issue duplicate requests.
+    source.addEventListener("ready", () => { opened(); readyHandler.current?.() })
     source.addEventListener("error", failed)
     const forward = (raw: MessageEvent) => {
       try {
@@ -46,6 +51,6 @@ export function useRealtime(onEvent: (event: RealtimeEvent) => void, enabled = t
     }
 
     return () => source.close()
-  }, [enabled])
+  }, [enabled, canReconcile])
   return enabled ? connectionState : "offline"
 }

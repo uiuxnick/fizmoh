@@ -62,16 +62,16 @@ export default function PaymentsView() {
         <p className="text-sm text-stone-500 mt-0.5">Manual bank transfer screenshot verification · <Badge className="bg-emerald-100 text-emerald-700 ml-1">Phase 1 — Live</Badge></p>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card><CardContent className="p-3"><div className="text-[10px] text-stone-500">Pending</div><div className="text-xl font-bold text-amber-600">{pending}</div></CardContent></Card>
         <Card><CardContent className="p-3"><div className="text-[10px] text-stone-500">Approved</div><div className="text-xl font-bold text-emerald-600">{payments.filter(p => p.status === "APPROVED").length}</div></CardContent></Card>
         <Card><CardContent className="p-3"><div className="text-[10px] text-stone-500">Rejected</div><div className="text-xl font-bold text-rose-600">{payments.filter(p => p.status === "REJECTED").length}</div></CardContent></Card>
         <Card><CardContent className="p-3"><div className="text-[10px] text-stone-500">Total Value</div><div className="text-xl font-bold text-stone-900">{formatCurrency(payments.reduce((s, p) => s + p.amount, 0))}</div></CardContent></Card>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {["SUBMITTED", "APPROVED", "REJECTED", "all"].map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${filter === f ? "bg-emerald-600 text-white" : "bg-white border text-stone-600"}`}>{f === "all" ? "All" : prettifyStatus(f)}</button>
+          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 ${filter === f ? "bg-emerald-600 text-white" : "bg-white border text-stone-600"}`}>{f === "all" ? "All" : prettifyStatus(f)}</button>
         ))}
       </div>
 

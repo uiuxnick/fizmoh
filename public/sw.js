@@ -15,7 +15,7 @@
  */
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js")
 
-const VERSION = "v3"
+const VERSION = "v4"
 const SHELL = `shell-${VERSION}`
 const SHELL_ASSETS = ["/icon-192.png", "/icon-512.png", "/manifest.webmanifest"]
 
@@ -41,6 +41,9 @@ self.addEventListener("fetch", event => {
   // Never serve business data from a cache, and never cache the event stream.
   if (url.pathname.startsWith("/api/")) return
 
+  // Never intercept /_next/ static assets - Next.js handles hashed assets natively.
+  if (url.pathname.startsWith("/_next/")) return
+
   // Unlike hashed build assets, the support widget keeps the same URL across
   // releases. Let its HTTP revalidation fetch the current contact form/code.
   if (url.pathname === "/widget.js") return
@@ -56,26 +59,13 @@ self.addEventListener("fetch", event => {
   /*
    * The page itself always comes from the network.
    *
-   * It was cached first and refreshed underneath, which meant a deploy stayed
-   * invisible until a second reload — and worse, a cached page names build
-   * assets by hash, so an old page could ask for chunks the new release no
-   * longer has and fail to start at all. The cache is kept only as the offline
-   * fallback, which is what it is for.
+   * It is never cached on live navigations so deploys reflect immediately.
+   * Cache is only used as offline fallback.
    */
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).then(cacheFirst).catch(() => caches.match(request).then(cached => cached || caches.match("/"))),
+      fetch(request).catch(() => caches.match(request).then(cached => cached || caches.match("/"))),
     )
-    return
-  }
-
-  /*
-   * Build assets are safe to serve from the cache without checking, because
-   * their filenames contain a hash of their contents: a changed file is a
-   * different URL, so a cached one can never be out of date.
-   */
-  if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(cacheFirst)))
     return
   }
 

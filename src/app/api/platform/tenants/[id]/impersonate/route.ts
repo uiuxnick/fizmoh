@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "../../route"
-import { WORKSPACE_COOKIE } from "@/app/api/workspaces/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
+import { WORKSPACE_COOKIE } from "@/lib/workspace-cookie"
 
 /**
  * Opening a customer's workspace as the platform operator.

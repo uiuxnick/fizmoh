@@ -98,6 +98,7 @@ export interface Course {
   trainerSocials?: { linkedin?: string; twitter?: string; website?: string }
 
   // Schedule
+  additionalDates?: { startDate: string; endDate: string }[]
   startDate: string // YYYY-MM-DD
   endDate: string // YYYY-MM-DD
   startTime: string // e.g. 09:00 AM

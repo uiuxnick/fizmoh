@@ -877,7 +877,7 @@ export default function TrainingView() {
       </div>
 
       {/* TOP STATS CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="p-3.5 rounded-xl bg-white border border-stone-200 shadow-sm space-y-1">
           <div className="text-[11px] font-medium text-stone-500 flex items-center justify-between">
             <span>Total Programs</span>

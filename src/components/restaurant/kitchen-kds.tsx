@@ -167,35 +167,35 @@ export default function KitchenKds() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
       {/* KDS Header Bar */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <ChefHat className="w-6 h-6" />
+      <header className="bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <ChefHat className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base tracking-wide flex items-center gap-2">
-              <span>Kitchen Display System (KDS)</span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
+            <h1 className="font-extrabold text-sm sm:text-base tracking-wide flex items-center gap-1.5 sm:gap-2">
+              <span>Kitchen Display (KDS)</span>
+              <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
                 LIVE
               </span>
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-[11px] sm:text-xs text-slate-400">
               Active tickets: {orders.filter((o) => ["PENDING", "ACCEPTED", "PREPARING"].includes(o.status)).length}
             </p>
           </div>
         </div>
 
         {/* Filter Pills & Controls */}
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center gap-1">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center gap-1 overflow-x-auto max-w-full">
             {(["ACTIVE", "PENDING", "PREPARING", "READY"] as const).map((filter) => (
               <button
                 key={filter}
                 type="button"
                 onClick={() => setStatusFilter(filter)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                   statusFilter === filter
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-slate-400 hover:text-white"
@@ -206,41 +206,43 @@ export default function KitchenKds() {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-2.5 rounded-xl border transition ${
-              soundEnabled
-                ? "bg-slate-800 border-slate-700 text-emerald-400"
-                : "bg-slate-900 border-slate-800 text-slate-500"
-            }`}
-            title={soundEnabled ? "Audio chime active" : "Audio muted"}
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-2 sm:p-2.5 rounded-xl border transition min-h-[36px] min-w-[36px] flex items-center justify-center ${
+                soundEnabled
+                  ? "bg-slate-800 border-slate-700 text-emerald-400"
+                  : "bg-slate-900 border-slate-800 text-slate-500"
+              }`}
+              title={soundEnabled ? "Audio chime active" : "Audio muted"}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
 
-          <button
-            type="button"
-            onClick={loadOrders}
-            className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"
-            title="Refresh tickets"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={loadOrders}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition min-h-[36px] min-w-[36px] flex items-center justify-center"
+              title="Refresh tickets"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"
-            title="Toggle fullscreen"
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition min-h-[36px] min-w-[36px] flex items-center justify-center"
+              title="Toggle fullscreen"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Orders Ticket Grid */}
-      <main className="flex-1 p-6 overflow-x-auto overflow-y-auto">
+      <main className="flex-1 p-3 sm:p-6 overflow-x-auto overflow-y-auto">
         {filteredOrders.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-600 py-32">
             <Utensils className="w-16 h-16 mb-4 text-slate-700" />

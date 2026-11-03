@@ -4,7 +4,7 @@ import { appointmentsEnabled } from "@/lib/appointments"
 import { visaEnabled } from "@/lib/visa-flow"
 import { currentModules, type Module } from "@/lib/entitlements"
 import { currentTenant } from "@/lib/tenant"
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -21,7 +21,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   const res = NextResponse.json({
     inbox: has("INBOX"),
     crm: has("CRM"),
-    staff: has("STAFF"),
+    staff: true,
     appointments: has("APPOINTMENTS"),
     visa: (await visaEnabled()) && has("VISA"),
     tours: has("TOURS"),
@@ -38,8 +38,8 @@ export const GET = withErrors(async (request: NextRequest) => {
     ecommerce: has("ECOMMERCE"),
     content: has("CONTENT"),
     reports: has("REPORTS"),
-    digital_qr: has("DIGITAL_QR") && has("REPUTATION"),
-    reputation: has("REPUTATION") && has("DIGITAL_QR"),
+    digital_qr: has("DIGITAL_QR") || has("REPUTATION"),
+    reputation: has("REPUTATION") || has("DIGITAL_QR"),
     digital_vcard: has("DIGITAL_VCARD"),
     social_inbox: has("SOCIAL_INBOX"),
     live_chat: has("LIVE_CHAT"),
@@ -50,6 +50,7 @@ export const GET = withErrors(async (request: NextRequest) => {
     integration: has("INTEGRATION"),
     white_label: has("WHITE_LABEL"),
     training: has("TRAINING"),
+    email_marketing: has("EMAIL_MARKETING"),
     modules,
     platform: !currentTenant()?.tenantId && !!(await requirePlatformAdmin(request)),
   })

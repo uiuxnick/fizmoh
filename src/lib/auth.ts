@@ -41,8 +41,8 @@ export async function signSession(payload: {
 export async function verifySession(token: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(token, secret(), {
     algorithms: ["HS256"],
-    issuer: "wptour",
-    audience: "wptour-web",
+    issuer: ["wptour", "fizmoh"],
+    audience: ["wptour-web", "fizmoh-mobile"],
   })
   return payload as SessionPayload
 }

@@ -193,21 +193,21 @@ export function TenantsPanel({
   return (
     <div className="space-y-5">
       {/* Action bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2.5 flex-1 max-w-lg">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-lg">
           <div className="relative flex-1">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search className="h-4 w-4 absolute start-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by business name, slug, or email..."
-              className="pl-9 text-xs bg-white"
+              className="ps-9 text-base sm:text-xs h-9 bg-white"
             />
           </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="text-xs border border-stone-200 rounded-lg px-2.5 py-2 bg-white font-medium text-stone-700"
+            className="text-xs border border-stone-200 rounded-lg px-2.5 py-2 bg-white font-medium text-stone-700 h-9"
           >
             <option value="ALL">All Statuses ({rows.length})</option>
             <option value="ACTIVE">Active Workspaces</option>
@@ -217,7 +217,7 @@ export function TenantsPanel({
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
             variant="outline"
@@ -227,15 +227,15 @@ export function TenantsPanel({
                 window.dispatchEvent(new Event("popstate"))
               }
             }}
-            className="border-violet-300 text-violet-700 hover:bg-violet-50 text-xs font-semibold"
+            className="border-violet-300 text-violet-700 hover:bg-violet-50 text-xs font-semibold h-9"
           >
-            <Target className="h-3.5 w-3.5 mr-1.5 text-violet-600" /> Marketing Intel
+            <Target className="h-3.5 w-3.5 me-1.5 text-violet-600" /> Marketing Intel
           </Button>
-          <Button size="sm" variant="outline" onClick={onRefresh} className="text-xs">
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+          <Button size="sm" variant="outline" onClick={onRefresh} className="text-xs h-9">
+            <RefreshCw className="h-3.5 w-3.5 me-1.5" /> Refresh
           </Button>
-          <Button size="sm" onClick={() => setCreating(true)} className="bg-emerald-600 hover:bg-emerald-700 text-xs">
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> New Workspace
+          <Button size="sm" onClick={() => setCreating(true)} className="bg-emerald-600 hover:bg-emerald-700 text-xs h-9">
+            <Plus className="h-3.5 w-3.5 me-1.5" /> New Workspace
           </Button>
         </div>
 

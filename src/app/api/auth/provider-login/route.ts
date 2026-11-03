@@ -23,6 +23,8 @@ const schema = z.object({
   idToken: z.string().min(20).max(8000),
 })
 
+export const OPTIONS = withErrors(async () => new NextResponse(null, { status: 204 }))
+
 export const POST = withErrors(async (request: NextRequest) => {
   const ip = requestIp(request.headers)
   const rate = await checkRateLimit(`provider-login:${ip}`, 12, 15 * 60 * 1000)

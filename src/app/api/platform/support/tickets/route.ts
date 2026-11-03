@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { raw } from "@/lib/db";
 import { withErrors } from "@/lib/api-handler";
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route";
+import { requirePlatformAdmin } from "@/lib/platform-admin";
 import { supportReference, supportAuthor, SUPPORT_CHANNELS } from "@/lib/platform-support";
 import { Prisma } from "@prisma/client";
 

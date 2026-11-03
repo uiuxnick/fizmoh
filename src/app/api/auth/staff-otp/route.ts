@@ -11,6 +11,8 @@ const schema = z.object({
   channel: z.enum(["whatsapp", "email"]).default("whatsapp"),
 })
 
+export const OPTIONS = withErrors(async () => new NextResponse(null, { status: 204 }))
+
 export const POST = withErrors(async (request: NextRequest) => {
   const rate = await checkRateLimit(`staff-otp:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)
   if (!rate.allowed) {

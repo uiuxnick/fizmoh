@@ -12,7 +12,7 @@ import { Wand2, Loader2, Zap, Sparkles, Check, X, ShieldAlert, Info } from "luci
 import { validateCarousel, type CarouselCard } from "@/lib/carousel"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Plus, Trash2, Save, Send, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react"
+import { Plus, Trash2, Save, Send, AlertTriangle, ShieldCheck, CheckCircle2, Upload } from "lucide-react"
 import { WhatsAppPreview, type PreviewButton } from "@/components/whatsapp-preview"
 import { PRE_APPROVED_TEMPLATES, generateSmartSamples, evaluateFastApprovalCompliance, type FastApprovalPreset } from "@/lib/fast-approval-templates"
 
@@ -210,6 +210,7 @@ export function TemplateBuilder({
   }, [open, initial])
 
   const [submitting, setSubmitting] = useState(false)
+  const [uploadingHeader, setUploadingHeader] = useState(false)
 
   const set = <K extends keyof TemplateDraft>(key: K, value: TemplateDraft[K]) =>
     setDraft(d => ({ ...d, [key]: value }))
@@ -310,7 +311,7 @@ export function TemplateBuilder({
               ? "INTERACTIVE"
               : "TEXT",
         headerType: draft.headerType,
-        headerContent: draft.headerType === "TEXT" ? draft.headerContent : null,
+        headerContent: draft.headerType !== "NONE" ? (draft.headerContent || null) : null,
         bodyContent: draft.bodyContent,
         footerContent: draft.footerContent || null,
         buttons: draft.buttons.length ? draft.buttons : null,
@@ -530,6 +531,56 @@ export function TemplateBuilder({
                   value={draft.headerContent}
                   onChange={e => set("headerContent", e.target.value)}
                 />
+              </div>
+            )}
+
+            {draft.headerType !== "NONE" && draft.headerType !== "TEXT" && (
+              <div className="space-y-1.5 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-stone-800">
+                    Sample {draft.headerType.toLowerCase()} header
+                  </Label>
+                  <label className="cursor-pointer text-[11px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg inline-flex items-center gap-1 shadow-xs transition-colors">
+                    {uploadingHeader ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                    Upload {draft.headerType === "IMAGE" ? "Image" : draft.headerType === "VIDEO" ? "Video" : "Document"}
+                    <input
+                      type="file"
+                      hidden
+                      disabled={uploadingHeader}
+                      onChange={async e => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        setUploadingHeader(true)
+                        const form = new FormData()
+                        form.append("file", file)
+                        try {
+                          const res = await fetch("/api/media/upload", { method: "POST", body: form })
+                          const data = await res.json()
+                          if (res.ok && data.url) {
+                            set("headerContent", data.url)
+                            toast.success("Header media uploaded!")
+                          } else {
+                            toast.error(data.error || "Upload failed")
+                          }
+                        } catch {
+                          toast.error("Upload failed")
+                        } finally {
+                          setUploadingHeader(false)
+                        }
+                      }}
+                      accept={draft.headerType === "IMAGE" ? "image/*" : draft.headerType === "VIDEO" ? "video/*" : "application/pdf"}
+                    />
+                  </label>
+                </div>
+                <Input
+                  className="mt-1 bg-white text-xs h-8"
+                  placeholder="https://... or click Upload above"
+                  value={draft.headerContent}
+                  onChange={e => set("headerContent", e.target.value)}
+                />
+                <p className="text-[11px] text-stone-500">
+                  Meta requires a sample {draft.headerType.toLowerCase()} to review and approve media templates.
+                </p>
               </div>
             )}
 

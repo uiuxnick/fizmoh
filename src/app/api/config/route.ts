@@ -13,7 +13,7 @@ import {
   isKnownConfigKey,
 } from "@/lib/app-config"
 import { refreshAmwalPayConfig } from "@/lib/amwalpay"
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 function mask(value: string): string {
   if (!value) return ""

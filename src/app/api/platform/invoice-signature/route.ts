@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 import { saveConfigValues, getConfigValue, clearConfigValue } from "@/lib/app-config"
 import { writeFile, unlink, mkdir } from "node:fs/promises"
 import { existsSync } from "node:fs"

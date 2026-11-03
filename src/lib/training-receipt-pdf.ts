@@ -19,15 +19,17 @@ const MUTED = rgb(0.45, 0.45, 0.48)
 const LIGHT_BG = rgb(0.96, 0.97, 0.98)
 const BORDER_COLOR = rgb(0.88, 0.90, 0.92)
 
-function safeText(text: string | null | undefined): string {
-  if (!text) return ""
-  return text
+function safeText(text: string | null | undefined, fallback?: string): string {
+  if (!text) return fallback || ""
+  const sanitized = text
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2013\u2014]/g, "-")
     .replace(/\u2026/g, "...")
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, "")
     .trim()
+  if (!sanitized && fallback) return fallback
+  return sanitized
 }
 
 export async function generateTrainingReceiptPDF(
@@ -71,7 +73,7 @@ export async function generateTrainingReceiptPDF(
   const pdf = await PDFDocument.create()
   pdf.setTitle(safeText(`Payment Receipt - ${reg.registrationNumber}`))
   pdf.setSubject(safeText(course.name))
-  pdf.setProducer("Tanfidh Management Consultants")
+  pdf.setProducer(safeText(course.trainerCompany || "Management Consultants"))
 
   const page = pdf.addPage([595, 842]) // A4
   const { width, height } = page.getSize()
@@ -123,11 +125,13 @@ export async function generateTrainingReceiptPDF(
     y -= gap + 13
   }
 
+  const primaryName = safeText(reg.customerName, reg.customerEmail?.split("@")[0] || reg.registrationNumber)
+  const companySuffix = reg.companyName ? ` (${safeText(reg.companyName, "Corporate Client")})` : ""
   drawField("Registration Reference", reg.registrationNumber)
   drawField("Date Issued", new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }))
-  drawField("Primary Delegate", `${reg.customerName}${reg.companyName ? ` (${reg.companyName})` : ""}`)
-  drawField("Official Email", reg.customerEmail)
-  drawField("Contact Mobile", reg.customerPhone)
+  drawField("Primary Delegate", `${primaryName}${companySuffix}`)
+  drawField("Official Email", safeText(reg.customerEmail, "N/A"))
+  drawField("Contact Mobile", safeText(reg.customerPhone, "N/A"))
 
   // 4. Course Overview Box
   y -= 10
@@ -177,7 +181,8 @@ export async function generateTrainingReceiptPDF(
     })
 
     const seatLabel = att.isFreeSeat ? "[FREE BOGO SEAT]" : "[PRIMARY SEAT]"
-    page.drawText(`${i + 1}. ${safeText(att.name)}  ${seatLabel}`, {
+    const attName = safeText(att.name, att.email?.split("@")[0] || `Attendee ${i + 1}`)
+    page.drawText(`${i + 1}. ${attName}  ${seatLabel}`, {
       x: 56,
       y: y - 14,
       size: 10,

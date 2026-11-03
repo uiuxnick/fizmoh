@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "../../tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 /**
  * Add-on creation and listing endpoint for Platform Super Admins.

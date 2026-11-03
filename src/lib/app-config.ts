@@ -282,6 +282,20 @@ export const CONFIG_GROUPS: ConfigGroup[] = [
         hint: "Off, incoming WhatsApp messages get no automated reply at all — a person must answer every one.",
       },
       {
+        key: "wa_bot_enabled",
+        label: "WhatsApp Bot",
+        envVar: "WA_BOT_ENABLED",
+        options: ["true", "false"],
+        hint: "Off, incoming WhatsApp messages get no automated reply at all — a person must answer every one.",
+      },
+      {
+        key: "auto_reply_enabled",
+        label: "Auto Replies",
+        envVar: "AUTO_REPLY_ENABLED",
+        options: ["true", "false"],
+        hint: "Off, incoming WhatsApp messages get no automated reply at all.",
+      },
+      {
         key: "bot_whitelist_only",
         label: "Bot Whitelist Only",
         envVar: "BOT_WHITELIST_ONLY",
@@ -612,10 +626,11 @@ export async function getConfigValues(): Promise<Record<string, { value: string;
  * A platform key is the installation's wherever it is read, so it keeps both
  * the shared row and the environment default behind it.
  */
-export async function getConfigValue(key: string): Promise<string> {
+export async function getConfigValue(key: string, tenantIdOverride?: string | null): Promise<string> {
   const field = ALL_FIELDS.get(key)
-  if (!field) return ""
-  const tenantId = scopeFor(key)
+  const tenantId = (tenantIdOverride !== undefined && tenantIdOverride !== null)
+    ? (PLATFORM_KEYS.has(key) ? PLATFORM : tenantIdOverride)
+    : scopeFor(key)
   const isPlatform = tenantId === PLATFORM
 
   try {
@@ -623,12 +638,12 @@ export async function getConfigValue(key: string): Promise<string> {
       where: { tenantId_key: { tenantId, key } },
       select: { value: true },
     })
-    if (own?.value) return decryptSecret(own.value)
+    if (own && typeof own.value === "string") return decryptSecret(own.value)
   } catch {
     /* fall through */
   }
 
-  return isPlatform ? process.env[field.envVar] || "" : ""
+  return isPlatform && field?.envVar ? process.env[field.envVar] || "" : ""
 }
 
 export async function saveConfigValues(values: Record<string, string>): Promise<string[]> {

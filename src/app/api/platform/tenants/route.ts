@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { sessionFromRequest } from "@/lib/auth"
 
 /**
  * The platform's own view of its customers.
@@ -12,26 +11,7 @@ import { sessionFromRequest } from "@/lib/auth"
  * data and any signed-in staff member.
  */
 
-/**
- * Who may see every business on the installation.
- *
- * A platform operator is a staff member with no workspace of their own: they
- * belong to the installation, not to a tenant. Anyone who is a member of a
- * workspace is a customer, however senior, and customers do not get a list of
- * other customers.
- */
-export async function requirePlatformAdmin(request: NextRequest) {
-  const session = await sessionFromRequest(request)
-  if (session?.kind !== "staff" || !session.staffId) return null
-
-  const staff = await raw.staff.findUnique({ where: { id: session.staffId } })
-  if (!staff || !staff.isActive) return null
-
-  const isPlatformSuperAdmin = staff.role === "SUPER_ADMIN" && (!staff.tenantId || staff.tenantId === "")
-  if (!isPlatformSuperAdmin && staff.email !== "uiuxnick@gmail.com") return null
-
-  return staff
-}
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 export const GET = withErrors(async (request: NextRequest) => {
   if (!(await requirePlatformAdmin(request))) {

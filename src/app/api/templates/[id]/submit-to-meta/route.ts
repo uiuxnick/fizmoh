@@ -96,6 +96,10 @@ export const POST = withErrors(async (request: NextRequest, { params }: { params
           format: template.headerType,
           example: { header_handle: [uploaded.handle] },
         })
+      } else {
+        return NextResponse.json({
+          error: `A sample ${template.headerType.toLowerCase()} is required by Meta to create a ${template.headerType.toLowerCase()} header template. Please upload or provide a media URL.`,
+        }, { status: 400 })
       }
     }
 

@@ -168,21 +168,29 @@ export default function BookingsView() {
         <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setCreating(true)}><Plus className="h-4 w-4 mr-1.5" />New Booking</Button>
       </div>
 
-      <div data-tour="bookings-status-tabs" className="flex flex-col md:flex-row gap-3">
-        <div data-tour="bookings-search" className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" /><Input placeholder="Search order #, customer, phone, email, tour..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} className="pl-9 bg-white" /></div>
-        <div className="grid grid-cols-3 gap-2">
-          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700">
+      <div data-tour="bookings-status-tabs" className="flex flex-col lg:flex-row gap-3">
+        <div data-tour="bookings-search" className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+          <Input
+            placeholder="Search order #, customer, phone, email, tour..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            className="ps-9 bg-white text-base sm:text-sm h-10"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700 h-10">
             <option value="all">All Statuses</option>
             {ORDER_STATUSES.map(s => <option key={s} value={s}>{prettifyStatus(s)}</option>)}
           </select>
-          <select value={channelFilter} onChange={e => { setChannelFilter(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700">
+          <select value={channelFilter} onChange={e => { setChannelFilter(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700 h-10">
             <option value="all">All Channels</option>
             <option value="WEB">Web Storefront</option>
             <option value="WHATSAPP">WhatsApp Bot</option>
             <option value="ADMIN">Admin Portal</option>
             <option value="API">REST API</option>
           </select>
-          <select value={methodFilter} onChange={e => { setMethodFilter(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700">
+          <select value={methodFilter} onChange={e => { setMethodFilter(e.target.value); setPage(1) }} className="px-3 py-2 rounded-lg border border-stone-200 bg-white text-xs font-medium text-stone-700 h-10">
             <option value="all">All Gateways</option>
             <option value="AMWALPAY">AmwalPay</option>
             <option value="BANK_TRANSFER">Bank Transfer</option>

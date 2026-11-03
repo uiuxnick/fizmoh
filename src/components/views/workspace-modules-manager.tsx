@@ -60,6 +60,7 @@ const MODULE_ICONS: Record<string, any> = {
   WEBSITE: Layers,
   TRAINING: GraduationCap,
   WHITE_LABEL: ShieldCheck,
+  EMAIL_MARKETING: Megaphone,
 }
 
 const MODULE_AR_LABELS: Record<string, { label: string; desc: string }> = {
@@ -94,6 +95,7 @@ const MODULE_AR_LABELS: Record<string, { label: string; desc: string }> = {
   WEBSITE: { label: "منشئ المواقع الذكي", desc: "استوديو سحب وإفلات مع ذكاء اصطناعي وأكثر من 50 عنصراً وقوالب جاهزة." },
   TRAINING: { label: "إدارة الدورات والورش التدريبية", desc: "كتالوج الدورات والتسجيل وتذاكر QR الذكية وشهادات إتمام الدورة." },
   WHITE_LABEL: { label: "بوابة الوكالات والموزعين", desc: "تخصيص الهوية والشعار والنطاق الخاص وإعادة البيع." },
+  EMAIL_MARKETING: { label: "التسويق المتقدم عبر البريد الإلكتروني", desc: "حملات بريدية ذكية، استوديو السحب والإفلات، تدفقات الأتمتة، وإدارة المشتركين." },
 }
 
 interface Props {

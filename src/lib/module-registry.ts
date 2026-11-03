@@ -38,6 +38,7 @@ export const MODULE_REGISTRY = [
   { key: "WEBSITE", label: "Website Builder", description: "Visual drag-and-drop & AI website builder studio with 50+ elements, templates, and publishing engine", group: "Growth", alwaysIncluded: true },
   { key: "WHITE_LABEL", label: "Agency White-Label Reseller", description: "Custom agency branding, sub-account workspace creation, custom domain mapping and margin billing", group: "Growth", alwaysIncluded: false },
   { key: "TRAINING", label: "Training & Course Management", description: "Course catalog, registrations, attendee QR tickets, certificates, offers, and WhatsApp automation", group: "Commerce", alwaysIncluded: false },
+  { key: "EMAIL_MARKETING", label: "Advanced Email Marketing", description: "Enterprise campaigns, drag-and-drop & AI builder, automations, subscriber lists, domain authentication and deliverability", group: "Growth", alwaysIncluded: false },
 ] as const
 
 export type Module = typeof MODULE_REGISTRY[number]["key"]

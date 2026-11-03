@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "../route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 /**
  * Acting on one workspace: suspending it, banning it, letting it back in, moving its plan, or deleting.

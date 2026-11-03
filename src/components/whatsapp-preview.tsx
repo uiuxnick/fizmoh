@@ -68,9 +68,22 @@ export function WhatsAppPreview({
       <div className="mx-auto max-w-[320px]">
         <div className="rounded-lg rounded-tl-none bg-white shadow-sm overflow-hidden">
           {mediaLabel && (
-            <div className="flex h-28 items-center justify-center bg-stone-100 text-xs text-stone-500 border-b">
-              {mediaLabel}
-            </div>
+            headerType === "IMAGE" && headerContent && (headerContent.startsWith("http") || headerContent.startsWith("/")) ? (
+              <div className="relative h-44 w-full overflow-hidden border-b bg-stone-100 flex items-center justify-center">
+                <img
+                  src={headerContent}
+                  alt="Header preview"
+                  className="h-full w-full object-cover"
+                  onError={e => {
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex h-28 items-center justify-center bg-stone-100 text-xs text-stone-500 border-b">
+                {mediaLabel}
+              </div>
+            )
           )}
 
             <div className="px-2.5 py-2 space-y-1 max-h-[min(62vh,560px)] overflow-y-auto overscroll-contain">

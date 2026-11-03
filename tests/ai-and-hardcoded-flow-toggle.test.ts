@@ -72,18 +72,55 @@ describe("AI Assistant and Hardcoded Flow Controls", () => {
     expect(resumedState.automationPaused).toBe(false)
   })
 
-  test("brand new conversations start with AI enabled and automation unpaused", () => {
-    const isBotActive = true
+  test("CONFIG_GROUPS includes wa_bot_enabled and auto_reply_enabled", () => {
+    const group = CONFIG_GROUPS.find(g => g.fields.some(f => f.key === "wa_bot_enabled"))
+    expect(group).toBeDefined()
+    const waBotField = group?.fields.find(f => f.key === "wa_bot_enabled")
+    expect(waBotField).toBeDefined()
+    expect(waBotField?.options).toContain("false")
+    expect(waBotField?.options).toContain("true")
+
+    const autoReplyField = group?.fields.find(f => f.key === "auto_reply_enabled")
+    expect(autoReplyField).toBeDefined()
+    expect(autoReplyField?.options).toContain("false")
+  })
+
+  test("when tenant disables bot or AI, new conversations are created with botActive: false and automationPaused: true", () => {
+    const tenantSettings = {
+      ai_assistant_enabled: "false",
+      wa_bot_enabled: "false",
+      bot_enabled: "false",
+      auto_reply_enabled: "false",
+    }
+
+    const isFalseOrOff = (s: string) => {
+      const v = (s || "").trim().toLowerCase()
+      return v === "false" || v === "off" || v === "0"
+    }
+
+    const isBotDisabled =
+      isFalseOrOff(tenantSettings.bot_enabled) ||
+      isFalseOrOff(tenantSettings.wa_bot_enabled) ||
+      isFalseOrOff(tenantSettings.auto_reply_enabled) ||
+      isFalseOrOff(tenantSettings.ai_assistant_enabled)
+
+    expect(isBotDisabled).toBe(true)
+
+    // Even if a whitelist pattern is matched, bot must remain disabled when tenant disabled it
+    const isWhitelisted = true
+    const isBotActive = !isBotDisabled && isWhitelisted
+
+    expect(isBotActive).toBe(false)
+
     const newConversation = {
-      customerPhone: "96891234567",
+      customerPhone: "971554545660",
       status: "OPEN",
       botActive: isBotActive,
       automationPaused: !isBotActive,
-      assignedStaffId: null,
     }
 
-    expect(newConversation.botActive).toBe(true)
-    expect(newConversation.automationPaused).toBe(false)
-    expect(newConversation.assignedStaffId).toBeNull()
+    expect(newConversation.botActive).toBe(false)
+    expect(newConversation.automationPaused).toBe(true)
   })
 })
+

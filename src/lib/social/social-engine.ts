@@ -155,7 +155,7 @@ export async function processInboundSocialMessage(inbound: InboundSocialMessage)
   // OneSignal, phones via Apple push — so a DM does not go unnoticed just
   // because it arrived on a different channel.
   try {
-    const { getNotificationPrefs } = await import("@/app/api/notification-prefs/route")
+    const { getNotificationPrefs } = await import("@/lib/notification-preferences")
     const prefs = await getNotificationPrefs()
     if (prefs.NEW_MESSAGE !== false) {
       const [{ sendPush }, { pushMessage }] = await Promise.all([import("@/lib/push"), import("@/lib/device-push")])

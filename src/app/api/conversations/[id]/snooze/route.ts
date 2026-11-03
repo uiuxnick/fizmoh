@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { sessionFromRequest } from "@/lib/auth"
 import { publish } from "@/lib/realtime"
 

@@ -8,6 +8,13 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useLanguage } from "@/context/language-context"
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -17,8 +24,9 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers, GraduationCap,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers, GraduationCap, Tag, MoreHorizontal,
 } from "lucide-react"
+import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
 
 import { SessionGuard } from "@/components/session-guard"
 import { Brand } from "@/components/brand"
@@ -75,7 +83,7 @@ interface NavItem {
    * in its plan. The endpoint answers both questions as one boolean, because
    * from the sidebar's point of view they are the same question.
    */
-  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "customer_site" | "website_builder" | "integration" | "white_label" | "training"
+  feature?: "appointments" | "visa" | "tours" | "broadcast" | "flows" | "ai" | "knowledge" | "calls" | "payments" | "platform" | "hospital" | "restaurant" | "catalog" | "woocommerce" | "ecommerce" | "content" | "reports" | "digital_qr" | "reputation" | "digital_vcard" | "social_inbox" | "live_chat" | "corporate" | "inbox" | "crm" | "staff" | "website" | "customer_site" | "website_builder" | "integration" | "white_label" | "training" | "email_marketing"
   badge?: string
   accent?: string
   hash?: string
@@ -153,6 +161,7 @@ const NAV_ITEMS: NavItem[] = [
       { key: "sub-whatsapp", label: "WhatsApp", channel: "WHATSAPP", icon: WhatsAppIcon, accent: "text-[#25D366]" },
       { key: "sub-facebook", label: "Facebook", channel: "FACEBOOK", icon: Facebook, accent: "text-[#1877F2]" },
       { key: "sub-instagram", label: "Instagram", channel: "INSTAGRAM", icon: Instagram, accent: "text-[#E1306C]" },
+      { key: "sub-labels", label: "Manage Labels", icon: Tag, accent: "text-amber-400" },
     ],
   },
   { key: "coupons", label: "Coupons & Promotions", icon: Ticket, group: "Marketing", feature: "tours" },
@@ -160,9 +169,30 @@ const NAV_ITEMS: NavItem[] = [
   { key: "digital-qr", label: "Digital QR Addons", icon: QrCode, group: "Marketing", accent: "text-emerald-600", feature: "digital_qr" },
   { key: "digital-vcard", label: "Digital Business Card", icon: Contact2, group: "Marketing", accent: "text-cyan-500", feature: "digital_vcard" },
   { key: "live-chat", label: "Website Chat Widget", icon: MessageCircle, group: "Marketing", accent: "text-emerald-500", badge: "Addon", feature: "live_chat" },
+  {
+    key: "email-marketing",
+    label: "Email Marketing",
+    icon: Mail,
+    group: "Marketing",
+    feature: "email_marketing",
+    badge: "Enterprise",
+    accent: "text-rose-400",
+    submenu: [
+      { key: "em-dashboard", label: "Dashboard", tab: "dashboard", emoji: "📊", icon: LayoutDashboard },
+      { key: "em-campaigns", label: "Campaigns", tab: "campaigns", emoji: "🚀", icon: Megaphone },
+      { key: "em-subscribers", label: "Subscribers", tab: "subscribers", emoji: "👥", icon: Users },
+      { key: "em-templates", label: "Templates", tab: "templates", emoji: "🎨", icon: FileText },
+      { key: "em-builder", label: "Email Builder", tab: "builder", emoji: "🖌️", icon: Code2 },
+      { key: "em-automations", label: "Automations", tab: "automations", emoji: "⚡", icon: Workflow },
+      { key: "em-forms", label: "Signup Forms", tab: "forms", emoji: "📝", icon: Ticket },
+      { key: "em-analytics", label: "Analytics", tab: "analytics", emoji: "📈", icon: BarChart3 },
+      { key: "em-domains", label: "Domains & Senders", tab: "domains", emoji: "🌐", icon: Globe },
+      { key: "em-settings", label: "Settings & Brand Kit", tab: "settings", emoji: "⚙️", icon: Settings },
+    ],
+  },
   { key: "white-label", label: "Agency White-Label", icon: Building2, group: "Marketing", accent: "text-amber-400", badge: "Agency", feature: "white_label" },
   { key: "customers", label: "Customers & CRM", icon: Users, group: "People", feature: "crm" },
-  { key: "staff", label: "Staff & Roles", icon: UserCog, group: "People", feature: "staff" },
+  { key: "staff", label: "Staff & Roles", icon: UserCog, group: "People" },
   { key: "reports", label: "Reports & Analytics", icon: BarChart3, group: "Insights", feature: "reports" },
   { key: "settings", label: "Settings", icon: Settings, group: "Insights" },
   { key: "audit-logs", label: "Audit Logs", icon: History, group: "Insights" },
@@ -185,7 +215,7 @@ function WorkspaceName() {
     <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700/70 text-slate-200 shadow-2xs">
       <Building2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
       <span className="text-xs font-semibold truncate">{workspace.name}</span>
-      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 ml-auto shrink-0" />
+      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 ms-auto shrink-0" />
     </div>
   )
 }
@@ -255,9 +285,9 @@ function NavButton({
         )}
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", active ? "text-white" : item.accent ? item.accent.replace("text-emerald-600", "text-emerald-400").replace("text-purple-600", "text-purple-400").replace("text-indigo-600", "text-indigo-400").replace("text-amber-600", "text-amber-400").replace("text-teal-600", "text-teal-400").replace("text-blue-600", "text-blue-400") : "text-slate-400 group-hover:text-emerald-400")} />
-        <span className="flex-1 text-left truncate">{item.label}</span>
+        <span className="flex-1 text-left rtl:text-right truncate">{item.label}</span>
         {item.badge && (
-          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 tracking-wider shrink-0 mr-0.5 shadow-2xs">
+          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 tracking-wider shrink-0 me-0.5 shadow-2xs">
             {item.badge}
           </span>
         )}
@@ -286,7 +316,7 @@ function NavButton({
       </a>
 
       {hasSubmenu && expanded && (
-        <div className="pl-3 pr-1 py-1 space-y-1 ml-2.5 border-l-2 border-slate-700/60 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="ps-3 pe-1 py-1 space-y-1 ms-2.5 border-s-2 border-slate-700/60 animate-in fade-in slide-in-from-top-1 duration-150">
           {item.submenu!.map(sub => {
             const SubIcon = sub.icon || Users
             const isSubActive = active && (
@@ -301,6 +331,12 @@ function NavButton({
                 data-tour={"submenu-" + sub.key}
                 onClick={e => {
                   e.stopPropagation()
+                  if (sub.key === "sub-labels") {
+                    window.dispatchEvent(new CustomEvent("fizmoh:manage-labels"))
+                    onSubmenuClick?.("ALL")
+                    onClick()
+                    return
+                  }
                   if (sub.path) {
                     window.open(sub.path, "_blank")
                     return
@@ -415,6 +451,13 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
     }
     return "overview"
   })
+  const [emailMarketingTab, setEmailMarketingTab] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search)
+      return p.get("tab") || "dashboard"
+    }
+    return "dashboard"
+  })
 
   const refreshFeatures = useCallback(async () => {
     try {
@@ -464,6 +507,8 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
           else if (modKey === "live_chat") next.live_chat = enabled
           else if (modKey === "integration") next.integration = enabled
           else if (modKey === "white_label") next.white_label = enabled
+          else if (modKey === "training") next.training = enabled
+          else if (modKey === "email_marketing") next.email_marketing = enabled
           return next
         })
       }
@@ -484,16 +529,24 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
         setCurrentPath(window.location.pathname)
         const p = new URLSearchParams(window.location.search)
         const t = p.get("tab")
-        if (t) setRestaurantTab(t)
+        if (t) {
+          setRestaurantTab(t)
+          setEmailMarketingTab(t)
+        }
       }
       window.addEventListener("popstate", onPop)
       const onTab = (e: any) => {
         if (e?.detail) setRestaurantTab(e.detail)
       }
+      const onEmailTab = (e: any) => {
+        if (e?.detail) setEmailMarketingTab(e.detail)
+      }
       window.addEventListener("restaurant-tab", onTab)
+      window.addEventListener("fizmoh:email-tab", onEmailTab)
       return () => {
         window.removeEventListener("popstate", onPop)
         window.removeEventListener("restaurant-tab", onTab)
+        window.removeEventListener("fizmoh:email-tab", onEmailTab)
       }
     }
   }, [])
@@ -600,8 +653,21 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
                     active={isActive}
                     activeChannel={subscriberChannelFilter}
                     activeCampaignChannel={campaignChannelFilter}
-                    activeTab={item.key === "restaurant" ? restaurantTab : undefined}
+                    activeTab={item.key === "restaurant" ? restaurantTab : item.key === "email-marketing" ? emailMarketingTab : undefined}
                     onTabClick={(tab) => {
+                      if (item.key === "email-marketing") {
+                        setEmailMarketingTab(tab)
+                        if (typeof window !== "undefined") {
+                          const url = new URL(window.location.href)
+                          url.pathname = "/email-marketing"
+                          url.searchParams.set("tab", tab)
+                          window.history.pushState({ view: "email-marketing" }, "", url.toString())
+                          window.dispatchEvent(new CustomEvent("fizmoh:email-tab", { detail: tab }))
+                        }
+                        setView("email-marketing")
+                        onNavigate?.()
+                        return
+                      }
                       setRestaurantTab(tab)
                       if (typeof window !== "undefined") {
                         const url = new URL(window.location.href)
@@ -870,6 +936,7 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
           else if (modKey === "integration") next.integration = enabled
           else if (modKey === "white_label") next.white_label = enabled
           else if (modKey === "training") next.training = enabled
+          else if (modKey === "email_marketing") next.email_marketing = enabled
           return next
         })
       }
@@ -957,7 +1024,7 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
         </div>
 
         {/* Quick Navigation Links */}
-        <nav className="hidden xl:flex items-center gap-1 mr-1">
+        <nav className="hidden xl:flex items-center gap-1 me-1">
           {quickLinks.map(link => {
             const Icon = link.icon
             return (
@@ -984,6 +1051,49 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
           })}
         </nav>
 
+        {/* Quick Links overflow dropdown for screens below xl */}
+        {quickLinks.length > 0 && (
+          <div className="flex xl:hidden items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 rounded-xl text-xs text-stone-600 hover:text-stone-900 hover:bg-stone-100 flex items-center gap-1"
+                  title="Quick navigation"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline text-[11px] font-medium">Shortcuts</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-white shadow-lg border border-stone-200">
+                {quickLinks.map(link => {
+                  const Icon = link.icon
+                  return (
+                    <DropdownMenuItem
+                      key={link.label}
+                      onClick={() => {
+                        setView(link.key)
+                        if (typeof window !== "undefined") {
+                          window.history.pushState({ view: link.key }, "", link.path)
+                          window.dispatchEvent(new Event("popstate"))
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 cursor-pointer text-xs py-2 px-3",
+                        view === link.key ? "bg-emerald-50 text-emerald-900 font-bold" : "text-stone-700"
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5 text-stone-500" />
+                      <span>{link.label}</span>
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         <div data-tour="header-controls" className="flex items-center gap-2 md:gap-3">
           <WorkspaceSwitcher />
           <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[11px] font-medium text-emerald-700">Workspace</span></div>
@@ -1001,7 +1111,7 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
-            className="flex items-center gap-2.5 pl-2 md:pl-3 border-l border-stone-200 hover:bg-stone-50 p-1.5 rounded-xl transition-all cursor-pointer text-left"
+            className="flex items-center gap-2.5 ps-2 md:ps-3 border-s border-stone-200 hover:bg-stone-50 p-1.5 rounded-xl transition-all cursor-pointer text-left rtl:text-right"
             title="Edit My Profile"
           >
             <Avatar className="h-9 w-9 shadow-sm ring-1 ring-stone-200">
@@ -1028,12 +1138,20 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
 
 export default function AppShell({ adminEntry = false, initialView }: { adminEntry?: boolean; initialView?: ViewKey }) {
   const { sidebarOpen, setSidebarOpen, authMode, staffUser, customerUser, logout, setView, setAuthMode, setStaffAuth, view } = useApp()
+  const { dir } = useLanguage()
   const [hydrated, setHydrated] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
   // Null until asked. Rendering the panel and then replacing it with a setup
   // screen a moment later is worse than waiting for the answer.
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [setupDismissed, setSetupDismissed] = useState(false)
+  const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
+
+  useEffect(() => {
+    const handleOpen = () => setManageLabelsOpen(true)
+    window.addEventListener("fizmoh:manage-labels", handleOpen)
+    return () => window.removeEventListener("fizmoh:manage-labels", handleOpen)
+  }, [])
 
   useEffect(() => {
     if (authMode !== "admin" || !staffUser) return
@@ -1170,7 +1288,7 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
   // Show nothing during hydration to prevent mismatch
   if (!hydrated || !sessionReady) {
     return (
-      <div className="flex h-screen items-center justify-center bg-stone-50">
+      <div className="flex h-dvh min-h-dvh items-center justify-center bg-stone-50">
         <div className="h-8 w-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
       </div>
     )
@@ -1207,19 +1325,20 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
   if (authMode === "admin" && staffUser) {
     if (!sessionReady) {
       return (
-        <div className="flex h-screen items-center justify-center bg-stone-50">
+        <div className="flex h-dvh min-h-dvh items-center justify-center bg-stone-50">
           <div className="h-8 w-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
         </div>
       )
     }
+    const drawerSide = dir === "rtl" ? "right" : "left"
     return (
-      <div className="flex h-screen bg-stone-50 overflow-hidden">
+      <div className="flex h-dvh min-h-dvh bg-stone-50 overflow-hidden">
         <SessionGuard />
-        <aside className="hidden lg:flex w-72 shrink-0 border-r border-slate-800 bg-[#0d1520] h-full overflow-hidden">
+        <aside className="hidden lg:flex w-72 shrink-0 border-e border-slate-800 bg-[#0d1520] h-full overflow-hidden">
           <SidebarContent onLogout={() => { logout(); setView("customer-site") }} staffName={staffUser.name} staffRole={staffUser.role} />
         </aside>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="w-72 p-0 h-full">
+          <SheetContent side={drawerSide} className="w-72 p-0 h-full">
             <SidebarContent onNavigate={() => setSidebarOpen(false)} onLogout={() => { logout(); setView("customer-site") }} staffName={staffUser.name} staffRole={staffUser.role} />
           </SheetContent>
         </Sheet>
@@ -1235,6 +1354,7 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
         <GuideTourOverlay />
         <GuideTourModal />
         <NewUpdateModal />
+        <LabelManagerDialog open={manageLabelsOpen} onOpenChange={setManageLabelsOpen} />
       </div>
     )
   }
@@ -1252,7 +1372,7 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
   }
 
   return (
-    <div className="h-screen bg-stone-50 overflow-hidden">
+    <div className="h-dvh min-h-dvh bg-stone-50 overflow-hidden">
       <main className="h-full overflow-y-auto">
         <ViewRouter />
       </main>

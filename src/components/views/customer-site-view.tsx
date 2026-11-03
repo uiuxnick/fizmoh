@@ -42,6 +42,7 @@ import { useApp } from "@/lib/store"
 import RestaurantSiteView from "@/components/restaurant/restaurant-site-view"
 import { PublishedSiteRenderer } from "@/components/website-builder/published-site-renderer"
 import { normalizeWebsiteData } from "@/lib/website-builder-types"
+import { getWebsiteTheme, WEBSITE_THEMES, WebsiteTheme } from "@/lib/website-themes"
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CONSTANTS
@@ -176,6 +177,7 @@ export interface Brand {
   logoUrl: string | null
   primaryColor: string
   accentColor: string
+  theme: WebsiteTheme
   hero: {
     title: string | null
     accent: string | null
@@ -203,6 +205,7 @@ const FALLBACK_BRAND: Brand = {
   logoUrl: null,
   primaryColor: "#0d9488",
   accentColor: "#f59e0b",
+  theme: getWebsiteTheme("emerald_oasis"),
   hero: { title: null, accent: null, subtitle: null, badge: null, image: null },
   story: null,
   mission: null,
@@ -253,12 +256,19 @@ const text = (value: unknown): string | null => {
  */
 function brandFrom(source: Record<string, any>, fallbackName: string): Brand {
   const hero = source.hero ?? {}
+  const themeKey = text(source.theme) ?? text(source.website_theme)
+  const resolvedPrimary = text(source.primaryColor) ?? text(source.website_primary_color)
+  const resolvedTheme = getWebsiteTheme(themeKey || resolvedPrimary)
+  const primaryColor = resolvedPrimary ?? resolvedTheme.primaryColor
+  const accentColor = text(source.accentColor) ?? text(source.website_accent_color) ?? resolvedTheme.accentColor
+
   return {
     name: text(source.name) ?? text(source.business_name) ?? text(source.tenant_name) ?? fallbackName,
     tagline: text(source.tagline) ?? text(source.site_tagline),
     logoUrl: text(source.logoUrl) ?? text(source.website_logo_url) ?? text(source.business_logo),
-    primaryColor: text(source.primaryColor) ?? text(source.website_primary_color) ?? "#0d9488",
-    accentColor: text(source.accentColor) ?? text(source.website_accent_color) ?? "#f59e0b",
+    primaryColor,
+    accentColor,
+    theme: resolvedTheme,
     hero: {
       title: text(hero.title) ?? text(source.site_hero_title),
       accent: text(hero.accent) ?? text(source.site_hero_accent),
@@ -1082,12 +1092,12 @@ function HomePage({ tours, loading, onSelectTour, onNav, onSearch, lang, t, onTr
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-teal-800 to-emerald-900">
+      <section className={`relative overflow-hidden bg-gradient-to-br ${brand.theme.heroGradient}`}>
         <div
           className="absolute inset-0 opacity-25"
           style={{ backgroundImage: `url(${TOUR_IMAGES.desert})`, backgroundSize: "cover", backgroundPosition: "center" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/80 via-teal-900/70 to-emerald-900/85" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${brand.theme.heroOverlay}`} />
         {/* dot pattern */}
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
 
@@ -1236,6 +1246,33 @@ function HomePage({ tours, loading, onSelectTour, onNav, onSearch, lang, t, onTr
           </div>
           {loading ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <SkeletonCard key={i} />)}</div>
+          ) : featured.length === 0 && popular.length === 0 ? (
+            <div className="rounded-2xl border border-stone-200 bg-stone-50/70 p-8 sm:p-12 text-center max-w-2xl mx-auto">
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center mb-4">
+                <Compass className="h-8 w-8 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-bold text-stone-900 mb-2">
+                {lang === "AR" ? "باقات وتجارب جديدة قريباً" : "New Experiences Coming Soon"}
+              </h3>
+              <p className="text-sm text-stone-600 mb-6 leading-relaxed">
+                {lang === "AR"
+                  ? "نقوم حالياً بتجهيز باقات وتجارب استثنائية. يسعدنا تواصلكم المباشر معنا للحجز والاستفسار الفوري."
+                  : "We are currently curating new packages and activities. Feel free to contact our team directly for custom bookings and enquiries."}
+              </p>
+              {brand.phone && (
+                <a
+                  href={`https://wa.me/${brand.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                    `Hello ${brand.name || ""}, I would like to inquire about booking a tour / experience.`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition-colors shadow-sm"
+                >
+                  <WhatsAppIcon className="h-4 w-4" />
+                  {lang === "AR" ? "تواصل معنا عبر واتساب" : "Inquire via WhatsApp"}
+                </a>
+              )}
+            </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {featured.length > 0 ? featured.map((tour) => (
@@ -2474,12 +2511,27 @@ function PaymentPage({
     if (!screenshot) { toast.error("Upload payment screenshot"); return }
     setSubmitting(true)
     try {
+      const formattedAddOns = (booking.addOns || []).map((addonIdOrObj: any) => {
+        if (typeof addonIdOrObj === "object" && addonIdOrObj !== null) {
+          return { id: addonIdOrObj.id, name: addonIdOrObj.name || addonIdOrObj.id }
+        }
+        const found = (tour.addOns || []).find((a: any) => a.id === addonIdOrObj)
+        return found ? { id: found.id, name: found.name } : { id: String(addonIdOrObj), name: String(addonIdOrObj) }
+      })
+
       const orderRes = await fetch(api("/api/orders"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tourId: tour.id, slotId: slot.id, paxAdult, paxChild,
-          addOns: booking.addOns || [], customer, paymentMethod: "BANK_TRANSFER",
+          addOns: formattedAddOns,
+          customer,
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerEmail: customer.email || undefined,
+          pickupLocation: customer.pickup || undefined,
+          specialRequests: customer.requests || undefined,
+          paymentMethod: "BANK_TRANSFER",
           channel: "WEB", couponCode, discount,
           totalAmount: total, subtotal, vatAmount: vat,
         }),
@@ -2509,12 +2561,27 @@ function PaymentPage({
     if (!cvv.match(/^\d{3,4}$/)) { toast.error("Enter valid CVV"); return }
     setSubmitting(true)
     try {
+      const formattedAddOns = (booking.addOns || []).map((addonIdOrObj: any) => {
+        if (typeof addonIdOrObj === "object" && addonIdOrObj !== null) {
+          return { id: addonIdOrObj.id, name: addonIdOrObj.name || addonIdOrObj.id }
+        }
+        const found = (tour.addOns || []).find((a: any) => a.id === addonIdOrObj)
+        return found ? { id: found.id, name: found.name } : { id: String(addonIdOrObj), name: String(addonIdOrObj) }
+      })
+
       const orderRes = await fetch(api("/api/orders"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tourId: tour.id, slotId: slot.id, paxAdult, paxChild,
-          addOns: booking.addOns || [], customer, paymentMethod: "AMWALPAY",
+          addOns: formattedAddOns,
+          customer,
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerEmail: customer.email || undefined,
+          pickupLocation: customer.pickup || undefined,
+          specialRequests: customer.requests || undefined,
+          paymentMethod: "AMWALPAY",
           channel: "WEB", couponCode, discount,
           totalAmount: total, subtotal, vatAmount: vat,
         }),
@@ -4309,15 +4376,23 @@ export default function CustomerSiteView({
   initialIsRestaurant = false,
   initialPublishedWebsite = null,
   initialTours = [],
+  initialTheme,
 }: {
   slug?: string
   initialIsRestaurant?: boolean
   initialPublishedWebsite?: any[] | null
   initialTours?: any[]
+  initialTheme?: string
 } = {}) {
   const [isRestaurant, setIsRestaurant] = useState(initialIsRestaurant)
   const [restaurantData, setRestaurantData] = useState<any>(null)
-  const [brand, setBrand] = useState<Brand>(FALLBACK_BRAND)
+  const [brand, setBrand] = useState<Brand>(() => {
+    if (initialTheme) {
+      const th = getWebsiteTheme(initialTheme)
+      return { ...FALLBACK_BRAND, theme: th, primaryColor: th.primaryColor, accentColor: th.accentColor }
+    }
+    return FALLBACK_BRAND
+  })
   const setView = useApp((s) => s.setView)
   const setAuthMode = useApp((s) => s.setAuthMode)
   const setSelectedTour = useApp((s) => s.setSelectedTour)
@@ -4398,7 +4473,13 @@ export default function CustomerSiteView({
     fetch(url)
       .then(r => r.json())
       .then(d => {
-        setBrand(brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? ""))
+        const resolved = brandFrom(d.shop ?? d.settings ?? {}, d.shop?.name ?? d.settings?.tenant_name ?? "")
+        if (initialTheme) {
+          const th = getWebsiteTheme(initialTheme)
+          setBrand({ ...resolved, theme: th, primaryColor: th.primaryColor, accentColor: th.accentColor })
+        } else {
+          setBrand(resolved)
+        }
         if (d.publishedWebsite) {
           setPublishedWebsite(d.publishedWebsite)
         } else if (d.branding?.website_published_json) {

@@ -9,7 +9,7 @@ import { buildSegmentWhere, consentFilter, parseFilterRules } from "@/lib/segmen
  */
 export const GET = withErrors(withModule("BROADCAST", async (
   request: NextRequest,
-  context?: { params?: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const params = await context?.params
   const id = params?.id
@@ -46,7 +46,7 @@ export const GET = withErrors(withModule("BROADCAST", async (
 
 export const PATCH = withErrors(withModule("BROADCAST", async (
   request: NextRequest,
-  context?: { params?: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const params = await context?.params
   const id = params?.id
@@ -93,7 +93,7 @@ export const PATCH = withErrors(withModule("BROADCAST", async (
 
 export const DELETE = withErrors(withModule("BROADCAST", async (
   request: NextRequest,
-  context?: { params?: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const params = await context?.params
   const id = params?.id

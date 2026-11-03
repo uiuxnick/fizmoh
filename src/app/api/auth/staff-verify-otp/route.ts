@@ -11,6 +11,8 @@ const schema = z.object({
   otp: z.string().trim().regex(/^\d{6}$/),
 })
 
+export const OPTIONS = withErrors(async () => new NextResponse(null, { status: 204 }))
+
 /** Exchanges a valid code for a session, exactly as a password would. */
 export const POST = withErrors(async (request: NextRequest) => {
   const rate = await checkRateLimit(`staff-verify:${requestIp(request.headers)}`, 10, 15 * 60 * 1000)

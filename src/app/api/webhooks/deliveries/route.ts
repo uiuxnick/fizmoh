@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db, raw } from "@/lib/db"
 import { currentTenant } from "@/lib/tenant"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "@/app/api/platform/tenants/route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
 
 export const GET = withErrors(async (request: NextRequest) => {
   const isPlatformAdmin = await requirePlatformAdmin(request)

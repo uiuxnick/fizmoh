@@ -176,6 +176,41 @@ export const PATCH = withErrors(async (request: NextRequest, { params }: { param
       where: { customerId: id },
       data: { labels: parsedTagList },
     }).catch(() => {})
+
+    // Check newly added tags for automated TAG_ADDED drip sequences
+    let oldTags: string[] = []
+    if (Array.isArray(existing.tags)) oldTags = existing.tags.map(String)
+    else if (typeof existing.tags === "string") {
+      try {
+        const parsed = JSON.parse(existing.tags)
+        if (Array.isArray(parsed)) oldTags = parsed.map(String)
+      } catch {
+        oldTags = existing.tags.split(",").map(t => t.trim())
+      }
+    }
+    const newlyAddedTags = parsedTagList.filter(t => !oldTags.includes(t))
+    if (newlyAddedTags.length > 0 && existing.tenantId) {
+      const { handleSequenceTriggerEvent } = await import("@/lib/sequences")
+      for (const t of newlyAddedTags) {
+        handleSequenceTriggerEvent({
+          tenantId: existing.tenantId,
+          customerId: id,
+          trigger: "TAG_ADDED",
+          tag: t,
+        }).catch(() => {})
+      }
+    }
+  }
+
+  // Trigger STAGE_CHANGE if loyalty tier changed
+  if (loyaltyTier !== undefined && loyaltyTier !== existing.loyaltyTier && existing.tenantId) {
+    const { handleSequenceTriggerEvent } = await import("@/lib/sequences")
+    handleSequenceTriggerEvent({
+      tenantId: existing.tenantId,
+      customerId: id,
+      trigger: "STAGE_CHANGE",
+      stage: loyaltyTier,
+    }).catch(() => {})
   }
 
   // Create consent logs (after update so the FK is solid)

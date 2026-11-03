@@ -5,7 +5,7 @@ import { sendMediaMessage, sendLocationMessage } from "@/lib/whatsapp"
 import { publish } from "@/lib/realtime"
 import { aiChat, detectIntent } from "@/lib/ai"
 import { isSessionOpen } from "@/lib/whatsapp-session"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { withinLimit, limitReached } from "@/lib/entitlements"
 
 // Get messages for a conversation + send new message
@@ -32,12 +32,12 @@ export const GET = withErrors(async (request: NextRequest, { params }: { params:
     where: { id },
     include: {
       customer: true,
-      assignedStaff: true,
+      assignedStaff: { omit: { passwordHash: true } },
       // The conversation itself, its notes and the session window always come
       // back in full: they are small, and they change in ways no cursor over
       // messages would ever reveal.
       messages: tail ? false : { orderBy: { createdAt: "asc" } },
-      notes: { include: { staff: true }, orderBy: { createdAt: "desc" } },
+      notes: { include: { staff: { omit: { passwordHash: true } } }, orderBy: { createdAt: "desc" } },
     },
   })
   if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })

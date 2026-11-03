@@ -2,21 +2,8 @@ import { db } from "@/lib/db"
 import { PLATFORM } from "@/lib/tenant"
 import { indexSource } from "@/lib/knowledge"
 
-export interface LearnedFact {
-  question: string
-  answer: string
-  topic?: string
-  confidence?: number
-}
-
-export interface ConversationLearningResult {
-  conversationId: string
-  learnings: LearnedFact[]
-  sourceId?: string
-  chunksCreated?: number
-  autoLearned?: boolean
-  error?: string
-}
+export * from "@/lib/chat-training-types"
+import type { LearnedFact, CandidateLearning, AutoLearnConfig, ConversationLearningResult } from "@/lib/chat-training-types"
 
 /**
  * Heuristic fallback extraction in case AI model API is unavailable or returns non-JSON
@@ -182,64 +169,297 @@ export async function saveLearnedKnowledge(
  * Check if auto-learning from resolved chats is enabled for workspace
  */
 export async function isAutoLearnEnabled(tenantId: string): Promise<boolean> {
-  const tid = tenantId || PLATFORM
-  const setting = await db.systemSetting.findFirst({
-    where: { key: "ai_auto_learn_chats", tenantId: tid },
-  })
-  return setting?.value === "true"
+  const cfg = await getAutoLearnConfig(tenantId)
+  return cfg.enabled
 }
 
 /**
  * Set auto-learning setting
  */
 export async function setAutoLearnEnabled(tenantId: string, enabled: boolean): Promise<void> {
+  await saveAutoLearnConfig(tenantId, { enabled })
+}
+
+/**
+ * Get comprehensive auto-learning configuration
+ */
+export async function getAutoLearnConfig(tenantId: string): Promise<AutoLearnConfig> {
   const tid = tenantId || PLATFORM
-  await db.systemSetting.upsert({
-    where: {
-      tenantId_key: { tenantId: tid, key: "ai_auto_learn_chats" },
-    },
-    update: {
-      value: enabled ? "true" : "false",
-      type: "BOOLEAN",
-      category: "AI",
-    },
-    create: {
-      tenantId: tid,
-      key: "ai_auto_learn_chats",
-      value: enabled ? "true" : "false",
-      type: "BOOLEAN",
-      category: "AI",
-    },
+  const setting = await db.systemSetting.findFirst({
+    where: { key: "ai_auto_learn_config", tenantId: tid },
   })
+  if (setting?.value) {
+    try {
+      const cfg = JSON.parse(setting.value)
+      return {
+        enabled: cfg.enabled ?? false,
+        requireApproval: cfg.requireApproval ?? true,
+        minConfidence: cfg.minConfidence ?? 0.75,
+      }
+    } catch {}
+  }
+  // Check legacy setting
+  const legacySetting = await db.systemSetting.findFirst({
+    where: { key: "ai_auto_learn_chats", tenantId: tid },
+  })
+  return {
+    enabled: legacySetting?.value === "true",
+    requireApproval: true,
+    minConfidence: 0.75,
+  }
+}
+
+/**
+ * Save updated auto-learning configuration
+ */
+export async function saveAutoLearnConfig(
+  tenantId: string,
+  config: Partial<AutoLearnConfig>
+): Promise<AutoLearnConfig> {
+  const tid = tenantId || PLATFORM
+  const current = await getAutoLearnConfig(tid)
+  const updated: AutoLearnConfig = {
+    enabled: config.enabled !== undefined ? config.enabled : current.enabled,
+    requireApproval: config.requireApproval !== undefined ? config.requireApproval : current.requireApproval,
+    minConfidence: config.minConfidence !== undefined ? config.minConfidence : current.minConfidence,
+    autoIndexFaqs: config.autoIndexFaqs !== undefined ? config.autoIndexFaqs : (current.autoIndexFaqs ?? true),
+  }
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: "ai_auto_learn_config" } },
+    update: { value: JSON.stringify(updated), type: "JSON", category: "AI" },
+    create: { tenantId: tid, key: "ai_auto_learn_config", value: JSON.stringify(updated), type: "JSON", category: "AI" },
+  })
+
+  // Also sync legacy key for backward compatibility
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: "ai_auto_learn_chats" } },
+    update: { value: updated.enabled ? "true" : "false", type: "BOOLEAN", category: "AI" },
+    create: { tenantId: tid, key: "ai_auto_learn_chats", value: updated.enabled ? "true" : "false", type: "BOOLEAN", category: "AI" },
+  }).catch(() => {})
+
+  return updated
+}
+
+/**
+ * Get items from the chat learnings review queue
+ */
+export async function getLearningsQueue(
+  tenantId: string,
+  filterStatus?: "PENDING" | "APPROVED" | "DISMISSED" | "ALL"
+): Promise<CandidateLearning[]> {
+  const tid = tenantId || PLATFORM
+  const setting = await db.systemSetting.findFirst({
+    where: { key: "ai_chat_learnings_queue", tenantId: tid },
+  })
+  if (!setting?.value) return []
+  try {
+    const list: CandidateLearning[] = JSON.parse(setting.value)
+    if (!Array.isArray(list)) return []
+    if (!filterStatus || filterStatus === "ALL") return list
+    return list.filter(item => item.status === filterStatus)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Add extracted chat facts into the review queue
+ */
+export async function queueLearnings(
+  tenantId: string,
+  conversationId: string,
+  facts: LearnedFact[]
+): Promise<CandidateLearning[]> {
+  const tid = tenantId || PLATFORM
+  const existing = await getLearningsQueue(tid, "ALL")
+  const now = new Date().toISOString()
+
+  const newCandidates: CandidateLearning[] = facts.map((fact, idx) => ({
+    id: `cl_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+    conversationId,
+    question: fact.question,
+    answer: fact.answer,
+    topic: fact.topic || "General",
+    confidence: fact.confidence ?? 0.85,
+    status: "PENDING",
+    extractedAt: now,
+  }))
+
+  const combined = [...newCandidates, ...existing].slice(0, 500)
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: "ai_chat_learnings_queue" } },
+    update: { value: JSON.stringify(combined), type: "JSON", category: "AI" },
+    create: { tenantId: tid, key: "ai_chat_learnings_queue", value: JSON.stringify(combined), type: "JSON", category: "AI" },
+  })
+
+  return newCandidates
+}
+
+/**
+ * Approve a pending candidate and index it into the KnowledgeBase
+ */
+export async function approveLearning(
+  tenantId: string,
+  candidateId: string,
+  staffId?: string,
+  overrideQA?: { question?: string; answer?: string; topic?: string }
+): Promise<{ success: boolean; sourceId?: string }> {
+  const tid = tenantId || PLATFORM
+  const existing = await getLearningsQueue(tid, "ALL")
+  const itemIndex = existing.findIndex(c => c.id === candidateId)
+  if (itemIndex < 0) throw new Error("Candidate learning not found")
+
+  const item = existing[itemIndex]
+  const question = overrideQA?.question || item.question
+  const answer = overrideQA?.answer || item.answer
+  const topic = overrideQA?.topic || item.topic || "General"
+
+  // Index into Knowledge Base
+  const saved = await saveLearnedKnowledge(
+    tid,
+    item.conversationId,
+    [{ question, answer, topic, confidence: item.confidence }],
+    staffId
+  )
+
+  item.question = question
+  item.answer = answer
+  item.topic = topic
+  item.status = "APPROVED"
+  item.reviewedAt = new Date().toISOString()
+  item.reviewedBy = staffId || "staff"
+  item.sourceId = saved.sourceId
+
+  existing[itemIndex] = item
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: "ai_chat_learnings_queue" } },
+    update: { value: JSON.stringify(existing) },
+    create: { tenantId: tid, key: "ai_chat_learnings_queue", value: JSON.stringify(existing), type: "JSON", category: "AI" },
+  })
+
+  return { success: true, sourceId: saved.sourceId }
+}
+
+/**
+ * Dismiss a candidate from the review queue
+ */
+export async function dismissLearning(
+  tenantId: string,
+  candidateId: string,
+  staffId?: string
+): Promise<{ success: boolean }> {
+  const tid = tenantId || PLATFORM
+  const existing = await getLearningsQueue(tid, "ALL")
+  const itemIndex = existing.findIndex(c => c.id === candidateId)
+  if (itemIndex < 0) throw new Error("Candidate learning not found")
+
+  existing[itemIndex].status = "DISMISSED"
+  existing[itemIndex].reviewedAt = new Date().toISOString()
+  existing[itemIndex].reviewedBy = staffId || "staff"
+
+  await db.systemSetting.upsert({
+    where: { tenantId_key: { tenantId: tid, key: "ai_chat_learnings_queue" } },
+    update: { value: JSON.stringify(existing) },
+    create: { tenantId: tid, key: "ai_chat_learnings_queue", value: JSON.stringify(existing), type: "JSON", category: "AI" },
+  })
+
+  return { success: true }
+}
+
+/**
+ * Batch approve multiple candidates
+ */
+export async function batchApproveLearnings(
+  tenantId: string,
+  candidateIds: string[],
+  staffId?: string
+): Promise<{ approvedCount: number }> {
+  let count = 0
+  for (const cid of candidateIds) {
+    try {
+      await approveLearning(tenantId, cid, staffId)
+      count++
+    } catch {}
+  }
+  return { approvedCount: count }
+}
+
+/**
+ * Batch dismiss multiple candidates
+ */
+export async function batchDismissLearnings(
+  tenantId: string,
+  candidateIds: string[],
+  staffId?: string
+): Promise<{ dismissedCount: number }> {
+  let count = 0
+  for (const cid of candidateIds) {
+    try {
+      await dismissLearning(tenantId, cid, staffId)
+      count++
+    } catch {}
+  }
+  return { dismissedCount: count }
 }
 
 /**
  * Triggered automatically when a conversation is marked as RESOLVED.
- * If auto-learn is enabled, extracts facts and saves them to knowledge base.
+ * If auto-learn is enabled, extracts facts and queues or saves them to knowledge base.
  */
 export async function handleConversationAutoLearn(
   conversationId: string,
   tenantId?: string
 ): Promise<ConversationLearningResult | null> {
   const tid = tenantId || PLATFORM
-  const enabled = await isAutoLearnEnabled(tid)
-  if (!enabled) return null
+  const config = await getAutoLearnConfig(tid)
+  if (!config.enabled) return null
 
   // Ensure conversation exists and has messages
   const learnings = await analyzeConversationForLearning(conversationId, tid)
   if (!learnings || learnings.length === 0) return null
 
-  // Filter only high confidence learnings for auto-indexing (>= 0.85)
-  const highConfidence = learnings.filter(l => (l.confidence ?? 0.8) >= 0.8)
-  if (highConfidence.length === 0) return null
+  // Filter confidence threshold
+  const validLearnings = learnings.filter(l => (l.confidence ?? 0.8) >= config.minConfidence)
+  if (validLearnings.length === 0) return null
 
-  const saved = await saveLearnedKnowledge(tid, conversationId, highConfidence)
+  if (config.requireApproval) {
+    // Queue for staff review
+    await queueLearnings(tid, conversationId, validLearnings)
+    return {
+      conversationId,
+      learnings: validLearnings,
+      autoLearned: false,
+    }
+  } else {
+    // Directly index high-confidence learnings
+    const saved = await saveLearnedKnowledge(tid, conversationId, validLearnings)
+    // Also record in queue as approved for traceability
+    const queued = await queueLearnings(tid, conversationId, validLearnings)
+    const existing = await getLearningsQueue(tid, "ALL")
+    for (const q of queued) {
+      const idx = existing.findIndex(e => e.id === q.id)
+      if (idx >= 0) {
+        existing[idx].status = "APPROVED"
+        existing[idx].sourceId = saved.sourceId
+        existing[idx].reviewedAt = new Date().toISOString()
+        existing[idx].reviewedBy = "auto-indexer"
+      }
+    }
+    await db.systemSetting.upsert({
+      where: { tenantId_key: { tenantId: tid, key: "ai_chat_learnings_queue" } },
+      update: { value: JSON.stringify(existing) },
+      create: { tenantId: tid, key: "ai_chat_learnings_queue", value: JSON.stringify(existing), type: "JSON", category: "AI" },
+    }).catch(() => {})
 
-  return {
-    conversationId,
-    learnings: highConfidence,
-    sourceId: saved.sourceId,
-    chunksCreated: saved.chunkCount,
-    autoLearned: true,
+    return {
+      conversationId,
+      learnings: validLearnings,
+      sourceId: saved.sourceId,
+      chunksCreated: saved.chunkCount,
+      autoLearned: true,
+    }
   }
 }

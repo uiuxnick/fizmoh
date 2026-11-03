@@ -150,39 +150,44 @@ export default async function Page() {
         take: 50,
       })
 
-      // If no native tours, check if tenant has products in WooCommerce cache
+      // Only load WooCommerce products if THIS tenant has connected their own WooCommerce store
       if (tours.length === 0) {
-        const wcCache = await raw.systemSetting.findFirst({
-          where: { tenantId: tenant.id, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+        const wcConfig = await raw.systemSetting.findFirst({
+          where: { tenantId: tenant.id, key: "WOOCOMMERCE_SETTINGS" },
         })
-        if (wcCache?.value) {
-          try {
-            const parsed = JSON.parse(wcCache.value)
-            const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
-            if (productsList.length > 0) {
-              tours = productsList.slice(0, 60).map((p: any) => ({
-                id: String(p.id),
-                tenantId: tenant.id,
-                slug: p.slug || `product-${p.id}`,
-                name: p.name,
-                nameAr: null,
-                description: (p.short_description || p.description || "").replace(/<[^>]*>/g, "").slice(0, 500),
-                media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
-                basePrice: Number(p.price || p.regular_price || 0),
-                childPrice: null,
-                currency: "OMR",
-                durationHours: 1,
-                city: "Muscat",
-                category: p.categories?.[0]?.name || "Products",
-                featured: Boolean(p.featured),
-                rating: Number(p.average_rating) || 5,
-                reviewCount: Number(p.rating_count) || 1,
-                status: "ACTIVE",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              })) as any
-            }
-          } catch {}
+        if (wcConfig?.value) {
+          const wcCache = await raw.systemSetting.findFirst({
+            where: { tenantId: tenant.id, key: "WOOCOMMERCE_PRODUCTS_CACHE" },
+          })
+          if (wcCache?.value) {
+            try {
+              const parsed = JSON.parse(wcCache.value)
+              const productsList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.products) ? parsed.products : [])
+              if (productsList.length > 0) {
+                tours = productsList.slice(0, 60).map((p: any) => ({
+                  id: String(p.id),
+                  tenantId: tenant.id,
+                  slug: p.slug || `product-${p.id}`,
+                  name: p.name,
+                  nameAr: null,
+                  description: (p.short_description || p.description || "").replace(/<[^>]*>/g, "").slice(0, 500),
+                  media: JSON.stringify(p.images?.map((img: any) => img.src) || []),
+                  basePrice: Number(p.price || p.regular_price || 0),
+                  childPrice: null,
+                  currency: "OMR",
+                  durationHours: 1,
+                  city: "Muscat",
+                  category: p.categories?.[0]?.name || "Products",
+                  featured: Boolean(p.featured),
+                  rating: Number(p.average_rating) || 5,
+                  reviewCount: Number(p.rating_count) || 1,
+                  status: "ACTIVE",
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                })) as any
+              }
+            } catch {}
+          }
         }
       }
 

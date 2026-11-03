@@ -71,7 +71,8 @@ export const GET = withErrors(async (
     })
 
     if (tourList.length === 0) {
-      const wcSetting = settings.find(s => s.key === "WOOCOMMERCE_PRODUCTS_CACHE")
+      const hasWcConfig = Boolean(settings.find(s => s.key === "WOOCOMMERCE_SETTINGS")?.value)
+      const wcSetting = hasWcConfig ? settings.find(s => s.key === "WOOCOMMERCE_PRODUCTS_CACHE") : null
       if (wcSetting?.value) {
         try {
           const parsed = JSON.parse(wcSetting.value)

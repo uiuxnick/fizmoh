@@ -24,8 +24,13 @@ export const GET = withErrors(withModule("DIGITAL_QR", async (request: NextReque
   const url = await businessConsentUrl(baseUrl, state)
   if (!url) return NextResponse.json({ error: "Could not build the consent URL" }, { status: 500 })
 
+  const returnTo = request.nextUrl.searchParams.get("returnTo") || "/digital-qr"
+
   const response = NextResponse.json({ url })
   response.cookies.set("google_business_oauth_state", state, {
+    httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/",
+  })
+  response.cookies.set("google_business_return_to", returnTo, {
     httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/",
   })
   return response

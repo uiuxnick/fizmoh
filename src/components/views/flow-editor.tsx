@@ -21,6 +21,7 @@ import { BOT_TEMPLATES, type FlowTemplate } from "@/lib/bot-templates"
 import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
 import { normalizeFlowGraph } from "@/lib/flow-normalizer"
 import { parseExternalFlow, type DynamicSuggestion, type ImportResult } from "@/lib/flow-importer"
+import { generateSampleFlowAnalytics, type NodeAnalytics } from "@/lib/flow-analytics"
 
 // ─── Public types (consumed by bot-builder-view) ─────────────────────────────
 
@@ -314,6 +315,18 @@ function nodeBranches(type: string): string[] {
   return []
 }
 
+function getBranchOffset(type: string, branch?: string): number {
+  const branches = nodeBranches(type)
+  if (!branches.length || !branch || branch === "default") return 0
+  const idx = branches.indexOf(branch)
+  if (idx === -1) return 0
+  if (branches.length === 2) {
+    return idx === 0 ? -38 : 38
+  }
+  const total = (branches.length - 1) * 38
+  return idx * 38 - total / 2
+}
+
 // ─── Parse / Compile (for API compatibility) ──────────────────────────────────
 
 function parseJson<T>(value: unknown, fallback: T): T {
@@ -418,8 +431,15 @@ export function FlowEditor({
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [analyticsData, setAnalyticsData] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false)
+  const [mobileWarningDismissed, setMobileWarningDismissed] = useState(false)
 
-  const loadAnalytics = useCallback(async (flowId: string) => {
+  const loadAnalytics = useCallback(async (flowId?: string) => {
+    if (!flowId) {
+      const sample = generateSampleFlowAnalytics("draft-flow", nodes.map(n => n.id))
+      setAnalyticsData(sample)
+      return
+    }
     setLoadingAnalytics(true)
     try {
       const res = await fetch(`/api/botflows/${flowId}/analytics`)
@@ -434,7 +454,7 @@ export function FlowEditor({
     } finally {
       setLoadingAnalytics(false)
     }
-  }, [])
+  }, [nodes])
 
   // Importer state
   const [showImporter, setShowImporter] = useState(false)
@@ -860,6 +880,17 @@ export function FlowEditor({
         }
         const outs = outEdges(cur.id)
         if (outs.length === 0) break
+        if (cur.type === "AI_KNOWLEDGE") {
+          const answered = outs.find(e => e.label === "answered")
+          const fallback = outs.find(e => e.label === "fallback")
+          const nextEdge = answered || fallback || outs[0]
+          newLines.push({
+            from: "bot",
+            text: `↳ [RAG] Traversing branch: [${nextEdge.label || "default"}] → Node "${nextEdge.target}"`,
+          })
+          cur = byId.get(nextEdge.target)
+          continue
+        }
         cur = byId.get(outs[0].target)
       }
     }
@@ -943,26 +974,37 @@ export function FlowEditor({
         onClick={e => e.stopPropagation()}
       >
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-stone-50 shrink-0">
-          <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b bg-stone-50 shrink-0">
+          <div className="flex-1 min-w-[140px] max-w-full">
             <input
-              className="font-bold text-stone-800 text-base bg-transparent border-0 outline-none w-full truncate"
+              className="font-bold text-stone-800 text-sm sm:text-base bg-transparent border-0 outline-none w-full truncate"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Flow name…"
             />
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Switch checked={isActive} onCheckedChange={setIsActive} />
-            <span className="text-xs text-stone-500 mr-2">{isActive ? "Live" : "Paused"}</span>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 text-purple-700 hover:bg-purple-100 font-medium" onClick={() => setShowImporter(true)}>
-              <Sparkles className="h-3.5 w-3.5 text-purple-600" /> Import Flow (AI)
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 flex-wrap justify-end">
+            <div className="flex items-center gap-1 me-1 sm:me-2">
+              <Switch checked={isActive} onCheckedChange={setIsActive} />
+              <span className="text-[11px] sm:text-xs text-stone-500">{isActive ? "Live" : "Paused"}</span>
+            </div>
+            {/* Mobile palette trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1 md:hidden"
+              onClick={() => setMobilePaletteOpen(!mobilePaletteOpen)}
+            >
+              <Plus className="h-3.5 w-3.5" /> Nodes
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1 hidden sm:inline-flex bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 text-purple-700 hover:bg-purple-100 font-medium" onClick={() => setShowImporter(true)}>
+              <Sparkles className="h-3.5 w-3.5 text-purple-600" /> <span className="hidden md:inline">Import Flow (AI)</span><span className="md:hidden">Import</span>
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowTemplates(true)}>
-              <Star className="h-3.5 w-3.5" /> Templates
+              <Star className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Templates</span>
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setSettingsOpen(!settingsOpen)}>
-              <Settings className="h-3.5 w-3.5" /> Settings
+              <Settings className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Settings</span>
             </Button>
             <Button
               variant={showAnalytics ? "default" : "outline"}
@@ -975,29 +1017,44 @@ export function FlowEditor({
               onClick={() => {
                 const next = !showAnalytics
                 setShowAnalytics(next)
-                if (next && flow?.id) {
-                  loadAnalytics(flow.id)
+                if (next) {
+                  loadAnalytics(flow?.id)
                 }
               }}
             >
               {loadingAnalytics ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />}
-              Analytics
+              <span className="hidden sm:inline">Analytics</span>
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowSimulator(!showSimulator)}>
-              <Play className="h-3.5 w-3.5" /> Simulate
+              <Play className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Simulate</span>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-h-[36px] min-w-[36px]" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
+
+        {/* ── Mobile View Advisory Notice (<640px) ────────────────────────── */}
+        {!mobileWarningDismissed && (
+          <div className="sm:hidden bg-amber-50 border-b border-amber-200 px-3 py-1.5 flex items-center justify-between text-[11px] text-amber-900 shrink-0">
+            <span className="flex items-center gap-1.5 truncate">
+              💡 <span>Canvas editing is optimized for tablets &amp; desktop.</span>
+            </span>
+            <button
+              onClick={() => setMobileWarningDismissed(true)}
+              className="font-bold text-amber-700 hover:text-amber-900 ms-2 shrink-0 px-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* ── Settings panel (collapsible) ────────────────────────────────── */}
         {settingsOpen && (
           <div className="border-b bg-stone-50/80 px-4 py-3 grid sm:grid-cols-3 gap-4 shrink-0">
             <div>
               <label className="text-xs font-medium text-stone-600 block mb-1">Trigger</label>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 {[["KEYWORD", "Keyword"], ["INTENT", "Intent"], ["NEW_CONVERSATION", "Welcome"], ["SCHEDULE", "Schedule"]].map(([v, l]) => (
                   <button key={v} disabled={v === "SCHEDULE" && channels.some(c => c !== "WHATSAPP")} title={v === "SCHEDULE" && channels.some(c => c !== "WHATSAPP") ? "Scheduled flows currently support WhatsApp only" : undefined} onClick={() => setTrigger(v)}
                     className={`px-3 py-1 rounded text-xs font-medium ${trigger === v ? "bg-emerald-600 text-white" : "bg-white border text-stone-600"}`}>
@@ -1043,62 +1100,78 @@ export function FlowEditor({
         )}
 
         {/* ── AI draft bar ────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 shrink-0">
-          <Wand2 className="h-4 w-4 text-amber-600 shrink-0" />
-          <Input
-            className="h-8 text-xs bg-white flex-1"
-            placeholder='Describe your flow… or attach a flowchart image / architecture sketch to auto-build'
-            value={aiPrompt}
-            onChange={e => setAiPrompt(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") askAI() }}
-          />
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            className="hidden"
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const reader = new FileReader()
-              reader.onload = ev => {
-                setAiImage(ev.target?.result as string)
-                toast.success("Flowchart image attached! Click 'AI Draft' to generate.")
-              }
-              reader.readAsDataURL(file)
-            }}
-          />
-          {aiImage ? (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-100/90 border border-amber-300 rounded-md shrink-0">
-              <img src={aiImage} alt="Flowchart Diagram" className="h-6 w-6 object-cover rounded shadow-sm" />
-              <span className="text-[11px] font-semibold text-amber-900">Diagram Attached</span>
-              <button onClick={() => { setAiImage(null); if (fileInputRef.current) fileInputRef.current.value = "" }} className="text-amber-700 hover:text-red-500 ml-0.5">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1.5 bg-white shrink-0 text-stone-700 hover:bg-amber-100/50"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImageIcon className="h-3.5 w-3.5 text-amber-600" />
-              Attach Diagram Image
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 px-3 sm:px-4 py-2 border-b bg-gradient-to-r from-amber-50/80 via-orange-50/50 to-amber-50/80 shrink-0">
+          <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+            <Wand2 className="h-4 w-4 text-amber-600 shrink-0" />
+            <Input
+              className="h-8 text-xs bg-white flex-1"
+              placeholder='Describe flow or attach diagram image…'
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") askAI() }}
+            />
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = ev => {
+                  setAiImage(ev.target?.result as string)
+                  toast.success("Flowchart image attached! Click 'AI Draft' to generate.")
+                }
+                reader.readAsDataURL(file)
+              }}
+            />
+            {aiImage ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-100/90 border border-amber-300 rounded-md shrink-0">
+                <img src={aiImage} alt="Flowchart Diagram" className="h-6 w-6 object-cover rounded shadow-sm" />
+                <span className="text-[11px] font-semibold text-amber-900 hidden sm:inline">Diagram Attached</span>
+                <button onClick={() => { setAiImage(null); if (fileInputRef.current) fileInputRef.current.value = "" }} className="text-amber-700 hover:text-red-500 ml-0.5">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1 bg-white shrink-0 text-stone-700 hover:bg-amber-100/50"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon className="h-3.5 w-3.5 text-amber-600" />
+                <span className="hidden sm:inline">Attach Diagram</span>
+              </Button>
+            )}
+            <Button size="sm" className="h-8 bg-amber-600 hover:bg-amber-700 text-white shrink-0 gap-1 font-semibold text-xs" onClick={askAI} disabled={drafting}>
+              {drafting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Sparkles className="h-3.5 w-3.5" /> <span className="hidden sm:inline">AI Build</span><span className="sm:hidden">Build</span></>}
             </Button>
-          )}
-          <Button size="sm" className="h-8 bg-amber-600 hover:bg-amber-700 text-white shrink-0 gap-1.5 font-semibold" onClick={askAI} disabled={drafting}>
-            {drafting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Sparkles className="h-3.5 w-3.5" /> AI Build Flow</>}
-          </Button>
+          </div>
         </div>
 
         {/* ── Main 3-panel layout ─────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex overflow-hidden relative">
 
-          {/* ── Left: Node palette ────────────────────────────────────────── */}
-          <div className="w-44 shrink-0 border-r bg-stone-50 overflow-y-auto">
-            <div className="p-2 text-[10px] font-bold text-stone-500 uppercase tracking-wide">Nodes</div>
+          {/* ── Left: Node palette (Desktop or Mobile drawer) ───────────────── */}
+          <div className={`
+            ${mobilePaletteOpen ? "flex" : "hidden"} md:flex
+            flex-col w-56 md:w-44 shrink-0 border-e bg-stone-50 overflow-y-auto
+            absolute md:static inset-y-0 start-0 z-30 shadow-lg md:shadow-none
+          `}>
+            <div className="p-2 border-b flex items-center justify-between">
+              <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">Nodes</span>
+              <button
+                className="md:hidden text-stone-400 hover:text-stone-700 p-1"
+                onClick={() => setMobilePaletteOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
             {PALETTE.map(group => (
               <div key={group.group}>
                 <button
@@ -1114,7 +1187,10 @@ export function FlowEditor({
                     disabled={!supportsFlowNode(item.type, channels)}
                     title={supportsFlowNode(item.type, channels) ? item.label : "This step is currently available for WhatsApp flows only"}
                     className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-stone-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left disabled:opacity-35 disabled:cursor-not-allowed"
-                    onClick={() => addNode(item.type, item.defaultData)}
+                    onClick={() => {
+                      addNode(item.type, item.defaultData)
+                      setMobilePaletteOpen(false)
+                    }}
                   >
                     <span>{item.emoji}</span>
                     <span>{item.label}</span>
@@ -1158,7 +1234,14 @@ export function FlowEditor({
                       <BarChart3 className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="font-bold text-stone-900 text-xs">Funnel Drop-off Performance</div>
+                      <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                        <span>Funnel Drop-off Performance</span>
+                        {analyticsData?.isSampleData && (
+                          <Badge className="bg-purple-100 text-purple-800 text-[9px] border-purple-200 py-0">
+                            Demo Preview
+                          </Badge>
+                        )}
+                      </div>
                       <div className="text-[10px] text-stone-500">Node conversion & bottleneck detection</div>
                     </div>
                   </div>
@@ -1184,14 +1267,32 @@ export function FlowEditor({
                     </div>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-[11px] text-stone-500 hover:text-stone-900"
-                  onClick={() => setShowAnalytics(false)}
-                >
-                  Close
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px] gap-1 border-indigo-200 text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100"
+                    onClick={() => {
+                      if (analyticsData?.isSampleData) {
+                        if (flow?.id) loadAnalytics(flow.id)
+                        else setAnalyticsData(null)
+                      } else {
+                        const sample = generateSampleFlowAnalytics(flow?.id || "demo-flow", nodes.map(n => n.id))
+                        setAnalyticsData(sample)
+                      }
+                    }}
+                  >
+                    {analyticsData?.isSampleData ? "Switch to Live" : "Preview Demo Data"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px] text-stone-500 hover:text-stone-900"
+                    onClick={() => setShowAnalytics(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1204,7 +1305,13 @@ export function FlowEditor({
               >
                 <defs>
                   <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                    <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
+                    <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+                  </marker>
+                  <marker id="arrowhead-answered" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+                  </marker>
+                  <marker id="arrowhead-fallback" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#f43f5e" />
                   </marker>
                   <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
                     <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
@@ -1214,29 +1321,61 @@ export function FlowEditor({
                   const src = nodes.find(n => n.id === edge.source)
                   const tgt = nodes.find(n => n.id === edge.target)
                   if (!src || !tgt) return null
-                  const sx = src.x + NODE_W / 2
-                  const sy = src.y + 90
+                  const branchOffset = getBranchOffset(src.type, edge.label)
+                  const sx = src.x + NODE_W / 2 + branchOffset
+                  const sy = src.y + (showAnalytics ? 152 : (src.type === "AI_KNOWLEDGE" ? 116 : 84))
                   const tx = tgt.x + NODE_W / 2
                   const ty = tgt.y
                   const dy = Math.max(60, Math.abs(ty - sy) * 0.5)
                   const path = `M${sx},${sy} C${sx},${sy + dy} ${tx},${ty - dy} ${tx},${ty}`
                   const mx = (sx + tx) / 2
                   const my = (sy + ty) / 2
+
+                  const isAnswered = edge.label === "answered" || edge.label === "true" || edge.label === "open" || edge.label === "ok"
+                  const isFallback = edge.label === "fallback" || edge.label === "false" || edge.label === "closed" || edge.label === "failed"
+
+                  const strokeColor = isAnswered ? "#10b981" : isFallback ? "#f43f5e" : "#94a3b8"
+                  const markerEnd = isAnswered
+                    ? "url(#arrowhead-answered)"
+                    : isFallback
+                    ? "url(#arrowhead-fallback)"
+                    : "url(#arrowhead)"
+
                   return (
-                    <g key={edge.id}>
+                    <g key={edge.id} className="group">
                       <path
                         d={path}
                         fill="none"
-                        stroke="#94a3b8"
+                        stroke={strokeColor}
                         strokeWidth="2"
-                        markerEnd="url(#arrowhead)"
-                        className="pointer-events-auto cursor-pointer hover:stroke-red-400"
+                        markerEnd={markerEnd}
+                        className="pointer-events-auto cursor-pointer hover:stroke-red-500 hover:stroke-[3px] transition-all"
                         onClick={() => deleteEdge(edge.id)}
                       />
                       {edge.label && (
-                        <text x={mx} y={my - 6} textAnchor="middle" fontSize="10" fill="#64748b" fontWeight="600">
-                          {edge.label}
-                        </text>
+                        <g transform={`translate(${mx}, ${my})`} className="pointer-events-none">
+                          <rect
+                            x={-30}
+                            y={-10}
+                            width={60}
+                            height={18}
+                            rx={9}
+                            fill={isAnswered ? "#ecfdf5" : isFallback ? "#fff1f2" : "#f8fafc"}
+                            stroke={strokeColor}
+                            strokeWidth={1.5}
+                          />
+                          <text
+                            x={0}
+                            y={1}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fill={isAnswered ? "#065f46" : isFallback ? "#9f1239" : "#475569"}
+                            fontWeight="700"
+                            dominantBaseline="central"
+                          >
+                            {isAnswered ? `✓ ${edge.label}` : isFallback ? `✕ ${edge.label}` : edge.label}
+                          </text>
+                        </g>
                       )}
                     </g>
                   )
@@ -1248,12 +1387,18 @@ export function FlowEditor({
                   const rect = canvasRef.current?.getBoundingClientRect()
                   const mx = (connecting.mouseX - (rect?.left ?? 0) - pan.x) / scale
                   const my = (connecting.mouseY - (rect?.top ?? 0) - pan.y) / scale
+                  const branchOffset = getBranchOffset(src.type, connecting.fromHandle)
+                  const sx = src.x + NODE_W / 2 + branchOffset
+                  const sy = src.y + (showAnalytics ? 152 : (src.type === "AI_KNOWLEDGE" ? 116 : 84))
+                  const isAnswered = connecting.fromHandle === "answered" || connecting.fromHandle === "true" || connecting.fromHandle === "open"
+                  const isFallback = connecting.fromHandle === "fallback" || connecting.fromHandle === "false" || connecting.fromHandle === "closed"
+                  const strokeColor = isAnswered ? "#10b981" : isFallback ? "#f43f5e" : "#10b981"
                   return (
                     <path
-                      d={`M${src.x + NODE_W / 2},${src.y + 90} L${mx},${my}`}
+                      d={`M${sx},${sy} L${mx},${my}`}
                       fill="none"
-                      stroke="#10b981"
-                      strokeWidth="2"
+                      stroke={strokeColor}
+                      strokeWidth="2.5"
                       strokeDasharray="6,3"
                     />
                   )
@@ -1264,11 +1409,23 @@ export function FlowEditor({
               {nodes.map(node => {
                 const isSelected = selectedId === node.id
                 const branches = nodeBranches(node.type)
+                const stat = analyticsData?.nodeStats?.[node.id]
+                const dropOffRate = stat ? stat.dropOffRate : 0
+                const isBottleneck = stat && dropOffRate >= 30 && stat.dropOffs > 0
+                const isHealthy = stat && stat.impressions > 0 && dropOffRate < 15
+                const analyticsRing = showAnalytics && stat
+                  ? isBottleneck
+                    ? "ring-2 ring-rose-500 border-rose-400 bg-rose-50/20"
+                    : isHealthy
+                    ? "ring-2 ring-emerald-500/70 border-emerald-400"
+                    : "ring-2 ring-amber-400 border-amber-400"
+                  : ""
+
                 return (
                   <div
                     key={node.id}
                     data-node
-                    className={`absolute select-none rounded-xl border-2 shadow-sm transition-shadow ${NODE_COLORS[node.type] || "border-stone-300 bg-white"} ${isSelected ? "ring-2 ring-emerald-400 shadow-lg" : "hover:shadow-md"}`}
+                    className={`absolute select-none rounded-xl border-2 shadow-sm transition-shadow ${NODE_COLORS[node.type] || "border-stone-300 bg-white"} ${analyticsRing} ${isSelected ? "ring-2 ring-emerald-400 shadow-lg" : "hover:shadow-md"}`}
                     style={{ left: node.x, top: node.y, width: NODE_W, cursor: "move", zIndex: isSelected ? 10 : 1 }}
                     onPointerDown={e => onNodePointerDown(e, node.id)}
                     onPointerUp={e => onInputPortPointerUp(e, node.id)}
@@ -1298,22 +1455,45 @@ export function FlowEditor({
                     </div>
 
                     {/* Preview text */}
-                    <div className="px-2.5 pb-2 text-[10px] text-stone-500 leading-tight truncate">
-                      {nodePreview(node.type, node.data)}
-                    </div>
+                    {node.type === "AI_KNOWLEDGE" ? (
+                      <div className="px-2.5 pb-2 text-[10px] space-y-1">
+                        <div className="font-mono text-purple-900 bg-purple-100/70 px-1.5 py-0.5 rounded border border-purple-200 truncate">
+                          🔍 {String(node.data.query || "{{last_message}}")}
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-stone-500 font-medium pt-0.5">
+                          <span>Max: {Number(node.data.maxPassages ?? 4)} facts</span>
+                          <span className="text-purple-700 font-bold">Min: {Number(node.data.fallbackThreshold ?? 0.1)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 pt-0.5">
+                          <span className="text-[8px] font-bold text-center text-emerald-700 bg-emerald-50 rounded border border-emerald-200/80 py-0.5 shadow-2xs">
+                            ✓ answered
+                          </span>
+                          <span className="text-[8px] font-bold text-center text-rose-700 bg-rose-50 rounded border border-rose-200/80 py-0.5 shadow-2xs">
+                            ✕ fallback
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-2.5 pb-2 text-[10px] text-stone-500 leading-tight truncate">
+                        {nodePreview(node.type, node.data)}
+                      </div>
+                    )}
 
                     {/* Analytics Overlay Badge */}
                     {showAnalytics && (() => {
-                      const stat = analyticsData?.nodeStats?.[node.id]
                       const impressions = stat?.impressions ?? 0
                       const dropOffs = stat?.dropOffs ?? 0
                       const passThrough = stat ? stat.passThroughRate : 100
-                      const dropOffRate = stat ? stat.dropOffRate : 0
+                      const isTopBottleneck = analyticsData?.topDropOffNodes?.some((b: any) => b.nodeId === node.id)
                       return (
                         <div className="mx-2 mb-2 p-1.5 rounded-lg bg-stone-900/95 text-white text-[10px] space-y-1 shadow-inner border border-stone-800">
                           <div className="flex items-center justify-between">
                             <span className="text-stone-400">Visitors:</span>
                             <span className="font-bold text-white">{impressions}</span>
+                          </div>
+                          <div className="w-full h-1 bg-stone-700 rounded-full overflow-hidden flex">
+                            <div className="bg-emerald-500 h-full" style={{ width: `${passThrough}%` }} />
+                            <div className="bg-rose-500 h-full" style={{ width: `${dropOffRate}%` }} />
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-stone-400">Throughput:</span>
@@ -1329,26 +1509,56 @@ export function FlowEditor({
                               </span>
                             </div>
                           )}
+                          {isTopBottleneck && (
+                            <div className="text-[8px] font-bold text-amber-300 bg-amber-950/80 px-1 py-0.5 rounded border border-amber-600 text-center animate-pulse">
+                              ⚠️ Funnel Bottleneck
+                            </div>
+                          )}
                         </div>
                       )
                     })()}
 
                     {/* Output ports */}
-                    <div className="absolute -bottom-3 left-0 right-0 flex justify-center gap-4">
+                    <div className="absolute -bottom-3.5 left-0 right-0 flex justify-center gap-6">
                       {branches.length === 0 ? (
                         <div
-                          className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow cursor-crosshair hover:scale-110 transition-transform"
+                          title="Connect next step"
+                          className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow-sm cursor-crosshair hover:scale-125 transition-transform flex items-center justify-center text-[10px] text-white"
                           onPointerDown={e => { e.stopPropagation(); onOutputPortPointerDown(e, node.id, "default") }}
                         />
-                      ) : branches.map(branch => (
-                        <div key={branch} className="flex flex-col items-center gap-0.5">
-                          <div
-                            className="w-4 h-4 rounded-full bg-orange-500 border-2 border-white shadow cursor-crosshair hover:scale-110 transition-transform"
-                            onPointerDown={e => { e.stopPropagation(); onOutputPortPointerDown(e, node.id, branch) }}
-                          />
-                          <span className="text-[8px] text-stone-500 font-bold">{branch}</span>
-                        </div>
-                      ))}
+                      ) : branches.map(branch => {
+                        const isAnswered = branch === "answered" || branch === "true" || branch === "open" || branch === "ok"
+                        const isFallback = branch === "fallback" || branch === "false" || branch === "closed" || branch === "failed"
+
+                        const portColor = isAnswered
+                          ? "bg-emerald-500 hover:bg-emerald-600 ring-2 ring-emerald-300 shadow-sm shadow-emerald-500/40 text-white"
+                          : isFallback
+                          ? "bg-rose-500 hover:bg-rose-600 ring-2 ring-rose-300 shadow-sm shadow-rose-500/40 text-white"
+                          : "bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-300 shadow-sm shadow-orange-500/40 text-white"
+
+                        const labelColor = isAnswered
+                          ? "text-emerald-800 bg-emerald-50 border-emerald-300"
+                          : isFallback
+                          ? "text-rose-800 bg-rose-50 border-rose-300"
+                          : "text-stone-600 bg-stone-100 border-stone-200"
+
+                        const branchIcon = isAnswered ? "✓" : isFallback ? "✕" : ""
+
+                        return (
+                          <div key={branch} className="flex flex-col items-center gap-0.5">
+                            <div
+                              title={`Drag to connect [${branch}] path`}
+                              className={`w-4.5 h-4.5 rounded-full ${portColor} border-2 border-white shadow-sm cursor-crosshair hover:scale-125 transition-transform flex items-center justify-center text-[8px] font-bold`}
+                              onPointerDown={e => { e.stopPropagation(); onOutputPortPointerDown(e, node.id, branch) }}
+                            >
+                              {branchIcon}
+                            </div>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded-md border shadow-2xs ${labelColor}`}>
+                              {branch}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -1368,12 +1578,19 @@ export function FlowEditor({
           </div>
 
           {/* ── Right: Inspector or Simulator ────────────────────────────── */}
-          <div className="w-72 shrink-0 border-l flex flex-col overflow-hidden bg-white">
+          <div className={`
+            ${selectedNode || showSimulator ? "flex" : "hidden md:flex"}
+            w-full sm:w-80 md:w-72 shrink-0 border-s flex flex-col overflow-hidden bg-white
+            ${selectedNode || showSimulator ? "absolute md:static inset-y-0 end-0 z-30 shadow-xl md:shadow-none" : ""}
+          `}>
             {showSimulator ? (
               <div className="flex flex-col h-full">
                 <div className="px-3 py-2 border-b flex items-center justify-between bg-[#0b141a]">
-                  <span className="text-xs font-semibold text-stone-300 flex items-center gap-1.5"><Play className="h-3.5 w-3.5" /> {channels.map(c => FLOW_CHANNEL_LABELS[c]).join(" / ")} Flow Simulator</span>
-                  <button onClick={() => setSimTranscript([])} className="text-[10px] text-stone-400 hover:text-stone-200 flex items-center gap-1"><RotateCcw className="h-3 w-3" />Clear</button>
+                  <span className="text-xs font-semibold text-stone-300 flex items-center gap-1.5"><Play className="h-3.5 w-3.5" /> {channels.map(c => FLOW_CHANNEL_LABELS[c]).join(" / ")} Simulator</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSimTranscript([])} className="text-[10px] text-stone-400 hover:text-stone-200 flex items-center gap-1"><RotateCcw className="h-3 w-3" />Clear</button>
+                    <button onClick={() => setShowSimulator(false)} className="md:hidden text-stone-400 hover:text-stone-200 p-0.5"><X className="h-4 w-4" /></button>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto bg-[#111b21] p-3 space-y-2">
                   {simTranscript.length === 0 && (
@@ -1418,17 +1635,28 @@ export function FlowEditor({
                 </div>
               </div>
             ) : selectedNode ? (
-              <NodeInspector
-                node={selectedNode}
-                onUpdate={(patch) => updateNodeData(selectedNode.id, patch)}
-                onDelete={() => deleteNode(selectedNode.id)}
-                wcProducts={wcProducts}
-              />
+              <div className="flex flex-col h-full">
+                <div className="md:hidden flex items-center justify-between px-3 py-2 border-b bg-stone-100 text-xs font-semibold text-stone-700">
+                  <span>Edit Node</span>
+                  <button onClick={() => setSelectedId(null)} className="text-stone-500 hover:text-stone-800 p-1">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <NodeInspector
+                    node={selectedNode}
+                    onUpdate={(patch) => updateNodeData(selectedNode.id, patch)}
+                    onDelete={() => deleteNode(selectedNode.id)}
+                    wcProducts={wcProducts}
+                    analyticsStat={showAnalytics ? analyticsData?.nodeStats?.[selectedNode.id] : undefined}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
                 <div className="text-3xl mb-2">👆</div>
                 <div className="text-stone-400 text-sm font-medium">Click a node to edit it</div>
-                <div className="text-stone-300 text-xs mt-1 mb-4">or drag from the palette to add nodes</div>
+                <div className="text-stone-300 text-xs mt-1 mb-4">or tap &apos;Nodes&apos; above to add steps</div>
                 <Button size="sm" variant="outline" className="text-xs" onClick={() => setShowSimulator(true)}>
                   <Play className="h-3.5 w-3.5 mr-1" /> Open Simulator
                 </Button>
@@ -1438,22 +1666,22 @@ export function FlowEditor({
         </div>
 
         {/* ── Bottom bar ──────────────────────────────────────────────────── */}
-        <div className="px-4 py-3 border-t bg-stone-50 flex items-center justify-between shrink-0">
-          <Button variant="outline" size="sm" className="h-9 px-4 text-xs" onClick={onClose}>Cancel</Button>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-stone-400">{nodes.length} nodes · {edges.length} connections</span>
+        <div className="px-3 sm:px-4 py-2 sm:py-3 border-t bg-stone-50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 sm:h-9 px-3 sm:px-4 text-xs" onClick={onClose}>Cancel</Button>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="text-[11px] sm:text-xs text-stone-400 hidden sm:inline">{nodes.length} nodes · {edges.length} connections</span>
             <Button
               size="sm"
               variant="outline"
-              className="h-9 px-4 text-xs font-semibold"
+              className="h-8 sm:h-9 px-2.5 sm:px-4 text-xs font-semibold"
               onClick={() => save(false)}
               disabled={saving}
               title="Keeps this as a draft. Customers carry on seeing the published version."
             >
-              Save draft
+              Draft
             </Button>
-            <Button size="sm" className="h-9 px-5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" onClick={() => save(true)} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            <Button size="sm" className="h-8 sm:h-9 px-3 sm:px-5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" onClick={() => save(true)} disabled={saving}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin mr-1" /> : null}
               Save &amp; publish
             </Button>
           </div>
@@ -1748,15 +1976,131 @@ export function FlowEditor({
   )
 }
 
+// ─── Knowledge Search Tester Component ──────────────────────────────────────
+
+function KnowledgeSearchTester({
+  threshold,
+  onApplyQuery,
+}: {
+  threshold: number
+  onApplyQuery?: (q: string) => void
+}) {
+  const [testQuery, setTestQuery] = useState("")
+  const [testing, setTesting] = useState(false)
+  const [results, setResults] = useState<{ passages: any[] } | null>(null)
+
+  const runTest = async () => {
+    if (!testQuery.trim()) return
+    setTesting(true)
+    try {
+      const res = await fetch(`/api/knowledge/search?q=${encodeURIComponent(testQuery.trim())}`)
+      if (res.ok) {
+        const json = await res.json()
+        setResults(json)
+      } else {
+        toast.error("Could not run search test")
+      }
+    } catch {
+      toast.error("Knowledge search error")
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const validPassages = results?.passages?.filter(p => !threshold || (p.score && p.score >= threshold)) || []
+  const willAnswer = results !== null && validPassages.length > 0
+
+  return (
+    <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-2 mt-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold text-purple-950 flex items-center gap-1">
+          <Sparkles className="h-3 w-3 text-purple-600" /> Test RAG Knowledge Match
+        </span>
+        <span className="text-[9px] text-purple-700 font-medium">Live DB Query</span>
+      </div>
+
+      <div className="flex gap-1.5">
+        <Input
+          className="h-7 text-xs bg-white placeholder:text-stone-400"
+          value={testQuery}
+          placeholder="e.g. What are your opening hours?"
+          onChange={e => setTestQuery(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              runTest()
+            }
+          }}
+        />
+        <Button
+          size="sm"
+          type="button"
+          onClick={runTest}
+          disabled={testing || !testQuery.trim()}
+          className="h-7 px-2.5 text-[10px] bg-purple-600 hover:bg-purple-700 text-white font-bold shrink-0"
+        >
+          {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
+        </Button>
+      </div>
+
+      {results && (
+        <div className="space-y-1.5 pt-1 border-t border-purple-200/60 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-stone-600">Simulated Route:</span>
+            {willAnswer ? (
+              <span className="text-[9.5px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1 shadow-2xs">
+                ✓ Routes to [answered] ({validPassages.length} matched)
+              </span>
+            ) : (
+              <span className="text-[9.5px] font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-md border border-rose-300 flex items-center gap-1 shadow-2xs">
+                ✕ Routes to [fallback] (Score &lt; {threshold})
+              </span>
+            )}
+          </div>
+
+          {results.passages.length > 0 ? (
+            <div className="max-h-28 overflow-y-auto space-y-1 pr-0.5">
+              {results.passages.slice(0, 3).map((p: any, idx: number) => {
+                const passed = !threshold || (p.score && p.score >= threshold)
+                return (
+                  <div
+                    key={idx}
+                    className={`p-1.5 rounded-lg border text-[10px] ${
+                      passed
+                        ? "bg-white border-emerald-200 text-stone-800"
+                        : "bg-stone-50 border-stone-200 text-stone-500 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-bold text-[9px]">
+                      <span className="truncate max-w-[140px] text-purple-900">{p.sourceTitle || "Article"}</span>
+                      <span className={passed ? "text-emerald-700" : "text-stone-400"}>
+                        Score: {typeof p.score === "number" ? p.score.toFixed(2) : "N/A"}
+                      </span>
+                    </div>
+                    <div className="line-clamp-2 mt-0.5 text-stone-600 text-[9.5px]">{p.content}</div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-[10px] text-stone-500 italic">No matching articles in knowledge base for this query.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Node Inspector ───────────────────────────────────────────────────────────
 
 function NodeInspector({
-  node, onUpdate, onDelete, wcProducts,
+  node, onUpdate, onDelete, wcProducts, analyticsStat,
 }: {
   node: { id: string; type: string; data: Record<string, unknown> }
   onUpdate: (patch: Record<string, unknown>) => void
   onDelete: () => void
   wcProducts: any[]
+  analyticsStat?: NodeAnalytics
 }) {
   const d = node.data
 
@@ -1774,6 +2118,50 @@ function NodeInspector({
         )}
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* Node-Level Funnel Performance Overlay */}
+        {analyticsStat && (
+          <div className="p-3 rounded-xl bg-stone-900 text-white text-xs space-y-2 border border-stone-800 shadow-md">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-stone-200 flex items-center gap-1.5 text-[11px]">
+                <BarChart3 className="h-3.5 w-3.5 text-indigo-400" />
+                Node Funnel Performance
+              </span>
+              <Badge
+                className={
+                  analyticsStat.dropOffRate >= 30
+                    ? "bg-rose-500/90 text-white text-[9px] border-none py-0"
+                    : "bg-emerald-500/90 text-white text-[9px] border-none py-0"
+                }
+              >
+                {analyticsStat.dropOffRate >= 30 ? "⚠️ Bottleneck" : "✓ High Conversion"}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="bg-stone-800/80 p-1.5 rounded-lg border border-stone-700/50">
+                <div className="text-[9px] text-stone-400 uppercase font-semibold">Visitors</div>
+                <div className="font-bold text-white text-xs mt-0.5">{analyticsStat.impressions}</div>
+              </div>
+              <div className="bg-stone-800/80 p-1.5 rounded-lg border border-stone-700/50">
+                <div className="text-[9px] text-emerald-400 uppercase font-semibold">Throughput</div>
+                <div className="font-bold text-emerald-300 text-xs mt-0.5">{analyticsStat.passThroughRate}%</div>
+              </div>
+              <div className="bg-stone-800/80 p-1.5 rounded-lg border border-stone-700/50">
+                <div className="text-[9px] text-rose-400 uppercase font-semibold">Drop-off</div>
+                <div className="font-bold text-rose-300 text-xs mt-0.5">{analyticsStat.dropOffRate}%</div>
+              </div>
+            </div>
+            <div className="space-y-1 pt-1">
+              <div className="flex justify-between text-[9px] text-stone-400 font-mono">
+                <span>Pass-through ({analyticsStat.completions})</span>
+                <span>Drop-off ({analyticsStat.dropOffs})</span>
+              </div>
+              <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden flex">
+                <div className="bg-emerald-500 h-full" style={{ width: `${analyticsStat.passThroughRate}%` }} />
+                <div className="bg-rose-500 h-full" style={{ width: `${analyticsStat.dropOffRate}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
         {/* MESSAGE */}
         {(node.type === "MESSAGE" || node.type === "BUTTONS") && (
           <>
@@ -1916,19 +2304,33 @@ function NodeInspector({
         {/* AI_KNOWLEDGE (RAG) */}
         {node.type === "AI_KNOWLEDGE" && (
           <>
-            <label className="text-[11px] font-medium text-stone-600 block">
-              Search Query / Prompt
-              <Input
-                className="mt-1 h-7 text-xs font-mono"
-                value={String(d.query || "{{last_message}}")}
-                placeholder="{{last_message}}"
-                onChange={e => onUpdate({ query: e.target.value })}
-              />
-            </label>
-            <p className="text-[10px] text-stone-400">Use <span className="font-mono">{"{{last_message}}"}</span> or any variable collected from previous steps.</p>
+            <div>
+              <label className="text-[11px] font-medium text-stone-600 block">
+                Search Query / Prompt
+                <Input
+                  className="mt-1 h-7 text-xs font-mono"
+                  value={String(d.query || "{{last_message}}")}
+                  placeholder="{{last_message}}"
+                  onChange={e => onUpdate({ query: e.target.value })}
+                />
+              </label>
+              <div className="flex items-center gap-1 flex-wrap pt-1">
+                <span className="text-[9px] text-stone-400">Insert:</span>
+                {["{{last_message}}", "{{customer_name}}", "{{phone}}", "{{city}}"].map(v => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onUpdate({ query: v })}
+                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <label className="text-[11px] font-medium text-stone-600 block">
-              System Instruction
+              System Grounding Instruction
               <Textarea
                 rows={3}
                 className="mt-1 text-xs"
@@ -1957,11 +2359,16 @@ function NodeInspector({
                   step="0.05"
                   min={0}
                   max={1}
-                  className="mt-1 h-7 text-xs"
+                  className="mt-1 h-7 text-xs font-mono"
                   value={Number(d.fallbackThreshold ?? 0.1)}
                   onChange={e => onUpdate({ fallbackThreshold: parseFloat(e.target.value) || 0.1 })}
                 />
               </label>
+            </div>
+            <div className="text-[9.5px] text-stone-400 flex items-center justify-between px-0.5">
+              <span>0.05: Lenient match</span>
+              <span>0.20: Balanced</span>
+              <span>0.60: Strict match</span>
             </div>
 
             <label className="text-[11px] font-medium text-stone-600 block">
@@ -1995,11 +2402,17 @@ function NodeInspector({
 
             <div className="p-2.5 rounded-lg bg-violet-50/70 border border-violet-100 text-[10px] text-violet-800 space-y-1">
               <div className="font-semibold flex items-center gap-1">
-                <span>⚡ Dual Branch Routing:</span>
+                <span>⚡ Dual Branch Routing Ports:</span>
               </div>
-              <p>• <strong>answered</strong>: Facts found in knowledge base and answer generated.</p>
-              <p>• <strong>fallback</strong>: No matching facts found. Route to Live Agent Handoff or alternate flow.</p>
+              <p>• <strong className="text-emerald-700">✓ answered</strong>: Relevant facts found in knowledge base &amp; answer generated.</p>
+              <p>• <strong className="text-rose-700">✕ fallback</strong>: No matching facts found or score below threshold. Route to Agent Handoff.</p>
             </div>
+
+            {/* Interactive Knowledge Base Search Tester */}
+            <KnowledgeSearchTester
+              threshold={Number(d.fallbackThreshold ?? 0.1)}
+              onApplyQuery={q => onUpdate({ query: q })}
+            />
           </>
         )}
 

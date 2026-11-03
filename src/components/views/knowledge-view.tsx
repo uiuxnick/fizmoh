@@ -15,9 +15,12 @@ import { Switch } from "@/components/ui/switch"
 import {
   BookOpen, Search, Plus, Trash2, Globe, FileText, MessageCircleQuestion,
   Upload, Loader2, AlertTriangle, CheckCircle2, Link2, Eye, Pencil, Copy, ExternalLink,
-  MessageSquareQuote, Sparkles, Brain, Bot, Filter,
+  MessageSquareQuote, Sparkles, Brain, Bot, Filter, Sliders, Check, X, ThumbsUp, ThumbsDown,
+  RefreshCw, CornerDownRight, ArrowRight, CheckCheck, Settings,
 } from "lucide-react"
 import { toast } from "sonner"
+import { CandidateLearning, AutoLearnConfig } from "@/lib/chat-training-types"
+import { cn } from "@/lib/utils"
 
 interface KnowledgeChunk {
   id: string
@@ -57,6 +60,26 @@ export default function KnowledgeView() {
   const [autoLearn, setAutoLearn] = useState<boolean>(false)
   const [loadingAutoLearn, setLoadingAutoLearn] = useState<boolean>(false)
 
+  // Auto-learning Curation Queue & Configuration State
+  const [autoLearnConfig, setAutoLearnConfig] = useState<AutoLearnConfig>({
+    enabled: false,
+    requireApproval: true,
+    minConfidence: 0.8,
+    autoIndexFaqs: true,
+  })
+  const [queue, setQueue] = useState<CandidateLearning[]>([])
+  const [queueFilter, setQueueFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "DISMISSED">("PENDING")
+  const [queueStats, setQueueStats] = useState({ pendingCount: 0, approvedCount: 0, dismissedCount: 0, totalCount: 0 })
+  const [processingCandidateId, setProcessingCandidateId] = useState<string | null>(null)
+  const [batchProcessing, setBatchProcessing] = useState<boolean>(false)
+  const [showConfigModal, setShowConfigModal] = useState<boolean>(false)
+  const [configSaving, setConfigSaving] = useState<boolean>(false)
+  const [editingCandidate, setEditingCandidate] = useState<CandidateLearning | null>(null)
+  const [editCandidateForm, setEditCandidateForm] = useState({ question: "", answer: "", topic: "" })
+  const [candidateSaving, setCandidateSaving] = useState<boolean>(false)
+  const [testMineConvId, setTestMineConvId] = useState<string>("")
+  const [miningChat, setMiningChat] = useState<boolean>(false)
+
   const [text, setText] = useState({ title: "", body: "" })
   const [faq, setFaq] = useState({ question: "", answer: "" })
   const [pageUrl, setPageUrl] = useState("")
@@ -91,7 +114,14 @@ export default function KnowledgeView() {
     fetch("/api/knowledge/auto-learn")
       .then(r => r.json())
       .then(d => {
-        if (typeof d.enabled === "boolean") setAutoLearn(d.enabled)
+        if (d.config) {
+          setAutoLearnConfig(d.config)
+          setAutoLearn(d.config.enabled)
+        } else if (typeof d.autoLearnEnabled === "boolean") {
+          setAutoLearn(d.autoLearnEnabled)
+        }
+        if (Array.isArray(d.queue)) setQueue(d.queue)
+        if (d.stats) setQueueStats(d.stats)
       })
       .catch(() => {})
   }, [])
@@ -107,12 +137,163 @@ export default function KnowledgeView() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to update setting")
+      if (data.config) setAutoLearnConfig(data.config)
       toast.success(checked ? "Auto-learning enabled: resolved chats will train AI automatically" : "Auto-learning disabled")
     } catch (error) {
       setAutoLearn(!checked)
       toast.error(error instanceof Error ? error.message : "Failed to update auto-learn")
     } finally {
       setLoadingAutoLearn(false)
+    }
+  }
+
+  const saveConfigSettings = async (newConfig: Partial<AutoLearnConfig>) => {
+    setConfigSaving(true)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_config",
+          ...newConfig,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to save configuration")
+      toast.success("Auto-learning configuration updated")
+      if (data.config) {
+        setAutoLearnConfig(data.config)
+        setAutoLearn(data.config.enabled)
+      }
+      setShowConfigModal(false)
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save configuration")
+    } finally {
+      setConfigSaving(false)
+    }
+  }
+
+  const approveCandidate = async (candidateId: string, customEdits?: { question: string; answer: string; topic: string }) => {
+    setProcessingCandidateId(candidateId)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "approve",
+          candidateId,
+          ...(customEdits || {}),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to approve candidate")
+      toast.success("Approved and indexed into knowledge base!")
+      if (editingCandidate) setEditingCandidate(null)
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to approve candidate")
+    } finally {
+      setProcessingCandidateId(null)
+    }
+  }
+
+  const dismissCandidate = async (candidateId: string) => {
+    setProcessingCandidateId(candidateId)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "dismiss",
+          candidateId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to dismiss candidate")
+      toast.info("Candidate dismissed from queue")
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to dismiss candidate")
+    } finally {
+      setProcessingCandidateId(null)
+    }
+  }
+
+  const batchApproveAllPending = async () => {
+    const pendingIds = queue.filter(q => q.status === "PENDING").map(q => q.id)
+    if (pendingIds.length === 0) return
+    setBatchProcessing(true)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "batch_approve",
+          candidateIds: pendingIds,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to batch approve")
+      toast.success(`Approved & indexed ${data.approvedCount || pendingIds.length} candidate learnings`)
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to batch approve")
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
+
+  const batchDismissAllPending = async () => {
+    const pendingIds = queue.filter(q => q.status === "PENDING").map(q => q.id)
+    if (pendingIds.length === 0) return
+    if (!confirm(`Dismiss all ${pendingIds.length} pending candidate learnings?`)) return
+    setBatchProcessing(true)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "batch_dismiss",
+          candidateIds: pendingIds,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to batch dismiss")
+      toast.info(`Dismissed ${data.dismissedCount || pendingIds.length} learnings`)
+      load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to batch dismiss")
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
+
+  const runTestMining = async () => {
+    if (!testMineConvId.trim()) return
+    setMiningChat(true)
+    try {
+      const res = await fetch("/api/knowledge/auto-learn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mine",
+          conversationId: testMineConvId.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to mine conversation")
+      if (data.result?.learnings?.length) {
+        toast.success(`Mined ${data.result.learnings.length} knowledge Q&A(s) from conversation!`)
+      } else {
+        toast.info("No reusable Q&A patterns detected above threshold in this conversation.")
+      }
+      load()
+      setTestMineConvId("")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to mine conversation")
+    } finally {
+      setMiningChat(false)
     }
   }
 
@@ -259,30 +440,43 @@ export default function KnowledgeView() {
       : sources.filter(s => s.type !== "CONVERSATION")
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold">Knowledge base</h1>
-          <Badge variant="secondary">{sources.length} sources</Badge>
-          <Badge variant="outline">{totals.totalChunks} passages</Badge>
+    <div className="flex h-full flex-col gap-4 p-3 sm:p-4 md:p-6 overflow-y-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <BookOpen className="h-5 w-5 text-primary shrink-0" />
+          <h1 className="text-lg sm:text-xl font-semibold">Knowledge base</h1>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="secondary">{sources.length} sources</Badge>
+            <Badge variant="outline">{totals.totalChunks} passages</Badge>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-1.5 shadow-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200/80 bg-amber-50/60 px-2.5 py-1.5 shadow-2xs">
             <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-            <div className="flex flex-col text-left">
+            <div className="flex flex-col text-start">
               <span className="text-xs font-semibold text-stone-800">Auto-train from chats</span>
-              <span className="text-[10px] text-stone-500">Learns policies & answers on resolve</span>
+              <span className="text-[10px] text-stone-500 hidden sm:inline">
+                {autoLearnConfig.requireApproval ? "Human curation required" : "Autonomous indexing"}
+              </span>
             </div>
             <Switch
               checked={autoLearn}
               disabled={loadingAutoLearn}
               onCheckedChange={toggleAutoLearn}
-              className="ml-1 data-[state=checked]:bg-amber-600"
+              className="ms-1 data-[state=checked]:bg-amber-600"
             />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-stone-600 hover:text-stone-900"
+              title="Engine settings"
+              onClick={() => setShowConfigModal(true)}
+            >
+              <Sliders className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />Add content
+          <Button onClick={() => setAdding(true)} className="h-9">
+            <Plus className="me-1.5 h-4 w-4" />Add content
           </Button>
         </div>
       </div>
@@ -326,99 +520,386 @@ export default function KnowledgeView() {
               >
                 Files & Pages ({sources.filter(s => s.type !== "CONVERSATION").length})
               </Button>
+              <Button
+                variant={filterType === "QUEUE" ? "secondary" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-7 text-xs px-2.5 font-medium gap-1.5",
+                  filterType === "QUEUE" ? "bg-amber-100/90 text-amber-950 font-semibold" : "text-stone-700"
+                )}
+                onClick={() => setFilterType("QUEUE")}
+              >
+                <Brain className="h-3.5 w-3.5 text-amber-600" />
+                Curation Queue
+                {queue.filter(q => q.status === "PENDING").length > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[9px] font-bold text-white leading-none">
+                    {queue.filter(q => q.status === "PENDING").length}
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
-          <ScrollArea className="flex-1">
-            {loading ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-            ) : filteredSources.length === 0 ? (
-              <div className="space-y-2 p-10 text-center">
-                {filterType === "CONVERSATION" ? (
-                  <>
-                    <Sparkles className="mx-auto h-10 w-10 text-amber-500/50" />
-                    <p className="text-sm font-medium">No chat learnings yet</p>
-                    <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-                      Click &ldquo;Train AI&rdquo; in any conversation toolbar in the Team Inbox, or turn on &ldquo;Auto-train from chats&rdquo; above.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
-                    <p className="text-sm font-medium">Nothing indexed yet</p>
-                    <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-                      Until you add something, the assistant can only answer from tours and bookings.
-                      Ask it about your cancellation policy and it will guess. Add that policy here and it will quote it.
-                    </p>
-                  </>
+
+          {filterType === "QUEUE" ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Queue Status Sub-tabs & Batch Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 bg-stone-50/40">
+                <div className="flex items-center gap-1 text-xs">
+                  <Button
+                    variant={queueFilter === "PENDING" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-6 text-[11px] px-2 font-medium"
+                    onClick={() => setQueueFilter("PENDING")}
+                  >
+                    Pending ({queue.filter(q => q.status === "PENDING").length})
+                  </Button>
+                  <Button
+                    variant={queueFilter === "APPROVED" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-6 text-[11px] px-2 font-medium"
+                    onClick={() => setQueueFilter("APPROVED")}
+                  >
+                    Approved ({queue.filter(q => q.status === "APPROVED").length})
+                  </Button>
+                  <Button
+                    variant={queueFilter === "DISMISSED" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-6 text-[11px] px-2 font-medium"
+                    onClick={() => setQueueFilter("DISMISSED")}
+                  >
+                    Dismissed ({queue.filter(q => q.status === "DISMISSED").length})
+                  </Button>
+                  <Button
+                    variant={queueFilter === "ALL" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-6 text-[11px] px-2 font-medium"
+                    onClick={() => setQueueFilter("ALL")}
+                  >
+                    All ({queue.length})
+                  </Button>
+                </div>
+
+                {queue.filter(q => q.status === "PENDING").length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[11px] px-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                      disabled={batchProcessing}
+                      onClick={batchApproveAllPending}
+                    >
+                      {batchProcessing ? <Loader2 className="me-1 h-3 w-3 animate-spin" /> : <CheckCheck className="me-1 h-3 w-3" />}
+                      Approve All Pending
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[11px] px-2 text-stone-500 hover:text-rose-600 hover:bg-rose-50"
+                      disabled={batchProcessing}
+                      onClick={batchDismissAllPending}
+                    >
+                      <X className="me-1 h-3 w-3" />
+                      Dismiss All
+                    </Button>
+                  </div>
                 )}
               </div>
-            ) : (
-              <div className="divide-y">
-                {filteredSources.map(source => {
-                  const Icon = TYPE_ICON[source.type] || FileText
+
+              {/* Mode banner */}
+              <div className="mx-3 mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-200/90 bg-amber-50/70 p-2.5 text-xs text-amber-950">
+                <div className="flex items-start sm:items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <div>
+                    <span className="font-semibold">
+                      {autoLearnConfig.requireApproval ? "Human-in-the-Loop Review Active:" : "Autonomous Indexing Active:"}
+                    </span>{" "}
+                    <span className="text-amber-900/90">
+                      {autoLearnConfig.requireApproval
+                        ? `Mined Q&As with ≥ ${Math.round(autoLearnConfig.minConfidence * 100)}% confidence await staff curation before entering bot memory.`
+                        : `Learnings with ≥ ${Math.round(autoLearnConfig.minConfidence * 100)}% confidence automatically index into bot memory when chats resolve.`}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px] font-medium text-amber-900 hover:bg-amber-100 self-end sm:self-auto shrink-0"
+                  onClick={() => setShowConfigModal(true)}
+                >
+                  <Sliders className="me-1 h-3 w-3" />
+                  Settings
+                </Button>
+              </div>
+
+              {/* Test mine bar */}
+              <div className="mx-3 mt-2 flex items-center gap-2 rounded-lg border border-dashed border-stone-200 bg-stone-50/50 p-2">
+                <Bot className="h-3.5 w-3.5 text-stone-400 shrink-0 ms-1" />
+                <Input
+                  placeholder="Test mine historical chat: enter conversation ID..."
+                  value={testMineConvId}
+                  onChange={e => setTestMineConvId(e.target.value)}
+                  className="h-7 text-xs bg-white"
+                  onKeyDown={e => e.key === "Enter" && runTestMining()}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs shrink-0"
+                  disabled={miningChat || !testMineConvId.trim()}
+                  onClick={runTestMining}
+                >
+                  {miningChat ? <Loader2 className="me-1 h-3 w-3 animate-spin" /> : <Sparkles className="me-1 h-3 w-3 text-amber-600" />}
+                  Mine Chat
+                </Button>
+              </div>
+
+              {/* Scrollable list of candidate items */}
+              <ScrollArea className="flex-1 mt-2">
+                {(() => {
+                  const filtered = queueFilter === "ALL"
+                    ? queue
+                    : queue.filter(q => q.status === queueFilter)
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="space-y-2 p-10 text-center">
+                        <Brain className="mx-auto h-10 w-10 text-amber-500/40" />
+                        <p className="text-sm font-medium">No candidate learnings in this view</p>
+                        <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                          {queueFilter === "PENDING"
+                            ? "All mined questions have been processed! When staff resolve chats in Team Inbox, new reusable Q&As will appear here for review."
+                            : "No items matching the selected filter status."}
+                        </p>
+                      </div>
+                    )
+                  }
+
                   return (
-                    <div key={source.id} className="flex items-center gap-3 p-3">
-                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium">{source.title}</span>
-                          {source.type === "CONVERSATION" && (
-                            <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-normal">
-                              <Sparkles className="h-2.5 w-2.5 text-amber-600" />
-                              Chat Learn
-                            </Badge>
+                    <div className="space-y-3 p-3">
+                      {filtered.map(candidate => (
+                        <div
+                          key={candidate.id}
+                          className="rounded-lg border border-stone-200 bg-white p-3.5 shadow-2xs transition hover:border-amber-300 space-y-2.5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] bg-stone-100 font-medium">
+                                {candidate.topic || "Customer FAQ"}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] font-medium",
+                                  candidate.confidence >= 0.85
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : candidate.confidence >= 0.75
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-stone-50 text-stone-600 border-stone-200"
+                                )}
+                              >
+                                {Math.round(candidate.confidence * 100)}% confidence
+                              </Badge>
+                              {candidate.status === "PENDING" && (
+                                <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-normal hover:bg-amber-100">
+                                  Pending Review
+                                </Badge>
+                              )}
+                              {candidate.status === "APPROVED" && (
+                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-normal hover:bg-emerald-100">
+                                  <Check className="me-1 h-2.5 w-2.5" /> Approved & Indexed
+                                </Badge>
+                              )}
+                              {candidate.status === "DISMISSED" && (
+                                <Badge variant="secondary" className="text-[10px] font-normal">
+                                  Dismissed
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              Chat: <span className="font-mono">{candidate.conversationId ? candidate.conversationId.slice(0, 8) + "..." : "Resolved"}</span>
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-xs">
+                            <div className="font-semibold text-stone-900 flex items-start gap-1.5">
+                              <span className="text-amber-600 font-bold shrink-0">Q:</span>
+                              <span>{candidate.question}</span>
+                            </div>
+                            <div className="text-stone-700 leading-relaxed flex items-start gap-1.5 bg-stone-50/70 p-2.5 rounded border border-stone-100">
+                              <span className="text-emerald-600 font-bold shrink-0">A:</span>
+                              <span className="whitespace-pre-wrap">{candidate.answer}</span>
+                            </div>
+                          </div>
+
+                          {candidate.status === "PENDING" && (
+                            <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-stone-100">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-stone-500 hover:text-rose-600 hover:bg-rose-50"
+                                disabled={processingCandidateId === candidate.id}
+                                onClick={() => dismissCandidate(candidate.id)}
+                              >
+                                <X className="me-1 h-3 w-3" /> Dismiss
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                disabled={processingCandidateId === candidate.id}
+                                onClick={() => {
+                                  setEditingCandidate(candidate)
+                                  setEditCandidateForm({
+                                    question: candidate.question,
+                                    answer: candidate.answer,
+                                    topic: candidate.topic || "General",
+                                  })
+                                }}
+                              >
+                                <Pencil className="me-1 h-3 w-3" /> Edit & Refine
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                disabled={processingCandidateId === candidate.id}
+                                onClick={() => approveCandidate(candidate.id)}
+                              >
+                                {processingCandidateId === candidate.id ? (
+                                  <Loader2 className="me-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="me-1 h-3 w-3" />
+                                )}
+                                Approve & Index
+                              </Button>
+                            </div>
                           )}
-                          {source.status === "INDEXING" && (
-                            <Badge variant="outline" className="gap-1 bg-sky-50 text-sky-700">
-                              <Loader2 className="h-2.5 w-2.5 animate-spin" />working
-                            </Badge>
+
+                          {candidate.status === "APPROVED" && (
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1.5 border-t border-stone-100">
+                              <span className="flex items-center gap-1 text-emerald-700 font-medium">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                Live in Knowledge Base {candidate.reviewedAt ? `· ${new Date(candidate.reviewedAt).toLocaleDateString()}` : ""}
+                              </span>
+                              {candidate.sourceId && (
+                                <span className="text-[10px] font-mono text-stone-400">ID: {candidate.sourceId.slice(0, 8)}</span>
+                              )}
+                            </div>
                           )}
-                          {source.status === "ERROR" && (
-                            <Badge variant="outline" className="bg-rose-50 text-rose-700">failed</Badge>
+
+                          {candidate.status === "DISMISSED" && (
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1.5 border-t border-stone-100">
+                              <span className="text-stone-400">Dismissed {candidate.reviewedAt ? `· ${new Date(candidate.reviewedAt).toLocaleDateString()}` : ""}</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-[11px] text-stone-600 hover:text-stone-900"
+                                disabled={processingCandidateId === candidate.id}
+                                onClick={() => approveCandidate(candidate.id)}
+                              >
+                                Restore & Approve
+                              </Button>
+                            </div>
                           )}
                         </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {source.chunkCount} passages
-                          {source.charCount ? ` · ${(source.charCount / 1000).toFixed(1)}k characters` : ""}
-                          {source.url ? ` · ${source.url}` : ""}
-                        </div>
-                        {source.error && <div className="mt-0.5 text-xs text-rose-600">{source.error}</div>}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          title="View content and passages"
-                          onClick={() => openView(source)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          title="Edit title or content"
-                          onClick={() => openEdit(source)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-rose-600"
-                          title="Delete source"
-                          onClick={() => remove(source)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      ))}
                     </div>
                   )
-                })}
-              </div>
-            )}
-          </ScrollArea>
+                })()}
+              </ScrollArea>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1">
+              {loading ? (
+                <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : filteredSources.length === 0 ? (
+                <div className="space-y-2 p-10 text-center">
+                  {filterType === "CONVERSATION" ? (
+                    <>
+                      <Sparkles className="mx-auto h-10 w-10 text-amber-500/50" />
+                      <p className="text-sm font-medium">No chat learnings yet</p>
+                      <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                        Click &ldquo;Train AI&rdquo; in any conversation toolbar in the Team Inbox, or turn on &ldquo;Auto-train from chats&rdquo; above.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                      <p className="text-sm font-medium">Nothing indexed yet</p>
+                      <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                        Until you add something, the assistant can only answer from tours and bookings.
+                        Ask it about your cancellation policy and it will guess. Add that policy here and it will quote it.
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filteredSources.map(source => {
+                    const Icon = TYPE_ICON[source.type] || FileText
+                    return (
+                      <div key={source.id} className="flex items-center gap-3 p-3">
+                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-medium">{source.title}</span>
+                            {source.type === "CONVERSATION" && (
+                              <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-normal">
+                                <Sparkles className="h-2.5 w-2.5 text-amber-600" />
+                                Chat Learn
+                              </Badge>
+                            )}
+                            {source.status === "INDEXING" && (
+                              <Badge variant="outline" className="gap-1 bg-sky-50 text-sky-700">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />working
+                              </Badge>
+                            )}
+                            {source.status === "ERROR" && (
+                              <Badge variant="outline" className="bg-rose-50 text-rose-700">failed</Badge>
+                            )}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {source.chunkCount} passages
+                            {source.charCount ? ` · ${(source.charCount / 1000).toFixed(1)}k characters` : ""}
+                            {source.url ? ` · ${source.url}` : ""}
+                          </div>
+                          {source.error && <div className="mt-0.5 text-xs text-rose-600">{source.error}</div>}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            title="View content and passages"
+                            onClick={() => openView(source)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            title="Edit title or content"
+                            onClick={() => openEdit(source)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-rose-600"
+                            title="Delete source"
+                            onClick={() => remove(source)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          )}
         </Card>
 
         <Card className="flex flex-col overflow-hidden">
@@ -717,6 +1198,191 @@ export default function KnowledgeView() {
             <Button size="sm" disabled={editSaving || !editForm.title.trim()} onClick={saveEdit}>
               {editSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Save & Re-Index
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit & Refine Candidate Dialog */}
+      <Dialog open={Boolean(editingCandidate)} onOpenChange={(open) => !open && setEditingCandidate(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-amber-600" />
+              Refine Candidate Knowledge
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Topic / Category</Label>
+              <Input
+                placeholder="e.g. Cancellation Policy, Pickup Points, Pricing"
+                value={editCandidateForm.topic}
+                onChange={e => setEditCandidateForm(prev => ({ ...prev, topic: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Question / Customer Inquiry</Label>
+              <Input
+                placeholder="e.g. Can I cancel my booking if it rains?"
+                value={editCandidateForm.question}
+                onChange={e => setEditCandidateForm(prev => ({ ...prev, question: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Verified Business Answer</Label>
+              <Textarea
+                rows={6}
+                className="text-xs leading-relaxed"
+                placeholder="Clear, authoritative business answer the AI assistant should provide..."
+                value={editCandidateForm.answer}
+                onChange={e => setEditCandidateForm(prev => ({ ...prev, answer: e.target.value }))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Refining will index this exact verified Q&amp;A into the knowledge base under your business domain.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={Boolean(processingCandidateId)}
+              onClick={() => setEditingCandidate(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={
+                Boolean(processingCandidateId) ||
+                !editCandidateForm.question.trim() ||
+                !editCandidateForm.answer.trim()
+              }
+              onClick={() => {
+                if (editingCandidate) {
+                  approveCandidate(editingCandidate.id, editCandidateForm)
+                }
+              }}
+            >
+              {processingCandidateId ? (
+                <Loader2 className="me-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="me-1.5 h-3.5 w-3.5" />
+              )}
+              Approve &amp; Index with Edits
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-Learning Configuration Dialog */}
+      <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+              <Brain className="h-5 w-5 text-amber-600" />
+              Self-Learning Engine Settings
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 pt-2">
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-stone-50/50">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold text-stone-900">Continuous Chat Mining</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Extract Q&amp;A pairs automatically when chats resolve
+                </p>
+              </div>
+              <Switch
+                checked={autoLearnConfig.enabled}
+                onCheckedChange={checked =>
+                  setAutoLearnConfig(prev => ({ ...prev, enabled: checked }))
+                }
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-stone-50/50">
+              <div className="space-y-0.5 pe-2">
+                <Label className="text-xs font-semibold text-stone-900">
+                  Human-in-the-Loop Review
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Hold mined Q&amp;As in Curation Queue for staff approval. When off, high-confidence items index autonomously.
+                </p>
+              </div>
+              <Switch
+                checked={autoLearnConfig.requireApproval}
+                onCheckedChange={checked =>
+                  setAutoLearnConfig(prev => ({ ...prev, requireApproval: checked }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2 rounded-lg border p-3 bg-stone-50/50">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-stone-900">
+                  Minimum Confidence Threshold
+                </Label>
+                <span className="font-mono text-xs font-bold text-amber-700">
+                  {Math.round(autoLearnConfig.minConfidence * 100)}%
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Only questions and answers with a confidence rating above this threshold will be mined.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                {[0.7, 0.8, 0.9].map(preset => (
+                  <Button
+                    key={preset}
+                    variant={Math.round(autoLearnConfig.minConfidence * 100) === Math.round(preset * 100) ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs flex-1"
+                    onClick={() => setAutoLearnConfig(prev => ({ ...prev, minConfidence: preset }))}
+                  >
+                    {Math.round(preset * 100)}% {preset === 0.8 ? "(Default)" : preset === 0.9 ? "(Strict)" : "(Broad)"}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-stone-50/50">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold text-stone-900">Format as FAQ Knowledge</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Index approved facts as structured Q&amp;A chunks for maximum semantic precision
+                </p>
+              </div>
+              <Switch
+                checked={autoLearnConfig.autoIndexFaqs ?? true}
+                onCheckedChange={checked =>
+                  setAutoLearnConfig(prev => ({ ...prev, autoIndexFaqs: checked }))
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={configSaving}
+              onClick={() => setShowConfigModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={configSaving}
+              onClick={() => saveConfigSettings(autoLearnConfig)}
+            >
+              {configSaving && <Loader2 className="me-1.5 h-3.5 w-3.5 animate-spin" />}
+              Save Engine Settings
             </Button>
           </DialogFooter>
         </DialogContent>

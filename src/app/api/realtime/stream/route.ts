@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { subscribe } from "@/lib/realtime"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { currentTenant } from "@/lib/tenant"
+import { raw } from "@/lib/db"
+import { openRealtimeUpstream, forwardSseFrames } from "@/lib/chat-api/realtime-upstream"
+import { legacyRecoverySince, replayLegacyConversations, recoveryPause } from "@/lib/chat-api/legacy-recovery"
 
 /**
  * Server-sent events stream for the admin inbox.
@@ -14,9 +17,24 @@ export const maxDuration = 3600
 
 export const GET = withErrors(async (request: NextRequest) => {
   const encoder = new TextEncoder()
-  const tenantId = currentTenant()?.tenantId
+  const tenant = currentTenant()
+  const tenantId = tenant?.tenantId
   if (!tenantId) return NextResponse.json({ error: "Workspace access required" }, { status: 403 })
 
+  const recoverySince = request.nextUrl.searchParams.get("reconcile") === "ready"
+    ? null : legacyRecoverySince(process.env)
+  const recovery = new AbortController()
+  const abortOpening = () => recovery.abort()
+  request.signal.addEventListener("abort", abortOpening, { once: true })
+  if (request.signal.aborted) abortOpening()
+  let upstream: Response | null
+  try {
+    upstream = await openRealtimeUpstream(request, tenant!, recovery.signal)
+  } catch {
+    request.signal.removeEventListener("abort", abortOpening)
+    recovery.abort()
+    return NextResponse.json({ error: "Realtime connection unavailable" }, { status: 503 })
+  }
   let cleanup = () => {}
   const stream = new ReadableStream({
     start(controller) {
@@ -31,9 +49,9 @@ export const GET = withErrors(async (request: NextRequest) => {
       }
 
       send(`retry: 3000\n\n`)
-      send(`event: ready\ndata: {"ok":true}\n\n`)
+      if (!upstream) send(`event: ready\ndata: {"ok":true}\n\n`)
 
-      const unsubscribe = subscribe(event => {
+      const unsubscribe = upstream ? () => {} : subscribe(event => {
         // Strict multi-tenant isolation: only forward events belonging to this exact workspace
         if (tenantId) {
           if (event.tenantId !== tenantId) {
@@ -55,7 +73,9 @@ export const GET = withErrors(async (request: NextRequest) => {
       cleanup = () => {
         if (closed) return
         closed = true
+        recovery.abort()
         request.signal.removeEventListener("abort", cleanup)
+        request.signal.removeEventListener("abort", abortOpening)
         clearInterval(heartbeat)
         unsubscribe()
         try {
@@ -67,6 +87,33 @@ export const GET = withErrors(async (request: NextRequest) => {
 
       request.signal.addEventListener("abort", cleanup, { once: true })
       if (request.signal.aborted) cleanup()
+      if (upstream?.body && !closed) {
+        void forwardSseFrames(upstream.body, send, recovery.signal)
+          .catch(() => { if (!closed) console.error("[realtime] Upstream stream ended unexpectedly") })
+          .finally(cleanup)
+      }
+      // Subscribe before the read: changes during catch-up still arrive normally.
+      if (recoverySince && !closed) {
+        void replayLegacyConversations({
+          signal: recovery.signal,
+          pause: recoveryPause,
+          load: (after, limit) => raw.conversation.findMany({
+            where: {
+              tenantId,
+              ...(after ? { id: { gt: after } } : {}),
+              OR: [
+                { updatedAt: { gte: recoverySince } },
+                { messages: { some: { createdAt: { gte: recoverySince } } } },
+              ],
+            },
+            select: { id: true }, orderBy: { id: "asc" }, take: limit,
+          }),
+          send: conversationId => send(`event: conversation\ndata: ${JSON.stringify({ type: "conversation", conversationId })}\n\n`),
+        }).catch(() => {
+          console.error("[realtime] Legacy recovery failed; reconnect required")
+          cleanup()
+        })
+      }
     },
     cancel() { cleanup() },
   })

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { generateSmartReplies, isAIConfigured } from "@/lib/ai"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 
 /**
  * Suggested replies for the agent handling this conversation.

@@ -14,10 +14,11 @@ import { getConfigValue } from "@/lib/app-config"
 export const GET = withErrors(async (request: NextRequest) => {
   const { searchParams, origin } = new URL(request.url)
   const baseUrl = (await getConfigValue("base_url")) || origin
-  const settings = `${baseUrl.replace(/\/$/, "")}/settings`
+  const returnTo = request.cookies.get("google_business_return_to")?.value || "/digital-qr"
+  const target = `${baseUrl.replace(/\/$/, "")}${returnTo.startsWith("/") ? returnTo : `/${returnTo}`}`
 
   const error = searchParams.get("error")
-  if (error) return NextResponse.redirect(`${settings}?googleBusiness=${encodeURIComponent(error)}`)
+  if (error) return NextResponse.redirect(`${target}?googleBusiness=${encodeURIComponent(error)}`)
 
   const code = searchParams.get("code")
   const state = searchParams.get("state")
@@ -26,13 +27,14 @@ export const GET = withErrors(async (request: NextRequest) => {
   // Without this check any page on the internet could link a visiting admin's
   // browser to an attacker's Google account.
   if (!code || !state || !expected || state !== expected) {
-    return NextResponse.redirect(`${settings}?googleBusiness=invalid_state`)
+    return NextResponse.redirect(`${target}?googleBusiness=invalid_state`)
   }
 
   const result = await completeBusinessConnection(code, baseUrl)
-  if (!result.ok) return NextResponse.redirect(`${settings}?googleBusiness=${encodeURIComponent(result.error || "failed")}`)
+  if (!result.ok) return NextResponse.redirect(`${target}?googleBusiness=${encodeURIComponent(result.error || "failed")}`)
 
-  const response = NextResponse.redirect(`${settings}?googleBusiness=connected`)
+  const response = NextResponse.redirect(`${target}?googleBusiness=connected`)
   response.cookies.delete("google_business_oauth_state")
+  response.cookies.delete("google_business_return_to")
   return response
 })

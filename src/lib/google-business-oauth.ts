@@ -183,6 +183,17 @@ export async function businessAccessToken(): Promise<string | null> {
   const row = await db.googleIntegration.findUnique({ where: { tenantId: tenant.tenantId } })
   if (!row) return null
 
+  // If the saved access token is still valid for at least 1 minute, reuse it directly without an unnecessary remote refresh roundtrip
+  if (row.accessToken && row.tokenExpiresAt && row.tokenExpiresAt.getTime() > Date.now() + 60_000) {
+    try {
+      const decrypted = decryptSecret(row.accessToken)
+      if (decrypted) {
+        cachedByTenant.set(tokenScope(), { token: decrypted, expiresAt: row.tokenExpiresAt.getTime() })
+        return decrypted
+      }
+    } catch { /* Fall through to refresh */ }
+  }
+
   const [clientId, clientSecret] = await Promise.all([
     getConfigValue("google_oauth_client_id"),
     getConfigValue("google_oauth_client_secret"),

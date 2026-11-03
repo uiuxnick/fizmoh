@@ -8,6 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner"
 import { Tag, UserRound, Zap, Plus, Clock } from "lucide-react"
 
+import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
+
 export const AVAILABLE_LABELS = [
   "VIP", "New Lead", "Payment Pending", "Arabic Speaker", "Repeat Customer", "Complaint", "Follow Up",
 ]
@@ -22,7 +24,20 @@ const LABEL_COLORS: Record<string, string> = {
   "Follow Up": "bg-teal-100 text-teal-700",
 }
 
-export function labelClass(label: string) {
+const PALETTE_CLASSES: Record<string, string> = {
+  emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  blue: "bg-blue-50 text-blue-700 border-blue-200",
+  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  purple: "bg-purple-50 text-purple-700 border-purple-200",
+  rose: "bg-rose-50 text-rose-700 border-rose-200",
+  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  teal: "bg-teal-50 text-teal-700 border-teal-200",
+  cyan: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  stone: "bg-stone-100 text-stone-700 border-stone-200",
+}
+
+export function labelClass(label: string, color?: string) {
+  if (color && PALETTE_CLASSES[color]) return PALETTE_CLASSES[color]
   return LABEL_COLORS[label] || "bg-stone-100 text-stone-600"
 }
 
@@ -52,11 +67,37 @@ export function LabelPicker({ conversationId, labels, onChanged }: { conversatio
   const current = parseLabels(labels)
   const [search, setSearch] = useState("")
   const [extraLabels, setExtraLabels] = useState<string[]>([])
+  const [dbLabels, setDbLabels] = useState<Array<{ name: string; color: string }>>([])
+  const [managerOpen, setManagerOpen] = useState(false)
 
-  const allLabels = Array.from(new Set([...AVAILABLE_LABELS, ...current, ...extraLabels])).filter(Boolean).sort()
+  const loadDbLabels = async () => {
+    try {
+      const res = await fetch("/api/labels", { cache: "no-store" })
+      if (res.ok) {
+        const d = await res.json()
+        if (d.labels && Array.isArray(d.labels)) {
+          setDbLabels(d.labels.map((l: any) => ({ name: l.name, color: l.color })))
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  useEffect(() => {
+    loadDbLabels()
+  }, [])
+
+  const allNames = Array.from(new Set([
+    ...AVAILABLE_LABELS,
+    ...dbLabels.map(l => l.name),
+    ...current,
+    ...extraLabels
+  ])).filter(Boolean).sort()
+
   const filtered = search.trim()
-    ? allLabels.filter(l => l.toLowerCase().includes(search.trim().toLowerCase()))
-    : allLabels
+    ? allNames.filter(l => l.toLowerCase().includes(search.trim().toLowerCase()))
+    : allNames
 
   const toggle = async (label: string) => {
     const trimmed = label.trim()
@@ -73,7 +114,7 @@ export function LabelPicker({ conversationId, labels, onChanged }: { conversatio
         return
       }
       toast.success(current.includes(trimmed) ? `Label "${trimmed}" removed` : `Label "${trimmed}" added`)
-      if (!allLabels.includes(trimmed)) {
+      if (!allNames.includes(trimmed)) {
         setExtraLabels(prev => [...prev, trimmed])
       }
       setSearch("")
@@ -83,54 +124,75 @@ export function LabelPicker({ conversationId, labels, onChanged }: { conversatio
     }
   }
 
-  const isNew = search.trim() && !allLabels.some(l => l.toLowerCase() === search.trim().toLowerCase())
+  const isNew = search.trim() && !allNames.some(l => l.toLowerCase() === search.trim().toLowerCase())
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 text-xs text-stone-600 gap-1"><Tag className="h-3.5 w-3.5" />Labels</Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-60 p-2 space-y-2">
-        <div className="text-[11px] font-semibold text-stone-500 px-1 pb-1 border-b">Conversation labels</div>
-        <Input
-          placeholder="Search or new label..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter" && search.trim()) {
-              e.preventDefault()
-              toggle(search.trim())
-            }
-          }}
-          className="h-7 text-xs bg-stone-50"
-        />
-        {isNew && (
-          <Button
-            size="sm"
-            onClick={() => toggle(search.trim())}
-            className="w-full h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
-          >
-            <Plus className="h-3 w-3" />
-            <span>Create &amp; Add &quot;{search.trim()}&quot;</span>
-          </Button>
-        )}
-        <div className="space-y-0.5 max-h-56 overflow-y-auto">
-          {filtered.map(l => {
-            const active = current.includes(l)
-            return (
-              <button
-                key={l}
-                onClick={() => toggle(l)}
-                className={`w-full px-2 py-1 rounded text-xs text-left flex items-center justify-between hover:bg-stone-50 ${active ? "font-semibold bg-stone-50" : ""}`}
-              >
-                <span className={`px-1.5 py-0.5 rounded text-[10px] ${labelClass(l)}`}>{l}</span>
-                {active && <span className="text-emerald-600 text-xs">✓</span>}
-              </button>
-            )
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-stone-600 gap-1"><Tag className="h-3.5 w-3.5" />Labels</Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 p-2 space-y-2">
+          <div className="flex items-center justify-between px-1 pb-1 border-b">
+            <span className="text-[11px] font-semibold text-stone-500">Conversation labels</span>
+            <button
+              type="button"
+              onClick={() => setManagerOpen(true)}
+              className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold hover:underline flex items-center gap-0.5"
+            >
+              <span>Manage</span>
+            </button>
+          </div>
+          <Input
+            placeholder="Search or new label..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" && search.trim()) {
+                e.preventDefault()
+                toggle(search.trim())
+              }
+            }}
+            className="h-7 text-xs bg-stone-50"
+          />
+          {isNew && (
+            <Button
+              size="sm"
+              onClick={() => toggle(search.trim())}
+              className="w-full h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1"
+            >
+              <Plus className="h-3 w-3" />
+              <span>Create &amp; Add &quot;{search.trim()}&quot;</span>
+            </Button>
+          )}
+          <div className="space-y-0.5 max-h-56 overflow-y-auto">
+            {filtered.map(l => {
+              const active = current.includes(l)
+              const color = dbLabels.find(x => x.name.toLowerCase() === l.toLowerCase())?.color
+              return (
+                <button
+                  key={l}
+                  onClick={() => toggle(l)}
+                  className={`w-full px-2 py-1 rounded text-xs text-left flex items-center justify-between hover:bg-stone-50 ${active ? "font-semibold bg-stone-50" : ""}`}
+                >
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${labelClass(l, color)}`}>{l}</span>
+                  {active && <span className="text-emerald-600 text-xs">✓</span>}
+                </button>
+              )
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <LabelManagerDialog
+        open={managerOpen}
+        onOpenChange={setManagerOpen}
+        onLabelsChanged={() => {
+          loadDbLabels()
+          onChanged()
+        }}
+      />
+    </>
   )
 }
 

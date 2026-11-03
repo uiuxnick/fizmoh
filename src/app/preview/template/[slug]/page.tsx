@@ -3,15 +3,16 @@
 import { notFound } from "next/navigation"
 import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
 import { BOT_TEMPLATES } from "@/lib/bot-templates"
-import { useState } from "react"
+import { use } from "react"
 import { ArrowRight, Sparkles } from "lucide-react"
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 export default function TemplatePreviewPage({ params }: Props) {
-  const template = BOT_TEMPLATES.find(t => t.id === params.slug)
+  const { slug } = use(params)
+  const template = BOT_TEMPLATES.find(t => t.id === slug)
   if (!template) notFound()
 
   return (

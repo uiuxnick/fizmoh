@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "../../tenants/route"
-import { cleanModules, cleanLimits } from "../route"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
+import { cleanModules, cleanLimits } from "@/lib/plan-validation"
 
 /** Editing a plan, and retiring one. All mutations recorded in PlatformAuditEvent. */
 

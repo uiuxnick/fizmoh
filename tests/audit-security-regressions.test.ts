@@ -12,4 +12,4 @@ for (const fixture of ['audit-reports', 'audit-billing', 'audit-hospital', 'audi
 test('promotion preserves the old backend until candidate health and proxy validation pass', () => {
   const result = spawnSync('bash', [resolve(import.meta.dir, 'deploy-promotion.test.sh')], { encoding: 'utf8', timeout: 20000 })
   expect(result.status).toBe(0)
-})
+}, 25000)

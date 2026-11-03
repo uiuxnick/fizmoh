@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { currentTenant } from "@/lib/tenant"
 import { sendContactMessage, sendDigitalCardMessage } from "@/lib/whatsapp"
 import { publish } from "@/lib/realtime"
 
 export const POST = withErrors(async (
   request: NextRequest,
-  context?: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) => {
   const tenant = currentTenant()
   const params = await context?.params
@@ -48,10 +48,14 @@ export const POST = withErrors(async (
   let textResult: any = null
   let contactResult: any = null
 
+  const cardDisplayName = card.contactName || card.title || card.companyName || "Our Business"
+  const businessName = card.title || card.companyName || "Our Business"
+  const companyOrg = card.legalName || card.companyName || card.title || "Our Business"
+
   if (format === "card" || format === "both") {
     textResult = await sendDigitalCardMessage({
       to: targetPhone,
-      businessName: card.title,
+      businessName,
       cardUrl,
       tagline: card.subtitle || undefined,
       contactPhone: card.mobileNumber || undefined,
@@ -63,12 +67,12 @@ export const POST = withErrors(async (
       to: targetPhone,
       contact: {
         name: {
-          formatted_name: card.contactName || card.title,
-          first_name: card.contactName ? card.contactName.split(" ")[0] : card.title,
-          last_name: card.contactName && card.contactName.includes(" ") ? card.contactName.split(" ").slice(1).join(" ") : undefined,
+          formatted_name: cardDisplayName,
+          first_name: cardDisplayName.split(" ")[0],
+          last_name: cardDisplayName.includes(" ") ? cardDisplayName.split(" ").slice(1).join(" ") : undefined,
         },
         org: {
-          company: card.legalName || card.title,
+          company: companyOrg,
           title: card.contactTitle || undefined,
           department: card.contactDept || undefined,
         },
@@ -96,7 +100,7 @@ export const POST = withErrors(async (
   }
 
   // Create record in thread
-  const summaryContent = `📇 Sent Digital Business Card: ${card.title} (${cardUrl})`
+  const summaryContent = `📇 Sent Digital Business Card: ${businessName} (${cardUrl})`
   const msg = await db.message.create({
     data: {
       conversationId: conversation.id,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { publish } from "@/lib/realtime"
 
 // GET single conversation (lightweight, no messages)
@@ -10,7 +10,7 @@ export const GET = withErrors(async (_request: NextRequest, { params }: { params
     where: { id },
     include: {
       customer: true,
-      assignedStaff: true,
+      assignedStaff: { omit: { passwordHash: true } },
     },
   })
   if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })

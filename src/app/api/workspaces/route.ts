@@ -17,7 +17,7 @@ import { isPlatformOperator } from "@/lib/tenant"
  * for this person, which cannot be answered from inside one of them.
  */
 
-export const WORKSPACE_COOKIE = "fizmoh_workspace"
+import { WORKSPACE_COOKIE } from "@/lib/workspace-cookie"
 
 export const GET = withErrors(async (request: NextRequest) => {
   const session = await sessionFromRequest(request)

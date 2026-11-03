@@ -298,12 +298,12 @@ export default function DashboardView() {
       />
 
       {/* KPI Cards */}
-      <div data-tour="dashboard-kpis" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div data-tour="dashboard-kpis" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {kpiCards.map((card, i) => (
           <button
             key={i}
             onClick={() => setView(card.view)}
-            className="text-left group focus:outline-hidden"
+            className="text-left rtl:text-right group focus:outline-hidden"
           >
             <Card className="rounded-2xl border-stone-200/90 bg-white hover:border-emerald-300 hover:shadow-md transition-all duration-200 h-full flex flex-col justify-between overflow-hidden">
               <CardContent className="p-4 flex-1 flex flex-col justify-between">
@@ -325,7 +325,7 @@ export default function DashboardView() {
                 </div>
                 <div className="text-[11px] font-medium text-stone-400 mt-3 pt-2 border-t border-stone-100 flex items-center justify-between group-hover:text-emerald-700 transition-colors">
                   <span className="truncate">{card.sub}</span>
-                  <ArrowRight className="h-3 w-3 shrink-0 ml-1 transform group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="h-3 w-3 shrink-0 ms-1 transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
                 </div>
               </CardContent>
             </Card>
@@ -337,40 +337,42 @@ export default function DashboardView() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card data-tour="dashboard-chart" className="lg:col-span-2 rounded-2xl border-stone-200/90 shadow-sm bg-white overflow-hidden">
           <CardHeader className="pb-3 border-b border-stone-100/80 bg-stone-50/40">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-stone-900">
                 <div className="h-7 w-7 rounded-lg bg-emerald-100/80 flex items-center justify-center text-emerald-700">
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <span>Revenue — Last 7 Days</span>
               </CardTitle>
-              <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200/80 font-bold px-2.5 py-1 text-xs">
+              <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200/80 font-bold px-2.5 py-1 text-xs w-fit">
                 {formatCurrency(data.revenueByDay.reduce((s, d) => s + d.revenue, 0))} Total
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="flex items-end justify-between gap-3 h-52">
-              {data.revenueByDay.map((day, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                  <div className="text-[10px] font-bold text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-100 px-1.5 py-0.5 rounded shadow-xs">
-                    {formatCurrency(day.revenue)}
-                  </div>
-                  <div className="w-full flex-1 flex items-end">
-                    <div
-                      className="w-full rounded-t-xl bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400 hover:from-emerald-700 hover:to-teal-500 transition-all min-h-[6px] relative group shadow-xs cursor-pointer"
-                      style={{ height: `${Math.max((day.revenue / maxRevenue) * 100, 4)}%` }}
-                    >
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-full text-center">
-                        <span className="text-[10px] font-bold text-stone-500">{day.orders > 0 ? day.orders : ""}</span>
+            <div className="overflow-x-auto pb-2">
+              <div className="flex items-end justify-between gap-2 sm:gap-3 h-52 min-w-[280px]">
+                {data.revenueByDay.map((day, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group min-w-[32px]">
+                    <div className="text-[10px] font-bold text-stone-700 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-100 px-1.5 py-0.5 rounded shadow-xs truncate">
+                      {formatCurrency(day.revenue)}
+                    </div>
+                    <div className="w-full flex-1 flex items-end">
+                      <div
+                        className="w-full rounded-t-xl bg-gradient-to-t from-emerald-600 via-emerald-500 to-teal-400 hover:from-emerald-700 hover:to-teal-500 transition-all min-h-[6px] relative group shadow-xs cursor-pointer"
+                        style={{ height: `${Math.max((day.revenue / maxRevenue) * 100, 4)}%` }}
+                      >
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-full text-center">
+                          <span className="text-[10px] font-bold text-stone-500">{day.orders > 0 ? day.orders : ""}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="text-[11px] text-stone-600 font-semibold">{day.label}</div>
                   </div>
-                  <div className="text-[11px] text-stone-600 font-semibold">{day.label}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-stone-100 text-xs text-stone-500 font-medium">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mt-4 pt-3 border-t border-stone-100 text-xs text-stone-500 font-medium">
               <span className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-xs" />
                 <span>Daily Sales Volume</span>

@@ -40,6 +40,7 @@ export const VIEW_PATHS: Record<ViewKey, string> = {
   "cloud-bridges": "cloud-bridges",
   "white-label": "white-label",
   training: "training",
+  "email-marketing": "email-marketing",
 }
 
 const ALIASES: Record<string, ViewKey> = {

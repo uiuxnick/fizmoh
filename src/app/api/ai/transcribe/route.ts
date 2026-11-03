@@ -45,7 +45,7 @@ export const POST = withErrors(async (req: NextRequest) => {
     if (messageId) {
       const msg = await db.message.findUnique({
         where: { id: messageId },
-        select: { id: true, mediaUrl: true, caption: true, type: true },
+        select: { id: true, mediaUrl: true, caption: true, type: true, conversationId: true, tenantId: true },
       })
 
       if (!msg) {
@@ -77,10 +77,31 @@ export const POST = withErrors(async (req: NextRequest) => {
         }
       }
 
+      // Handle raw Meta Media ID if mediaUrl is numeric
+      if (!audioBuffer && /^\d{10,25}$/.test(mediaUrl.trim())) {
+        const { downloadMediaBytes } = await import("@/lib/whatsapp")
+        const downloaded = await downloadMediaBytes(mediaUrl.trim())
+        if (downloaded.success && downloaded.base64) {
+          audioBuffer = Buffer.from(downloaded.base64, "base64")
+          if (downloaded.mimeType) mimeType = downloaded.mimeType
+        }
+      }
+
       // If not in local media store, fetch from full URL or data URI
       if (!audioBuffer && (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://"))) {
         const res = await fetch(mediaUrl)
         if (res.ok) {
+          const ab = await res.arrayBuffer()
+          audioBuffer = Buffer.from(ab)
+          const fetchedType = res.headers.get("content-type")
+          if (fetchedType) mimeType = fetchedType
+        }
+      } else if (!audioBuffer && mediaUrl.startsWith("/")) {
+        // Resolve relative URL on this host
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3019"
+        const fullUrl = `${baseUrl}${mediaUrl}`
+        const res = await fetch(fullUrl).catch(() => null)
+        if (res?.ok) {
           const ab = await res.arrayBuffer()
           audioBuffer = Buffer.from(ab)
           const fetchedType = res.headers.get("content-type")
@@ -129,12 +150,29 @@ export const POST = withErrors(async (req: NextRequest) => {
 
   // Persist transcript on message if messageId was provided
   if (messageId) {
-    await db.message.update({
+    const updated = await db.message.update({
       where: { id: messageId },
       data: {
         caption: `Transcript: ${transcribedText}`,
       },
-    }).catch(err => console.error("Failed to update message with transcript:", err))
+      select: { id: true, conversationId: true, tenantId: true },
+    }).catch(err => {
+      console.error("Failed to update message with transcript:", err)
+      return null
+    })
+
+    if (updated) {
+      try {
+        const { publish } = await import("@/lib/realtime")
+        publish({
+          type: "message",
+          conversationId: updated.conversationId,
+          direction: "INBOUND",
+          preview: `Transcript: ${transcribedText.slice(0, 100)}`,
+          tenantId: updated.tenantId || undefined,
+        })
+      } catch {}
+    }
   }
 
   return NextResponse.json({

@@ -67,26 +67,3 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   return NextResponse.json({ waitlist: entry }, { status: 201 })
 })
-
-/**
- * When a seat becomes available (cancellation), notify waitlist
- * This is called from the order cancel flow
- */
-export async function notifyWaitlist(slotId: string): Promise<void> {
-  const waitlist = await db.waitlist.findMany({
-    where: { slotId, notifiedAt: null },
-    orderBy: { createdAt: "asc" },
-    take: 5, // Notify first 5 in line
-    include: { customer: true, slot: { include: { tour: true } } },
-  })
-
-  for (const entry of waitlist) {
-    if (entry.customer?.whatsappOptIn) {
-      await sendWhatsApp({
-        to: entry.phone,
-        body: `Great news! A seat just opened up for "${entry.slot.tour.name}" on ${entry.slot.date.toISOString().split("T")[0]} at ${entry.slot.startTime}. Book now before it's gone! Reply "BOOK" to reserve.`,
-      })
-    }
-    await db.waitlist.update({ where: { id: entry.id }, data: { notifiedAt: new Date() } })
-  }
-}

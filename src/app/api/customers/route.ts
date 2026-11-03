@@ -71,5 +71,14 @@ export const POST = withErrors(async (request: NextRequest) => {
       tags: body.tags ? JSON.stringify(body.tags) : undefined,
     },
   })
+
+  // Trigger automated ON_SUBSCRIBE drip sequences
+  const { handleSequenceTriggerEvent } = await import("@/lib/sequences")
+  handleSequenceTriggerEvent({
+    tenantId: tenant.tenantId,
+    customerId: customer.id,
+    trigger: "ON_SUBSCRIBE",
+  }).catch(() => {})
+
   return NextResponse.json({ customer }, { status: 201 })
 })

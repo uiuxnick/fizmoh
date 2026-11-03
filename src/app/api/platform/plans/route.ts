@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { raw } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
-import { requirePlatformAdmin } from "../tenants/route"
-import { MODULE_KEYS, MODULE_REGISTRY, normalizeModules } from "@/lib/module-registry"
+import { requirePlatformAdmin } from "@/lib/platform-admin"
+import { MODULE_REGISTRY } from "@/lib/module-registry"
 
 /**
  * The plans on sale, and what each one includes.
@@ -13,7 +13,7 @@ import { MODULE_KEYS, MODULE_REGISTRY, normalizeModules } from "@/lib/module-reg
  */
 
 /** Every module a plan can include. Kept in one place so the UI cannot invent one. */
-export const MODULES = MODULE_KEYS
+import { cleanModules, cleanLimits } from "@/lib/plan-validation"
 
 export const GET = withErrors(async (request: NextRequest) => {
   if (!(await requirePlatformAdmin(request))) {
@@ -76,21 +76,3 @@ export const POST = withErrors(async (request: NextRequest) => {
 
   return NextResponse.json({ plan }, { status: 201 })
 })
-
-/** Only modules this build knows about. An unknown one would silently do nothing. */
-export function cleanModules(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return normalizeModules(value)
-}
-
-/** Ceilings, as whole numbers. Zero and absent both mean no ceiling. */
-export function cleanLimits(value: unknown): Record<string, number> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
-  const out: Record<string, number> = {}
-  for (const key of ["staff", "contacts", "messagesPerMonth", "numbers"]) {
-    const raw = (value as Record<string, unknown>)[key]
-    const number = Math.round(Number(raw))
-    if (Number.isFinite(number) && number > 0) out[key] = number
-  }
-  return out
-}

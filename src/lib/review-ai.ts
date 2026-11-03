@@ -44,9 +44,15 @@ function buildUserPrompt(params: {
   language: string
   tone: string
   styles: SuggestionStyle[]
+  businessName?: string
 }): string {
-  const { rating, tags, freeText, language, tone, styles } = params
+  const { rating, tags, freeText, language, tone, styles, businessName } = params
+  // If the customer wrote in Arabic, prioritize Arabic output even if campaign language defaulted to English
+  const isArabicInput = /[\u0600-\u06FF]/.test(freeText)
+  const effectiveLanguage = isArabicInput ? "Arabic" : (language === "ar" ? "Arabic" : language === "hi" ? "Hindi" : "English")
+
   const facts = [
+    businessName ? `Business Name: ${businessName}.` : "",
     `Star rating given: ${rating} out of 5.`,
     tags.length ? `What they liked (selected tags): ${tags.join(", ")}.` : "",
     freeText.trim() ? `In their own words: "${freeText.trim()}"` : "",
@@ -60,7 +66,7 @@ function buildUserPrompt(params: {
     `- NATURAL: a warm, conversational review, medium length.`,
     `- SHORT: 1-2 sentences, to the point.`,
     `- DETAILED: a fuller, more descriptive review, still grounded only in what was said.`,
-    `Tone: ${tone}. Language: ${language === "ar" ? "Arabic" : language === "hi" ? "Hindi" : "English"}.`,
+    `Tone: ${tone}. Language: ${effectiveLanguage}.`,
     `Respond with JSON only: [{"style":"NATURAL","text":"..."}, ...]`,
   ].join("\n")
 }
@@ -104,6 +110,7 @@ export async function generateReviewSuggestions(params: {
   language?: string
   tone?: string
   count?: number
+  businessName?: string
 }): Promise<ReviewSuggestionResult[]> {
   const rating = Math.min(5, Math.max(1, Math.round(params.rating)))
   const tags = (params.tags || []).map(t => String(t).slice(0, 40)).slice(0, 12)
@@ -111,13 +118,14 @@ export async function generateReviewSuggestions(params: {
   const language = params.language || "en"
   const tone = params.tone || "friendly"
   const count = Math.min(4, Math.max(2, params.count ?? 3))
+  const businessName = params.businessName
 
   const allStyles: SuggestionStyle[] = ["NATURAL", "SHORT", "DETAILED"]
   const styles = allStyles.slice(0, count)
   while (styles.length < count) styles.push("NATURAL")
 
   const config = await getAIConfig()
-  const userPrompt = buildUserPrompt({ rating, tags, freeText, language, tone, styles })
+  const userPrompt = buildUserPrompt({ rating, tags, freeText, language, tone, styles, businessName })
 
   let raw: string
   if (config.provider === "anthropic") {

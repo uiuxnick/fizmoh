@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { withErrors } from "@/lib/api-handler"
+import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { sessionFromRequest } from "@/lib/auth"
 import { currentTenant, PLATFORM } from "@/lib/tenant"
 import {

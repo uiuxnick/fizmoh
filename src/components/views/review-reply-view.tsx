@@ -132,15 +132,21 @@ function SettingsTab() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [previewText, setPreviewText] = useState("Amazing collection of pure oud and perfumes! Very courteous staff.")
+  const [previewText, setPreviewText] = useState("Amazing service and high quality! Very courteous staff.")
   const [previewRating, setPreviewRating] = useState(5)
-  const [previewLocation, setPreviewLocation] = useState("OUD WORLD RUWI MUSCAT OMAN")
-  const [previewReviewer, setPreviewReviewer] = useState("Zubair Ahmed")
+  const [previewLocation, setPreviewLocation] = useState("")
+  const [previewReviewer, setPreviewReviewer] = useState("Mohammed Al-Balushi")
   const [previewResult, setPreviewResult] = useState<{ reply?: string; escalation?: { escalate: boolean; reason: string | null }; error?: string } | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [newKeyword, setNewKeyword] = useState("")
 
-  const load = () => fetch("/api/review-reply/settings").then(r => r.json()).then(d => setSettings(d.settings))
+  const load = () => fetch("/api/review-reply/settings").then(r => r.json()).then(d => {
+    setSettings(d.settings)
+    if (d.settings?.signature && !previewLocation) {
+      const extracted = d.settings.signature.replace(/^[—\-]\s*(?:The\s*)?/i, "").replace(/\s*Team$/i, "").trim()
+      if (extracted) setPreviewLocation(extracted)
+    }
+  })
   useEffect(() => { load() }, [])
 
   if (!settings) return <Skeleton className="h-96 rounded-xl" />
@@ -263,8 +269,8 @@ function SettingsTab() {
         body: JSON.stringify({
           reviewText: previewText, rating: previewRating,
           reviewerName: previewReviewer || "A customer",
-          locationName: previewLocation || "OUD WORLD RUWI MUSCAT OMAN",
-          businessName: previewLocation || "OUD WORLD RUWI MUSCAT OMAN",
+          locationName: previewLocation || (settings.signature ? settings.signature.replace(/^[—\-]\s*(?:The\s*)?/i, "").replace(/\s*Team$/i, "").trim() : "Our Business"),
+          businessName: previewLocation || (settings.signature ? settings.signature.replace(/^[—\-]\s*(?:The\s*)?/i, "").replace(/\s*Team$/i, "").trim() : "Our Business"),
           tone: settings.tone, customTone: settings.customTone, replyLength: settings.replyLength,
           language: settings.languages[0] || "en", signature: settings.signature,
           excludedWords: settings.excludedWords, escalationKeywords: settings.escalationKeywords,
@@ -391,7 +397,7 @@ function SettingsTab() {
               {/* Variable Tag Chips */}
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  { tag: "{{location_name}}", desc: "e.g. OUD WORLD RUWI MUSCAT OMAN" },
+                  { tag: "{{location_name}}", desc: "e.g. Muscat Branch or Main Office" },
                   { tag: "{{reviewer_name}}", desc: "Customer Name" },
                   { tag: "{{rating}}", desc: "1-5 Stars" },
                   { tag: "{{review_text}}", desc: "Customer Comment" },
@@ -626,7 +632,7 @@ function SettingsTab() {
             <Input
               value={previewLocation}
               onChange={e => setPreviewLocation(e.target.value)}
-              placeholder="e.g. OUD WORLD RUWI MUSCAT OMAN"
+              placeholder="e.g. Muscat Branch or Main Office"
               className="text-xs h-8 mt-1"
             />
           </div>
@@ -778,15 +784,15 @@ function InboxTab() {
   async function regenerateDraft(r: ReviewRow) {
     setBusyId(r.id)
     const locObj = locations.find(l => l.id.includes(r.googleLocationId || "") || (r.googleLocationId || "").includes(l.id))
-    const locName = locObj ? locObj.name : "OUD WORLD RUWI MUSCAT OMAN"
-    toast.info(`Regenerating draft for ${r.reviewerName || "customer"} using ${locName}...`)
+    const locName = locObj ? locObj.name : ""
+    toast.info(`Regenerating draft for ${r.reviewerName || "customer"}...`)
     try {
       const res = await fetch(`/api/review-reply/reviews/${r.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "regenerate",
-          locationName: locName,
+          locationName: locName || undefined,
         }),
       })
       const data = await res.json()
@@ -803,7 +809,7 @@ function InboxTab() {
   async function generateAiForReview(r: ReviewRow) {
     setGeneratingAi(true)
     const locObj = locations.find(l => l.id.includes(r.googleLocationId || "") || (r.googleLocationId || "").includes(l.id))
-    const locName = locObj ? locObj.name : "OUD WORLD RUWI MUSCAT OMAN"
+    const locName = locObj ? locObj.name : ""
     try {
       const res = await fetch("/api/review-reply/preview", {
         method: "POST",
@@ -812,7 +818,7 @@ function InboxTab() {
           reviewText: r.comment || "Great experience",
           rating: r.rating || 5,
           reviewerName: r.reviewerName || "Valued Customer",
-          locationName: locName,
+          locationName: locName || undefined,
           businessName: locName,
         }),
       })

@@ -74,7 +74,8 @@ export function ModuleGate({ module, children, label }: ModuleGateProps) {
     (module === "CUSTOMER_SITE" && (features?.customer_site ?? features?.website)) ||
     (module === "WEBSITE" && (features?.website_builder ?? features?.website)) ||
     (module === "INTEGRATION" && features?.integration) ||
-    (module === "WHITE_LABEL" && features?.white_label)
+    (module === "WHITE_LABEL" && features?.white_label) ||
+    (module === "EMAIL_MARKETING" && (features?.email_marketing ?? features?.emailmarketing))
   )
 
   if (!isAllowed) {

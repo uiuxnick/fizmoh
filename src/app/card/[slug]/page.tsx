@@ -1,10 +1,12 @@
 import { Metadata } from "next"
-import { headers } from "next/headers"
+import { headers, cookies } from "next/headers"
 import { db } from "@/lib/db"
 import { PublicCardClient } from "@/components/digital-vcard/public-card-client"
+import { verifySession, STAFF_COOKIE } from "@/lib/auth"
 
 interface PageProps {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -12,7 +14,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const card = await (db as any).businessVCard.findFirst({
     where: {
       slug: slug.toLowerCase(),
-      status: "PUBLISHED",
     },
   })
 
@@ -23,7 +24,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
-  const title = card.metaTitle || card.title || card.companyName || "Digital Business Card"
+  const isDraft = card.status !== "PUBLISHED"
+  const title = (isDraft ? "[Preview] " : "") + (card.metaTitle || card.title || card.companyName || "Digital Business Card")
   const description =
     card.metaDescription || card.bio || card.aboutUs || card.subtitle || card.tagline || `Connect with ${title} on Fizmoh.`
   const ogImage = card.bannerUrl || card.logoUrl
@@ -47,8 +49,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function PublicCardPage({ params }: PageProps) {
+export default async function PublicCardPage({ params, searchParams }: PageProps) {
   const { slug } = await params
+  const query = (await searchParams) || {}
 
   const card = await (db as any).businessVCard.findFirst({
     where: {
@@ -66,8 +69,23 @@ export default async function PublicCardPage({ params }: PageProps) {
     },
   })
 
-  // If card doesn't exist or is not published
-  if (!card || card.status !== "PUBLISHED") {
+  // Check if requesting user is authenticated staff for previewing draft cards
+  let isStaff = false
+  try {
+    const cookieStore = await cookies()
+    const staffToken = cookieStore.get(STAFF_COOKIE)?.value
+    if (staffToken) {
+      const payload = await verifySession(staffToken)
+      if (payload && payload.kind === "staff") {
+        isStaff = true
+      }
+    }
+  } catch {}
+
+  const isDraftPreview = Boolean(card && card.status !== "PUBLISHED" && (isStaff || query.preview === "true"))
+
+  // If card doesn't exist or is not published (and not previewed by staff)
+  if (!card || (card.status !== "PUBLISHED" && !isDraftPreview)) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 mb-4 shadow-xs">
@@ -138,6 +156,11 @@ export default async function PublicCardPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {isDraftPreview && (
+        <div className="bg-amber-500 text-white text-xs font-semibold py-2 px-4 text-center sticky top-0 z-50 flex items-center justify-center gap-2 shadow-sm">
+          <span>⚠️ <strong>Draft Preview:</strong> This card is currently unpublished and only visible to authorized staff.</span>
+        </div>
+      )}
       <PublicCardClient
         card={{
           ...card,

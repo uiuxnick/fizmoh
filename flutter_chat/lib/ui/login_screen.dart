@@ -85,8 +85,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool get _identifierLooksValid {
     final value = _identifier.text.trim();
     if (value.isEmpty) return false;
-    if (_looksLikePhone) return value.replaceAll(RegExp(r'\D'), '').length >= 8;
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(value);
+    if (_looksLikePhone) return value.replaceAll(RegExp(r'\D'), '').length >= 6;
+    if (value.contains('@')) {
+      return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(value);
+    }
+    return value.length >= 3;
   }
 
   Future<void> _run(Future<void> Function() action) async {

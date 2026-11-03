@@ -12,6 +12,8 @@ import 'details_panel.dart';
 import 'people_screen.dart';
 import 'profile_screen.dart';
 import 'message_thread.dart';
+import 'restaurant_orders_screen.dart';
+import 'training_screen.dart';
 
 /// The frame around everything.
 ///
@@ -83,6 +85,8 @@ class _ShellState extends State<Shell> {
   static const _sections = [
     (icon: Icons.forum_outlined, active: Icons.forum, label: 'Chats'),
     (icon: Icons.receipt_long_outlined, active: Icons.receipt_long, label: 'Bookings'),
+    (icon: Icons.restaurant_menu_outlined, active: Icons.restaurant_menu, label: 'Restaurant'),
+    (icon: Icons.school_outlined, active: Icons.school, label: 'Academy'),
     (icon: Icons.people_outline, active: Icons.people, label: 'Contacts'),
     (icon: Icons.call_outlined, active: Icons.call, label: 'Calls'),
     (icon: Icons.person_outline, active: Icons.person, label: 'Profile'),
@@ -91,9 +95,11 @@ class _ShellState extends State<Shell> {
   Widget _section(int index) {
     switch (index) {
       case 1: return const BookingsScreen();
-      case 2: return const PeopleScreen();
-      case 3: return const CallsScreen();
-      case 4: return ProfileScreen(onSignedOut: widget.onSignedOut);
+      case 2: return const RestaurantOrdersScreen();
+      case 3: return const TrainingScreen();
+      case 4: return const PeopleScreen();
+      case 5: return const CallsScreen();
+      case 6: return ProfileScreen(onSignedOut: widget.onSignedOut);
       default: return const SizedBox.shrink();
     }
   }

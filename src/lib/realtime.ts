@@ -1,17 +1,4 @@
-/**
- * In-process realtime event bus for the admin inbox.
- *
- * The inbox previously polled every 5 seconds, so an agent saw a customer
- * message up to 5s late and every open tab hit the database on a timer.
- * Publishers (the webhook, the agent send route) push events here and SSE
- * subscribers forward them to connected browsers.
- *
- * This is deliberately in-process: the app runs as a single Node server, so a
- * shared emitter is enough and adds no infrastructure. If this is ever scaled
- * to multiple instances, events would only reach clients connected to the
- * instance that produced them — at that point this needs Redis pub/sub or
- * similar behind the same publish/subscribe interface.
- */
+/** Local delivery with an optional Redis bridge for multiple application processes. */
 
 import { EventEmitter } from "events"
 import { currentTenant } from "@/lib/tenant"
@@ -41,7 +28,7 @@ export type RealtimeEvent = (
 const CHANNEL = "realtime"
 
 // Survives hot reload in development, where the module is re-evaluated.
-const globalForBus = globalThis as unknown as { __wptourBus?: EventEmitter; __fizmohBridge?: boolean; __fizmohOrigin?: string }
+const globalForBus = globalThis as unknown as { __wptourBus?: EventEmitter; __fizmohBridge?: boolean; __fizmohOrigin?: string; __fizmohSubscriberReady?: boolean }
 
 function startBridge() {
   const redis = sharedRedis()
@@ -51,7 +38,23 @@ function startBridge() {
   const subscriber = redis.duplicate({ commandTimeout: undefined })
   const channel = `${redisNamespace()}:realtime`
   subscriber.on("error", () => console.error("[realtime] Shared subscription unavailable"))
-  subscriber.on("ready", () => { void subscriber.subscribe(channel).catch(() => console.error("[realtime] Subscription failed")) })
+  let generation = 0
+  const unavailable = () => {
+    generation += 1
+    globalForBus.__fizmohSubscriberReady = false
+  }
+  subscriber.on("close", unavailable)
+  subscriber.on("reconnecting", unavailable)
+  subscriber.on("end", unavailable)
+  subscriber.on("ready", () => {
+    unavailable()
+    const subscribingGeneration = generation
+    void subscriber.subscribe(channel).then(() => {
+      if (generation === subscribingGeneration && subscriber.status === "ready") {
+        globalForBus.__fizmohSubscriberReady = true
+      }
+    }).catch(() => console.error("[realtime] Subscription failed"))
+  })
   subscriber.on("message", (name, payload) => {
     if (name !== channel) return
     try {
@@ -61,6 +64,14 @@ function startBridge() {
       }
     } catch { /* Ignore malformed broker frames without interrupting inboxes. */ }
   })
+}
+
+/** Readiness requires both publishing and an acknowledged event subscription. */
+export function realtimeStatus(): "local" | "redis" | "unavailable" {
+  startBridge()
+  const redis = sharedRedis()
+  if (!redis) return "local"
+  return redis.status === "ready" && globalForBus.__fizmohSubscriberReady ? "redis" : "unavailable"
 }
 
 function bus(): EventEmitter {
@@ -111,7 +122,7 @@ export async function notifyStaff(input: {
 
   // A muted alert type is still recorded, so the history stays complete — it
   // simply does not interrupt anyone.
-  const { getNotificationPrefs } = await import("@/app/api/notification-prefs/route")
+  const { getNotificationPrefs } = await import("@/lib/notification-preferences")
   const prefs = await getNotificationPrefs()
   const muted = prefs[input.type] === false
 

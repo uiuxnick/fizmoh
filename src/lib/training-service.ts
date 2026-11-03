@@ -598,42 +598,76 @@ export interface CheckInResult {
  * Process check-in by Attendee QR Token
  */
 export async function processAttendeeCheckIn(tenantId: string, qrToken: string): Promise<CheckInResult> {
-  const tid = tenantId || PLATFORM
-  const allRegistrations = await getTenantRegistrations(tid)
+  let tid = tenantId || PLATFORM
+  let allRegistrations = await getTenantRegistrations(tid)
+
+  let foundAttendee: AttendeeRecord | undefined
+  let foundReg: Registration | undefined
 
   for (const reg of allRegistrations) {
-    const attendee = reg.attendees.find(a => a.qrToken === qrToken || a.id === qrToken)
+    const attendee = reg.attendees?.find(a => a.qrToken === qrToken || a.id === qrToken)
     if (attendee) {
-      if (attendee.checkInStatus === "CHECKED_IN") {
-        const course = await getCourseByIdOrSlug(tid, reg.courseId)
-        return {
-          success: true,
-          alreadyCheckedIn: true,
-          message: `${attendee.name} was already checked in on ${new Date(attendee.checkInTime!).toLocaleTimeString()}.`,
-          attendee,
-          registration: reg,
-          course: course || undefined,
+      foundAttendee = attendee
+      foundReg = reg
+      break
+    }
+  }
+
+  // Fallback: If not found under current tenant (e.g. unauthenticated receptionist scanner at event door),
+  // search across all system settings by the unique token
+  if (!foundAttendee) {
+    const settings = await db.systemSetting.findMany({
+      where: { key: REGISTRATIONS_SETTING_KEY },
+    })
+    for (const s of settings) {
+      if (!s.value) continue
+      try {
+        const list: Registration[] = JSON.parse(s.value)
+        for (const reg of list) {
+          const attendee = reg.attendees?.find(a => a.qrToken === qrToken || a.id === qrToken)
+          if (attendee) {
+            foundAttendee = attendee
+            foundReg = reg
+            tid = s.tenantId || tid
+            allRegistrations = list
+            break
+          }
         }
-      }
+        if (foundAttendee) break
+      } catch {}
+    }
+  }
 
-      // Mark checked in
-      const now = new Date().toISOString()
-      attendee.checkInStatus = "CHECKED_IN"
-      attendee.checkInTime = now
-      reg.status = "ATTENDED"
-      reg.updatedAt = now
-
-      await persistRegistrations(tid, allRegistrations)
-      const course = await getCourseByIdOrSlug(tid, reg.courseId)
-
+  if (foundAttendee && foundReg) {
+    if (foundAttendee.checkInStatus === "CHECKED_IN") {
+      const course = await getCourseByIdOrSlug(tid, foundReg.courseId)
       return {
         success: true,
-        alreadyCheckedIn: false,
-        message: `Welcome ${attendee.name}! Attendance verified successfully.`,
-        attendee,
-        registration: reg,
+        alreadyCheckedIn: true,
+        message: `${foundAttendee.name} was already checked in on ${new Date(foundAttendee.checkInTime!).toLocaleTimeString()}.`,
+        attendee: foundAttendee,
+        registration: foundReg,
         course: course || undefined,
       }
+    }
+
+    // Mark checked in
+    const now = new Date().toISOString()
+    foundAttendee.checkInStatus = "CHECKED_IN"
+    foundAttendee.checkInTime = now
+    foundReg.status = "ATTENDED"
+    foundReg.updatedAt = now
+
+    await persistRegistrations(tid, allRegistrations)
+    const course = await getCourseByIdOrSlug(tid, foundReg.courseId)
+
+    return {
+      success: true,
+      alreadyCheckedIn: false,
+      message: `Welcome ${foundAttendee.name}! Attendance verified successfully.`,
+      attendee: foundAttendee,
+      registration: foundReg,
+      course: course || undefined,
     }
   }
 

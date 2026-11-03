@@ -96,24 +96,73 @@ class ApiClient {
         if (_workspace != null) 'x-fizmoh-workspace': _workspace!,
       };
 
-  Future<void> signIn(String email, String password) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/api/auth/admin-login'),
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode != 200) {
-      throw ApiException(body['error']?.toString() ?? 'Could not sign in');
+  Future<void> signIn(String emailOrPhone, String password) async {
+    final payload = jsonEncode({
+      'email': emailOrPhone,
+      'identifier': emailOrPhone,
+      'password': password,
+    });
+
+    http.Response response;
+    try {
+      response = await _client.post(
+        Uri.parse('$baseUrl/api/auth/admin-login'),
+        headers: const {'Content-Type': 'application/json'},
+        body: payload,
+      );
+      if (response.statusCode == 404 || response.statusCode >= 500) {
+        // Fallback to mobile api v1 login if needed
+        final v1Response = await _client.post(
+          Uri.parse('$baseUrl/api/v1/auth/login'),
+          headers: const {'Content-Type': 'application/json'},
+          body: payload,
+        );
+        if (v1Response.statusCode < 400) {
+          response = v1Response;
+        }
+      }
+    } catch (e) {
+      // Retry once on v1 or throw network error
+      try {
+        response = await _client.post(
+          Uri.parse('$baseUrl/api/v1/auth/login'),
+          headers: const {'Content-Type': 'application/json'},
+          body: payload,
+        );
+      } catch (_) {
+        throw ApiException('Connection failed: please check your network connection.');
+      }
     }
 
-    _token = body['token'] as String?;
-    if (_token == null) throw ApiException('The server did not return a session');
-    staff = Staff.fromJson(body['staff'] as Map<String, dynamic>);
+    final body = _decode(response.body);
+    if (response.statusCode != 200) {
+      final msg = body['error'] ?? body['message'];
+      throw ApiException(msg?.toString() ?? 'Could not sign in (${response.statusCode})');
+    }
+
+    final token = (body['token'] ?? body['access_token'] ?? (body['data'] is Map ? body['data']['access_token'] : null))?.toString();
+    if (token == null || token.isEmpty) throw ApiException('The server did not return a session');
+    _token = token;
+
+    final staffRaw = (body['staff'] ?? body['user'] ?? (body['data'] is Map ? body['data']['user'] : null));
+    if (staffRaw is Map<String, dynamic>) {
+      staff = Staff.fromJson(staffRaw);
+    } else {
+      // Fallback staff profile if minimal fields returned
+      staff = Staff(
+        id: 'staff_${DateTime.now().millisecondsSinceEpoch}',
+        name: emailOrPhone.split('@').first,
+        email: emailOrPhone.contains('@') ? emailOrPhone : '',
+        role: 'STAFF',
+        phone: emailOrPhone.contains('@') ? null : emailOrPhone,
+      );
+    }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, _token!);
-    await prefs.setString(_staffKey, jsonEncode(body['staff']));
+    if (staffRaw != null) {
+      await prefs.setString(_staffKey, jsonEncode(staffRaw));
+    }
   }
 
   /// Signs in with an identity token from Google or Apple.
@@ -707,6 +756,18 @@ class ApiClient {
       headers: _headers,
       body: jsonEncode({'id': orderId, 'status': status}),
     );
+  }
+
+  Future<void> editRestaurantOrder(Map<String, dynamic> data) async {
+    final response = await _client.put(
+      Uri.parse('$baseUrl/api/restaurant/orders'),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+    if (response.statusCode >= 400) {
+      final decoded = _decode(response.body);
+      throw ApiException(decoded['error']?.toString() ?? 'Failed to update order');
+    }
   }
 
   Future<List<WaiterRequest>> waiterRequests({String? status}) async {

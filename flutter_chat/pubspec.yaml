@@ -55,6 +55,8 @@ dependencies:
   # Web-only APIs — EventSource and Notification — reached through
   # dart:js_interop. dart:html is gone in this Flutter version.
   web: ^1.1.0
+  printing: ^5.14.3
+  pdf: ^3.12.0
 
 dev_dependencies:
   # A real SQLite engine on the desktop, so the cache and the outbox can be

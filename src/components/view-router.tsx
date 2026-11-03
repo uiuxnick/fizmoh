@@ -39,6 +39,7 @@ import WebsiteBuilderView from "@/components/views/website-builder-view"
 import CloudBridgesView from "@/components/views/cloud-bridges-view"
 import WhiteLabelView from "@/components/views/white-label-view"
 import TrainingView from "@/components/views/training-view"
+import EmailMarketingView from "@/components/views/email-marketing-view"
 
 import { ModuleGate } from "@/components/module-gate"
 
@@ -46,6 +47,7 @@ export default function ViewRouter() {
   const { view } = useApp()
   switch (view) {
     case "dashboard": return <DashboardView />
+    case "email-marketing": return <ModuleGate module="EMAIL_MARKETING"><EmailMarketingView /></ModuleGate>
     case "customer-site": return <ModuleGate module="CUSTOMER_SITE"><CustomerSiteView /></ModuleGate>
     case "website-builder": return <ModuleGate module="WEBSITE"><WebsiteBuilderView /></ModuleGate>
     case "cloud-bridges": return <ModuleGate module="INTEGRATION"><CloudBridgesView /></ModuleGate>

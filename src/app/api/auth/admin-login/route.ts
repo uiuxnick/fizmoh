@@ -5,6 +5,8 @@ import { setSessionCookie, signSession } from "@/lib/auth"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
 
+export const OPTIONS = withErrors(async () => new NextResponse(null, { status: 204 }))
+
 export const POST = withErrors(async (request: NextRequest) => {
   const ip = requestIp(request.headers)
   const rate = await checkRateLimit(`admin-login:${ip}`, 8, 15 * 60 * 1000)
@@ -19,13 +21,27 @@ export const POST = withErrors(async (request: NextRequest) => {
   try { body = await request.json() } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
-  const { email, password } = body as { email?: unknown; password?: unknown }
-  if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
-    return NextResponse.json({ error: "Email and password required" }, { status: 400 })
+  const { email, identifier, password } = body as { email?: unknown; identifier?: unknown; password?: unknown }
+  const rawId = (typeof email === "string" && email.trim()) ? email.trim() : (typeof identifier === "string" && identifier.trim()) ? identifier.trim() : ""
+  if (!rawId || typeof password !== "string" || !password) {
+    return NextResponse.json({ error: "Email or phone number and password required" }, { status: 400 })
   }
 
-  const normalizedEmail = email.trim().toLowerCase()
-  const staff = await db.staff.findUnique({ where: { email: normalizedEmail } })
+  const normalizedInput = rawId.toLowerCase()
+  const cleanDigits = rawId.replace(/\D/g, "")
+  const staff = await db.staff.findFirst({
+    where: {
+      isActive: true,
+      OR: [
+        { email: normalizedInput },
+        ...(cleanDigits ? [
+          { phone: { contains: cleanDigits } },
+          { phone: `+${cleanDigits}` },
+          { phone: cleanDigits },
+        ] : []),
+      ],
+    },
+  })
   const passwordValid = staff?.passwordHash?.startsWith("$2")
     ? await compare(password, staff.passwordHash).catch(() => false)
     : false
