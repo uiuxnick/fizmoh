@@ -9,6 +9,8 @@ mock.module('@/lib/auth', () => ({ sessionFromRequest: async () => session }))
 mock.module('@/lib/db', () => ({ raw: {
   customer: { findFirst: async ({ where }: any) => where.id === 'customer-a' && where.tenantId === 'a' ? { phone: '+96891234567' } : null },
   hospSettings: { findMany: async () => settings },
+  tenantMember: { findUnique: async () => null },
+  staff: { findUnique: async () => null },
 } }))
 const { canReadPatient } = await import('../../src/lib/hospital-patient-access')
 const { resolveHospTenantId } = await import('../../src/lib/hospital')

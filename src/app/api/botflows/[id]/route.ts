@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { validateFlow } from "@/lib/flow-validate"
-import { normalizeFlowGraph } from "@/lib/flow-normalizer"
+import { normalizeFlowGraph, sanitizeAIFlowGraph } from "@/lib/flow-normalizer"
 import { validateSchedule } from "@/lib/flow-schedule-config"
 import { currentTenant } from "@/lib/tenant"
 
@@ -57,7 +57,7 @@ export const PUT = withErrors(withModule("FLOWS", async (request: NextRequest, {
 
   const currentNodes = body.nodes !== undefined ? body.nodes : existing.nodes
   const currentEdges = body.edges !== undefined ? body.edges : existing.edges
-  const graph = normalizeFlowGraph(parseJson(currentNodes), parseJson(currentEdges))
+  const graph = sanitizeAIFlowGraph(parseJson(currentNodes), parseJson(currentEdges))
 
   const wantsPublish = body.publish === true || body.action === "publish"
   if (wantsPublish) {
@@ -126,7 +126,8 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest, 
     return NextResponse.json({ error: "No such flow" }, { status: 404 })
   }
 
-  const issues = validateFlow(parseJson(existing.nodes), parseJson(existing.edges))
+  const graph = sanitizeAIFlowGraph(parseJson(existing.nodes), parseJson(existing.edges))
+  const issues = validateFlow(graph.nodes, graph.edges)
   const errors = issues.filter(issue => issue.level === "error")
   if (errors.length > 0) {
     return NextResponse.json(
@@ -139,8 +140,10 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest, 
     where: { id },
     data: {
       tenantId: existing.tenantId || tenant.tenantId,
-      publishedNodes: (existing.nodes ?? Prisma.DbNull) as Prisma.InputJsonValue,
-      publishedEdges: (existing.edges ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      nodes: JSON.stringify(graph.nodes),
+      edges: JSON.stringify(graph.edges),
+      publishedNodes: JSON.stringify(graph.nodes),
+      publishedEdges: JSON.stringify(graph.edges),
       publishedAt: new Date(),
       version: { increment: 1 },
     },

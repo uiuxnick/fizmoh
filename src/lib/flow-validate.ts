@@ -23,7 +23,7 @@ export type FlowIssue = {
   message: string
 }
 
-const TERMINAL = new Set(["END", "HANDOFF"])
+const TERMINAL = new Set(["END", "HANDOFF", "HUMAN_HANDOFF"])
 const YES = new Set(["true", "yes", "y", "1"])
 const NO = new Set(["false", "no", "n", "0"])
 

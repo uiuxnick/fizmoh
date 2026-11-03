@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
 import { validateFlow } from "@/lib/flow-validate"
-import { normalizeFlowGraph } from "@/lib/flow-normalizer"
+import { normalizeFlowGraph, sanitizeAIFlowGraph } from "@/lib/flow-normalizer"
 import { validateSchedule } from "@/lib/flow-schedule-config"
 import { currentTenant } from "@/lib/tenant"
 
@@ -38,7 +38,7 @@ export const POST = withErrors(withModule("FLOWS", async (request: NextRequest) 
   const name = String(body.name ?? "").trim()
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 })
   if (!TRIGGERS.includes(body.trigger)) return NextResponse.json({ error: "Unknown trigger" }, { status: 400 })
-  const graph = normalizeFlowGraph(jsonValue(body.nodes, []), jsonValue(body.edges, []))
+  const graph = sanitizeAIFlowGraph(jsonValue(body.nodes, []), jsonValue(body.edges, []))
   const selectedChannels = (jsonValue(body.triggerConfig, {}) as { channels?: string[] }).channels || ["WHATSAPP"]
   if (!Array.isArray(selectedChannels) || !selectedChannels.length || selectedChannels.some(c => !["WHATSAPP", "FACEBOOK", "INSTAGRAM"].includes(c))) return NextResponse.json({ error: "Choose at least one supported channel" }, { status: 400 })
   if (selectedChannels.some(c => c !== "WHATSAPP")) {

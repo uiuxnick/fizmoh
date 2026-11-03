@@ -19,7 +19,7 @@ import {
 import { SOCIAL_FLOW_NODES, supportsFlowNode, FLOW_CHANNEL_LABELS, type FlowChannel } from "@/lib/flow-channels"
 import { BOT_TEMPLATES, type FlowTemplate } from "@/lib/bot-templates"
 import { BotTemplateVisualDemo } from "@/components/views/bot-template-visual-demo"
-import { normalizeFlowGraph } from "@/lib/flow-normalizer"
+import { normalizeFlowGraph, sanitizeAIFlowGraph } from "@/lib/flow-normalizer"
 import { parseExternalFlow, type DynamicSuggestion, type ImportResult } from "@/lib/flow-importer"
 import { generateSampleFlowAnalytics, type NodeAnalytics } from "@/lib/flow-analytics"
 
@@ -717,15 +717,20 @@ export function FlowEditor({
   // ── Template library ──────────────────────────────────────────────────────
 
   const applyTemplate = (tpl: FlowTemplate) => {
-    if (normalizeFlowGraph(tpl.nodes, tpl.edges).nodes.some(node => !supportsFlowNode(node.type, channels))) { toast.error("This template includes steps unavailable on the selected channels"); return }
-    const { nodes: tplNodes, edges: tplEdges } = toCanvasNodes(tpl.nodes, tpl.edges)
+    const cfg = (tpl.triggerConfig as any) || {}
+    const tplChannels = Array.isArray(cfg.channels) && cfg.channels.length > 0 ? cfg.channels : [defaultChannel]
+    const sanitized = sanitizeAIFlowGraph(tpl.nodes, tpl.edges)
+    if (sanitized.nodes.some(node => !supportsFlowNode(node.type, tplChannels))) {
+      toast.error("This template includes steps unavailable on the selected channels")
+      return
+    }
+    const { nodes: tplNodes, edges: tplEdges } = toCanvasNodes(sanitized.nodes, sanitized.edges)
     setNodes(tplNodes)
     setEdges(tplEdges)
     setName(tpl.name)
     setDescription(tpl.description)
     setTrigger(tpl.trigger)
-    const cfg = tpl.triggerConfig as any
-    if (!channels.some(channel => channel !== "WHATSAPP")) setChannels(Array.isArray(cfg.channels) ? cfg.channels : [defaultChannel])
+    setChannels(tplChannels)
     setIsActive(false)
     if (cfg.keywords) setKeywords(cfg.keywords.join(", "))
     if (cfg.matchType) setMatchType(cfg.matchType)
@@ -906,7 +911,8 @@ export function FlowEditor({
     if (nodes.length === 0) { toast.error("Add at least one node"); return }
     if (trigger === "SCHEDULE" && (!Number.isFinite(Date.parse(scheduledAt)) || !conversationIds || channels.some(c => c !== "WHATSAPP"))) { toast.error("Choose a schedule, conversations and WhatsApp as the channel"); return }
     if (!channels.length) { toast.error("Choose at least one channel"); return }
-    const { nodes: apiNodes, edges: apiEdges } = toApiNodes(nodes, edges)
+    const { nodes: rawApiNodes, edges: rawApiEdges } = toApiNodes(nodes, edges)
+    const { nodes: apiNodes, edges: apiEdges } = sanitizeAIFlowGraph(rawApiNodes, rawApiEdges)
     const unsupported = apiNodes.find(node => !supportsFlowNode(node.type, channels))
     if (unsupported) { toast.error(`The "${unsupported.type}" step is unavailable on the selected channels. Remove it or choose WhatsApp.`); return }
     const payload = {

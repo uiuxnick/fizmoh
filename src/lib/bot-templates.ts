@@ -3,6 +3,8 @@
  * 25+ Production-ready templates across Healthcare, Tours, Appointments, E-Commerce, Dining, and CRM.
  */
 
+import { sanitizeAIFlowGraph } from "@/lib/flow-normalizer"
+
 export interface FlowTemplate {
   id: string
   name: string
@@ -22,7 +24,7 @@ const e = (id: string, source: string, target: string, label?: string) => ({
   id, source, target, ...(label ? { label } : {}),
 })
 
-export const BOT_TEMPLATES: FlowTemplate[] = [
+const RAW_BOT_TEMPLATES: FlowTemplate[] = [
   {
     id: "social_knowledge_concierge", name: "Facebook & Instagram — Knowledge bot", emoji: "💬", category: "CRM & AI",
     description: "Answer from your saved business information and Knowledge Base. Questions that need a person are handed to your team.",
@@ -1660,4 +1662,14 @@ export const BOT_TEMPLATES: FlowTemplate[] = [
     ],
   },
 ]
+
+export const BOT_TEMPLATES: FlowTemplate[] = RAW_BOT_TEMPLATES.map(t => {
+  const sanitized = sanitizeAIFlowGraph(t.nodes, t.edges)
+  return {
+    ...t,
+    nodes: sanitized.nodes as unknown[],
+    edges: sanitized.edges as unknown[],
+  }
+})
+
 
