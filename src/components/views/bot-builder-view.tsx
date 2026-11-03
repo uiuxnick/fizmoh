@@ -51,7 +51,8 @@ export default function BotBuilderView() {
   const [creating, setCreating] = useState(false)
   const [openWithTemplates, setOpenWithTemplates] = useState(false)
   const [runs, setRuns] = useState<any[]>([])
-  const [aiOn, setAiOn] = useState(true)
+  const [aiOn, setAiOn] = useState(false)
+  const [aiLoading, setAiLoading] = useState(true)
   const [aiName, setAiName] = useState("")
   const [aiSaving, setAiSaving] = useState(false)
   const [legacyFlowsOn, setLegacyFlowsOn] = useState(false)
@@ -63,13 +64,29 @@ export default function BotBuilderView() {
     fetch("/api/settings")
       .then(r => r.json())
       .then(d => {
-        const v = String(d?.settings?.ai_assistant_enabled ?? "").trim().toLowerCase()
-        setAiOn(!(v === "false" || v === "off" || v === "0"))
-        setAiName(String(d?.settings?.assistant_name ?? "").trim())
-        const legacyVal = String(d?.settings?.hardcoded_flows_enabled ?? "").trim().toLowerCase()
+        const s = d?.settings || {}
+        const isOff =
+          s.ai_assistant_enabled === false || String(s.ai_assistant_enabled).toLowerCase() === "false" ||
+          s.wa_bot_enabled === false || String(s.wa_bot_enabled).toLowerCase() === "false" ||
+          s.bot_enabled === false || String(s.bot_enabled).toLowerCase() === "false" ||
+          s.auto_reply_enabled === false || String(s.auto_reply_enabled).toLowerCase() === "false" ||
+          s.ai_24_7 === false || String(s.ai_24_7).toLowerCase() === "false" ||
+          s.wa_ai_always_on === false || String(s.wa_ai_always_on).toLowerCase() === "false"
+        const hasExplicitSetting =
+          s.ai_assistant_enabled !== undefined ||
+          s.wa_bot_enabled !== undefined ||
+          s.bot_enabled !== undefined ||
+          s.auto_reply_enabled !== undefined ||
+          s.ai_24_7 !== undefined
+
+        // If no explicit setting has been configured yet, default to active. Otherwise respect isOff.
+        setAiOn(hasExplicitSetting ? !isOff : true)
+        setAiName(String(s.assistant_name ?? "").trim())
+        const legacyVal = String(s.hardcoded_flows_enabled ?? "").trim().toLowerCase()
         setLegacyFlowsOn(legacyVal === "true" || legacyVal === "1" || legacyVal === "on")
       })
       .catch(() => {})
+      .finally(() => setAiLoading(false))
   }, [])
 
   const toggleLegacyFlows = async (next: boolean) => {
@@ -80,7 +97,7 @@ export default function BotBuilderView() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hardcoded_flows_enabled: next ? "true" : "false" }),
+        body: JSON.stringify({ hardcoded_flows_enabled: next }),
       })
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not save")
       toast.success(next ? "Built-in bot flows enabled" : "Built-in bot flows disabled — Pure AI & Dynamic Flows active")
@@ -100,7 +117,14 @@ export default function BotBuilderView() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ai_assistant_enabled: next ? "true" : "false" }),
+        body: JSON.stringify({
+          ai_assistant_enabled: next,
+          wa_bot_enabled: next,
+          bot_enabled: next,
+          auto_reply_enabled: next,
+          ai_24_7: next,
+          wa_ai_always_on: next,
+        }),
       })
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Could not save")
       toast.success(next ? "AI assistant switched on" : "AI assistant switched off")
@@ -218,7 +242,7 @@ export default function BotBuilderView() {
                     {aiOn ? "Active" : "Off"}
                   </Badge>
                 </h3>
-                <Switch aria-label="Enable AI assistant" checked={aiOn} disabled={aiSaving} onCheckedChange={toggleAi} />
+                <Switch aria-label="Enable AI assistant" checked={aiOn} disabled={aiSaving || aiLoading} onCheckedChange={toggleAi} />
               </div>
               <p className="text-sm text-stone-600 mt-1">
                 {aiOn

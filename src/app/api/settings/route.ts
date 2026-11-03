@@ -37,7 +37,8 @@ export const GET = withErrors(async () => {
       }
       continue
     }
-    settingsObj[s.key] = s.type === "BOOLEAN" ? s.value === "true" : s.type === "NUMBER" ? parseFloat(s.value) : s.type === "JSON" ? JSON.parse(s.value) : s.value
+    const isBool = s.type === "BOOLEAN" || s.value === "true" || s.value === "false"
+    settingsObj[s.key] = isBool ? s.value === "true" : s.type === "NUMBER" ? parseFloat(s.value) : s.type === "JSON" ? JSON.parse(s.value) : s.value
   }
 
   if (tenantId && tenantId !== PLATFORM) {
@@ -48,6 +49,7 @@ export const GET = withErrors(async () => {
       settingsObj.tenant_name = tenant.name
       settingsObj.website_logo_url = settingsObj.website_logo_url || tenant.logoUrl || ""
       settingsObj.website_primary_color = settingsObj.website_primary_color || "#0d9488"
+      settingsObj.website_theme = settingsObj.website_theme || "emerald_oasis"
     }
   }
 
@@ -58,7 +60,7 @@ export const PUT = withErrors(async (request: NextRequest) => {
   const body = await request.json()
   const tenant = currentTenant()
   if (!tenant?.tenantId) return NextResponse.json({ error: "Workspace context required" }, { status: 401 })
-  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER"].includes(tenant.role)) {
+  if (tenant.role && !["OWNER", "SUPER_ADMIN", "MANAGER", "PLATFORM"].includes(tenant.role)) {
     return NextResponse.json({ error: "Only workspace administrators can update settings" }, { status: 403 })
   }
   const tenantId = tenant.tenantId || PLATFORM
@@ -95,24 +97,59 @@ export const PUT = withErrors(async (request: NextRequest) => {
           ...(body.currency ? { currency: String(body.currency) } : {}),
         },
       })
+
+      // If on Linux production server, trigger domain provisioning script asynchronously
+      if (domainVal && process.platform === "linux") {
+        try {
+          const { spawn } = await import("child_process")
+          const child = spawn("sudo", ["/usr/local/bin/provision-custom-domain.sh", domainVal], {
+            detached: true,
+            stdio: "ignore",
+          })
+          child.unref()
+        } catch (e) {
+          console.error("Failed to trigger domain provisioning:", e)
+        }
+      }
     }
     body.custom_domain = domainVal
   }
 
-  // Synchronize AI/bot toggles so enabling AI Assistant updates all related flags consistently
-  if (body.wa_bot_enabled !== undefined || body.ai_assistant_enabled !== undefined || body.bot_enabled !== undefined) {
-    const val = body.wa_bot_enabled ?? body.ai_assistant_enabled ?? body.bot_enabled
+  // The uploaded website logo is a tenant-level brand asset. Keep the tenant
+  // record in sync even when the administrator has not changed the domain in
+  // the same request; public sites, email, widgets and the academy header all
+  // read this canonical value.
+  if (body.website_logo_url !== undefined && tenantId && tenantId !== PLATFORM) {
+    const logoUrl = typeof body.website_logo_url === "string" ? body.website_logo_url.trim() : ""
+    await raw.tenant.update({
+      where: { id: tenantId },
+      data: { logoUrl: logoUrl || null },
+    })
+  }
+
+  // Synchronize AI/bot toggles so enabling/disabling AI Assistant updates all related flags consistently
+  if (
+    body.wa_bot_enabled !== undefined ||
+    body.ai_assistant_enabled !== undefined ||
+    body.bot_enabled !== undefined ||
+    body.auto_reply_enabled !== undefined ||
+    body.ai_24_7 !== undefined
+  ) {
+    const val = body.wa_bot_enabled ?? body.ai_assistant_enabled ?? body.bot_enabled ?? body.auto_reply_enabled ?? body.ai_24_7
     const boolVal = typeof val === "boolean" ? val : String(val).toLowerCase() === "true" || String(val) === "1"
-    body.wa_bot_enabled = boolVal
+    body.wa_bot_enabled = boolVal ? "true" : "false"
     body.ai_assistant_enabled = boolVal ? "true" : "false"
     body.bot_enabled = boolVal ? "true" : "false"
     body.auto_reply_enabled = boolVal ? "true" : "false"
+    body.ai_24_7 = boolVal ? "true" : "false"
+    body.wa_ai_always_on = boolVal ? "true" : "false"
 
-    if (boolVal && tenantId) {
+    const targetTenantId = tenantId || tenant?.tenantId || null
+    if (boolVal && targetTenantId) {
       // Re-enable bot on conversations where no human staff is assigned
-      await db.conversation.updateMany({
+      await raw.conversation.updateMany({
         where: {
-          tenantId,
+          tenantId: targetTenantId,
           assignedStaffId: null,
           botActive: false,
         },
@@ -122,20 +159,31 @@ export const PUT = withErrors(async (request: NextRequest) => {
           status: "OPEN",
         },
       }).catch(() => {})
+    } else if (!boolVal && targetTenantId) {
+      // Disable/pause automated bot on all conversations when bot is turned off for the tenant
+      await raw.conversation.updateMany({
+        where: {
+          tenantId: targetTenantId,
+        },
+        data: {
+          botActive: false,
+          automationPaused: true,
+        },
+      }).catch(() => {})
     }
   }
 
   for (const [key, value] of Object.entries(body)) {
     if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(key)) return NextResponse.json({ error: "Invalid setting key" }, { status: 400 })
     if (protectedWebsiteCode.has(key)) {
-      if (tenant.role && !["OWNER", "SUPER_ADMIN"].includes(tenant.role)) {
+      if (tenant.role && !["OWNER", "SUPER_ADMIN", "PLATFORM"].includes(tenant.role)) {
         return NextResponse.json({ error: "Only the workspace owner or super admin can change website custom code" }, { status: 403 })
       }
       if (typeof value !== "string" || value.length > 20000) {
         return NextResponse.json({ error: "Custom code must be text and no longer than 20,000 characters" }, { status: 400 })
       }
     }
-    if (sensitive.has(key) && tenant.role && !["OWNER", "SUPER_ADMIN"].includes(tenant.role)) {
+    if (sensitive.has(key) && tenant.role && !["OWNER", "SUPER_ADMIN", "PLATFORM"].includes(tenant.role)) {
       return NextResponse.json({ error: "Only the owner or super admin can change payment and integration secrets" }, { status: 403 })
     }
     // A blank sensitive value is never an instruction to erase a credential.
@@ -145,9 +193,13 @@ export const PUT = withErrors(async (request: NextRequest) => {
     // by deleting the setting, not by submitting an empty box.
     if (sensitive.has(key) && (value === "" || value === null || value === undefined)) continue
 
-    const type = typeof value === "boolean" ? "BOOLEAN" : typeof value === "number" ? "NUMBER" : typeof value === "object" ? "JSON" : "STRING"
-    const strValue = type === "JSON" ? JSON.stringify(value) : String(value)
-    await db.systemSetting.upsert({
+    const isBool = typeof value === "boolean" || value === "true" || value === "false"
+    const type = isBool ? "BOOLEAN" : typeof value === "number" ? "NUMBER" : typeof value === "object" ? "JSON" : "STRING"
+    const strValue = isBool
+      ? (typeof value === "boolean" ? (value ? "true" : "false") : String(value).toLowerCase() === "true" ? "true" : "false")
+      : type === "JSON" ? JSON.stringify(value) : String(value)
+
+    await raw.systemSetting.upsert({
       where: { tenantId_key: { tenantId, key } },
       update: { value: strValue, type },
       create: { tenantId, key, value: strValue, type },

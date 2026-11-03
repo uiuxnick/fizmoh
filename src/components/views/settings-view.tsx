@@ -29,6 +29,7 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon"
 import SocialChannelsSettings from "@/components/views/social-channels-view"
 import EcommerceSettingsView from "@/components/views/ecommerce-settings-view"
 import { WorkspaceModulesManager } from "@/components/views/workspace-modules-manager"
+import { WEBSITE_THEMES, getWebsiteTheme } from "@/lib/website-themes"
 
 interface BankAccount {
   id: string
@@ -518,35 +519,37 @@ export default function SettingsView() {
         value={activeTab ?? (isPlatformAdmin ? "integrations" : "business")}
         onValueChange={setActiveTab}
       >
-        <TabsList className="bg-white flex-wrap h-auto">
-          {isPlatformAdmin ? (
-            <>
-              <TabsTrigger value="integrations" className="gap-1.5"><Plug className="h-3.5 w-3.5" />Platform Server Config</TabsTrigger>
-              <TabsTrigger value="modules" className="gap-1.5"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
-              <TabsTrigger value="seo" className="gap-1.5"><Code2 className="h-3.5 w-3.5" />Analytics & SEO</TabsTrigger>
-              <TabsTrigger value="apikeys" className="gap-1.5"><KeyRound className="h-3.5 w-3.5" />API Keys & Docs</TabsTrigger>
-              <TabsTrigger value="compliance" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Compliance & Security</TabsTrigger>
-            </>
-          ) : (
-            <>
-              <TabsTrigger data-tour="settings-business-profile" value="business" className="gap-1.5"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
-              <TabsTrigger value="modules" className="gap-1.5"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
-              <TabsTrigger value="google" className="gap-1.5"><Video className="h-3.5 w-3.5" />Google Calendar & Meet</TabsTrigger>
-              <TabsTrigger value="website" className="gap-1.5"><Globe className="h-3.5 w-3.5" />Website & Domain</TabsTrigger>
-              <TabsTrigger value="seo" className="gap-1.5"><Code2 className="h-3.5 w-3.5" />SEO & Integrations</TabsTrigger>
-              <TabsTrigger value="payment" className="gap-1.5"><Banknote className="h-3.5 w-3.5" />Payment</TabsTrigger>
-              <TabsTrigger value="apikeys" className="gap-1.5"><KeyRound className="h-3.5 w-3.5" />API Keys & Docs</TabsTrigger>
-              <TabsTrigger data-tour="settings-whatsapp-api" value="whatsapp" className="gap-1.5"><WhatsAppIcon className="h-3.5 w-3.5" />WhatsApp</TabsTrigger>
-              <TabsTrigger value="social" className="gap-1.5"><Facebook className="h-3.5 w-3.5" />Facebook &amp; Instagram</TabsTrigger>
-              <TabsTrigger value="ecommerce" className="gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />E-Commerce &amp; Stores</TabsTrigger>
-              <TabsTrigger value="ai" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />AI</TabsTrigger>
-              <TabsTrigger value="email" className="gap-1.5"><Mail className="h-3.5 w-3.5" />Email</TabsTrigger>
-              <TabsTrigger data-tour="settings-notifications" value="notifications" className="gap-1.5"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
-              <TabsTrigger value="quick-replies" className="gap-1.5"><Zap className="h-3.5 w-3.5" />Quick Replies</TabsTrigger>
-              <TabsTrigger value="compliance" className="gap-1.5"><Shield className="h-3.5 w-3.5" />Compliance</TabsTrigger>
-            </>
-          )}
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-1 -mx-1 px-1">
+          <TabsList className="bg-white flex-nowrap h-auto inline-flex min-w-full justify-start p-1 border border-stone-200">
+            {isPlatformAdmin ? (
+              <>
+                <TabsTrigger value="integrations" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Plug className="h-3.5 w-3.5" />Platform Server Config</TabsTrigger>
+                <TabsTrigger value="modules" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
+                <TabsTrigger value="seo" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Code2 className="h-3.5 w-3.5" />Analytics &amp; SEO</TabsTrigger>
+                <TabsTrigger value="apikeys" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><KeyRound className="h-3.5 w-3.5" />API Keys &amp; Docs</TabsTrigger>
+                <TabsTrigger value="compliance" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Shield className="h-3.5 w-3.5" />Compliance &amp; Security</TabsTrigger>
+              </>
+            ) : (
+              <>
+                <TabsTrigger data-tour="settings-business-profile" value="business" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Building2 className="h-3.5 w-3.5" />Business</TabsTrigger>
+                <TabsTrigger value="modules" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Boxes className="h-3.5 w-3.5" />Modules &amp; Add-ons</TabsTrigger>
+                <TabsTrigger value="google" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Video className="h-3.5 w-3.5" />Google Calendar &amp; Meet</TabsTrigger>
+                <TabsTrigger value="website" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Globe className="h-3.5 w-3.5" />Website &amp; Domain</TabsTrigger>
+                <TabsTrigger value="seo" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Code2 className="h-3.5 w-3.5" />SEO &amp; Integrations</TabsTrigger>
+                <TabsTrigger value="payment" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Banknote className="h-3.5 w-3.5" />Payment</TabsTrigger>
+                <TabsTrigger value="apikeys" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><KeyRound className="h-3.5 w-3.5" />API Keys &amp; Docs</TabsTrigger>
+                <TabsTrigger data-tour="settings-whatsapp-api" value="whatsapp" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><WhatsAppIcon className="h-3.5 w-3.5" />WhatsApp</TabsTrigger>
+                <TabsTrigger value="social" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Facebook className="h-3.5 w-3.5" />Facebook &amp; Instagram</TabsTrigger>
+                <TabsTrigger value="ecommerce" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><ShoppingBag className="h-3.5 w-3.5" />E-Commerce &amp; Stores</TabsTrigger>
+                <TabsTrigger value="ai" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Sparkles className="h-3.5 w-3.5" />AI</TabsTrigger>
+                <TabsTrigger value="email" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Mail className="h-3.5 w-3.5" />Email</TabsTrigger>
+                <TabsTrigger data-tour="settings-notifications" value="notifications" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
+                <TabsTrigger value="quick-replies" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Zap className="h-3.5 w-3.5" />Quick Replies</TabsTrigger>
+                <TabsTrigger value="compliance" className="gap-1.5 shrink-0 text-xs py-1.5 px-3"><Shield className="h-3.5 w-3.5" />Compliance</TabsTrigger>
+              </>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="google" className="mt-4 space-y-4">
           <GoogleConnectCard />
@@ -1099,14 +1102,20 @@ export default function SettingsView() {
                     <div className="text-xs text-stone-500">{row.desc}</div>
                   </div>
                   <Switch
-                    checked={settings[row.key] ?? row.def}
+                    checked={
+                      settings[row.key] === true ||
+                      settings[row.key] === "true" ||
+                      (settings[row.key] !== false && settings[row.key] !== "false" && row.def)
+                    }
                     onCheckedChange={v => {
                       if (row.key === "wa_bot_enabled") {
                         saveSettings({
                           wa_bot_enabled: v,
-                          ai_assistant_enabled: v ? "true" : "false",
-                          bot_enabled: v ? "true" : "false",
-                          auto_reply_enabled: v ? "true" : "false",
+                          ai_assistant_enabled: v,
+                          bot_enabled: v,
+                          auto_reply_enabled: v,
+                          ai_24_7: v,
+                          wa_ai_always_on: v,
                         })
                       } else {
                         saveSettings({ [row.key]: v })
@@ -2199,6 +2208,7 @@ function WebsiteAndDomainSection({
   const [logoUrl, setLogoUrl] = useState(settings.website_logo_url || "")
   const [faviconUrl, setFaviconUrl] = useState(settings.website_favicon_url || "")
   const [primaryColor, setPrimaryColor] = useState(settings.website_primary_color || "#0d9488")
+  const [selectedTheme, setSelectedTheme] = useState(settings.website_theme || "emerald_oasis")
   const [title, setTitle] = useState(settings.website_title || "")
   const [description, setDescription] = useState(settings.website_description || "")
 
@@ -2272,6 +2282,7 @@ function WebsiteAndDomainSection({
     setLogoUrl(settings.website_logo_url || "")
     setFaviconUrl(settings.website_favicon_url || "")
     setPrimaryColor(settings.website_primary_color || "#0d9488")
+    setSelectedTheme(settings.website_theme || "emerald_oasis")
     setTitle(settings.website_title || "")
     setDescription(settings.website_description || "")
   }, [settings])
@@ -2549,9 +2560,77 @@ function WebsiteAndDomainSection({
             </div>
           </div>
 
+          {/* Theme Preset Selector */}
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label className="text-xs font-semibold text-stone-900 flex items-center gap-1.5">
+                <Palette className="h-4 w-4 text-emerald-600" />
+                Website Theme & Visual Style Presets (6 Themes)
+              </Label>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Select a professionally curated aesthetic preset for your customer-facing website or fine-tune individual colors below.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {WEBSITE_THEMES.map((th) => {
+                const isSelected = selectedTheme === th.id
+                return (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={async () => {
+                      setSelectedTheme(th.id)
+                      setPrimaryColor(th.primaryColor)
+                      await saveSettings({
+                        website_theme: th.id,
+                        website_primary_color: th.primaryColor,
+                        website_accent_color: th.accentColor,
+                      })
+                      toast.success(`Theme "${th.name}" applied successfully!`)
+                    }}
+                    className={`text-left p-3 rounded-xl border transition-all relative overflow-hidden group ${
+                      isSelected
+                        ? "border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/20 shadow-sm"
+                        : "border-stone-200 bg-white hover:border-stone-300 hover:shadow"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-4 w-4 rounded-full border shadow-xs"
+                          style={{ backgroundColor: th.primaryColor }}
+                        />
+                        <div
+                          className="h-3 w-3 rounded-full border shadow-xs"
+                          style={{ backgroundColor: th.accentColor }}
+                        />
+                        <span className="text-xs font-bold text-stone-900">{th.name}</span>
+                      </div>
+                      {isSelected && (
+                        <Badge className="bg-emerald-600 text-white text-[9px] h-4 px-1.5 py-0 flex items-center gap-0.5">
+                          <Check className="h-2.5 w-2.5" /> Active
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className={`h-8 w-full rounded-lg bg-gradient-to-r ${th.previewGradient} flex items-center justify-between px-2.5 shadow-inner mb-2`}>
+                      <span className="text-[10px] text-white/90 font-medium">Hero Gradient</span>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${th.badgeBg} ${th.badgeText}`}>Badge</span>
+                    </div>
+
+                    <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed">
+                      {th.description}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
-              <Label className="text-xs font-medium text-stone-700">Primary Accent Color</Label>
+              <Label className="text-xs font-medium text-stone-700">Custom Primary Accent Color</Label>
               <div className="flex items-center gap-3 mt-1.5">
                 <input
                   type="color"
@@ -2980,13 +3059,23 @@ function WorkingHoursCard({
 }) {
   const [openTime, setOpenTime] = useState(settings.working_hours_open || "08:00")
   const [closeTime, setCloseTime] = useState(settings.working_hours_close || "22:00")
-  const [ai247, setAi247] = useState<boolean>(settings.ai_24_7 !== false && settings.ai_24_7 !== "false")
+  const [ai247, setAi247] = useState<boolean>(
+    settings.ai_24_7 !== false &&
+    settings.ai_24_7 !== "false" &&
+    settings.wa_bot_enabled !== false &&
+    settings.wa_bot_enabled !== "false"
+  )
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setOpenTime(settings.working_hours_open || "08:00")
     setCloseTime(settings.working_hours_close || "22:00")
-    setAi247(settings.ai_24_7 !== false && settings.ai_24_7 !== "false")
+    setAi247(
+      settings.ai_24_7 !== false &&
+      settings.ai_24_7 !== "false" &&
+      settings.wa_bot_enabled !== false &&
+      settings.wa_bot_enabled !== "false"
+    )
   }, [settings])
 
   const handleSave = async () => {
@@ -2996,6 +3085,10 @@ function WorkingHoursCard({
         working_hours_open: openTime,
         working_hours_close: closeTime,
         ai_24_7: ai247,
+        wa_ai_always_on: ai247,
+        ...(ai247
+          ? { wa_bot_enabled: true, ai_assistant_enabled: true, bot_enabled: true, auto_reply_enabled: true }
+          : { wa_bot_enabled: false, ai_assistant_enabled: false, bot_enabled: false, auto_reply_enabled: false }),
       })
       toast.success("Working hours saved successfully")
     } catch {

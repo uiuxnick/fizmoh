@@ -87,10 +87,13 @@ export default function WhatsAppSetupView() {
 
   const saveSetting = async (key: string, value: any) => {
     setSettings(s => ({ ...s, [key]: value }))
+    const payload = key === "wa_bot_enabled"
+      ? { wa_bot_enabled: value, ai_assistant_enabled: value, bot_enabled: value, auto_reply_enabled: value }
+      : { [key]: value }
     await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [key]: value }),
+      body: JSON.stringify(payload),
     })
     toast.success("Saved")
   }
@@ -341,7 +344,7 @@ systemctl list-timers wptour-cron.timer`}</pre>
                     <div className="text-xs text-stone-500">{row.hint}</div>
                   </div>
                   <Switch
-                    checked={settings[row.key] !== false}
+                    checked={settings[row.key] !== false && settings[row.key] !== "false"}
                     onCheckedChange={v => saveSetting(row.key, v)}
                   />
                 </div>
@@ -367,7 +370,7 @@ systemctl list-timers wptour-cron.timer`}</pre>
                     <div className="text-xs text-stone-500">{row.hint}</div>
                   </div>
                   <Switch
-                    checked={settings[row.key] !== false}
+                    checked={settings[row.key] !== false && settings[row.key] !== "false"}
                     onCheckedChange={v => saveSetting(row.key, v)}
                   />
                 </div>

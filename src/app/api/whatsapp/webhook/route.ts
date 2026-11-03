@@ -1,5 +1,5 @@
 import { withErrors } from "@/lib/api-handler"
-import { storeMedia } from "@/lib/media-store"
+import { storeMedia, readMedia } from "@/lib/media-store"
 import { NextRequest, NextResponse } from "next/server"
 import { after } from "next/server"
 import { Prisma } from "@prisma/client"
@@ -13,6 +13,7 @@ import { sessionExpiryFrom } from "@/lib/whatsapp-session"
 import { runBotFlows, resumeFlow, flowWouldMatch, runNewConversationFlow } from "@/lib/botflow-engine"
 import { shouldSendAwayMessage } from "@/lib/business-hours"
 import { publish, notifyStaff } from "@/lib/realtime"
+import { refreshTotals } from "@/lib/campaign-send"
 import { rememberCall, forgetCall } from "@/lib/live-calls"
 import { tenantForPhoneNumberId } from "@/lib/whatsapp-accounts"
 import { withTenant, currentTenant } from "@/lib/tenant"
@@ -159,52 +160,89 @@ const PLATFORM_WHITELIST_PATTERNS = [
   "98314456",
 ]
 
-async function getTenantWhitelistPatterns(): Promise<string[]> {
-  try {
-    const raw = (await getConfigValue("bot_whitelist").catch(() => "")).trim()
-    if (!raw) return []
-    // Stored as comma- or newline-separated phone fragments
-    return raw.split(/[,\n]+/).map(s => s.trim().replace(/\D/g, "")).filter(Boolean)
-  } catch {
-    return []
+interface TenantBotConfig {
+  isBotDisabled: boolean
+  isAiDisabled: boolean
+  isWhitelistOnly: boolean
+  isWhitelisted: boolean
+}
+
+async function getTenantBotConfig(tenantId?: string | null, from?: string | null): Promise<TenantBotConfig> {
+  const targetTenant = tenantId || currentTenant()?.tenantId || ""
+
+  const [aiAssistantVal, botVal, waBotVal, autoReplyVal, whitelistOnlyVal, tenantWhitelistRaw, ai247Val, waAiAlwaysOnVal] = await Promise.all([
+    getConfigValue("ai_assistant_enabled", targetTenant).catch(() => ""),
+    getConfigValue("bot_enabled", targetTenant).catch(() => ""),
+    getConfigValue("wa_bot_enabled", targetTenant).catch(() => ""),
+    getConfigValue("auto_reply_enabled", targetTenant).catch(() => ""),
+    getConfigValue("bot_whitelist_only", targetTenant).catch(() => ""),
+    getConfigValue("bot_whitelist", targetTenant).catch(() => ""),
+    getConfigValue("ai_24_7", targetTenant).catch(() => ""),
+    getConfigValue("wa_ai_always_on", targetTenant).catch(() => ""),
+  ])
+
+  const isFalseOrOff = (s: string) => {
+    const v = String(s ?? "").trim().toLowerCase()
+    return v === "false" || v === "off" || v === "0"
+  }
+  const isTrueOrOn = (s: string) => {
+    const v = String(s ?? "").trim().toLowerCase()
+    return v === "true" || v === "on" || v === "1"
+  }
+
+  // Any explicit disable of core bot/AI toggles shuts down automated bot replies for this tenant
+  const hasExplicitBotDisable =
+    isFalseOrOff(botVal) ||
+    isFalseOrOff(waBotVal) ||
+    isFalseOrOff(autoReplyVal) ||
+    isFalseOrOff(aiAssistantVal) ||
+    isFalseOrOff(ai247Val) ||
+    isFalseOrOff(waAiAlwaysOnVal)
+
+  const isBotDisabled = hasExplicitBotDisable
+  const isAiDisabled = isBotDisabled
+
+  let isWhitelisted = false
+  if (from) {
+    const digits = from.replace(/\D/g, "")
+    const platformMatch = PLATFORM_WHITELIST_PATTERNS.some(p => digits.includes(p))
+    const tenantPatterns = tenantWhitelistRaw
+      ? tenantWhitelistRaw.split(/[,\n]+/).map(s => s.trim().replace(/\D/g, "")).filter(Boolean)
+      : []
+    const tenantMatch = tenantPatterns.some(p => p && digits.includes(p))
+    isWhitelisted = platformMatch || tenantMatch
+  }
+
+  const isWhitelistOnly = isTrueOrOn(whitelistOnlyVal)
+
+  return {
+    isBotDisabled,
+    isAiDisabled,
+    isWhitelistOnly,
+    isWhitelisted,
   }
 }
 
-async function isTestPhoneNumber(phone?: string | null): Promise<boolean> {
+async function isTestPhoneNumber(phone?: string | null, tenantId?: string | null): Promise<boolean> {
   if (!phone) return false
-  const digits = phone.replace(/\D/g, "")
-  if (PLATFORM_WHITELIST_PATTERNS.some(p => digits.includes(p))) return true
-  const tenantPatterns = await getTenantWhitelistPatterns()
-  return tenantPatterns.some(p => p && digits.includes(p))
+  const cfg = await getTenantBotConfig(tenantId, phone)
+  return cfg.isWhitelisted
 }
 
 // ─── Conversation resolution ───
 
-async function resolveConversation(from: string, customerName: string, customerId: string) {
-  const isWhitelisted = await isTestPhoneNumber(from)
+async function resolveConversation(
+  from: string,
+  customerName: string,
+  customerId: string,
+  tenantIdOverride?: string | null,
+) {
+  const targetTenant = tenantIdOverride || currentTenant()?.tenantId || null
+  const botConfig = await getTenantBotConfig(targetTenant, from)
 
-  const aiAssistantOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
-  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
-  const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
-  const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
-
-  const anyExplicitlyEnabled =
-    aiAssistantOn === "true" || aiAssistantOn === "1" || aiAssistantOn === "on" ||
-    waBotOn === "true" || waBotOn === "1" || waBotOn === "on" ||
-    botOn === "true" || botOn === "1" || botOn === "on" ||
-    autoReplyOn === "true" || autoReplyOn === "1" || autoReplyOn === "on"
-
-  const allExplicitlyDisabled =
-    (aiAssistantOn === "false" || aiAssistantOn === "off" || aiAssistantOn === "0") &&
-    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0") &&
-    (botOn === "false" || botOn === "off" || botOn === "0")
-
-  const isBotDisabledForTenant = allExplicitlyDisabled && !anyExplicitlyEnabled
-
-  // Whitelisted numbers always get the bot. Other numbers only if tenant hasn't disabled it and not whitelist-only.
-  const isBotActive = isWhitelisted || (!isBotDisabledForTenant && !isWhitelistOnly)
+  // If the tenant explicitly disabled bot or AI, bot is NEVER active, even for test numbers.
+  // Whitelist only bypasses whitelist-only mode when bot automation is enabled.
+  const isBotActive = !botConfig.isBotDisabled && (!botConfig.isWhitelistOnly || botConfig.isWhitelisted)
 
   // Prefer a live conversation. A CLOSED one is reopened rather than duplicated
   // so the agent keeps the full history on the thread.
@@ -214,7 +252,18 @@ async function resolveConversation(from: string, customerName: string, customerI
   })
 
   if (existing) {
-    if (isWhitelisted) {
+    // If bot is disabled for this tenant, ensure conversation automation is paused immediately:
+    if (botConfig.isBotDisabled) {
+      if (existing.botActive || !existing.automationPaused) {
+        return db.conversation.update({
+          where: { id: existing.id },
+          data: { status: "OPEN", botActive: false, automationPaused: true },
+        })
+      }
+      return existing
+    }
+
+    if (botConfig.isWhitelisted) {
       if (!existing.botActive || existing.automationPaused) {
         return db.conversation.update({
           where: { id: existing.id },
@@ -240,7 +289,7 @@ async function resolveConversation(from: string, customerName: string, customerI
     return existing
   }
 
-  // Brand new conversation: AI is enabled by default for all incoming customers!
+  // Brand new conversation:
   return db.conversation.create({
     data: {
       customerPhone: from,
@@ -250,7 +299,7 @@ async function resolveConversation(from: string, customerName: string, customerI
       botActive: isBotActive,
       automationPaused: !isBotActive,
       assignedStaffId: null, // do not lock to human agent so AI handles replies until a tenant responds
-      tenantId: currentTenant()?.tenantId || null,
+      tenantId: targetTenant,
     },
   })
 }
@@ -321,6 +370,27 @@ async function processChange(change: any) {
     for (const entry of change.value?.state_sync || []) {
       await importContact(entry).catch(error => {
         console.error("Could not import a contact:", error)
+      })
+    }
+    return
+  }
+
+  if (change.field === "message_template_status_update") {
+    const val = change.value || {}
+    const metaTemplateId = String(val.message_template_id || "")
+    const name = val.message_template_name
+    const event = String(val.event || "").toUpperCase()
+    const reason = val.reason || null
+
+    if (metaTemplateId || name) {
+      await db.template.updateMany({
+        where: metaTemplateId ? { metaTemplateId } : { name, channel: "WHATSAPP" },
+        data: {
+          status: event === "APPROVED" ? "APPROVED" : event === "REJECTED" ? "REJECTED" : event,
+          rejectionReason: reason,
+        },
+      }).catch(err => {
+        console.error("Could not update template status from webhook:", err)
       })
     }
     return
@@ -422,7 +492,7 @@ async function processCall(call: any) {
     })
   }
 
-  const conversation = await resolveConversation(from, customer.name || "Unknown", customer.id)
+  const conversation = await resolveConversation(from, customer.name || "Unknown", customer.id, currentTenant()?.tenantId)
 
   const label =
     status === "CONNECT" ? "📞 Incoming WhatsApp call"
@@ -541,37 +611,41 @@ async function processStatus(status: any) {
   // Roll the same receipt up into campaign analytics.
   const recipient = await db.campaignRecipient.findFirst({
     where: { externalId },
-    select: { id: true, campaignId: true, status: true },
+    select: { id: true, campaignId: true, status: true, deliveredAt: true, readAt: true },
   })
   if (!recipient) return
 
+  let recipientChanged = false
   if (next === "DELIVERED") {
-    await db.campaignRecipient.update({
-      where: { id: recipient.id },
-      data: { deliveredAt: new Date() },
-    })
-    await db.campaign.update({
-      where: { id: recipient.campaignId },
-      data: { totalDelivered: { increment: 1 } },
-    })
+    if (!recipient.deliveredAt) {
+      await db.campaignRecipient.update({
+        where: { id: recipient.id },
+        data: { deliveredAt: new Date() },
+      })
+      recipientChanged = true
+    }
   } else if (next === "READ") {
-    await db.campaignRecipient.update({
-      where: { id: recipient.id },
-      data: { readAt: new Date() },
-    })
-    await db.campaign.update({
-      where: { id: recipient.campaignId },
-      data: { totalRead: { increment: 1 } },
-    })
+    const updateData: any = {}
+    if (!recipient.readAt) updateData.readAt = new Date()
+    if (!recipient.deliveredAt) updateData.deliveredAt = new Date() // A read message was definitely delivered
+
+    if (Object.keys(updateData).length > 0) {
+      await db.campaignRecipient.update({
+        where: { id: recipient.id },
+        data: updateData,
+      })
+      recipientChanged = true
+    }
   } else if (next === "FAILED" && recipient.status !== "FAILED") {
     await db.campaignRecipient.update({
       where: { id: recipient.id },
-      data: { status: "FAILED", error: String(status.errors?.[0]?.title || "Delivery failed").slice(0, 500) },
+      data: { status: "FAILED", error: String(status.errors?.[0]?.title || status.errors?.[0]?.message || "Delivery failed").slice(0, 500) },
     })
-    await db.campaign.update({
-      where: { id: recipient.campaignId },
-      data: { totalBounced: { increment: 1 } },
-    })
+    recipientChanged = true
+  }
+
+  if (recipientChanged) {
+    await refreshTotals(recipient.campaignId)
   }
 }
 
@@ -591,8 +665,19 @@ async function processMessage(msg: any, contact: any) {
         whatsappOptIn: true,
         optInSource: "WHATSAPP_INBOUND",
         optInAt: new Date(),
+        tenantId: currentTenant()?.tenantId || null,
       },
     })
+
+    // Trigger automated ON_SUBSCRIBE drip sequences for new contact
+    if (customer.tenantId) {
+      const { handleSequenceTriggerEvent } = await import("@/lib/sequences")
+      handleSequenceTriggerEvent({
+        tenantId: customer.tenantId,
+        customerId: customer.id,
+        trigger: "ON_SUBSCRIBE",
+      }).catch(() => {})
+    }
   }
 
   const hasArabicScript = /[\u0600-\u06FF]/.test(content)
@@ -603,7 +688,7 @@ async function processMessage(msg: any, contact: any) {
     })
   }
 
-  const conversation = await resolveConversation(from, customerName, customer.id)
+  const conversation = await resolveConversation(from, customerName, customer.id, currentTenant()?.tenantId)
 
   // Only show blue ticks + typing animation when the AI/bot will actually reply.
   // When AI is disabled, a human agent will respond — we must not send fake typing cues.
@@ -640,6 +725,7 @@ async function processMessage(msg: any, contact: any) {
         externalId: msg.id || null,
         conversationId: conversation.id,
         customerId: customer.id,
+        tenantId: conversation.tenantId || currentTenant()?.tenantId || null,
         direction: "INBOUND",
         type: messageType,
         content,
@@ -659,7 +745,7 @@ async function processMessage(msg: any, contact: any) {
   // Reaches staff when nobody has the panel open: the browser through
   // OneSignal, the phones through Apple directly.
   try {
-    const { getNotificationPrefs } = await import("@/app/api/notification-prefs/route")
+    const { getNotificationPrefs } = await import("@/lib/notification-preferences")
     const prefs = await getNotificationPrefs()
     // Somebody who switched off "New WhatsApp message" meant it. The message
     // is still stored and still appears in the inbox; it just does not buzz.
@@ -726,44 +812,23 @@ async function processMessage(msg: any, contact: any) {
    * an automated reply, and "the bot is off" has to mean off, not "off except
    * for the one message explaining that it's off."
    */
-  const isWhitelisted = await isTestPhoneNumber(from)
+  const tenantId = conversation.tenantId || currentTenant()?.tenantId || null
+  const botConfig = await getTenantBotConfig(tenantId, from)
 
-  const aiAssistantOn = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
-  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  const autoReplyOn = (await getConfigValue("auto_reply_enabled").catch(() => "")).trim().toLowerCase()
-  const whitelistOnly = (await getConfigValue("bot_whitelist_only").catch(() => "")).trim().toLowerCase()
-  const isWhitelistOnly = whitelistOnly === "true" || whitelistOnly === "1"
+  if (botConfig.isBotDisabled) {
+    console.log(`[bot] Bot disabled for tenant ${tenantId || "default"}. Ignoring automated reply.`)
+    return
+  }
 
-  const anyExplicitlyEnabled =
-    aiAssistantOn === "true" || aiAssistantOn === "1" || aiAssistantOn === "on" ||
-    waBotOn === "true" || waBotOn === "1" || waBotOn === "on" ||
-    botOn === "true" || botOn === "1" || botOn === "on" ||
-    autoReplyOn === "true" || autoReplyOn === "1" || autoReplyOn === "on"
+  if (botConfig.isWhitelistOnly && !botConfig.isWhitelisted) {
+    console.log(`[bot] Tenant ${tenantId || "default"} is in whitelist-only mode. Sender ${from} is not whitelisted. Ignoring.`)
+    return
+  }
 
-  const allExplicitlyDisabled =
-    (aiAssistantOn === "false" || aiAssistantOn === "off" || aiAssistantOn === "0") &&
-    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0") &&
-    (botOn === "false" || botOn === "off" || botOn === "0")
-
-  const isBotDisabled = allExplicitlyDisabled && !anyExplicitlyEnabled
-
-  // Whitelisted numbers always receive bot replies.
-  // Non-whitelisted numbers are rejected if bot is disabled or if workspace is in whitelist-only mode.
-  if (!isWhitelisted) {
-    if (isBotDisabled) {
-      console.log(`[bot] Bot disabled for tenant ${currentTenant()?.tenantId || "default"} and sender ${from} is not whitelisted. Ignoring automated reply.`)
-      return
-    }
-    if (isWhitelistOnly) {
-      console.log(`[bot] Tenant ${currentTenant()?.tenantId || "default"} is in whitelist-only mode. Sender ${from} is not whitelisted. Ignoring.`)
-      return
-    }
-    // If conversation automation is paused (either because tenant replied, human handoff, or manual pause):
-    if (!conversation.botActive || conversation.automationPaused) {
-      console.log(`[bot] Chat ${conversation.id} automation is paused (tenant replied or manual pause). Awaiting human response.`)
-      return
-    }
+  // If conversation automation is paused (either because tenant replied, human handoff, or manual pause):
+  if (!conversation.botActive || conversation.automationPaused) {
+    console.log(`[bot] Chat ${conversation.id} automation is paused (tenant replied or manual pause). Awaiting human response.`)
+    return
   }
 
   // Away message outside business hours (BRD §6.5.6). The AI keeps working
@@ -857,7 +922,7 @@ async function processMessage(msg: any, contact: any) {
     }
 
     if (type === "audio" && mediaId) {
-      await handleVoiceNote(from, mediaId, conversation.id, customer.id)
+      await handleVoiceNote(from, mediaId, conversation.id, customer.id, msg.id || undefined, storedMediaUrl || undefined)
       return
     }
 
@@ -1550,9 +1615,34 @@ async function handleVoiceNote(
   mediaId: string,
   conversationId: string,
   customerId: string,
+  externalMessageId?: string,
+  storedMediaUrl?: string,
 ) {
-  const media = await downloadMediaBytes(mediaId)
-  if (!media.success || !media.base64) {
+  let audio: Buffer | null = null
+  let mimeType = "audio/ogg"
+
+  // 1. Try retrieving audio buffer from local media store first to avoid duplicate Meta network call
+  if (storedMediaUrl) {
+    const mediaMatch = storedMediaUrl.match(/([a-f0-9-]{36}\.[a-z0-9]{1,5})/i)
+    if (mediaMatch) {
+      const stored = await readMedia(mediaMatch[1])
+      if (stored) {
+        audio = stored.body
+        mimeType = stored.mimeType || "audio/ogg"
+      }
+    }
+  }
+
+  // 2. If not in local store, fetch from Meta WhatsApp Cloud API
+  if (!audio) {
+    const media = await downloadMediaBytes(mediaId)
+    if (media.success && media.base64) {
+      audio = Buffer.from(media.base64, "base64")
+      if (media.mimeType) mimeType = media.mimeType
+    }
+  }
+
+  if (!audio) {
     await sendWhatsApp({
       to: from,
       body: "I couldn't download that voice note — could you send it again, or type your message?",
@@ -1561,14 +1651,42 @@ async function handleVoiceNote(
     return
   }
 
-  const audio = Buffer.from(media.base64, "base64")
-  const { text, error } = await transcribeAudio(audio, media.mimeType || "audio/ogg")
+  // 3. Transcribe audio with Whisper (with Arabic & English dialect prompts)
+  const { text, error } = await transcribeAudio(audio, mimeType)
 
-  // The recording is kept either way, so an agent can listen even when the
-  // transcription is poor or the customer was talking over traffic.
-  await db.message.updateMany({
-    where: { conversationId, type: "AUDIO" },
-    data: { caption: text ? `Transcript: ${text.slice(0, 500)}` : `audio/${media.mimeType}` },
+  // 4. Update the specific audio message's caption and content
+  const targetWhere = externalMessageId
+    ? { conversationId, externalId: externalMessageId }
+    : { conversationId, type: "AUDIO" }
+
+  const captionVal = text ? `Transcript: ${text}` : `audio/${mimeType}`
+  const contentVal = text ? `🎤 Voice Note: "${text}"` : "Voice Note"
+
+  if (externalMessageId) {
+    await db.message.updateMany({
+      where: { conversationId, externalId: externalMessageId },
+      data: { caption: captionVal, content: contentVal },
+    })
+  } else {
+    const lastAudio = await db.message.findFirst({
+      where: { conversationId, type: "AUDIO" },
+      orderBy: { createdAt: "desc" },
+    })
+    if (lastAudio) {
+      await db.message.update({
+        where: { id: lastAudio.id },
+        data: { caption: captionVal, content: contentVal },
+      })
+    }
+  }
+
+  // 5. Notify connected staff inbox via realtime bus
+  publish({
+    type: "message",
+    conversationId,
+    direction: "INBOUND",
+    preview: text ? `🎤 Transcript: ${text.slice(0, 100)}` : "Voice note",
+    tenantId: currentTenant()?.tenantId || undefined,
   })
 
   if (!text) {
@@ -1587,28 +1705,16 @@ async function handleVoiceNote(
     return
   }
 
-  // Recorded as what the customer said, so the transcript is in the thread the
-  // assistant reads and an agent can see what was actually asked.
-  await db.message.create({
-    data: {
-      conversationId,
-      customerId,
-      direction: "INBOUND",
-      type: "TEXT",
-      content: text,
-      isAiGenerated: false,
-      status: "SENT",
-    },
-  })
+  // 6. Pass transcribed text directly to assistant / flow without creating a duplicate message
+  const cust = await db.customer.findFirst({ where: { id: customerId }, select: { preferredLang: true } })
+  const isArabic = /[\u0600-\u06FF]/.test(text)
 
-  // From here it is an ordinary message: the same flows, the same assistant,
-  // the same booking path a typed message would take.
   await handleTextMessage({
     from,
     content: text,
     conversationId,
     customerId,
-    preferredLang: (await db.customer.findFirst({ where: { id: customerId }, select: { preferredLang: true } }))?.preferredLang || "en",
+    preferredLang: isArabic ? "ar" : (cust?.preferredLang || "en"),
   })
 }
 
@@ -2034,21 +2140,15 @@ async function handleTextMessage(params: {
    * human replies, or that is watching its AI spend, needs to be able to say so
    * without losing the booking flow with it.
    */
-  const isWhitelisted = await isTestPhoneNumber(from)
-  const aiAssistantVal = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  const waBotVal = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  const botVal = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
+  const convRow = await db.conversation.findUnique({
+    where: { id: conversationId },
+    select: { tenantId: true },
+  })
+  const effectiveTenantId = convRow?.tenantId || currentTenant()?.tenantId || ""
 
-  const anyAiExplicitlyEnabled =
-    aiAssistantVal === "true" || aiAssistantVal === "1" || aiAssistantVal === "on" ||
-    waBotVal === "true" || waBotVal === "1" || waBotVal === "on" ||
-    botVal === "true" || botVal === "1" || botVal === "on"
-
-  const allAiExplicitlyDisabled =
-    (aiAssistantVal === "false" || aiAssistantVal === "off" || aiAssistantVal === "0") &&
-    (waBotVal === "false" || waBotVal === "off" || waBotVal === "0")
-
-  if (!isWhitelisted && allAiExplicitlyDisabled && !anyAiExplicitlyEnabled) {
+  const botConfig = await getTenantBotConfig(effectiveTenantId, from)
+  if (botConfig.isAiDisabled || botConfig.isBotDisabled) {
+    console.log(`[ai] AI assistant is disabled for tenant ${effectiveTenantId || "default"}. Skipping LLM reply.`)
     await db.conversation.update({
       where: { id: conversationId },
       data: { botActive: false, automationPaused: true, status: "PENDING" },
@@ -2056,7 +2156,7 @@ async function handleTextMessage(params: {
     return
   }
 
-  const waFlowsOn = (await getConfigValue("wa_flows_enabled").catch(() => "")).trim().toLowerCase()
+  const waFlowsOn = (await getConfigValue("wa_flows_enabled", effectiveTenantId).catch(() => "")).trim().toLowerCase()
   const isDynamicFlowsEnabled = !(waFlowsOn === "false" || waFlowsOn === "off" || waFlowsOn === "0")
 
   let intent: { intent: string; sentiment: string; needsHumanHandoff: boolean } = {
@@ -2068,12 +2168,6 @@ async function handleTextMessage(params: {
     const detected = await detectIntent(content)
     if (detected) intent = detected
   } catch {}
-
-  const convRow = await db.conversation.findUnique({
-    where: { id: conversationId },
-    select: { tenantId: true },
-  })
-  const effectiveTenantId = convRow?.tenantId || currentTenant()?.tenantId || ""
 
   if (isDynamicFlowsEnabled) {
     // A flow waiting on an answer takes precedence over everything: the customer
@@ -2148,7 +2242,7 @@ async function handleTextMessage(params: {
     .reverse()
     .map(m => ({
       role: (m.direction === "INBOUND" ? "user" : "assistant") as "user" | "assistant",
-      content: m.content,
+      content: m.content || (m.caption?.startsWith("Transcript: ") ? m.caption.replace(/^Transcript:\s*/, "") : ""),
     }))
 
   // The agent watching the inbox sees the same "typing" the customer does,
@@ -2192,13 +2286,13 @@ async function handoffToAgent(params: {
     data: { botActive: false, automationPaused: true, status: "PENDING" },
   }).catch(() => {})
 
+  const conversation = await db.conversation.findUnique({
+    where: { id: conversationId },
+    select: { assignedStaffId: true, customerName: true, tenantId: true },
+  }).catch(() => null)
+
   // Per BRD §6.5.6 the handoff has to actually reach a human, with context.
   try {
-    const conversation = await db.conversation.findUnique({
-      where: { id: conversationId },
-      select: { assignedStaffId: true, customerName: true },
-    })
-
     await notifyStaff({
       type: "CHAT_HANDOFF",
       title: "Chat needs a human agent",
@@ -2212,16 +2306,8 @@ async function handoffToAgent(params: {
   }
 
   // 2. Do NOT send automated message if bot is disabled or AI is disabled
-  const isWhitelisted = await isTestPhoneNumber(from)
-  const aiAssistantVal = (await getConfigValue("ai_assistant_enabled").catch(() => "")).trim().toLowerCase()
-  const botOn = (await getConfigValue("bot_enabled").catch(() => "")).trim().toLowerCase()
-  const waBotOn = (await getConfigValue("wa_bot_enabled").catch(() => "")).trim().toLowerCase()
-  const isBotDisabled =
-    (aiAssistantVal === "false" || aiAssistantVal === "off" || aiAssistantVal === "0") &&
-    (botOn === "false" || botOn === "off" || botOn === "0") &&
-    (waBotOn === "false" || waBotOn === "off" || waBotOn === "0")
-
-  if ((!isWhitelisted && isBotDisabled) || intent === "AI_DISABLED") {
+  const botConfig = await getTenantBotConfig(conversation?.tenantId, from)
+  if (botConfig.isBotDisabled || intent === "AI_DISABLED") {
     return
   }
 
@@ -2306,7 +2392,7 @@ async function importHistoryChunk(chunk: any) {
       })
     }
 
-    const conversation = await resolveConversation(phone, customer.name || phone, customer.id)
+    const conversation = await resolveConversation(phone, customer.name || phone, customer.id, currentTenant()?.tenantId)
 
     await db.message.createMany({
       data: fresh.map((message: any) => {
