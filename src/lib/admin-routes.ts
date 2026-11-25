@@ -24,6 +24,7 @@ export const VIEW_PATHS: Record<ViewKey, string> = {
   reports: "reports",
   "whatsapp-setup": "setup",
   "whatsapp-numbers": "numbers",
+  "whatsapp-groups": "whatsapp-groups",
   settings: "settings",
   coupons: "coupons",
   content: "content",

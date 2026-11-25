@@ -22,6 +22,7 @@ export type ViewKey =
   | "reports"
   | "whatsapp-setup"
   | "whatsapp-numbers"
+  | "whatsapp-groups"
   | "settings"
   | "coupons"
   | "content"

@@ -18,6 +18,7 @@ import StaffView from "@/components/views/staff-view"
 import BotBuilderView from "@/components/views/bot-builder-view"
 import WhatsAppSetupView from "@/components/views/whatsapp-setup-view"
 import WhatsAppAccountsView from "@/components/views/whatsapp-accounts-view"
+import WhatsAppGroupsView from "@/components/views/whatsapp-groups-view"
 import SubscribersView from "@/components/views/subscribers-view"
 import ReportsView from "@/components/views/reports-view"
 import DigitalQrView from "@/components/views/digital-qr-view"
@@ -72,6 +73,7 @@ export default function ViewRouter() {
     case "bot-builder": return <BotBuilderView />
     case "whatsapp-setup": return <WhatsAppSetupView />
     case "whatsapp-numbers": return <WhatsAppAccountsView />
+    case "whatsapp-groups": return <WhatsAppGroupsView />
     case "subscribers": return <ModuleGate module="BROADCAST"><SubscribersView /></ModuleGate>
     case "reports": return <ReportsView />
     case "digital-qr": return <DigitalQrView />
