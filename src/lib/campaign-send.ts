@@ -77,8 +77,11 @@ export interface RunResult {
   failed: number
   skipped: number
   remaining: number
-  stopped?: "paused" | "cancelled" | "quiet_hours" | "budget"
+  stopped?: "paused" | "cancelled" | "quiet_hours" | "budget" | "already_running"
 }
+
+/** Prevents two concurrent slices (e.g. after() + cron) from processing the same campaign simultaneously. */
+const activeCampaignRuns = new Set<string>()
 
 /**
  * Which value fills each placeholder.
@@ -265,19 +268,31 @@ export async function withinSendingHours(): Promise<boolean> {
  * still marked PENDING.
  */
 export async function runCampaignSlice(campaignId: string): Promise<RunResult> {
-  const started = Date.now()
-  const campaign = await db.campaign.findUnique({
-    where: { id: campaignId },
-    include: { template: true },
-  })
-  if (!campaign) throw new Error("Campaign not found")
-
-  if (campaign.tenantId && currentTenant()?.tenantId !== campaign.tenantId) {
-    return withTenant({ tenantId: campaign.tenantId, slug: "" }, () =>
-      executeCampaignSlice(campaign, campaignId, started)
-    )
+  if (activeCampaignRuns.has(campaignId)) {
+    const remaining = await db.campaignRecipient.count({
+      where: { campaignId, status: "PENDING", attempts: { lt: MAX_ATTEMPTS } },
+    })
+    return { sent: 0, failed: 0, skipped: 0, remaining, stopped: "already_running" }
   }
-  return executeCampaignSlice(campaign, campaignId, started)
+
+  activeCampaignRuns.add(campaignId)
+  try {
+    const started = Date.now()
+    const campaign = await db.campaign.findUnique({
+      where: { id: campaignId },
+      include: { template: true },
+    })
+    if (!campaign) throw new Error("Campaign not found")
+
+    if (campaign.tenantId && currentTenant()?.tenantId !== campaign.tenantId) {
+      return await withTenant({ tenantId: campaign.tenantId, slug: "" }, () =>
+        executeCampaignSlice(campaign, campaignId, started)
+      )
+    }
+    return await executeCampaignSlice(campaign, campaignId, started)
+  } finally {
+    activeCampaignRuns.delete(campaignId)
+  }
 }
 
 async function executeCampaignSlice(campaign: any, campaignId: string, started: number): Promise<RunResult> {
@@ -340,18 +355,21 @@ async function executeCampaignSlice(campaign: any, campaignId: string, started: 
       break
     }
 
-    const recipient = await db.campaignRecipient.findFirst({
+    const candidate = await db.campaignRecipient.findFirst({
       where: { campaignId, status: "PENDING", attempts: { lt: MAX_ATTEMPTS } },
       orderBy: { createdAt: "asc" },
     })
-    if (!recipient) break
+    if (!candidate) break
 
-    // Claimed before the send, so a second run cannot pick up the same person
-    // while this one is waiting on Meta.
-    await db.campaignRecipient.update({
-      where: { id: recipient.id },
-      data: { attempts: { increment: 1 } },
+    // Atomically claim the row by transitioning PENDING -> CLAIMED before sending,
+    // so no concurrent worker or retry can pick up the same recipient twice.
+    const claimed = await db.campaignRecipient.updateMany({
+      where: { id: candidate.id, status: "PENDING" },
+      data: { status: "CLAIMED", attempts: { increment: 1 } },
     })
+    if (claimed.count === 0) continue
+
+    const recipient = candidate
 
     const customer = await db.customer.findFirst({ where: { id: recipient.customerId } })
 
@@ -443,7 +461,7 @@ async function executeCampaignSlice(campaign: any, campaignId: string, started: 
         if (rateLimited) {
           await db.campaignRecipient.update({
             where: { id: recipient.id },
-            data: { error: result.error?.slice(0, 500) },
+            data: { status: "PENDING", error: result.error?.slice(0, 500) },
           })
           await new Promise(r => setTimeout(r, 2_000))
           continue
@@ -538,7 +556,7 @@ async function executeCampaignSlice(campaign: any, campaignId: string, started: 
         if (rateLimited) {
           await db.campaignRecipient.update({
             where: { id: recipient.id },
-            data: { error: result.error?.slice(0, 500) },
+            data: { status: "PENDING", error: result.error?.slice(0, 500) },
           })
           await new Promise(r => setTimeout(r, 2_000))
           continue
