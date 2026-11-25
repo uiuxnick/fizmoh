@@ -18,7 +18,7 @@ import {
   MapPin, Clock, ShieldCheck, MoreVertical, RefreshCw, Paperclip, Smile,
   Facebook, Instagram, MessagesSquare, Lock, X, CheckCircle2,
   Languages, Mic, Copy, CornerDownLeft, CheckSquare, Square, Tag, ArrowLeft, Info,
-  Eye, EyeOff,
+  Eye, EyeOff, Layers, Users,
 } from "lucide-react"
 import { timeAgo } from "@/lib/helpers"
 import { useApp } from "@/lib/store"
@@ -66,6 +66,8 @@ interface Conversation {
 
 /** One small icon per channel — used on the avatar badge, the chat header, and the filter chips. */
 function ChannelIcon({ channel, className }: { channel?: string; className?: string }) {
+  if (channel === "all") return <Layers className={className} />
+  if (channel === "GROUPS") return <Users className={className} />
   if (channel === "FACEBOOK") return <Facebook className={className} />
   if (channel === "INSTAGRAM") return <Instagram className={className} />
   if (channel === "LIVE_CHAT" || channel === "WEBSITE") return <MessagesSquare className={className} />
@@ -936,7 +938,7 @@ export default function InboxView() {
             </div>
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          <div className="flex items-center gap-1.5 pb-0.5">
             {[
               ["all", "All channels"],
               ["WHATSAPP", "WhatsApp"],
@@ -947,15 +949,17 @@ export default function InboxView() {
             ].map(([f, l]) => (
               <button
                 key={f}
+                type="button"
+                title={l}
+                aria-label={l}
                 onClick={() => setChannelFilter(f)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
+                className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all flex items-center justify-center cursor-pointer ${
                   channelFilter === f
                     ? "bg-stone-900 text-white shadow-xs"
                     : "bg-stone-100/90 text-stone-600 hover:bg-stone-200/70"
                 }`}
               >
-                {f !== "all" && <ChannelIcon channel={f} className="h-3 w-3" />}
-                {l}
+                <ChannelIcon channel={f} className="h-4 w-4" />
               </button>
             ))}
           </div>
