@@ -90,7 +90,13 @@ class _DetailsPanelState extends State<DetailsPanel> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
               const SizedBox(height: 2),
-              Text(conversation.customerPhone, style: Type.secondary(context)),
+              Text(
+                maskPhoneDisplay(
+                  conversation.customerPhone,
+                  allowed: context.read<ChatStore>().api.staff?.canViewPhoneNumbers ?? true,
+                ),
+                style: Type.secondary(context),
+              ),
               if (_profile != null) ...[
                 const SizedBox(height: T.s2),
                 Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.center, children: [
@@ -115,7 +121,12 @@ class _DetailsPanelState extends State<DetailsPanel> {
                 icon: Icons.copy_rounded,
                 label: 'Copy',
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: conversation.customerPhone));
+                  Clipboard.setData(ClipboardData(
+                    text: maskPhoneDisplay(
+                      conversation.customerPhone,
+                      allowed: context.read<ChatStore>().api.staff?.canViewPhoneNumbers ?? true,
+                    ),
+                  ));
                   notify(context, 'Number copied');
                 },
               ),

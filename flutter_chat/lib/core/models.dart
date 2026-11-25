@@ -49,6 +49,8 @@ class Staff {
     required this.role,
     this.phone,
     this.avatar,
+    this.canViewPhoneNumbers = true,
+    this.permissions = const {},
   });
 
   final String id;
@@ -57,15 +59,33 @@ class Staff {
   final String role;
   final String? phone;
   final String? avatar;
+  final bool canViewPhoneNumbers;
+  final Map<String, bool> permissions;
 
-  factory Staff.fromJson(Map<String, dynamic> json) => Staff(
-        id: _string(json['id']),
-        name: _string(json['name'], 'Staff'),
-        email: _string(json['email']),
-        role: _string(json['role'], 'AGENT'),
-        phone: json['phone'] as String?,
-        avatar: json['avatar'] as String?,
-      );
+  factory Staff.fromJson(Map<String, dynamic> json) {
+    final rawPerms = json['permissions'];
+    final perms = <String, bool>{};
+    if (rawPerms is Map) {
+      rawPerms.forEach((k, v) {
+        if (v is bool) perms[k.toString()] = v;
+      });
+    }
+    final canView = json['canViewPhoneNumbers'] is bool
+        ? json['canViewPhoneNumbers'] as bool
+        : (perms['view_phone_numbers'] ?? true);
+    return Staff(
+      id: _string(json['id']),
+      name: _string(json['name'], 'Staff'),
+      email: _string(json['email']),
+      role: _string(json['role'], 'AGENT'),
+      phone: json['phone'] as String?,
+      avatar: json['avatar'] as String?,
+      canViewPhoneNumbers: canView,
+      permissions: perms,
+    );
+  }
+
+  bool hasPermission(String key) => isOwner || (permissions[key] ?? true);
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
@@ -1555,4 +1575,117 @@ class TrainingRegistration {
         attended: json['stage'] == 'ATTENDED' || json['attended'] == true,
       );
 }
+
+String maskPhoneDisplay(String phone, {bool allowed = true}) {
+  if (allowed || phone.isEmpty) return phone;
+  final trimmed = phone.trim();
+  if (trimmed.length <= 4) return '****';
+  final keep = trimmed.length >= 8 ? trimmed.length - 4 : 3;
+  return '${trimmed.substring(0, keep)}****';
+}
+
+class WaGroupParticipant {
+  const WaGroupParticipant({
+    required this.id,
+    required this.waId,
+    required this.status,
+    this.joinRequestId,
+    this.joinedAt,
+  });
+
+  final String id;
+  final String waId;
+  final String status;
+  final String? joinRequestId;
+  final DateTime? joinedAt;
+
+  factory WaGroupParticipant.fromJson(Map<String, dynamic> json) => WaGroupParticipant(
+        id: _string(json['id']),
+        waId: _string(json['waId'] ?? json['wa_id']),
+        status: _string(json['status'], 'invited'),
+        joinRequestId: json['joinRequestId'] as String?,
+        joinedAt: _date(json['joinedAt']),
+      );
+}
+
+class WaGroupMessage {
+  const WaGroupMessage({
+    required this.id,
+    required this.direction,
+    required this.type,
+    required this.status,
+    required this.timestamp,
+    this.senderWaId,
+    this.body,
+    this.mediaRef,
+  });
+
+  final String id;
+  final String direction;
+  final String type;
+  final String status;
+  final DateTime timestamp;
+  final String? senderWaId;
+  final String? body;
+  final String? mediaRef;
+
+  bool get isOutbound => direction.toUpperCase() == 'OUTBOUND';
+
+  factory WaGroupMessage.fromJson(Map<String, dynamic> json) => WaGroupMessage(
+        id: _string(json['id']),
+        direction: _string(json['direction'], 'INBOUND'),
+        type: _string(json['type'], 'text'),
+        status: _string(json['status'], 'SENT'),
+        timestamp: _date(json['timestamp']) ?? DateTime.now(),
+        senderWaId: json['senderWaId'] as String?,
+        body: json['body'] as String?,
+        mediaRef: json['mediaRef'] as String?,
+      );
+}
+
+class WaGroup {
+  const WaGroup({
+    required this.id,
+    required this.groupId,
+    required this.subject,
+    required this.joinApprovalMode,
+    required this.status,
+    this.description,
+    this.inviteLink,
+    this.participants = const [],
+    this.messages = const [],
+    this.participantCount = 0,
+  });
+
+  final String id;
+  final String groupId;
+  final String subject;
+  final String joinApprovalMode;
+  final String status;
+  final String? description;
+  final String? inviteLink;
+  final List<WaGroupParticipant> participants;
+  final List<WaGroupMessage> messages;
+  final int participantCount;
+
+  factory WaGroup.fromJson(Map<String, dynamic> json) {
+    final rawParts = (json['participants'] as List?) ?? const [];
+    final rawMsgs = (json['messages'] as List?) ?? const [];
+    final countMap = json['_count'] as Map<String, dynamic>?;
+    final parts = rawParts.whereType<Map<String, dynamic>>().map(WaGroupParticipant.fromJson).toList();
+    return WaGroup(
+      id: _string(json['id']),
+      groupId: _string(json['groupId']),
+      subject: _string(json['subject'], 'WhatsApp Group'),
+      joinApprovalMode: _string(json['joinApprovalMode'], 'auto_approve'),
+      status: _string(json['status'], 'ACTIVE'),
+      description: json['description'] as String?,
+      inviteLink: json['inviteLink'] as String?,
+      participants: parts,
+      messages: rawMsgs.whereType<Map<String, dynamic>>().map(WaGroupMessage.fromJson).toList(),
+      participantCount: (countMap?['participants'] as num?)?.toInt() ?? parts.length,
+    );
+  }
+}
+
 

@@ -667,9 +667,112 @@ class ApiClient {
   }
 
   Future<List<CannedResponse>> cannedResponses() async {
+    try {
+      final v1Body = await _get('/api/v1/chat/canned-responses');
+      final v1List = (v1Body['data'] as List?) ?? const [];
+      if (v1List.isNotEmpty) {
+        return v1List.whereType<Map<String, dynamic>>().map(CannedResponse.fromJson).toList();
+      }
+    } catch (_) {}
     final body = await _get('/api/canned-responses');
     final list = (body['responses'] as List?) ?? const [];
     return list.whereType<Map<String, dynamic>>().map(CannedResponse.fromJson).toList();
+  }
+
+  // ── whatsapp groups (OBA Cloud API) ─────────────────────────────────────────
+
+  Future<List<WaGroup>> whatsappGroups() async {
+    final body = await _get('/api/v1/whatsapp-groups');
+    final list = (body['data'] as List?) ?? (body['groups'] as List?) ?? const [];
+    return list.whereType<Map<String, dynamic>>().map(WaGroup.fromJson).toList();
+  }
+
+  Future<WaGroup> createWhatsAppGroup({
+    required String subject,
+    String? description,
+    String joinApprovalMode = 'auto_approve',
+  }) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/v1/whatsapp-groups'),
+      headers: _headers,
+      body: jsonEncode({
+        'subject': subject,
+        if (description != null && description.isNotEmpty) 'description': description,
+        'join_approval_mode': joinApprovalMode,
+      }),
+    );
+    final body = _decode(response.body);
+    if (response.statusCode >= 400) {
+      throw ApiException(
+        (body['error'] is Map ? body['error']['message'] : body['error'])?.toString() ??
+            'Could not create WhatsApp group',
+      );
+    }
+    final data = (body['data'] ?? body['group']) as Map<String, dynamic>;
+    return WaGroup.fromJson(data);
+  }
+
+  Future<WaGroup> whatsappGroupDetail(String id) async {
+    final body = await _get('/api/v1/whatsapp-groups/$id');
+    final data = (body['data'] ?? body['group']) as Map<String, dynamic>;
+    return WaGroup.fromJson(data);
+  }
+
+  Future<void> deleteWhatsAppGroup(String id) async {
+    final response = await _client.delete(
+      Uri.parse('$baseUrl/api/v1/whatsapp-groups/$id'),
+      headers: _headers,
+    );
+    if (response.statusCode >= 400) {
+      final body = _decode(response.body);
+      throw ApiException(
+        (body['error'] is Map ? body['error']['message'] : body['error'])?.toString() ??
+            'Could not delete group',
+      );
+    }
+  }
+
+  Future<void> sendGroupInviteTemplate(String groupId, String to) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/v1/whatsapp-groups/$groupId/invite'),
+      headers: _headers,
+      body: jsonEncode({'to': to}),
+    );
+    if (response.statusCode >= 400) {
+      final body = _decode(response.body);
+      throw ApiException(
+        (body['error'] is Map ? body['error']['message'] : body['error'])?.toString() ??
+            'Could not send invite template',
+      );
+    }
+  }
+
+  Future<WaGroupMessage> sendWhatsAppGroupMessage(
+    String groupId, {
+    String type = 'text',
+    String? body,
+    String? mediaUrl,
+    String? templateName,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/api/v1/whatsapp-groups/$groupId/messages'),
+      headers: _headers,
+      body: jsonEncode({
+        'type': type,
+        if (body != null) 'body': body,
+        if (mediaUrl != null) 'mediaUrl': mediaUrl,
+        if (templateName != null) 'templateName': templateName,
+      }),
+    );
+    final resBody = _decode(response.body);
+    if (response.statusCode >= 400) {
+      throw ApiException(
+        (resBody['error'] is Map ? resBody['error']['message'] : resBody['error'])?.toString() ??
+            'Message could not be sent to group',
+      );
+    }
+    final data = (resBody['data'] ?? resBody['message']) as Map<String, dynamic>;
+    return WaGroupMessage.fromJson(data);
   }
 
   // ── bookings ───────────────────────────────────────────────────────────────

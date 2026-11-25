@@ -14,6 +14,7 @@ import 'profile_screen.dart';
 import 'message_thread.dart';
 import 'restaurant_orders_screen.dart';
 import 'training_screen.dart';
+import 'groups_screen.dart';
 
 /// The frame around everything.
 ///
@@ -84,6 +85,7 @@ class _ShellState extends State<Shell> {
   /// One list, used by both layouts. Two lists would eventually disagree.
   static const _sections = [
     (icon: Icons.forum_outlined, active: Icons.forum, label: 'Chats'),
+    (icon: Icons.groups_outlined, active: Icons.groups, label: 'Groups'),
     (icon: Icons.receipt_long_outlined, active: Icons.receipt_long, label: 'Bookings'),
     (icon: Icons.restaurant_menu_outlined, active: Icons.restaurant_menu, label: 'Restaurant'),
     (icon: Icons.school_outlined, active: Icons.school, label: 'Academy'),
@@ -94,12 +96,13 @@ class _ShellState extends State<Shell> {
 
   Widget _section(int index) {
     switch (index) {
-      case 1: return const BookingsScreen();
-      case 2: return const RestaurantOrdersScreen();
-      case 3: return const TrainingScreen();
-      case 4: return const PeopleScreen();
-      case 5: return const CallsScreen();
-      case 6: return ProfileScreen(onSignedOut: widget.onSignedOut);
+      case 1: return const GroupsScreen();
+      case 2: return const BookingsScreen();
+      case 3: return const RestaurantOrdersScreen();
+      case 4: return const TrainingScreen();
+      case 5: return const PeopleScreen();
+      case 6: return const CallsScreen();
+      case 7: return ProfileScreen(onSignedOut: widget.onSignedOut);
       default: return const SizedBox.shrink();
     }
   }

@@ -175,7 +175,13 @@ class _PeopleScreenState extends State<PeopleScreen> with SingleTickerProviderSt
                                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                             const SizedBox(height: 2),
                             Text(
-                              [s.phone, if (s.email != null && s.email!.isNotEmpty) s.email!].join(' · '),
+                              [
+                                maskPhoneDisplay(
+                                  s.phone,
+                                  allowed: context.read<ApiClient>().staff?.canViewPhoneNumbers ?? true,
+                                ),
+                                if (s.email != null && s.email!.isNotEmpty) s.email!,
+                              ].join(' · '),
                               maxLines: 1, overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                             ),
