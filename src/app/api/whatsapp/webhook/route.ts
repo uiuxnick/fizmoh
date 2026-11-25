@@ -19,6 +19,13 @@ import { tenantForPhoneNumberId } from "@/lib/whatsapp-accounts"
 import { withTenant, currentTenant } from "@/lib/tenant"
 import { getConfigValue } from "@/lib/app-config"
 import {
+  isWhatsAppGroupsEnabled,
+  isGroupWebhookField,
+  isGroupInboundMessage,
+  processGroupWebhookChange,
+  processInboundGroupMessage,
+} from "@/modules/whatsapp-groups"
+import {
   isOptInMessage,
   isOptOutMessage,
   recordOptIn,
@@ -403,6 +410,14 @@ async function processChange(change: any) {
     return
   }
 
+  // Isolated WhatsApp Groups API dispatcher hook (feature-flagged)
+  if (isWhatsAppGroupsEnabled() && isGroupWebhookField(change.field)) {
+    await processGroupWebhookChange(change).catch(err => {
+      console.error("WhatsApp group webhook error:", err)
+    })
+    return
+  }
+
   {
     {
       /*
@@ -439,6 +454,10 @@ async function processChange(change: any) {
 
       for (const msg of messages) {
         try {
+          if (isWhatsAppGroupsEnabled() && isGroupInboundMessage(msg)) {
+            await processInboundGroupMessage(msg, change.value?.metadata)
+            continue
+          }
           await processMessage(msg, contactByWaId.get(msg.from))
         } catch (error) {
           console.error(`Failed to process WhatsApp message ${msg?.id}:`, error)

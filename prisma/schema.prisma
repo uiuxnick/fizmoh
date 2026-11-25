@@ -3758,3 +3758,69 @@ model EmailSignupForm {
   @@index([tenantId])
 }
 
+// ============================================================
+// WHATSAPP GROUPS API (Isolated & Feature-Flagged)
+// ============================================================
+
+model WaGroup {
+  id               String   @id @default(cuid())
+  tenantId         String?  @map("tenant_id")
+  groupId          String   @unique @map("group_id")
+  phoneNumberId    String   @map("phone_number_id")
+  subject          String
+  description      String?
+  joinApprovalMode String   @default("auto_approve") @map("join_approval_mode") // auto_approve | approval_required
+  inviteLink       String?  @map("invite_link")
+  status           String   @default("ACTIVE") // ACTIVE | DELETED
+  customerId       String?  @map("customer_id")
+  bookingId        String?  @map("booking_id")
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  participants WaGroupParticipant[]
+  messages     WaGroupMessage[]
+
+  @@index([tenantId, status])
+  @@index([phoneNumberId, status])
+  @@map("wa_groups")
+}
+
+model WaGroupParticipant {
+  id            String    @id @default(cuid())
+  tenantId      String?   @map("tenant_id")
+  groupRef      String    @map("group_ref")
+  waId          String    @map("wa_id")
+  joinRequestId String?   @map("join_request_id")
+  status        String    @default("invited") // invited | requested | joined | removed | rejected
+  joinedAt      DateTime? @map("joined_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  group WaGroup @relation(fields: [groupRef], references: [id], onDelete: Cascade)
+
+  @@unique([groupRef, waId])
+  @@index([tenantId, groupRef, status])
+  @@map("wa_group_participants")
+}
+
+model WaGroupMessage {
+  id          String   @id @default(cuid())
+  tenantId    String?  @map("tenant_id")
+  groupRef    String   @map("group_ref")
+  waMessageId String?  @unique @map("wa_message_id")
+  senderWaId  String?  @map("sender_wa_id")
+  direction   String   // INBOUND | OUTBOUND
+  type        String   // text | image | document | video | audio | template
+  body        String?
+  mediaRef    String?  @map("media_ref")
+  status      String   @default("SENT")
+  timestamp   DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  group WaGroup @relation(fields: [groupRef], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, groupRef, timestamp])
+  @@map("wa_group_messages")
+}
+
+

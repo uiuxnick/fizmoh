@@ -133,6 +133,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "bot-builder", label: "Bot & Automation", icon: Workflow, group: "WhatsApp Commerce", accent: "text-emerald-600", feature: "flows" },
   { key: "cloud-bridges", label: "Cloud & Sheet Bridges", icon: Share2, group: "WhatsApp Commerce", accent: "text-emerald-400", badge: "Addon", feature: "integration" },
   { key: "whatsapp-numbers", label: "Numbers", icon: Smartphone, group: "WhatsApp Commerce", feature: "inbox" },
+  { key: "whatsapp-groups", label: "WhatsApp Groups", icon: Users, group: "WhatsApp Commerce", accent: "text-emerald-600", feature: "inbox" },
   { key: "whatsapp-setup", label: "Setup & Guide", icon: ShieldCheck, group: "WhatsApp Commerce", feature: "inbox" },
   { key: "templates", label: "Templates", icon: FileText, group: "Marketing" },
   {
@@ -443,7 +444,15 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
   const [pendingCount, setPendingCount] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
   const [features, setFeatures] = useState<Record<string, boolean> | null>(null)
+  const [groupsEnabled, setGroupsEnabled] = useState(false)
   const [currentPath, setCurrentPath] = useState("")
+
+  useEffect(() => {
+    fetch("/api/whatsapp-groups?statusOnly=1")
+      .then(r => r.json())
+      .then(d => setGroupsEnabled(Boolean(d?.enabled)))
+      .catch(() => setGroupsEnabled(false))
+  }, [])
   const [restaurantTab, setRestaurantTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search)
@@ -596,6 +605,7 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
       ]
     : NAV_ITEMS.filter(i => {
         if (i.key === "platform") return false
+        if (i.key === "whatsapp-groups" && !groupsEnabled) return false
         if (features?.corporate) {
           // Corporate Addon: hide customer website and tour-centric views
           if (i.key === "customer-site") return false
