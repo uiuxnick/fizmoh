@@ -24,7 +24,7 @@ import {
   FileText, Megaphone, Users, UserCog, Workflow, BarChart3, Settings,
   Building2, Globe, Bell, Menu, CalendarDays, CalendarClock, StampIcon, BookOpen, Sparkles, ShieldCheck, LogOut, Ticket, Newspaper, History, User, Shield, Smartphone, Utensils, Code2, Database, Video,
   Headphones, Activity, Gauge, Receipt, QrCode, Share2, Contact2,
-  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers, GraduationCap, Tag, MoreHorizontal,
+  Facebook, Instagram, ChevronDown, ChefHat, Store, ExternalLink, Mail, MessageCircle, Compass, Target, Layers, GraduationCap, Tag, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react"
 import { LabelManagerDialog } from "@/components/labels/label-manager-dialog"
 
@@ -236,6 +236,7 @@ function NavButton({
   onTabClick,
   pendingCount,
   unreadCount,
+  collapsed = false,
 }: {
   item: NavItem
   active: boolean
@@ -248,6 +249,7 @@ function NavButton({
   onTabClick?: (tab: string) => void
   pendingCount?: number
   unreadCount?: number
+  collapsed?: boolean
 }) {
   const [expanded, setExpanded] = useState(active)
   useEffect(() => {
@@ -258,6 +260,36 @@ function NavButton({
   const count = item.key === "payments" ? (pendingCount ?? 0) : item.key === "inbox" ? (unreadCount ?? 0) : 0
   const targetPath = item.path || (pathForView(item.key) + (item.hash || ""))
   const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0)
+
+  if (collapsed) {
+    return (
+      <a
+        href={targetPath}
+        title={item.label}
+        data-tour={"nav-" + item.key}
+        onClick={e => {
+          e.preventDefault()
+          window.history.pushState({ view: item.key }, "", targetPath)
+          window.dispatchEvent(new PopStateEvent("popstate"))
+          if (item.hash && typeof window !== "undefined") {
+            window.dispatchEvent(new HashChangeEvent("hashchange"))
+          }
+          onClick()
+        }}
+        className={cn(
+          "relative w-full flex items-center justify-center p-2.5 rounded-xl transition-all",
+          active
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-950/60"
+            : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
+        )}
+      >
+        <Icon className={cn("h-4 w-4 shrink-0", active ? "text-white" : (item.accent || "text-slate-400"))} />
+        {count > 0 && (
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0d1520]" />
+        )}
+      </a>
+    )
+  }
 
   return (
     <div className="space-y-0.5">
@@ -439,7 +471,21 @@ function WhatsAppStatusCard() {
   )
 }
 
-function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavigate?: () => void; onLogout: () => void; staffName: string; staffRole: string }) {
+function SidebarContent({
+  onNavigate,
+  onLogout,
+  staffName,
+  staffRole,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  onNavigate?: () => void
+  onLogout: () => void
+  staffName: string
+  staffRole: string
+  collapsed?: boolean
+  onToggleCollapse?: () => void
+}) {
   const { view, setView, subscriberChannelFilter, setSubscriberChannelFilter, campaignChannelFilter, setCampaignChannelFilter } = useApp()
   const [pendingCount, setPendingCount] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -632,9 +678,21 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
   return (
     <div className="flex flex-col h-full bg-[#0d1520] text-slate-100">
       {/* Brand & Workspace Area */}
-      <div data-tour="sidebar-brand" className="px-4 py-4 border-b border-slate-800/80 bg-[#0b111a]">
-        <Brand href={isPlatformOperator ? "/platform" : "/dashboard"} size="md" className="text-white" />
-        {isPlatformOperator ? (
+      <div data-tour="sidebar-brand" className={cn("border-b border-slate-800/80 bg-[#0b111a]", collapsed ? "px-2 py-3 flex flex-col items-center gap-2" : "px-4 py-4")}>
+        <div className={cn("flex items-center", collapsed ? "justify-center w-full" : "justify-between gap-2")}>
+          {!collapsed && <Brand href={isPlatformOperator ? "/platform" : "/dashboard"} size="md" className="text-white" />}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden lg:inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer shrink-0"
+            >
+              {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
+        {!collapsed && (isPlatformOperator ? (
           <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 shadow-2xs">
             <Shield className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
             <span className="text-xs font-bold truncate">Platform Console</span>
@@ -644,13 +702,13 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
           </div>
         ) : (
           <WorkspaceName />
-        )}
+        ))}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3.5 space-y-4">
+      <nav className={cn("flex-1 overflow-y-auto py-3.5 space-y-4", collapsed ? "px-1.5" : "px-2.5")}>
         {groups.map(g => (
           <div key={g} data-tour={"group-" + g.toLowerCase().replace(/\s+/g, "-")}>
-            <div className="px-2.5 mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{g}</div>
+            {!collapsed && <div className="px-2.5 mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{g}</div>}
             <div className="space-y-0.5">
               {items.filter(i => i.group === g).map(item => {
                 const isActive = item.path
@@ -660,6 +718,7 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
                   <NavButton
                     key={item.label}
                     item={item}
+                    collapsed={collapsed}
                     active={isActive}
                     activeChannel={subscriberChannelFilter}
                     activeCampaignChannel={campaignChannelFilter}
@@ -718,45 +777,54 @@ function SidebarContent({ onNavigate, onLogout, staffName, staffRole }: { onNavi
         ))}
       </nav>
 
-      <div className="px-3 py-3 border-t border-slate-800/80 space-y-2 bg-[#0b111a]">
-        {!isPlatformOperator && <WhatsAppStatusCard />}
+      <div className={cn("py-3 border-t border-slate-800/80 space-y-2 bg-[#0b111a]", collapsed ? "px-1.5" : "px-3")}>
+        {!collapsed && !isPlatformOperator && <WhatsAppStatusCard />}
         <button
           type="button"
+          title="Interactive Guide"
           data-tour="sidebar-guide-tours"
           onClick={() => useTourStore.getState().setExplorerOpen(true)}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors"
+          className={cn("w-full flex items-center rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors", collapsed ? "justify-center p-2" : "justify-between px-3 py-1.5")}
         >
           <div className="flex items-center gap-2 truncate">
             <Compass className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span className="truncate">Interactive Guide</span>
+            {!collapsed && <span className="truncate">Interactive Guide</span>}
           </div>
-          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
-            Interactive
-          </span>
+          {!collapsed && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
+              Interactive
+            </span>
+          )}
         </button>
         <button
+          title="What's New"
           onClick={() => window.dispatchEvent(new CustomEvent("open-whats-new-modal"))}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors cursor-pointer"
+          className={cn("w-full flex items-center rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/80 hover:text-emerald-300 transition-colors cursor-pointer", collapsed ? "justify-center p-2" : "justify-between px-3 py-1.5")}
         >
           <div className="flex items-center gap-2 truncate">
             <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span className="truncate">What&apos;s New</span>
+            {!collapsed && <span className="truncate">What&apos;s New</span>}
           </div>
-          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
-            v6.5
-          </span>
+          {!collapsed && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80">
+              v6.5
+            </span>
+          )}
         </button>
         <button
+          title={`Sign Out (${staffName.split(" ")[0]})`}
           onClick={onLogout}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-rose-950/40 hover:text-rose-300 transition-colors"
+          className={cn("w-full flex items-center rounded-xl text-xs font-semibold text-slate-300 hover:bg-rose-950/40 hover:text-rose-300 transition-colors", collapsed ? "justify-center p-2" : "justify-between px-3 py-2")}
         >
           <div className="flex items-center gap-2 truncate">
             <LogOut className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Sign Out ({staffName.split(" ")[0]})</span>
+            {!collapsed && <span className="truncate">Sign Out ({staffName.split(" ")[0]})</span>}
           </div>
-          <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 border-slate-700 bg-slate-800 text-slate-300">
-            {staffRole.replace("_", " ")}
-          </Badge>
+          {!collapsed && (
+            <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0 border-slate-700 bg-slate-800 text-slate-300">
+              {staffRole.replace("_", " ")}
+            </Badge>
+          )}
         </button>
       </div>
     </div>
@@ -1156,6 +1224,21 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const [setupDismissed, setSetupDismissed] = useState(false)
   const [manageLabelsOpen, setManageLabelsOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  useEffect(() => {
+    try {
+      setSidebarCollapsed(localStorage.getItem("fizmoh_sidebar_collapsed") === "1")
+    } catch {}
+  }, [])
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem("fizmoh_sidebar_collapsed", next ? "1" : "0") } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     const handleOpen = () => setManageLabelsOpen(true)
@@ -1344,8 +1427,14 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
     return (
       <div className="flex h-dvh min-h-dvh bg-stone-50 overflow-hidden">
         <SessionGuard />
-        <aside className="hidden lg:flex w-72 shrink-0 border-e border-slate-800 bg-[#0d1520] h-full overflow-hidden">
-          <SidebarContent onLogout={() => { logout(); setView("customer-site") }} staffName={staffUser.name} staffRole={staffUser.role} />
+        <aside className={cn("hidden lg:flex shrink-0 border-e border-slate-800 bg-[#0d1520] h-full overflow-hidden transition-all duration-200", sidebarCollapsed ? "w-[68px]" : "w-72")}>
+          <SidebarContent
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleSidebarCollapsed}
+            onLogout={() => { logout(); setView("customer-site") }}
+            staffName={staffUser.name}
+            staffRole={staffUser.role}
+          />
         </aside>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side={drawerSide} className="w-72 p-0 h-full">
