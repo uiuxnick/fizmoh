@@ -1182,6 +1182,7 @@ export default function SubscribersView() {
                   className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white font-medium text-stone-700 h-8 max-w-[130px] truncate"
                 >
                   <option value="all">All Labels</option>
+                  <option value="__unlabeled__">Without Label</option>
                   {allCombinedTags.map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}

@@ -583,6 +583,9 @@ async function executeCampaignSlice(campaign: any, campaignId: string, started: 
       else if (attempts >= MAX_ATTEMPTS) failed++
     }
 
+    if ((sent + failed + skipped) % 15 === 0) {
+      await refreshTotals(campaignId).catch(() => {})
+    }
     if (gap > 0) await new Promise(r => setTimeout(r, gap))
   }
 

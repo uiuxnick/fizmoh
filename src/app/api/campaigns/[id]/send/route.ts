@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule, withinLimit, limitReached } from "@/lib/entitlements"
@@ -153,6 +153,22 @@ export const POST = withErrors(withModule("BROADCAST", async (request: NextReque
   // stops a send of more than a thousand people stalling half way with no
   // way back.
   const result = await runCampaignSlice(campaign.id)
+
+  // If the first 55s slice hit the budget with more recipients left, continue
+  // immediately in the background (up to 4 additional slices) instead of
+  // making the campaign wait for the next cron tick.
+  if (result.remaining > 0 && result.stopped === "budget") {
+    after(async () => {
+      try {
+        let next = result
+        for (let i = 0; i < 4 && next.remaining > 0 && next.stopped === "budget"; i++) {
+          next = await runCampaignSlice(campaign.id)
+        }
+      } catch (err) {
+        console.error(`[campaign-send] Background continuation failed for ${campaign.id}:`, err)
+      }
+    })
+  }
 
   return NextResponse.json({
     ...result,

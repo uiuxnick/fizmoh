@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/api-handler"
 import { withModule } from "@/lib/entitlements"
@@ -10,6 +11,9 @@ import {
 } from "@/lib/subscribers"
 import { currentTenant, PLATFORM } from "@/lib/tenant-context"
 import { buildSegmentWhere, matchesSegment, parseFilterRules } from "@/lib/segments"
+const AVAILABLE_LABELS = [
+  "VIP", "New Lead", "Payment Pending", "Arabic Speaker", "Repeat Customer", "Complaint", "Follow Up",
+]
 
 /**
  * Multi-channel subscriber manager (WhatsApp, Facebook, Instagram).
@@ -57,6 +61,16 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   const andClauses: any[] = []
 
   if (search) {
+    const searchLower = search.toLowerCase()
+    const workspaceLabels = await db.label.findMany({ select: { name: true } }).catch(() => [])
+    const matchedLabels = Array.from(
+      new Set([
+        ...AVAILABLE_LABELS,
+        ...workspaceLabels.map(l => l.name),
+        search,
+      ])
+    ).filter(l => l.toLowerCase().includes(searchLower))
+
     andClauses.push({
       OR: [
         { name: { contains: search, mode: "insensitive" } },
@@ -64,6 +78,10 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
         { email: { contains: search, mode: "insensitive" } },
         { socialUsername: { contains: search, mode: "insensitive" } },
         { socialId: { contains: search, mode: "insensitive" } },
+        ...matchedLabels.flatMap(label => [
+          { tags: { array_contains: label } },
+          { conversations: { some: { labels: { array_contains: label } } } },
+        ]),
       ],
     })
   }
@@ -93,7 +111,30 @@ export const GET = withErrors(withModule("BROADCAST", async (request: NextReques
   }
 
   // Tag filter
-  if (tag && tag !== "all") {
+  if (tag === "__unlabeled__") {
+    andClauses.push({
+      AND: [
+        {
+          OR: [
+            { tags: { equals: Prisma.DbNull } },
+            { tags: { equals: Prisma.JsonNull } },
+            { tags: { equals: [] } },
+          ],
+        },
+        {
+          conversations: {
+            none: {
+              AND: [
+                { labels: { not: Prisma.DbNull } },
+                { labels: { not: Prisma.JsonNull } },
+                { NOT: { labels: { equals: [] } } },
+              ],
+            },
+          },
+        },
+      ],
+    })
+  } else if (tag && tag !== "all") {
     andClauses.push({
       OR: [
         { tags: { array_contains: tag } },
