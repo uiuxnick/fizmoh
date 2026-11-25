@@ -8,8 +8,8 @@ export const SITE_URL =
 export const ALT_SITE_URL = "https://app.fizmoh.com"
 export const SITE_NAME = "Fizmoh WhatsApp Business Platform"
 export const DEFAULT_DESCRIPTION =
-  "Official WhatsApp Business Cloud API platform in Oman & GCC. Multi-agent team inbox, visual AI bot builder, broadcast campaigns, CRM, website live chat widget, Instagram & Facebook automation, and AmwalPay online payments."
-export const DEFAULT_OG_IMAGE = "/fizmoh-logo-light.png"
+  "Official Meta WhatsApp Business Cloud API in Oman & GCC. Team inbox, AI chatbot builder, broadcasts, CRM, live chat widget & AmwalPay payments."
+export const DEFAULT_OG_IMAGE = "/opengraph-image"
 
 export const KEYWORDS_EN = [
   // Brand & Domain

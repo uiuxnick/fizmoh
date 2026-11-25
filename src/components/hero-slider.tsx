@@ -142,9 +142,9 @@ export function HeroSlider({ isAr }: { isAr: boolean }) {
 
         {/* Only the second half changes, so the page never appears to reload
             itself while someone is reading the first line. */}
-        <h1 className="mk-display mt-7 text-[44px] text-[var(--mk-ink)] sm:text-[56px] lg:text-[62px]">
-          {isAr ? "شغّل أعمالك بالكامل" : "Run your entire business"}
-          <span key={slide.id} className="mk-slide-in block mk-gradient-text">
+        <h1 className="mk-display mt-7 text-[44px] leading-[1.08] text-[var(--mk-ink)] sm:text-[56px] lg:text-[62px]">
+          {isAr ? "شغّل أعمالك بالكامل —" : "Run your entire business —"}
+          <span key={slide.id} className="mk-slide-in block mk-gradient-text mt-1">
             {isAr ? slide.leadAr : slide.leadEn}
           </span>
         </h1>
@@ -159,16 +159,18 @@ export function HeroSlider({ isAr }: { isAr: boolean }) {
           </p>
         </div>
 
-        {/* Slide controls. Real buttons, so they are keyboard reachable and
-            announce themselves — dots that are only decorative divs are not. */}
+        {/* Slide controls. Labeled pill tabs so visitors can jump directly to their industry. */}
         <div
-          className="mt-7 flex items-center gap-2.5"
+          className="mt-7 flex flex-wrap items-center gap-2"
           role="tablist"
           aria-label={isAr ? "قطاعات الأعمال" : "Industries"}
           onKeyDown={onKeyDown}
         >
           {SLIDES.map((s, i) => {
             const active = i === index
+            const shortLabel = isAr
+              ? s.eyebrowAr.split(" ")[0]
+              : s.id === "marketing" ? "Agencies" : s.id === "tours" ? "Tours" : s.id === "hospital" ? "Clinics" : "Retail"
             return (
               <button
                 key={s.id}
@@ -176,12 +178,15 @@ export function HeroSlider({ isAr }: { isAr: boolean }) {
                 aria-selected={active}
                 aria-label={isAr ? s.eyebrowAr : s.eyebrowEn}
                 onClick={() => goTo(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all duration-200 cursor-pointer border ${
                   active
-                    ? "w-10 bg-[var(--mk-ink)]"
-                    : "w-4 bg-[var(--mk-line)] hover:bg-[var(--mk-muted)]"
+                    ? "bg-[var(--mk-ink)] text-white border-[var(--mk-ink)] shadow-sm"
+                    : "bg-white/80 text-[var(--mk-ink-soft)] border-[var(--mk-line)] hover:border-[var(--mk-ink)]/40 hover:text-[var(--mk-ink)]"
                 }`}
-              />
+              >
+                <s.icon className={`h-3.5 w-3.5 ${active ? "text-[#00E785]" : "text-[var(--mk-muted)]"}`} aria-hidden="true" />
+                <span>{shortLabel}</span>
+              </button>
             )
           })}
         </div>

@@ -384,7 +384,7 @@ export function WhatsAppDemo({
             {/* Dynamic island, cut out of the screen itself. */}
             <span
               aria-hidden="true"
-              className="absolute left-1/2 top-2 z-20 h-[22px] w-[78px] -translate-x-1/2 rounded-full bg-black"
+              className="absolute left-1/2 top-2 z-20 h-[20px] w-[76px] -translate-x-1/2 rounded-full bg-black"
             />
             {/* One soft diagonal reflection across the glass. */}
             <span
@@ -392,8 +392,23 @@ export function WhatsAppDemo({
               className="pointer-events-none absolute inset-0 z-20"
               style={{ background: "linear-gradient(118deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 26%, transparent 46%)" }}
             />
+          {/* Subtle iOS Status Bar clearance so the Dynamic Island never overlaps the contact name */}
+          <div aria-hidden="true" className="bg-[#1f2c34] px-5 pt-2.5 pb-1 flex items-center justify-between text-[10px] font-semibold text-white/80 shrink-0 select-none">
+            <span>9:41</span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-end gap-[1.5px] h-2.5">
+                <span className="w-[2px] h-1 bg-white/80 rounded-[0.5px]" />
+                <span className="w-[2px] h-1.5 bg-white/80 rounded-[0.5px]" />
+                <span className="w-[2px] h-2 bg-white/80 rounded-[0.5px]" />
+                <span className="w-[2px] h-2.5 bg-white/80 rounded-[0.5px]" />
+              </span>
+              <span className="inline-block w-4 h-2 rounded-[2.5px] border border-white/75 p-[1px]">
+                <span className="block w-full h-full bg-[#00E785] rounded-[1px]" />
+              </span>
+            </div>
+          </div>
           {/* WhatsApp Header */}
-          <div className="bg-[#1f2c34] text-white pt-3 pb-2.5 px-3 flex items-center justify-between border-b border-[#2a3942] shrink-0">
+          <div className="bg-[#1f2c34] text-white pt-1.5 pb-2.5 px-3 flex items-center justify-between border-b border-[#2a3942] shrink-0">
             <div className="flex items-center gap-2">
               <ChevronLeft className="h-4 w-4 text-[#9ca3af]" />
               <div className="h-7 w-7 rounded-full bg-[#00E785] flex items-center justify-center font-bold text-[11px] text-[#1D1D1D]">

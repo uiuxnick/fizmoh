@@ -43,6 +43,14 @@ export async function SeoStructuredData({ isHomepage = false }: { isHomepage?: b
     name: SITE_NAME,
     publisher: { "@id": `${SITE_URL}/#organization` },
     inLanguage: ["en-US", "ar-OM", "ar-SA", "ar-AE"],
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/blog?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   }
 
   if (!isHomepage) {

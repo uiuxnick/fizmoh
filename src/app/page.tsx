@@ -34,7 +34,7 @@ export async function generateMetadata() {
   return pageSeo(
     "/",
     "Fizmoh — Official WhatsApp Business Platform & Cloud API in Oman & GCC",
-    "Official Meta WhatsApp Business Cloud API platform in Oman & GCC. Multi-agent team inbox, visual AI bot builder, broadcast campaigns, CRM, website live chat widget, and AmwalPay online payments.",
+    "Official Meta WhatsApp Business Cloud API in Oman & GCC. Team inbox, AI chatbot builder, broadcasts, CRM, live chat widget & AmwalPay payments.",
   )
 }
 
