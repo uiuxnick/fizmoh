@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { withErrors } from "@/lib/api-handler"
 import { groupsService, isWhatsAppGroupsEnabled } from "@/modules/whatsapp-groups"
 import { handleGroupError, requireGroupAdmin } from "@/modules/whatsapp-groups/auth-guard"
 
-export async function GET(request: NextRequest) {
+export const GET = withErrors(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   if (searchParams.get("statusOnly") === "1") {
     return NextResponse.json({ enabled: isWhatsAppGroupsEnabled() })
@@ -17,9 +18,9 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return handleGroupError(err)
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withErrors(async (request: NextRequest) => {
   const auth = await requireGroupAdmin(request)
   if (!auth.ok) return auth.response
 
@@ -37,4 +38,4 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     return handleGroupError(err)
   }
-}
+})

@@ -33,6 +33,7 @@ import {
   ComposerAttachments, VoiceRecorder, AiVoiceReplyButton, AttachmentChip, MessageMedia, type Attachment,
 } from "@/components/views/composer-tools"
 import { maskPhoneNumber, hasPermission } from "@/lib/permissions"
+import WhatsAppGroupsView from "@/components/views/whatsapp-groups-view"
 
 interface Conversation {
   id: string
@@ -942,6 +943,7 @@ export default function InboxView() {
               ["FACEBOOK", "Messenger"],
               ["INSTAGRAM", "Instagram"],
               ["LIVE_CHAT", "Live Web Chat"],
+              ["GROUPS", "Groups"],
             ].map(([f, l]) => (
               <button
                 key={f}
@@ -1197,9 +1199,11 @@ export default function InboxView() {
 
       {/* ── Center Chat Pane (Screen stays stuck, messages scroll) ── */}
       <div className={`${
-        selected ? "flex" : "hidden md:flex"
+        selected || channelFilter === "GROUPS" ? "flex" : "hidden md:flex"
       } flex-1 flex-col h-full min-w-0 overflow-hidden bg-white`}>
-        {!selected ? (
+        {channelFilter === "GROUPS" ? (
+          <WhatsAppGroupsView embedded />
+        ) : !selected ? (
           <div className="flex-1 flex items-center justify-center bg-stone-50/50 p-6">
             <div className="text-center max-w-sm">
               <div className="h-16 w-16 rounded-3xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/10">

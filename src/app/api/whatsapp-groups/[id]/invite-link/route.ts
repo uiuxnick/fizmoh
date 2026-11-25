@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { withErrors } from "@/lib/api-handler"
 import { groupsService } from "@/modules/whatsapp-groups"
 import { handleGroupError, requireGroupAdmin } from "@/modules/whatsapp-groups/auth-guard"
 
-export async function GET(
+export const GET = withErrors(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const auth = await requireGroupAdmin(request)
   if (!auth.ok) return auth.response
 
@@ -16,12 +17,12 @@ export async function GET(
   } catch (err) {
     return handleGroupError(err)
   }
-}
+})
 
-export async function POST(
+export const POST = withErrors(async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+) => {
   const auth = await requireGroupAdmin(request)
   if (!auth.ok) return auth.response
 
@@ -32,4 +33,4 @@ export async function POST(
   } catch (err) {
     return handleGroupError(err)
   }
-}
+})
