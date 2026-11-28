@@ -45,10 +45,22 @@ export const POST = withErrors(async (request: NextRequest) => {
   const ok = await verifyOtp(`staff_otp_${staff.id}`, staff.id, parsed.data.otp)
   if (!ok) return NextResponse.json({ error: "That code is not valid" }, { status: 400 })
 
-  const token = await signSession({ kind: "staff", staffId: staff.id, role: staff.role }, "30d")
+  const { resolveStaffAccess } = await import("@/lib/staff-access")
+  const access = await resolveStaffAccess(staff.id, staff.tenantId, staff.role)
+  const token = await signSession({ kind: "staff", staffId: staff.id, role: access.role }, "30d")
   const response = NextResponse.json({
     token,
-    staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, phone: staff.phone, avatar: staff.avatar },
+    staff: {
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      role: access.role,
+      phone: staff.phone,
+      avatar: staff.avatar,
+      tenantId: staff.tenantId,
+      permissions: access.permissions,
+      canViewPhoneNumbers: access.canViewPhoneNumbers,
+    },
   })
   setSessionCookie(response, "staff", token)
   return response

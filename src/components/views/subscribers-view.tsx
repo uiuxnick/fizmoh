@@ -147,7 +147,7 @@ function formatDetailDate(dateString?: string | null): string {
 
 export default function SubscribersView() {
   const { setView, subscriberChannelFilter, setSubscriberChannelFilter, staffUser } = useApp()
-  const canViewPhone = staffUser?.canViewPhoneNumbers !== false
+  const canViewPhone = staffUser?.canViewPhoneNumbers ?? hasPermission(staffUser, "view_phone_numbers")
   const canExport = staffUser ? hasPermission(staffUser, "export_contacts") : true
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [stats, setStats] = useState<SubscriberStats>({ total: 0, optedIn: 0, optedOut: 0 })

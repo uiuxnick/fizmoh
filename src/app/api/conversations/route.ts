@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/chat-api/legacy-guard"
+import { currentTenant } from "@/lib/tenant-context"
+import { resolveStaffAccess, sanitizeConversationPhone } from "@/lib/staff-access"
 
 export const GET = withErrors(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
@@ -31,6 +33,11 @@ export const GET = withErrors(async (request: NextRequest) => {
   const incremental = !!(sinceDate && !isNaN(sinceDate.getTime()))
   if (incremental) where.updatedAt = { gt: sinceDate }
 
+  const tenant = currentTenant()
+  const access = tenant?.staffId
+    ? await resolveStaffAccess(tenant.staffId, tenant.tenantId, tenant.role)
+    : { canViewPhoneNumbers: false }
+
   const conversations = await db.conversation.findMany({
     where,
     include: {
@@ -41,11 +48,13 @@ export const GET = withErrors(async (request: NextRequest) => {
     orderBy: { lastMessageAt: "desc" },
   })
 
+  const sanitized = conversations.map((c) => sanitizeConversationPhone(c, access.canViewPhoneNumbers))
+
   // A full list is authoritative — anything missing from it has been deleted.
   // A delta is not, and the caller has to be told which one it received before
   // it decides whether to replace its cache or merge into it.
   return NextResponse.json({
-    conversations,
+    conversations: sanitized,
     incremental,
     syncedAt: syncedAt.toISOString(),
   })

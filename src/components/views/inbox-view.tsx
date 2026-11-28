@@ -408,7 +408,7 @@ export default function InboxView() {
   const [loading, setLoading] = useState(true)
   const [botTyping, setBotTyping] = useState(false)
   const { currentStaffId, staffUser } = useApp()
-  const canViewPhoneNumbers = staffUser?.canViewPhoneNumbers !== false
+  const canViewPhoneNumbers = staffUser?.canViewPhoneNumbers ?? hasPermission(staffUser, "view_phone_numbers")
   const scrollRef = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState("all")
   const [channelFilter, setChannelFilter] = useState("all")

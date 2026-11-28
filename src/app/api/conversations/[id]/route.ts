@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { withErrors } from "@/lib/chat-api/legacy-guard"
 import { publish } from "@/lib/realtime"
+import { currentTenant } from "@/lib/tenant-context"
+import { resolveStaffAccess, sanitizeConversationPhone } from "@/lib/staff-access"
 
 // GET single conversation (lightweight, no messages)
 export const GET = withErrors(async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -14,7 +16,11 @@ export const GET = withErrors(async (_request: NextRequest, { params }: { params
     },
   })
   if (!conversation) return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
-  return NextResponse.json({ conversation })
+  const tenant = currentTenant()
+  const access = tenant?.staffId
+    ? await resolveStaffAccess(tenant.staffId, tenant.tenantId, tenant.role)
+    : { canViewPhoneNumbers: false }
+  return NextResponse.json({ conversation: sanitizeConversationPhone(conversation, access.canViewPhoneNumbers) })
 })
 
 // PATCH conversation — update botActive, status, assignedStaffId, labels

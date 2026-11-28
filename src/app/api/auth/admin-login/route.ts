@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { setSessionCookie, signSession } from "@/lib/auth"
 import { checkSharedRateLimit as checkRateLimit, requestIp } from "@/lib/rate-limit"
 import { withErrors } from "@/lib/api-handler"
+import { resolveStaffAccess } from "@/lib/staff-access"
 
 export const OPTIONS = withErrors(async () => new NextResponse(null, { status: 204 }))
 
@@ -53,15 +54,25 @@ export const POST = withErrors(async (request: NextRequest) => {
     return NextResponse.json({ error: "Account is deactivated. Contact super admin." }, { status: 403 })
   }
 
+  const access = await resolveStaffAccess(staff.id, staff.tenantId, staff.role)
   const token = await signSession({
     kind: "staff",
     staffId: staff.id,
     email: staff.email,
-    role: staff.role,
+    role: access.role,
   }, "30d")
   const response = NextResponse.json({
     token,
-    staff: { id: staff.id, name: staff.name, email: staff.email, role: staff.role, phone: staff.phone },
+    staff: {
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      role: access.role,
+      phone: staff.phone,
+      tenantId: staff.tenantId,
+      permissions: access.permissions,
+      canViewPhoneNumbers: access.canViewPhoneNumbers,
+    },
   })
   setSessionCookie(response, "staff", token)
   return response
