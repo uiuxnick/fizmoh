@@ -3,6 +3,9 @@ import { db } from "@/lib/db"
 import { createAuditLog } from "@/lib/slots-server"
 import { withErrors } from "@/lib/api-handler"
 import { sessionFromRequest } from "@/lib/auth"
+import { currentTenant } from "@/lib/tenant"
+import { resolveStaffAccess } from "@/lib/staff-access"
+import { maskPhoneNumber } from "@/lib/permissions"
 
 // ============================================================
 // GET /api/customers/[id]
@@ -60,7 +63,22 @@ export const GET = withErrors(async (request: NextRequest, { params }: { params:
     return NextResponse.json({ error: "Customer not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ customer })
+  const tenant = currentTenant()
+  const access = session.staffId
+    ? await resolveStaffAccess(session.staffId, tenant?.tenantId ?? customer.tenantId, tenant?.role)
+    : { canViewPhoneNumbers: false }
+  const sanitized = access.canViewPhoneNumbers
+    ? customer
+    : {
+        ...customer,
+        phone: maskPhoneNumber(customer.phone, false),
+        conversations: customer.conversations.map((cv) => ({
+          ...cv,
+          customerPhone: maskPhoneNumber(cv.customerPhone, false),
+        })),
+      }
+
+  return NextResponse.json({ customer: sanitized })
 })
 
 // ============================================================

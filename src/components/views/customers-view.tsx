@@ -20,6 +20,8 @@ import { CustomFieldsDialog, type CustomFieldDef } from "@/components/views/cust
 import { CsvImportWizard } from "@/components/views/csv-import-wizard"
 import { SegmentBuilderModal } from "@/components/views/segment-builder-modal"
 import { matchesSegment } from "@/lib/segments"
+import { useApp } from "@/lib/store"
+import { hasPermission, maskPhoneNumber } from "@/lib/permissions"
 
 const TIER_COLORS: Record<string, string> = {
   BRONZE: "from-amber-700 to-amber-900",
@@ -51,6 +53,8 @@ interface Customer {
 }
 
 export default function CustomersView() {
+  const { staffUser } = useApp()
+  const canViewPhone = staffUser?.canViewPhoneNumbers ?? hasPermission(staffUser, "view_phone_numbers")
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -383,7 +387,7 @@ export default function CustomersView() {
                       </div>
                       <div className="text-xs text-stone-500 flex items-center gap-1 mt-0.5 font-mono">
                         <Phone className="h-3 w-3 text-stone-400 shrink-0" />
-                        <span>{c.phone}</span>
+                        <span>{canViewPhone ? c.phone : maskPhoneNumber(c.phone, false)}</span>
                       </div>
                       {c.email && (
                         <div className="text-xs text-stone-500 flex items-center gap-1 truncate">
@@ -495,7 +499,7 @@ export default function CustomersView() {
                       <Badge className={TIER_BADGE[selected.loyaltyTier] || "bg-stone-100 text-stone-700"}>
                         {selected.loyaltyTier} · {selected.loyaltyPoints} pts
                       </Badge>
-                      <span className="text-xs text-stone-400 font-mono">{selected.phone}</span>
+                      <span className="text-xs text-stone-400 font-mono">{canViewPhone ? selected.phone : maskPhoneNumber(selected.phone, false)}</span>
                     </div>
                   </div>
                   {!editing && (
@@ -669,7 +673,7 @@ export default function CustomersView() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/70 shadow-2xs">
                         <div className="text-[10px] text-stone-400 font-bold uppercase">Phone</div>
-                        <div className="text-xs font-semibold text-stone-900 font-mono mt-0.5">{selected.phone}</div>
+                        <div className="text-xs font-semibold text-stone-900 font-mono mt-0.5">{canViewPhone ? selected.phone : maskPhoneNumber(selected.phone, false)}</div>
                       </div>
                       <div className="p-3 rounded-xl bg-stone-50 border border-stone-200/70 shadow-2xs">
                         <div className="text-[10px] text-stone-400 font-bold uppercase">Email</div>

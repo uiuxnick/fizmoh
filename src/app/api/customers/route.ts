@@ -4,6 +4,8 @@ import { withErrors } from "@/lib/api-handler"
 import { withinLimit, limitReached } from "@/lib/entitlements"
 import { sessionFromRequest } from "@/lib/auth"
 import { currentTenant } from "@/lib/tenant"
+import { resolveStaffAccess } from "@/lib/staff-access"
+import { maskPhoneNumber } from "@/lib/permissions"
 
 export const GET = withErrors(async (request: NextRequest) => {
   const session = await sessionFromRequest(request)
@@ -19,6 +21,10 @@ export const GET = withErrors(async (request: NextRequest) => {
   }
   const tier = searchParams.get("tier")
 
+  const access = session.staffId
+    ? await resolveStaffAccess(session.staffId, tenant.tenantId, tenant.role)
+    : { canViewPhoneNumbers: false }
+
   const where: any = { tenantId: tenant.tenantId }
   if (channel) where.channel = channel
   if (tier && tier !== "all") {
@@ -28,7 +34,7 @@ export const GET = withErrors(async (request: NextRequest) => {
   if (search) {
     where.OR = [
       { name: { contains: search.slice(0, 200), mode: "insensitive" } },
-      { phone: { contains: search } },
+      ...(access.canViewPhoneNumbers ? [{ phone: { contains: search } }] : []),
       { email: { contains: search.slice(0, 200), mode: "insensitive" } },
     ]
   }
@@ -43,7 +49,9 @@ export const GET = withErrors(async (request: NextRequest) => {
   })
 
   const total = await db.customer.count({ where })
-  const page = customers.slice(0, pageSize)
+  const page = customers.slice(0, pageSize).map((c) =>
+    access.canViewPhoneNumbers ? c : { ...c, phone: maskPhoneNumber(c.phone, false) },
+  )
   return NextResponse.json({ customers: page, total, nextCursor: customers.length > pageSize ? page.at(-1)?.id : null })
 })
 
