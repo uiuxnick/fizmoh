@@ -348,6 +348,79 @@ export function hasPermission(
 }
 
 /**
+ * Determines whether a staff member may access a given admin navigation view
+ * based on their role and granular permissions.
+ */
+export function canAccessView(
+  user: { role?: string; permissions?: Record<string, boolean> } | null | undefined,
+  viewKey: string,
+): boolean {
+  if (!user) return false
+  const role = (user.role || "").toUpperCase()
+  if (role === "SUPER_ADMIN" || role === "OWNER" || role === "PLATFORM") return true
+
+  switch (viewKey) {
+    case "dashboard":
+      return true
+    case "inbox":
+    case "whatsapp-groups":
+      return hasPermission(user, "send_messages") || hasPermission(user, "view_all_conversations")
+    case "payments":
+      return hasPermission(user, "view_financials")
+    case "catalog":
+    case "woocommerce":
+      return hasPermission(user, "manage_catalog")
+    case "ai-assistant":
+    case "knowledge":
+      return hasPermission(user, "manage_ai_assistant")
+    case "bot-builder":
+      return hasPermission(user, "manage_bot_flows")
+    case "templates":
+      return hasPermission(user, "manage_templates")
+    case "campaigns":
+    case "subscribers":
+    case "email-marketing":
+    case "coupons":
+    case "content":
+      return hasPermission(user, "send_broadcasts")
+    case "bookings":
+    case "calendar":
+    case "tours":
+    case "restaurant":
+    case "appointments":
+    case "hospital":
+    case "visa":
+    case "corporate":
+    case "training":
+      return hasPermission(user, "manage_orders")
+    case "customers":
+      return (
+        hasPermission(user, "send_messages") ||
+        hasPermission(user, "view_all_conversations") ||
+        hasPermission(user, "manage_orders")
+      )
+    case "staff":
+      return hasPermission(user, "manage_team_roles")
+    case "reports":
+      return hasPermission(user, "view_financials") || hasPermission(user, "manage_settings")
+    case "settings":
+    case "whatsapp-numbers":
+    case "whatsapp-setup":
+    case "cloud-bridges":
+    case "customer-site":
+    case "website-builder":
+    case "digital-qr":
+    case "digital-vcard":
+    case "live-chat":
+    case "white-label":
+    case "audit-logs":
+    case "billing":
+    default:
+      return hasPermission(user, "manage_settings")
+  }
+}
+
+/**
  * Masks a phone number (e.g. +968 9200 8169 -> +968 9200 ****)
  * when unmasked is false.
  */

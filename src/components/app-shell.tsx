@@ -4,6 +4,7 @@ import { NotificationCenter } from "@/components/notification-center"
 
 import { useApp, type ViewKey } from "@/lib/store"
 import { pathForView, viewForPath } from "@/lib/admin-routes"
+import { canAccessView, hasPermission } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -486,7 +487,7 @@ function SidebarContent({
   collapsed?: boolean
   onToggleCollapse?: () => void
 }) {
-  const { view, setView, subscriberChannelFilter, setSubscriberChannelFilter, campaignChannelFilter, setCampaignChannelFilter } = useApp()
+  const { view, setView, staffUser, subscriberChannelFilter, setSubscriberChannelFilter, campaignChannelFilter, setCampaignChannelFilter } = useApp()
   const [pendingCount, setPendingCount] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
   const [features, setFeatures] = useState<Record<string, boolean> | null>(null)
@@ -651,6 +652,7 @@ function SidebarContent({
       ]
     : NAV_ITEMS.filter(i => {
         if (i.key === "platform") return false
+        if (!canAccessView(staffUser, i.key)) return false
         if (i.key === "whatsapp-groups" && !groupsEnabled) return false
         if (features?.corporate) {
           // Corporate Addon: hide customer website and tour-centric views
@@ -1068,7 +1070,7 @@ function HeaderBar({ onMenuClick, staffName, staffRole }: { onMenuClick: () => v
         }
         const it = NAV_ITEMS.find(i => i.key === link)
         return it ? { key: it.key, label: it.label.split(" ")[0], icon: it.icon, path: pathForView(it.key) } : null
-      }).filter(Boolean) as { key: ViewKey; label: string; icon: any; path: string }[]
+      }).filter((q): q is { key: ViewKey; label: string; icon: any; path: string } => Boolean(q) && canAccessView(staffUser, q!.key))
 
   return (
     <>
@@ -1248,11 +1250,28 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
 
   useEffect(() => {
     if (authMode !== "admin" || !staffUser) return
+    if (!hasPermission(staffUser, "manage_settings")) {
+      setNeedsSetup(false)
+      return
+    }
     fetch("/api/onboarding")
       .then(r => r.json())
       .then(d => setNeedsSetup(Boolean(d.applies) && !d.ready))
       .catch(() => setNeedsSetup(false))
   }, [authMode, staffUser])
+
+  useEffect(() => {
+    if (authMode !== "admin" || !staffUser) return
+    const isPlatform = (staffUser.role === "SUPER_ADMIN" && (!staffUser.tenantId || staffUser.tenantId === "")) || staffUser.email === "uiuxnick@gmail.com"
+    if (isPlatform) return
+    if (!canAccessView(staffUser, view)) {
+      const fallback: ViewKey = canAccessView(staffUser, "inbox") ? "inbox" : "dashboard"
+      setView(fallback)
+      if (typeof window !== "undefined") {
+        window.history.replaceState({ view: fallback }, "", pathForView(fallback))
+      }
+    }
+  }, [authMode, staffUser, view, setView])
 
   // Always verify active session on mount and restore staff auth state
   useEffect(() => {
@@ -1444,7 +1463,7 @@ export default function AppShell({ adminEntry = false, initialView }: { adminEnt
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
           <ImpersonationBar />
           <PlatformAnnouncementBanner />
-          <OnboardingBanner onOpen={() => setSetupDismissed(false)} />
+          {hasPermission(staffUser, "manage_settings") && <OnboardingBanner onOpen={() => setSetupDismissed(false)} />}
           <HeaderBar onMenuClick={() => setSidebarOpen(true)} staffName={staffUser.name} staffRole={staffUser.role} />
           <main className={cn("flex-1 min-h-0 flex flex-col relative", (view === "inbox" || view === "ai-assistant") ? "overflow-hidden" : "overflow-y-auto")}>
             <ViewRouter />
